@@ -548,6 +548,8 @@ export default {
   'settings.updateDownloaded': 'Saved to ~/Downloads; installer opened',
   'settings.updateNotes': 'Release notes',
   'settings.updateDmgHint': 'For the desktop app; CLI installs update via okit upgrade',
+  'settings.revealExtension': 'Reveal extension folder in Finder',
+  'settings.extensionRevealed': 'Extension synced to {dir} — load that folder in chrome://extensions',
   'settings.serviceStatus': 'Web service',
   'settings.serviceConnected': 'Connected',
   'settings.serviceUnavailable': 'Unavailable',

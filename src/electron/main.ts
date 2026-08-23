@@ -1,10 +1,37 @@
-import { app, BrowserWindow, Menu, type MenuItemConstructorOptions, shell } from "electron";
+import { app, BrowserWindow, Menu, ipcMain, type MenuItemConstructorOptions, shell } from "electron";
+import fs from "fs-extra";
+import os from "os";
 import path from "path";
 
 type StartServer = (port?: number, onStarted?: (actualPort: number) => void) => unknown;
 
 let mainWindow: BrowserWindow | null = null;
 let serverPort: number | null = null;
+
+/**
+ * The browser extension ships INSIDE the desktop app (asarUnpack keeps it on
+ * the real filesystem — Chrome cannot load an unpacked extension from inside
+ * an asar archive). Revealing copies it to ~/.okit/extension so the path is
+ * stable across app updates and matches what `okit extension path` prints on
+ * CLI installs; the copy is refreshed on every reveal.
+ */
+function bundledExtensionDir(): string {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, "app.asar.unpacked", "extension")
+    : path.join(__dirname, "..", "..", "extension");
+}
+
+async function revealExtensionInFinder(): Promise<string> {
+  const src = bundledExtensionDir();
+  if (!(await fs.pathExists(src))) {
+    throw new Error(`桌面应用未内置扩展目录: ${src}`);
+  }
+  const dest = path.join(os.homedir(), ".okit", "extension");
+  await fs.remove(dest);
+  await fs.copy(src, dest);
+  shell.showItemInFolder(path.join(dest, "manifest.json"));
+  return dest;
+}
 
 function createApplicationMenu() {
   const isMac = process.platform === "darwin";
@@ -103,6 +130,7 @@ async function createWindow() {
     backgroundColor: "#07100b",
     show: false,
     webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -126,6 +154,7 @@ async function createWindow() {
 
 app.setName("OKIT");
 Menu.setApplicationMenu(createApplicationMenu());
+ipcMain.handle("okit:reveal-extension", revealExtensionInFinder);
 
 app.whenReady().then(async () => {
   await createWindow();

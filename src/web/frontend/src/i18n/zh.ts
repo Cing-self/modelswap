@@ -548,6 +548,8 @@ export default {
   'settings.updateDownloaded': '已下载到 ~/Downloads，安装器已打开',
   'settings.updateNotes': '发布说明',
   'settings.updateDmgHint': '桌面应用用安装包更新；CLI 安装请运行 okit upgrade',
+  'settings.revealExtension': '在 Finder 中显示扩展目录',
+  'settings.extensionRevealed': '扩展已同步到 {dir}，请在 chrome://extensions 加载该目录',
   'settings.serviceStatus': 'Web 服务',
   'settings.serviceConnected': '连接正常',
   'settings.serviceUnavailable': '连接异常',

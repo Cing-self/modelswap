@@ -1,6 +1,6 @@
 {
   "name": "@cing-self/okit-cli",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "OKIT - Agent infrastructure toolkit for managing dev tools, auth, and upgrades",
   "main": "dist/main.js",
   "bin": {
@@ -112,6 +112,12 @@
     "appId": "com.dolphin.okit",
     "productName": "OKIT",
     "asar": true,
+    "asarUnpack": [
+      "extension/manifest.json",
+      "extension/clipboard.html",
+      "extension/dist/**",
+      "extension/icons/**"
+    ],
     "directories": {
       "output": "release"
     },
@@ -120,6 +126,8 @@
     },
     "files": [
       "dist/**/*",
+      "extension/**",
+      "!extension/node_modules",
       "package.json"
     ],
     "mac": {

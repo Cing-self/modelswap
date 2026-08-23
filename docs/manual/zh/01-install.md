@@ -44,3 +44,5 @@ npm uninstall -g @cing-self/okit-cli   # 卸载
 ```
 
 > OKIT 不常驻后台、不在请求路径上：写完配置就退出，Agent 直连模型平台。卸载后 Agent 配置照常工作。
+
+> ⚠️ **卸载 CLI 不影响桌面版**（桌面应用完全自包含）。但 `~/.okit` 是 CLI 与桌面版**共享的数据目录**（密钥库、Provider 配置、快照）——如果你手动执行"完全卸载"（`rm -rf ~/.okit`），桌面版的数据也会被一起清空。只想卸载 CLI 时，`npm uninstall -g` 就够了，不要删 `~/.okit`。

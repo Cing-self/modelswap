@@ -44,3 +44,5 @@ npm uninstall -g @cing-self/okit-cli  # uninstall
 ```
 
 > OKIT runs no daemon and never sits in the request path: it writes your config and exits — your agent talks to the model provider directly. Agent configs keep working after uninstall.
+
+> ⚠️ **Uninstalling the CLI does not affect the desktop app** (it is fully self-contained). However, `~/.okit` is the **shared data directory** for both forms (vault, provider configs, snapshots) — a "full uninstall" that removes `rm -rf ~/.okit` also wipes the desktop app's data. To remove just the CLI, `npm uninstall -g` is enough; leave `~/.okit` alone.

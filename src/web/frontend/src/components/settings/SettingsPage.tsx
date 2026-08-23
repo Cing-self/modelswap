@@ -321,6 +321,23 @@ export default function SettingsPage() {
           </dl>
 
           <div className="settings-update-row">
+            {/* Desktop-only affordance: the app bundles the browser extension
+                (asarUnpack) — reveal it in Finder so the user can load it in
+                Chrome without needing the CLI. */}
+            {(window as any).okitDesktop?.revealExtension && (
+              <button
+                className="settings-diagnostics-copy"
+                type="button"
+                onClick={() => {
+                  (window as any).okitDesktop.revealExtension()
+                    .then((dir: string) => showToast(t('settings.extensionRevealed', { dir }), 'success'))
+                    .catch((err: any) => showToast(err.message, 'error'));
+                }}
+              >
+                <FolderOpen size={14} />
+                {t('settings.revealExtension')}
+              </button>
+            )}
             {update.status === 'available' ? (
               <>
                 <span className="settings-update-info">
