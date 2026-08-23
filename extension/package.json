@@ -1,0 +1,14 @@
+{
+  "name": "okit-extension",
+  "version": "2.0.0",
+  "description": "OKIT — Chrome extension that bridges OKIT to the user's logged-in browser sessions",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.260",
+    "typescript": "^5.4.0"
+  }
+}

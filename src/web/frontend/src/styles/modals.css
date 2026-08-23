@@ -1,0 +1,118 @@
+/* ─── Progress Modal ─── */
+.progress-modal {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 500;
+  width: 480px;
+  max-width: calc(100vw - var(--sidebar-w) - 60px);
+}
+
+.progress-panel {
+  background: var(--paper);
+  border-radius: 8px;
+  box-shadow: 4px 4px 0 rgba(0,0,0,0.12);
+  overflow: hidden;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  background: var(--ink);
+  color: var(--kraft);
+}
+
+.progress-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.progress-close {
+  border: none;
+  background: none;
+  color: var(--ink-muted);
+  font-size: 20px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+.progress-close:hover { color: var(--kraft); }
+
+.progress-output {
+  padding: 12px 16px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink-light);
+  background: var(--kraft);
+  max-height: 240px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0;
+}
+
+.progress-link {
+  color: #2563eb;
+  text-decoration: underline;
+  word-break: break-all;
+}
+.progress-link:hover { color: #1d4ed8; }
+
+[data-theme="dark"] .progress-link { color: #7db8fc; }
+[data-theme="dark"] .progress-link:hover { color: #93c5fd; }
+[data-theme="dark"] .auth-overlay { background: rgba(0,0,0,0.6); }
+[data-theme="dark"] .progress-output { background: rgba(0,0,0,0.2); }
+
+.progress-footer {
+  padding: 10px 16px;
+  text-align: center;
+}
+
+.progress-spinner {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+}
+
+.progress-spinner span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ink-muted);
+  animation: dotBounce 1.2s ease-in-out infinite;
+}
+
+.progress-spinner span:nth-child(2) { animation-delay: 0.15s; }
+.progress-spinner span:nth-child(3) { animation-delay: 0.3s; }
+
+.progress-result {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.progress-result--ok { color: var(--green); }
+.progress-result--fail { color: var(--red); }
+
+.progress-retry {
+  margin-left: 12px;
+  padding: 4px 14px;
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 4px;
+  border: 1.5px solid var(--red);
+  background: transparent;
+  color: var(--red);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.progress-retry:hover {
+  background: var(--red);
+  color: #fff;
+}

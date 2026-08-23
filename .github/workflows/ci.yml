@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    continue-on-error: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      # The lock is generated with npm 11; node 20 ships npm 10 whose stricter
+      # ci check rejects it. Install npm 11 for dependency install only.
+      - run: npm install -g npm@11
+      - run: npm ci --ignore-scripts
+
+      # Full compile (not --noEmit): tests import web/api modules that require
+      # compiled outputs under dist/.
+      - run: npx tsc
+
+      - run: npx vitest run
+
+      - name: Build frontend
+        working-directory: src/web/frontend
+        run: npm ci && npm run build
+
+      - name: Full root build
+        run: npm run build

@@ -1,0 +1,130 @@
+name: Publish to NPM and GitHub Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  validate-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify tag matches package version
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          EXPECTED="v${PKG_VERSION}"
+          echo "Tag: ${TAG}"
+          echo "Expected: ${EXPECTED}"
+          if [ "$TAG" != "$EXPECTED" ]; then
+            echo "::error::Git tag '$TAG' does not match package version '$PKG_VERSION'. Aborting release."
+            exit 1
+          fi
+
+  # Full preflight: tests, build, npm package contents, and BOTH architecture
+  # binaries must all succeed before anything is published. Publishing only
+  # starts after this job is green, so a broken build can no longer produce a
+  # half-published state (npm out, Release missing).
+  verify:
+    needs: validate-tag
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Node 24 ships npm 11.5+ — required for npm OIDC trusted publishing in
+      # the publish job. Keep verify on the same runtime so a green verify
+      # means the publish environment works too.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install frontend deps (locked)
+        run: cd src/web/frontend && npm ci
+
+      - name: Build browser extension (shipped in the npm package)
+        run: cd extension && npm ci && npm run build
+
+      - run: npm ci
+
+      # Compile before testing: tests import web/api modules that require
+      # compiled outputs under dist/ (same reason ci.yml compiles first).
+      - run: npx tsc
+
+      - name: Tests
+        run: npm test
+
+      - name: Build (tsc + presets + web + frontend)
+        run: npm run build
+
+      - name: Validate npm package contents
+        run: npm pack --dry-run
+
+      - name: Build standalone binaries (arm64 + x64)
+        run: npm run pkg
+
+      - name: Smoke-test arm64 binary
+        run: |
+          ./bin/okit-macos-arm64 --version
+          ./bin/okit-macos-arm64 skill path
+
+      - name: Verify x64 binary Mach-O header
+        run: |
+          file bin/okit-macos-x64 | tee /dev/stderr | grep -q 'Mach-O 64-bit executable x86_64'
+
+  publish:
+    needs: verify
+    runs-on: macos-latest
+    permissions:
+      contents: write   # create the GitHub Release
+      id-token: write   # npm OIDC trusted publishing (no NPM_TOKEN secret)
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Node 24 ships npm 11.5+ — trusted publishing requires npm >= 11.5.1.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install frontend deps (locked)
+        run: cd src/web/frontend && npm ci
+
+      - name: Build browser extension (shipped in the npm package)
+        run: cd extension && npm ci && npm run build
+
+      - run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      # Desktop installer BEFORE npm publish: every artifact must build before
+      # anything goes public, so a broken desktop build can't leave a
+      # half-published release. Universal dmg covers Apple Silicon + Intel.
+      # --publish never: GH_TOKEN's mere presence makes electron-builder open
+      # its OWN draft release — publish-release.sh owns release creation.
+      - name: Build desktop installer (universal dmg)
+        run: npx electron-builder --mac dmg --universal --publish never
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      # Trusted publishing (OIDC): npm exchanges GitHub's short-lived OIDC
+      # token for publish rights — no NPM_TOKEN secret involved. Requires the
+      # trusted-publisher config on the npm side (Cing-self/okit, publish.yml).
+      - name: Publish to NPM
+        run: npm publish --access public
+
+      # publish-release.sh owns the binary naming (okit-${TAG}-macos-{arch}.zip
+      # + .sha256 sidecars) and uploads both macOS assets, so CI and manual
+      # runs never drift.
+      - name: Build binaries and publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          scripts/publish-release.sh "$TAG" --auto-notes

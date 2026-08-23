@@ -1,0 +1,243 @@
+const express = require('express');
+const path = require('path');
+const os = require('os');
+const { listVault, setVault, deleteVault, exportVault, importVault, getVaultValue, testApiKey, migrateGroups } = require('./api/vault');
+const { autoCreateKey, autoCreateRunStatus, resumeAutoCreateRun, deleteAutoCreateKey, recoverLatestZaiGlobalKey, cdpStatus, listAutoCreatePlatforms, openVerificationLoginTabs } = require('./api/auto-create');
+const { getLogs } = require('./api/logs');
+const { getSettings, updateSettings, testPlatformConnection, getPresets, getOnboarding, dismissOnboarding, resetOnboarding } = require('./api/settings');
+const { checkWrangler, listStores, listStoreSecrets, syncToCloudflare } = require('./api/cloudflare-sync');
+const { handlePush, handlePull, handleStatus, handleExportCode, handleImportCode, handleLanStatus, handleLanEnable, handleLanDisable, handleLanRegenerate, handleLanPairingPeek, handleLanPairingCreate, handleLanPair, handleSyncOverview } = require('./api/sync');
+const { listProviders, getAdaptersList, createProvider, updateProvider, deleteProvider, switchProvider, addHomeProvider, removeHomeProvider, applyAgentModels, disableAgentProvider, getAgentConfigFiles, saveAgentConfigFile, setCatalogVisible, getCatalogVisible, getTierMaps, setTierMap, launchAgent, getAuthStatus, verifyProviderAuth, triggerOAuthLogin, fetchModels, exportProviderCode, importProviderCode } = require('./api/providers');
+const { getUsage, getSupportedUsageProviders, openXiaomiLogin } = require('./api/usage');
+const { createGrokProxyHandler } = require('./api/grok-proxy');
+const { listSnapshotsHandler, snapshotDetailHandler, restoreSnapshotHandler } = require('./api/snapshots');
+const { issueExtensionToken, isExtensionOrigin } = require('./api/ws-extension');
+const { getUpdateCheck, downloadUpdate } = require('./api/update-check');
+
+function createServer(port = 3780) {
+  const app = express();
+
+  // Grok Build tool-schema sanitizing proxy. Must be mounted before
+  // express.json(): the proxy reads the raw request body itself, and a
+  // JSON body-parser would consume the stream first (and cap its size).
+  app.use('/api/grok-proxy/:enc', createGrokProxyHandler());
+
+  // Middleware
+  app.use(express.json());
+  const publicDir = path.join(__dirname, 'public');
+  app.use(express.static(publicDir, { maxAge: 0, etag: false, lastModified: false, setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  } }));
+
+  // API Routes
+  app.get('/api/logs', getLogs);
+  app.get('/api/vault', listVault);
+  app.get('/api/vault/list', listVault);
+  app.post('/api/vault', setVault);
+  app.delete('/api/vault', deleteVault);
+  app.get('/api/vault/export', exportVault);
+  app.post('/api/vault/import', importVault);
+  app.get('/api/vault/value', getVaultValue);
+  // Agent-config key reconciliation: scan plaintext keys in agent configs,
+  // import them into the vault on request.
+  const { scanAgentKeys, importAgentKeys } = require('./api/key-import');
+  app.get('/api/vault/scan-agent-keys', scanAgentKeys);
+  app.post('/api/vault/import-agent-keys', importAgentKeys);
+  app.post('/api/vault/test-key', testApiKey);
+  app.post('/api/vault/migrate-groups', migrateGroups);
+  app.post('/api/vault/auto-create', autoCreateKey);
+  app.get('/api/vault/auto-create/status/:runId', autoCreateRunStatus);
+  app.post('/api/vault/auto-create/resume/:runId', resumeAutoCreateRun);
+  app.post('/api/vault/auto-create/delete', deleteAutoCreateKey);
+  app.post('/api/vault/auto-create/recover-zai-latest', async (_req, res) => {
+    try {
+      const result = await recoverLatestZaiGlobalKey();
+      res.json({ success: true, platform: 'zai-global', name: result.name, valueLength: result.valueLength });
+      require('./api/sync-scheduler').markDirty('secrets');
+    } catch (error) {
+      res.status(500).json({ success: false, error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+  app.get('/api/vault/auto-create/platforms', listAutoCreatePlatforms);
+  app.post('/api/vault/auto-create/open-login-tabs', openVerificationLoginTabs);
+  app.get('/api/vault/cdp-status', cdpStatus);
+
+  // Lightweight health-check endpoint for the Chrome extension.
+  // The extension probes /ping before each WebSocket attempt so that
+  // ERR_CONNECTION_REFUSED (uncatchable on new WebSocket()) stays out of
+  // the extension console. No auth/header required.
+  app.get('/ping', (_req, res) => res.json({ ok: true }));
+
+  // One-time WebSocket auth token for the Chrome extension. Only browser-
+  // extension origins get CORS headers, so an ordinary web page cannot read a
+  // token even if it can reach this endpoint — and without a token the WS
+  // channel at /ws/extension stays closed to it.
+  app.get('/api/extension/token', (req, res) => {
+    const origin = req.headers.origin || '';
+    if (!isExtensionOrigin(origin)) {
+      return res.status(403).json({ error: 'Forbidden: extension origins only' });
+    }
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+    res.json({ token: issueExtensionToken(), ttlSeconds: 120 });
+  });
+
+  // Update check + guided download (desktop dmg / release assets). Shared by
+  // the desktop app, the web console, and mirrors the CLI's upgrade source.
+  app.get('/api/update-check', getUpdateCheck);
+  app.post('/api/update-download', downloadUpdate);
+
+  // Diagnostics summary for support requests: real port, runtime, extension
+  // link state, per-agent config presence, and the most recent failed
+  // operations. Everything redacts secrets; keys never leave this machine.
+  app.get('/api/diagnostics', (_req, res) => {
+    try {
+      const wsExt = require('./api/ws-extension');
+      const providersApi = require('./api/providers');
+      const { recentFailures } = require('./api/logs');
+      res.json({
+        version: require('../../package.json').version,
+        port: runtimePort,
+        nodeVersion: process.version,
+        platform: `${process.platform} ${os.release()} ${process.arch}`,
+        extension: {
+          connected: wsExt.isExtensionConnected(),
+          version: wsExt.getExtensionVersion(),
+          protocol: wsExt.getExtensionProtocol(),
+        },
+        agents: providersApi.agentConfigPresence(),
+        recentFailures: recentFailures(5),
+      });
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  // Cloudflare sync routes
+  app.get('/api/cloudflare/check', checkWrangler);
+  app.get('/api/cloudflare/stores', listStores);
+  app.get('/api/cloudflare/store-secrets', listStoreSecrets);
+  app.post('/api/cloudflare/sync', syncToCloudflare);
+
+  // Settings routes
+  app.get('/api/settings', getSettings);
+  app.post('/api/settings', updateSettings);
+  app.post('/api/settings/test', testPlatformConnection);
+  app.get('/api/settings/presets', getPresets);
+  app.get('/api/settings/onboarding', getOnboarding);
+  app.post('/api/settings/onboarding/dismiss', dismissOnboarding);
+  app.post('/api/settings/onboarding/reset', resetOnboarding);
+
+  // Sync routes
+  app.post('/api/sync/push', handlePush);
+  app.post('/api/sync/pull', handlePull);
+  app.get('/api/sync/status', handleStatus);
+  app.get('/api/sync/overview', handleSyncOverview);
+  app.post('/api/sync/code/export', handleExportCode);
+  app.post('/api/sync/code/import', handleImportCode);
+  // LAN peer sync (dedicated listener on its own port, token-authenticated)
+  app.get('/api/sync/lan/status', handleLanStatus);
+  app.post('/api/sync/lan/enable', handleLanEnable);
+  app.post('/api/sync/lan/disable', handleLanDisable);
+  app.post('/api/sync/lan/regenerate', handleLanRegenerate);
+  app.get('/api/sync/lan/pairing', handleLanPairingPeek);
+  app.post('/api/sync/lan/pairing', handleLanPairingCreate);
+  app.post('/api/sync/lan/pair', handleLanPair);
+
+  // Provider routes
+  app.get('/api/providers', listProviders);
+  app.get('/api/providers/adapters', getAdaptersList);
+  app.post('/api/providers', createProvider);
+  // Home-page provider list (curated per agent).
+  app.post('/api/providers/agents/:agentId/home', addHomeProvider);
+  app.delete('/api/providers/agents/:agentId/home/:providerId', removeHomeProvider);
+  // Additive agents: append specific models of an already-added site into the
+  // agent's own config (used by the home "add models" picker).
+  app.post('/api/providers/agents/:agentId/models', applyAgentModels);
+  // Additive agents (workbuddy): per-site disable — removes the site's entries
+  // from the agent's own config while keeping it in the home list.
+  app.post('/api/providers/agents/:agentId/disable', disableAgentProvider);
+  app.get('/api/providers/agents/:agentId/config-files', getAgentConfigFiles);
+  app.put('/api/providers/agents/:agentId/config-files', saveAgentConfigFile);
+  // Codex model-catalog exclusion (which models show in /model).
+  app.get('/api/providers/catalog/visible', getCatalogVisible);
+  app.put('/api/providers/catalog/visible/:providerId', setCatalogVisible);
+  app.get('/api/providers/tier-maps', getTierMaps);
+  app.put('/api/providers/tier-maps/:providerId', setTierMap);
+  app.put('/api/providers/:id', updateProvider);
+  app.delete('/api/providers/:id', deleteProvider);
+  app.post('/api/providers/switch', switchProvider);
+  app.post('/api/providers/launch', launchAgent);
+  app.get('/api/providers/auth', getAuthStatus);
+  app.post('/api/providers/:id/verify-auth', verifyProviderAuth);
+  app.post('/api/providers/auth/login', triggerOAuthLogin);
+  app.post('/api/providers/fetch-models', fetchModels);
+  app.post('/api/providers/export-code', exportProviderCode);
+  app.post('/api/providers/import-code', importProviderCode);
+
+  // Snapshot routes (pre-switch config snapshots)
+  app.get('/api/snapshots', listSnapshotsHandler);
+  app.get('/api/snapshots/detail', snapshotDetailHandler);
+  app.post('/api/snapshots/restore', restoreSnapshotHandler);
+
+  // Usage / quota routes
+  app.get('/api/usage/supported', getSupportedUsageProviders);
+  app.post('/api/usage/:providerId/login', openXiaomiLogin);
+  app.get('/api/usage/:providerId', getUsage);
+
+  // SPA fallback
+  app.use((req, res) => {
+    if (req.path.startsWith('/api/')) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+    // Pass the public directory as `root` instead of sending one absolute
+    // path. The `send` package treats dot-prefixed segments in an absolute
+    // workspace path (for example `.codex`) as hidden files and returns 404.
+    res.sendFile('index.html', { root: publicDir });
+  });
+
+  return app;
+}
+
+// Actual listening port (may differ from the default 3780 after fallback).
+// Recorded so /api/diagnostics can report the real port.
+let runtimePort = null;
+
+function startServer(port = 3780, onStarted) {
+  const { setupWebSocket, sendToExtension, isExtensionConnected } = require('./api/ws-extension');
+  const app = createServer(port);
+
+  const server = require('http').createServer(app);
+
+  server.listen(port, '127.0.0.1', () => {
+    runtimePort = port;
+    // Attach WebSocket only after the HTTP port is bound successfully.
+    // WebSocketServer forwards errors from its HTTP server; attaching it
+    // before listen() turns EADDRINUSE into an uncaught WebSocket error and
+    // prevents the fallback-port retry below from completing.
+    setupWebSocket(server);
+    console.log(`\n  OKIT Web UI is running at http://localhost:${port}`);
+    console.log(`  Press Ctrl+C to stop\n`);
+    // Auto-sync scheduler: debounced push + periodic pull check.
+    require('./api/sync-scheduler').startAutoSync();
+    // LAN peer sync listener: separate port, only if enabled in config.
+    require('./api/lan-sync-server').applyConfig().catch((err) => {
+      console.error('LAN sync listener startup failed:', err.message);
+    });
+    if (onStarted) onStarted(port);
+  });
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      const nextPort = port + 1;
+      console.log(`  Port ${port} in use, trying ${nextPort}...`);
+      startServer(nextPort, onStarted);
+    } else {
+      throw err;
+    }
+  });
+
+  return app;
+}
+
+module.exports = { createServer, startServer };
