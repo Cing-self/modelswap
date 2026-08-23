@@ -18,7 +18,7 @@ import {
   hookUninstall,
   hookStatus,
 } from "./commands/hook";
-import { setLanguage, getLanguage, t, Language, initLanguage, loadLanguageConfig } from "./config/i18n";
+import { setLanguage, getLanguage, t, Language, initLanguage, loadLanguageConfig, saveLanguageConfig } from "./config/i18n";
 import { loadUserConfig, updateUserConfig } from "./config/user";
 import {
   providerList,
@@ -99,6 +99,10 @@ async function selectLanguageIfNeeded(): Promise<void> {
 
   if (response.lang) {
     setLanguage(response.lang);
+    // setLanguage persists fire-and-forget; await the same save so the very
+    // next user.json write (first-run hint below) cannot race it and lose
+    // the language on a fresh install.
+    await saveLanguageConfig(response.lang);
   }
 }
 

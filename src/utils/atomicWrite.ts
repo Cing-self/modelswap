@@ -10,15 +10,28 @@ import path from "path";
  *
  * On Windows, rename is not guaranteed atomic but is still far safer
  * than a bare write (the window of corruption is smaller).
+ *
+ * The temp name is UNIQUE per call: concurrent atomicWrites to the same
+ * target (e.g. the language save racing the first-run hint save on a fresh
+ * install) used to share one tmp path — the first rename consumed it and
+ * the second failed with ENOENT. pid + counter keeps writers independent.
  */
+let tmpCounter = 0;
+
 export async function atomicWrite(
   filePath: string,
   data: string,
   options?: { mode?: number },
 ): Promise<void> {
-  const tmpPath = filePath + ".okit-tmp";
-  await fs.writeFile(tmpPath, data, options);
-  await renameWithRetry(tmpPath, filePath);
+  const tmpPath = `${filePath}.${process.pid}.${++tmpCounter}.okit-tmp`;
+  try {
+    await fs.writeFile(tmpPath, data, options);
+    await renameWithRetry(tmpPath, filePath);
+  } catch (err) {
+    // Never leave the unique tmp file behind on failure.
+    await fs.remove(tmpPath).catch(() => {});
+    throw err;
+  }
 }
 
 async function renameWithRetry(src: string, dest: string, attempt = 1): Promise<void> {
