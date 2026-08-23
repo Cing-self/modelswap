@@ -1,6 +1,6 @@
 {
   "name": "@cing-self/okit-cli",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "OKIT - Agent infrastructure toolkit for managing dev tools, auth, and upgrades",
   "main": "dist/main.js",
   "bin": {
@@ -19,8 +19,7 @@
     "dev:web": "cd src/web/frontend && npm run dev",
     "start": "node dist/main.js",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "pkg": "pkg . --targets node18-macos-arm64 --output bin/okit-macos-arm64 && pkg . --targets node18-macos-x64 --output bin/okit-macos-x64"
+    "test:watch": "vitest"
   },
   "files": [
     "dist/main.*",
@@ -82,31 +81,9 @@
     "@types/ws": "^8.18.1",
     "electron": "^43.0.0",
     "electron-builder": "^26.15.3",
-    "pkg": "^5.8.1",
     "ts-node": "^10.9.1",
     "typescript": "^5.1.6",
     "vitest": "^4.1.5"
-  },
-  "pkg": {
-    "scripts": [
-      "dist/commands/**/*.js",
-      "dist/config/**/*.js",
-      "dist/providers/**/*.js",
-      "dist/utils/**/*.js",
-      "dist/vault/**/*.js",
-      "dist/web/server.js",
-      "dist/web/api/**/*.js"
-    ],
-    "assets": [
-      "dist/web/public/**/*",
-      "skills/okit-cli/SKILL.md",
-      "extension/**/*"
-    ],
-    "targets": [
-      "node18-macos-arm64",
-      "node18-macos-x64"
-    ],
-    "outputPath": "bin"
   },
   "build": {
     "appId": "com.dolphin.okit",
@@ -133,8 +110,7 @@
     "mac": {
       "category": "public.app-category.developer-tools",
       "icon": "build/icon.icns",
-      "artifactName": "${productName}-${version}-${arch}.${ext}",
-      "x64ArchFiles": "**/node_modules/**"
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
     }
   }
 }

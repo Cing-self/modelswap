@@ -75,54 +75,25 @@ PY
 fi
 
 if [[ ${#assets[@]} -eq 0 ]]; then
-  if ! command -v npm >/dev/null 2>&1; then
-    echo "Error: npm is not installed."
-    exit 1
-  fi
-  if ! command -v zip >/dev/null 2>&1; then
-    echo "Error: zip is not installed."
-    exit 1
-  fi
-
-  echo "Building..."
-  npm run build
-  npm run pkg
-
+  # CLI ships via npm only — the sole binary artifact is the desktop dmg
+  # (built by CI's electron-builder step before this script runs).
   release_dir="dist/release/$version"
   mkdir -p "$release_dir"
 
-  for bin_path in bin/okit-macos-*; do
-    if [[ ! -f "$bin_path" ]]; then
-      echo "Error: no binaries found in bin/. Run npm run pkg first."
-      exit 1
-    fi
-    bin_name="$(basename "$bin_path")"
-    arch="${bin_name#okit-macos-}"
-    asset_name="okit-${version}-macos-${arch}.zip"
-    tmp_dir="$release_dir/okit-${arch}"
-    mkdir -p "$tmp_dir"
-    cp "$bin_path" "$tmp_dir/okit"
-    (cd "$tmp_dir" && zip -q -r "../$asset_name" "okit")
-  done
-
-  # SHA256 sidecars — install.sh and `okit upgrade` refuse to proceed without
-  # them, so every zip must ship with a matching .sha256. Sidecars must
-  # reference the BARE filename: `shasum --check` runs in the downloader's
-  # temp dir, and a build-machine path inside the file breaks the check.
-  (cd "$release_dir" && for z in *.zip; do shasum -a 256 "$z" > "$z.sha256"; done)
-
-  # Desktop installer (electron-builder output in release/) — attach alongside
-  # the CLI binaries when present. Universal dmg covers arm64 + x64.
   for dmg in release/*.dmg; do
     [[ -f "$dmg" ]] || continue
     cp "$dmg" "$release_dir/"
+    # SHA256 sidecar must reference the BARE filename: `shasum --check` runs
+    # in the downloader's directory, and a build-machine path inside the
+    # file breaks the check.
     (cd "$release_dir" && shasum -a 256 "$(basename "$dmg")" > "$(basename "$dmg").sha256")
+    assets+=("$release_dir/$(basename "$dmg")" "$release_dir/$(basename "$dmg").sha256")
   done
 
-  assets=("$release_dir"/*.zip "$release_dir"/*.zip.sha256)
-  for dmg in "$release_dir"/*.dmg; do
-    [[ -f "$dmg" ]] && assets+=("$dmg" "$dmg.sha256")
-  done
+  if [[ ${#assets[@]} -eq 0 ]]; then
+    echo "Error: no dmg found in release/. Run the electron-builder step first."
+    exit 1
+  fi
 fi
 
 notes_file=""

@@ -4,7 +4,7 @@
 
 ## 3.1 获取扩展
 
-**npm / 脚本安装的用户**：无需自己构建。运行下面的命令拿到扩展目录（二进制安装会自动把扩展物化到 `~/.okit/extension`），然后直接按 3.2 加载该目录即可：
+**npm 安装的用户**：无需自己构建。运行下面的命令拿到扩展目录，然后直接按 3.2 加载该目录即可：
 
 ```bash
 okit extension path    # 输出可直接加载的扩展目录
@@ -25,7 +25,7 @@ npm run build        # tsc 编译 → extension/dist/
 1. 打开 `chrome://extensions/`
 2. 右上角开启**开发者模式**
 3. 点击**加载已解压的扩展程序**
-4. 选择 `manifest.json` 所在的**扩展根目录**——npm / 脚本安装的用户选 `okit extension path` 的输出，源码用户选仓库的 `extension/` 目录（构建出 `dist/` 之后）。注意不是其中的 `dist` 子目录。
+4. 选择 `manifest.json` 所在的**扩展根目录**——npm 安装的用户选 `okit extension path` 的输出，源码用户选仓库的 `extension/` 目录（构建出 `dist/` 之后）。注意不是其中的 `dist` 子目录。
 
 加载成功后扩展列表会出现 "OKIT"。
 

@@ -64,11 +64,8 @@ async function fetchLatestRelease() {
 function pickAssets(assets) {
   const find = (pred) => assets.find(pred) || null;
   return {
-    // Desktop installer (universal dmg built by electron-builder in CI).
+    // Desktop installer (arm64 dmg built by electron-builder in CI).
     dmg: find((a) => a.name.endsWith('.dmg')),
-    // CLI standalone binaries (consumed by install.sh / okit upgrade).
-    cliMacArm64: find((a) => /okit-.*-macos-arm64\.zip$/.test(a.name)),
-    cliMacX64: find((a) => /okit-.*-macos-x64\.zip$/.test(a.name)),
   };
 }
 

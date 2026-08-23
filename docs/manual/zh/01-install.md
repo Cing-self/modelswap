@@ -8,12 +8,6 @@
 npm install -g @cing-self/okit-cli
 ```
 
-**脚本安装：**
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/Cing-self/okit/refs/heads/main/install.sh | bash
-```
-
 **从源码构建：**
 
 ```bash

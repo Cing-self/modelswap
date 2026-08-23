@@ -4,7 +4,7 @@ The **OKIT** extension (MV3) reuses your logged-in Chrome sessions: it fills for
 
 ## 3.1 Get the extension
 
-**npm / script installs**: no need to build it yourself. Run the command below to get the extension directory (binary installs automatically materialize it to `~/.okit/extension`), then load that directory as described in 3.2:
+**npm installs**: no need to build it yourself. Run the command below to get the extension directory, then load that directory as described in 3.2:
 
 ```bash
 okit extension path    # prints a loadable extension directory
@@ -25,7 +25,7 @@ npm run build        # tsc compile → extension/dist/
 1. Open `chrome://extensions/`
 2. Enable **Developer mode** (top right)
 3. Click **Load unpacked**
-4. Select the extension ROOT directory that contains `manifest.json` — npm / script installs pick the path printed by `okit extension path`, source users pick the repo's `extension/` directory (after building `dist/`). Not the `dist` subdirectory itself.
+4. Select the extension ROOT directory that contains `manifest.json` — npm installs pick the path printed by `okit extension path`, source users pick the repo's `extension/` directory (after building `dist/`). Not the `dist` subdirectory itself.
 
 The extension list should now show "OKIT".
 
