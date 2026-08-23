@@ -13,11 +13,6 @@ import {
   vaultInject,
   vaultEnv,
 } from "./commands/vault";
-import {
-  hookInstall,
-  hookUninstall,
-  hookStatus,
-} from "./commands/hook";
 import { setLanguage, getLanguage, t, Language, initLanguage, loadLanguageConfig, saveLanguageConfig } from "./config/i18n";
 import { loadUserConfig, updateUserConfig } from "./config/user";
 import {
@@ -283,34 +278,9 @@ vault
     }
   });
 
-// hook 子命令 - Shell 自动注入钩子
-const hook = program
-  .command("hook")
-  .description("管理 Shell Hook（cd 时自动注入密钥）")
-  .action(async () => {
-    await hookStatus();
-  });
-
-hook
-  .command("install")
-  .description("安装 chpwd 钩子到 shell 配置文件")
-  .action(async () => {
-    await hookInstall();
-  });
-
-hook
-  .command("uninstall")
-  .description("从 shell 配置文件移除钩子")
-  .action(async () => {
-    await hookUninstall();
-  });
-
-hook
-  .command("status")
-  .description("查看 hook 安装状态")
-  .action(async () => {
-    await hookStatus();
-  });
+// hook 子命令已于 v1.0.3 移除：其唯一作用（检测 .okitenv 自动注入）随
+// 项目绑定功能一同删除，且它是产品中唯一主动写 shell rc 的功能，与
+// "零侵入"承诺冲突。已装用户的手动清理方式见手册 FAQ。
 
 // skill 子命令 - 安装供其他 Agent 使用的 OKIT CLI Skill
 const skill = program

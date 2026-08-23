@@ -16,7 +16,7 @@ Keys are stored AES-256-GCM encrypted and masked in the UI by default. Bound pro
 Find the occupant first: `lsof -i :3780`. If it's another program, stop it or let OKIT use another port (the extension auto-detects fallback ports). If it's a leftover OKIT process, kill it and start again.
 
 **Q: Does installing OKIT touch my shell config?**
-No. Only an explicit `okit hook install` writes the cd hook; `okit hook uninstall` removes it at any time.
+No. No OKIT feature writes to your shell config. (The `okit hook` command was removed in v1.0.3 — the project-binding injection it served had already been deleted. If an older version installed the hook: open `~/.zshrc` / `~/.bashrc` and delete everything between the `# >>> okit-hook >>>` and `# <<< okit-hook <<<` markers.)
 
 **Q: Multi-machine sync — who wins on conflict?**
 Newest modification wins: newer local changes are never overwritten by older remote data. With auto sync you don't need to think about it; manually, `pull` first, then edit, then `push`.

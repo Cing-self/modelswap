@@ -1,11 +1,11 @@
 ---
 name: okit-cli
-description: Use the OKIT CLI to inspect or manage local AI providers, Agent model routing, encrypted Vault keys, project environment injection, shell hooks, and cloud sync. Apply when a user asks to use `okit`, configure an AI coding Agent, manage its provider/model, or work with OKIT-managed secrets; do not use for unrelated provider APIs.
+description: Use the OKIT CLI to inspect or manage local AI providers, Agent model routing, encrypted Vault keys, project environment injection, and cloud sync. Apply when a user asks to use `okit`, configure an AI coding Agent, manage its provider/model, or work with OKIT-managed secrets; do not use for unrelated provider APIs.
 ---
 
 # OKIT CLI
 
-Use OKIT as the local control plane for AI coding Agent credentials and model routing. Preserve the user's authorization boundary: inspecting configuration does not authorize changing Agent files, revealing secrets, installing shell hooks, or syncing data externally.
+Use OKIT as the local control plane for AI coding Agent credentials and model routing. Preserve the user's authorization boundary: inspecting configuration does not authorize changing Agent files, revealing secrets, or syncing data externally.
 
 ## Discover and inspect
 
@@ -16,7 +16,6 @@ okit provider current --json
 okit provider list --json
 okit provider auth --json
 okit vault list --json
-okit hook status
 ```
 
 `vault list --json` is masked and safe to inspect. Provider JSON contains configuration metadata, not secret values. Run `okit <command> --help` when an option is uncertain, and use stable IDs from JSON rather than guessing from display names.
@@ -53,9 +52,7 @@ Use either only when the task explicitly requires the plaintext result, and do n
 
 Deletion is destructive. Inspect `okit vault where <KEY>` before `okit vault delete <KEY>` so affected projects are known.
 
-## Shell hooks and cloud sync
-
-`okit hook install` edits the user's shell profile and `hook uninstall` removes the managed block. Run either only when explicitly requested.
+## Cloud sync
 
 `okit vault push`, `pull`, and `test` contact configured external storage. `push` changes remote state; `pull` merges remote keys into the local Vault. Do not run them based only on a request to inspect sync status.
 
@@ -73,4 +70,4 @@ This writes `.agents/skills/okit-cli/SKILL.md` in the target project. Do not use
 
 ## Verify outcomes
 
-Use command exit status plus the narrowest read-only follow-up (`provider current --json`, `provider auth --json`, `vault list --json`, `vault where`, or `hook status`). Stop after one failed retry when the failure depends on credentials, external services, or user-owned configuration; report the error without exposing secrets.
+Use command exit status plus the narrowest read-only follow-up (`provider current --json`, `provider auth --json`, `vault list --json`, or `vault where`). Stop after one failed retry when the failure depends on credentials, external services, or user-owned configuration; report the error without exposing secrets.

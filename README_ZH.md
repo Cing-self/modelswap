@@ -69,10 +69,9 @@ okit vault inject                     # 输出 export 语句（配合 eval）
 okit provider list                    # 列出 40 个预置模型平台
 okit provider switch                  # 交互式切换 Agent 的 Provider/模型
 okit provider use <provider>          # 非交互式切换（脚本/Agent 友好）
-okit hook install                     # cd 进项目自动注入密钥到 shell
 ```
 
-> **Shell 配置安全边界**：安装 `okit` 不会自动修改你的 Shell 配置（`~/.zshrc` / `~/.bashrc` 等）。只有你主动运行 `okit hook install` 时才会写入 cd 钩子；`okit hook uninstall` 可随时移除。
+> **Shell 配置安全边界**：OKIT 永远不会修改你的 Shell 配置（`~/.zshrc` / `~/.bashrc` 等）——没有任何功能会写它。
 
 ### 给 AI Agent 使用
 
@@ -87,7 +86,7 @@ npx skills add Cing-self/okit --skill okit-cli
 ## 功能总览
 
 ### 密钥库
-加密存储（AES-256-GCM）、脱敏展示、shell 钩子自动注入、云同步 + 局域网同步。首次启动向导自动扫描 Agent 配置文件，把散落的明文密钥一键安全入库。
+加密存储（AES-256-GCM）、脱敏展示、云同步 + 局域网同步。首次启动向导自动扫描 Agent 配置文件，把散落的明文密钥一键安全入库。
 
 ### Provider / 模型管控
 40 个平台预置（官方 / 聚合 / 国内），10 个 Agent 适配器，多端点协议（anthropic / openai 兼容），认证状态检测，订阅 / API / 第三方三模式凭证管理。添加站点默认空模型列表，你勾选什么写什么；模型参数（上下文窗口 / 输出上限 / 工具调用 / 推理 / 多模态）自动从 [models.dev](https://models.dev) 目录补全，不再靠猜。

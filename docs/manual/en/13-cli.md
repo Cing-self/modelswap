@@ -20,11 +20,6 @@ okit vault test <platform>      # test a cloud sync platform connection
 okit vault push                 # push keys & configs to the cloud
 okit vault pull                 # pull and merge from the cloud
 
-# Shell hook
-okit hook install               # auto-inject keys on cd into a project
-okit hook uninstall             # remove the hook
-okit hook status                # check status
-
 # Providers / models
 okit provider list [--json]     # list all providers
 okit provider switch [agent]    # interactive switch

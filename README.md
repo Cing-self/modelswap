@@ -69,14 +69,13 @@ okit vault inject                     # print export statements (pipe to eval)
 okit provider list                    # list 40 preset model platforms
 okit provider switch                  # interactive provider/model switch
 okit provider use <provider>          # non-interactive switch (script/agent friendly)
-okit hook install                     # auto-inject keys into your shell on cd
 ```
 
-> **Shell config boundary**: installing `okit` never touches your shell config (`~/.zshrc` / `~/.bashrc` etc.). The cd hook is only written when you explicitly run `okit hook install`; `okit hook uninstall` removes it at any time.
+> **Shell config boundary**: OKIT never touches your shell config (`~/.zshrc` / `~/.bashrc` etc.) — no feature writes to it, in any form.
 
 ### For AI agents
 
-The package ships an [`okit-cli` Agent Skill](skills/okit-cli/SKILL.md). Run `okit skill install /path/to/project` to install it into the target project's `.agents/skills/okit-cli/`; `okit skill path` prints the bundled original location. The skill documents resolvable read-only commands, non-interactive model switching, and the security boundaries around plaintext keys, shell hooks and cloud sync.
+The package ships an [`okit-cli` Agent Skill](skills/okit-cli/SKILL.md). Run `okit skill install /path/to/project` to install it into the target project's `.agents/skills/okit-cli/`; `okit skill path` prints the bundled original location. The skill documents resolvable read-only commands, non-interactive model switching, and the security boundaries around plaintext keys and cloud sync.
 
 Or install straight from the public repo via [skills.sh](https://skills.sh/):
 
@@ -87,7 +86,7 @@ npx skills add Cing-self/okit --skill okit-cli
 ## Features
 
 ### Key vault
-AES-256-GCM encrypted storage, masked display, shell hook auto-injection, cloud sync + LAN sync. The first-run wizard scans agent config files and imports stray plaintext keys into the vault in one click.
+AES-256-GCM encrypted storage, masked display, cloud sync + LAN sync. The first-run wizard scans agent config files and imports stray plaintext keys into the vault in one click.
 
 ### Provider / model management
 40 preset platforms (official / aggregator / CN), 10 agent adapters, multi-endpoint protocols (Anthropic / OpenAI compatible), auth-state detection, and subscription / API-key / third-party credential modes. Adding a site starts with an empty model list — you check what you want, exactly that gets written. Model parameters (context window / output limit / tool call / reasoning / multimodal) are auto-filled from the [models.dev](https://models.dev) catalog — no more guessing.

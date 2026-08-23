@@ -20,11 +20,6 @@ okit vault test <platform>      # 测试云同步平台连接
 okit vault push                 # 推送密钥与配置到云端
 okit vault pull                 # 从云端拉取合并
 
-# Shell 钩子
-okit hook install               # cd 进项目自动注入密钥
-okit hook uninstall             # 移除钩子
-okit hook status                # 查看状态
-
 # Provider / 模型
 okit provider list [--json]     # 列出所有 Provider
 okit provider switch [agent]    # 交互式切换
