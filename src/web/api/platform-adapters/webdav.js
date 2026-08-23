@@ -1,4 +1,3 @@
-const fetch = require('node-fetch');
 
 const SYNC_DIR = 'okit-sync';
 

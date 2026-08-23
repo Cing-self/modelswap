@@ -1,4 +1,3 @@
-const fetch = require('node-fetch');
 
 const API_BASE = 'https://api.cloudflare.com/client/v4';
 const DB_NAME = 'okit-sync';

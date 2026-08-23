@@ -1,13 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import Module from 'module';
 
 const fetchMock = vi.hoisted(() => vi.fn());
 
-const origRequire = Module.prototype.require;
-Module.prototype.require = function (id) {
-  if (id === 'node-fetch') return fetchMock;
-  return origRequire.apply(this, arguments);
-};
+// The adapters use the native global fetch (no node-fetch dependency).
+vi.stubGlobal('fetch', fetchMock);
 
 const d1 = await import('../src/web/api/platform-adapters/cloudflare-d1.js');
 

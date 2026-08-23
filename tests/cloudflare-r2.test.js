@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const fetchMock = vi.hoisted(() => vi.fn());
 
-vi.mock('node-fetch', () => ({ default: fetchMock }));
+vi.stubGlobal('fetch', fetchMock);
 
 const r2 = await import('../src/web/api/platform-adapters/cloudflare-r2.js');
 

@@ -1,4 +1,3 @@
-const fetch = require('node-fetch');
 
 const TABLE_NAME = 'okit_sync';
 
