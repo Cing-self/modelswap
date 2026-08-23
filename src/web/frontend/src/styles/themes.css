@@ -1,0 +1,345 @@
+/* ═══════════════════════════════════════════
+   OKIT 界面风格包（data-style 属性驱动）
+   - 默认 command 风格由 dashboard-command.css 定义，
+     此文件只定义可切换的风格包（kraft / ocean / mono / ember）
+   - 每包两块：暗色 [data-style="x"] + 亮色 [data-style="x"][data-theme="light"]
+   - --panel-bg 必须保持 5 层：光晕、光晕、横网格、竖网格、基底渐变
+   ═══════════════════════════════════════════ */
+
+/* ─── 牛皮纸 kraft：暖棕纸感 ─── */
+[data-style="kraft"] {
+  --kraft: #14100c;
+  --kraft-dark: #4a3b28;
+  --paper: #1f1913;
+  --ink: #f0e9dd;
+  --ink-light: #cfc4b2;
+  --ink-muted: #94897a;
+  --accent: #e6a23c;
+  --accent-ink: #1d1405;
+  --sidebar-bg: var(--surface-1);
+  --sidebar-fg: #f0e9dd;
+  --sidebar-hover: rgba(240, 233, 221, 0.06);
+  --sidebar-active: rgba(240, 233, 221, 0.1);
+  --border: rgba(240, 233, 221, 0.16);
+  --text: #f0e9dd;
+  --text-secondary: #cfc4b2;
+  --text-muted: #94897a;
+  --surface-0: #14100c;
+  --surface-1: #1a1510;
+  --surface-2: #221b14;
+  --surface-3: #2b2219;
+  --panel-bg:
+    radial-gradient(circle at 78% 8%, rgba(230, 162, 60, 0.09), transparent 28%),
+    radial-gradient(circle at 30% 0%, rgba(214, 120, 60, 0.06), transparent 25%),
+    linear-gradient(rgba(240, 233, 221, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(240, 233, 221, 0.03) 1px, transparent 1px),
+    linear-gradient(180deg, #14100c 0%, #1a1510 100%);
+}
+
+[data-style="kraft"][data-theme="light"] {
+  --kraft: #f3ebdf;
+  --kraft-dark: #d8c5a8;
+  --paper: #fffaf2;
+  --ink: #322a20;
+  --ink-light: #5c5142;
+  --ink-muted: #9a8d7b;
+  --accent: #b0671a;
+  --accent-ink: #fff8ef;
+  --sidebar-bg: var(--surface-1);
+  --sidebar-fg: #322a20;
+  --sidebar-hover: rgba(50, 42, 32, 0.05);
+  --sidebar-active: rgba(50, 42, 32, 0.09);
+  --border: rgba(50, 42, 32, 0.16);
+  --text: #322a20;
+  --text-secondary: #5c5142;
+  --text-muted: #9a8d7b;
+  --surface-0: #f3ebdf;
+  --surface-1: #faf6ee;
+  --surface-2: #fffdf8;
+  --surface-3: #ecdfc9;
+  --panel-bg:
+    radial-gradient(circle at 82% 5%, rgba(230, 162, 60, 0.25), transparent 28%),
+    radial-gradient(circle at 30% 0%, rgba(214, 120, 60, 0.08), transparent 26%),
+    linear-gradient(rgba(50, 42, 32, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(50, 42, 32, 0.045) 1px, transparent 1px),
+    linear-gradient(180deg, #faf6ee 0%, #f3ebdf 100%);
+}
+
+/* ─── 深海 ocean：冷调蓝系 ─── */
+[data-style="ocean"] {
+  --kraft: #0a101d;
+  --kraft-dark: #2c3a55;
+  --paper: #111a2c;
+  --ink: #e9effb;
+  --ink-light: #bccadf;
+  --ink-muted: #7e8ca3;
+  --accent: #38bdf8;
+  --accent-ink: #06131f;
+  --sidebar-bg: var(--surface-1);
+  --sidebar-fg: #e9effb;
+  --sidebar-hover: rgba(233, 239, 251, 0.06);
+  --sidebar-active: rgba(233, 239, 251, 0.1);
+  --border: rgba(233, 239, 251, 0.16);
+  --text: #e9effb;
+  --text-secondary: #bccadf;
+  --text-muted: #7e8ca3;
+  --surface-0: #080d17;
+  --surface-1: #0d1524;
+  --surface-2: #142035;
+  --surface-3: #1c2b45;
+  --panel-bg:
+    radial-gradient(circle at 78% 8%, rgba(56, 189, 248, 0.1), transparent 28%),
+    radial-gradient(circle at 30% 0%, rgba(99, 102, 241, 0.07), transparent 25%),
+    linear-gradient(rgba(233, 239, 251, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(233, 239, 251, 0.03) 1px, transparent 1px),
+    linear-gradient(180deg, #080d17 0%, #0d1524 100%);
+}
+
+[data-style="ocean"][data-theme="light"] {
+  --kraft: #edf1f8;
+  --kraft-dark: #c6d2e4;
+  --paper: #ffffff;
+  --ink: #17243a;
+  --ink-light: #43536e;
+  --ink-muted: #8492ab;
+  --accent: #0369a1;
+  --accent-ink: #f0f9ff;
+  --sidebar-bg: var(--surface-1);
+  --sidebar-fg: #17243a;
+  --sidebar-hover: rgba(23, 36, 58, 0.05);
+  --sidebar-active: rgba(23, 36, 58, 0.09);
+  --border: rgba(23, 36, 58, 0.16);
+  --text: #17243a;
+  --text-secondary: #43536e;
+  --text-muted: #8492ab;
+  --surface-0: #edf1f8;
+  --surface-1: #f6f9fd;
+  --surface-2: #ffffff;
+  --surface-3: #e0e8f4;
+  --panel-bg:
+    radial-gradient(circle at 82% 5%, rgba(56, 189, 248, 0.22), transparent 28%),
+    radial-gradient(circle at 30% 0%, rgba(99, 102, 241, 0.08), transparent 26%),
+    linear-gradient(rgba(23, 36, 58, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(23, 36, 58, 0.045) 1px, transparent 1px),
+    linear-gradient(180deg, #f6f9fd 0%, #edf1f8 100%);
+}
+
+/* ─── 墨色 mono：中性灰、无彩色、高对比 ─── */
+[data-style="mono"] {
+  --kraft: #101010;
+  --kraft-dark: #3a3a3a;
+  --paper: #171717;
+  --ink: #f4f4f3;
+  --ink-light: #c8c8c6;
+  --ink-muted: #8a8a88;
+  --accent: #f4f4f3;
+  --accent-ink: #101010;
+  --sidebar-bg: var(--surface-1);
+  --sidebar-fg: #f4f4f3;
+  --sidebar-hover: rgba(244, 244, 243, 0.06);
+  --sidebar-active: rgba(244, 244, 243, 0.1);
+  --border: rgba(244, 244, 243, 0.15);
+  --text: #f4f4f3;
+  --text-secondary: #c8c8c6;
+  --text-muted: #8a8a88;
+  --surface-0: #0c0c0c;
+  --surface-1: #131313;
+  --surface-2: #1b1b1b;
+  --surface-3: #242424;
+  --panel-bg:
+    radial-gradient(circle at 78% 8%, rgba(255, 255, 255, 0.04), transparent 28%),
+    radial-gradient(circle at 30% 0%, rgba(255, 255, 255, 0.025), transparent 25%),
+    linear-gradient(rgba(244, 244, 243, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(244, 244, 243, 0.028) 1px, transparent 1px),
+    linear-gradient(180deg, #0c0c0c 0%, #131313 100%);
+}
+
+[data-style="mono"][data-theme="light"] {
+  --kraft: #f0f0ef;
+  --kraft-dark: #d4d4d2;
+  --paper: #ffffff;
+  --ink: #1a1a19;
+  --ink-light: #4b4b49;
+  --ink-muted: #8f8f8c;
+  --accent: #1a1a19;
+  --accent-ink: #ffffff;
+  --sidebar-bg: var(--surface-1);
+  --sidebar-fg: #1a1a19;
+  --sidebar-hover: rgba(26, 26, 25, 0.05);
+  --sidebar-active: rgba(26, 26, 25, 0.09);
+  --border: rgba(26, 26, 25, 0.15);
+  --text: #1a1a19;
+  --text-secondary: #4b4b49;
+  --text-muted: #8f8f8c;
+  --surface-0: #f0f0ef;
+  --surface-1: #f8f8f7;
+  --surface-2: #ffffff;
+  --surface-3: #e7e7e5;
+  --panel-bg:
+    radial-gradient(circle at 82% 5%, rgba(26, 26, 25, 0.04), transparent 28%),
+    radial-gradient(circle at 30% 0%, rgba(26, 26, 25, 0.02), transparent 26%),
+    linear-gradient(rgba(26, 26, 25, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(26, 26, 25, 0.04) 1px, transparent 1px),
+    linear-gradient(180deg, #f8f8f7 0%, #f0f0ef 100%);
+}
+
+/* ─── 暮橙 ember：暖陶土、落日感 ─── */
+[data-style="ember"] {
+  --kraft: #16100d;
+  --kraft-dark: #4d382c;
+  --paper: #221913;
+  --ink: #f8efe8;
+  --ink-light: #d5c4b8;
+  --ink-muted: #998a7e;
+  --accent: #fb923c;
+  --accent-ink: #211104;
+  --sidebar-bg: var(--surface-1);
+  --sidebar-fg: #f8efe8;
+  --sidebar-hover: rgba(248, 239, 232, 0.06);
+  --sidebar-active: rgba(248, 239, 232, 0.1);
+  --border: rgba(248, 239, 232, 0.16);
+  --text: #f8efe8;
+  --text-secondary: #d5c4b8;
+  --text-muted: #998a7e;
+  --surface-0: #120c09;
+  --surface-1: #191210;
+  --surface-2: #221815;
+  --surface-3: #2c201a;
+  --panel-bg:
+    radial-gradient(circle at 78% 8%, rgba(251, 146, 60, 0.09), transparent 28%),
+    radial-gradient(circle at 30% 0%, rgba(244, 63, 94, 0.05), transparent 25%),
+    linear-gradient(rgba(248, 239, 232, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(248, 239, 232, 0.03) 1px, transparent 1px),
+    linear-gradient(180deg, #120c09 0%, #191210 100%);
+}
+
+[data-style="ember"][data-theme="light"] {
+  --kraft: #f5eee9;
+  --kraft-dark: #dcc7ba;
+  --paper: #fffdfb;
+  --ink: #33221a;
+  --ink-light: #5e4a3e;
+  --ink-muted: #a08d80;
+  --accent: #c2410c;
+  --accent-ink: #fff7ed;
+  --sidebar-bg: var(--surface-1);
+  --sidebar-fg: #33221a;
+  --sidebar-hover: rgba(51, 34, 26, 0.05);
+  --sidebar-active: rgba(51, 34, 26, 0.09);
+  --border: rgba(51, 34, 26, 0.16);
+  --text: #33221a;
+  --text-secondary: #5e4a3e;
+  --text-muted: #a08d80;
+  --surface-0: #f5eee9;
+  --surface-1: #fbf6f2;
+  --surface-2: #fffdfb;
+  --surface-3: #efdfd3;
+  --panel-bg:
+    radial-gradient(circle at 82% 5%, rgba(251, 146, 60, 0.24), transparent 28%),
+    radial-gradient(circle at 30% 0%, rgba(244, 63, 94, 0.06), transparent 26%),
+    linear-gradient(rgba(51, 34, 26, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(51, 34, 26, 0.045) 1px, transparent 1px),
+    linear-gradient(180deg, #fbf6f2 0%, #f5eee9 100%);
+}
+
+/* 非默认风格包的玻璃面板变量改为随色系（暗色玻璃感） */
+[data-style="kraft"],
+[data-style="ocean"],
+[data-style="mono"],
+[data-style="ember"] {
+  --card-surface: var(--surface-2);
+  --card-surface-hover: var(--surface-3);
+  --card-surface-soft: var(--surface-1);
+  --card-inner: color-mix(in srgb, var(--surface-2) 76%, var(--surface-1));
+  --card-line: var(--border);
+  --card-line-hover: color-mix(in srgb, var(--accent) 38%, transparent);
+  --card-shadow: 0 8px 22px color-mix(in srgb, black 20%, transparent), inset 0 1px 0 color-mix(in srgb, var(--ink) 3%, transparent);
+  --card-shadow-hover: 0 13px 32px color-mix(in srgb, black 28%, transparent), inset 0 1px 0 color-mix(in srgb, var(--ink) 4%, transparent);
+  --settings-panel-bg:
+    linear-gradient(135deg, color-mix(in srgb, var(--ink) 6%, transparent), color-mix(in srgb, var(--ink) 2%, transparent)),
+    color-mix(in srgb, var(--surface-1) 86%, transparent);
+  --settings-field-bg: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+/* 亮色下改为近实心浅面板 */
+[data-style][data-theme="light"] {
+  --card-surface: var(--surface-2);
+  --card-surface-hover: color-mix(in srgb, var(--surface-2) 92%, var(--surface-3));
+  --card-surface-soft: var(--surface-1);
+  --card-inner: color-mix(in srgb, var(--surface-2) 94%, var(--surface-1));
+  --card-shadow: 0 8px 22px color-mix(in srgb, var(--ink) 8%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  --card-shadow-hover: 0 13px 32px color-mix(in srgb, var(--ink) 12%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  --settings-panel-bg: color-mix(in srgb, var(--surface-2) 94%, transparent);
+  --settings-field-bg: color-mix(in srgb, var(--surface-2) 92%, transparent);
+}
+
+/* ─── 指挥中心亮色：沉稳苔藓绿，荧光绿仅保留给深色模式 ─── */
+[data-style="command"][data-theme="light"] {
+  --accent: #526f2c;
+  --accent-ink: #ffffff;
+  --green: #147d5a;
+  --ok: #15803d;
+  --surface-3: #edf1e8;
+  --card-line-hover: color-mix(in srgb, var(--accent) 28%, transparent);
+  --panel-bg:
+    radial-gradient(circle at 82% 5%, rgba(82, 111, 44, 0.12), transparent 28%),
+    radial-gradient(circle at 30% 0%, rgba(2, 112, 152, 0.07), transparent 26%),
+    linear-gradient(rgba(23, 32, 29, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(23, 32, 29, 0.045) 1px, transparent 1px),
+    linear-gradient(180deg, #f8f6ef 0%, #f4f1e8 100%);
+}
+
+[data-style="command"][data-theme="light"] .brand-shape {
+  background: var(--accent);
+  box-shadow: 0 8px 20px rgba(82, 111, 44, 0.18);
+}
+
+[data-style="command"][data-theme="light"] .brand-shape::after {
+  color: var(--accent-ink);
+}
+
+[data-style="command"][data-theme="light"] .nav-item.active {
+  background: color-mix(in srgb, var(--accent) 11%, transparent);
+}
+
+[data-style="command"][data-theme="light"] .vault-project-list .project-key-count,
+[data-style="command"][data-theme="light"] .page-sidebar-item.active,
+[data-style="command"][data-theme="light"] .cat-group-header.active,
+[data-style="command"][data-theme="light"] .cat-item.active,
+[data-style="command"][data-theme="light"] .cat-sidebar-item.active,
+[data-style="command"][data-theme="light"] .vault-group-header.active,
+[data-style="command"][data-theme="light"] .sync-sidebar-item--active,
+[data-style="command"][data-theme="light"] .picker-provider.active,
+[data-style="command"][data-theme="light"] .settings-workspace .vault-picker-group.active {
+  border-color: color-mix(in srgb, var(--accent) 25%, transparent);
+  background: color-mix(in srgb, var(--accent) 9%, white);
+  color: var(--ink);
+}
+
+[data-style="command"][data-theme="light"] .home-pill--warn {
+  border-color: rgba(180, 83, 9, 0.2);
+  background: #fff7df;
+  color: #92400e;
+}
+
+[data-style="command"][data-theme="light"] .btn-action--install,
+[data-style="command"][data-theme="light"] .btn-add,
+[data-style="command"][data-theme="light"] .btn-save {
+  border-color: color-mix(in srgb, var(--accent) 70%, transparent);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+[data-style="command"][data-theme="light"] .btn-action--install:hover,
+[data-style="command"][data-theme="light"] .btn-add:hover,
+[data-style="command"][data-theme="light"] .btn-save:hover,
+[data-style="command"][data-theme="light"] .btn-action--install:focus-visible,
+[data-style="command"][data-theme="light"] .btn-add:focus-visible,
+[data-style="command"][data-theme="light"] .btn-save:focus-visible,
+[data-style="command"][data-theme="light"] .btn-action--install:active,
+[data-style="command"][data-theme="light"] .btn-add:active,
+[data-style="command"][data-theme="light"] .btn-save:active {
+  border-color: #405822;
+  background: #466025;
+  color: #ffffff;
+}

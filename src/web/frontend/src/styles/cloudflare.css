@@ -1,0 +1,243 @@
+/* ═══ Cloudflare Sync ═══ */
+.btn-sync-cf {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.15s;
+  box-shadow: 2px 2px 0 var(--ink);
+}
+.btn-sync-cf:hover {
+  background: var(--ink);
+  color: var(--paper);
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 var(--ink);
+}
+
+[data-theme="dark"] .btn-sync-cf {
+  border-color: var(--kraft-dark);
+  box-shadow: 2px 2px 0 rgba(0,0,0,0.3);
+  color: var(--ink-light);
+}
+
+[data-theme="dark"] .btn-sync-cf:hover {
+  background: var(--kraft-dark);
+  color: var(--ink);
+  border-color: var(--ink-muted);
+}
+.btn-sync-cf svg {
+  opacity: 0.9;
+}
+
+.auth-overlay {
+  position: fixed;
+  inset: 0;
+  /* Above feature modals like the snapshot viewer (z-index 1000) — the
+     confirm dialog reuses this overlay and must never sit under them. */
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.cf-sync-panel {
+  background: var(--paper);
+  border-radius: 12px;
+  padding: 0;
+  max-width: 520px;
+  width: 90vw;
+  box-shadow: 4px 4px 0 rgba(0,0,0,0.12);
+  overflow: hidden;
+}
+.cf-sync-panel .progress-header {
+  padding: 16px 20px;
+  border-bottom: 2px dashed var(--border);
+}
+.cf-sync-step {
+  padding: 20px;
+}
+
+.cf-sync-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+
+.cf-sync-select {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  border: 2px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink);
+  margin-bottom: 16px;
+  cursor: pointer;
+}
+[data-theme="dark"] .cf-sync-select {
+  background: rgba(0,0,0,0.2);
+  color: var(--ink);
+  border-color: var(--kraft-dark);
+}
+
+.cf-sync-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.cf-sync-bar .cf-sync-label {
+  margin-bottom: 0;
+}
+
+.cf-sync-keylist {
+  max-height: 260px;
+  overflow-y: auto;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  padding: 4px;
+  margin-bottom: 16px;
+  background: rgba(255,255,255,0.5);
+}
+[data-theme="dark"] .cf-sync-keylist {
+  background: rgba(0,0,0,0.15);
+  border-color: var(--kraft-dark);
+}
+
+.cf-sync-key-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.1s;
+  font-size: 13px;
+}
+.cf-sync-key-item:hover {
+  background: rgba(0,0,0,0.04);
+}
+[data-theme="dark"] .cf-sync-key-item:hover {
+  background: rgba(255,255,255,0.04);
+}
+
+.cf-sync-checkbox {
+  accent-color: #f6821f;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.cf-sync-key-name {
+  flex: 1;
+  font-weight: 500;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.cf-sync-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.cf-sync-badge--exists {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+.cf-sync-badge--new {
+  background: #dcfce7;
+  color: #15803d;
+}
+[data-theme="dark"] .cf-sync-badge--exists {
+  background: rgba(37, 99, 235, 0.15);
+  color: #7db8fc;
+}
+[data-theme="dark"] .cf-sync-badge--new {
+  background: rgba(22, 163, 74, 0.15);
+  color: #6ee7a0;
+}
+.cf-sync-badge--delete {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+[data-theme="dark"] .cf-sync-badge--delete {
+  background: rgba(220, 38, 38, 0.15);
+  color: #fca5a5;
+}
+.cf-sync-key-item--delete {
+  background: rgba(239, 68, 68, 0.05);
+}
+[data-theme="dark"] .cf-sync-key-item--delete {
+  background: rgba(239, 68, 68, 0.06);
+}
+.cf-sync-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--red);
+  padding: 8px 10px 4px;
+  border-top: 1px dashed var(--border);
+  margin-top: 4px;
+}
+
+.cf-sync-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.cf-sync-output {
+  background: #1a1a2e;
+  color: #e0e0e0;
+  padding: 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-family: 'Courier New', monospace;
+  line-height: 1.6;
+  max-height: 300px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin-bottom: 16px;
+}
+
+.cf-sync-summary {
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 16px;
+  background: #dcfce7;
+  color: #15803d;
+}
+.cf-sync-summary--partial {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.cf-sync-error {
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 13px;
+  text-align: center;
+}
+[data-theme="dark"] .cf-sync-error {
+  background: #2d1b1b;
+  color: #fca5a5;
+}
