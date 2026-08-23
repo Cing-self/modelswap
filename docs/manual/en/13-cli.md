@@ -20,6 +20,16 @@ okit vault test <platform>      # test a cloud sync platform connection
 okit vault push                 # push keys & configs to the cloud
 okit vault pull                 # pull and merge from the cloud
 
+# Multi-machine sync
+okit sync                          # status overview (--test also probes connections)
+okit sync password                 # set the sync password (must match on every machine)
+okit sync enable <platform>        # configure & enable a cloud platform (interactive, or --set KEY=VALUE)
+okit sync test [platform]          # test connectivity
+okit sync push / pull              # push / pull-and-merge
+okit sync export                   # one-time sync code (platform config included; import on another machine)
+okit sync pair --create            # LAN pairing: create a pairing code (requires okit web running)
+okit sync pair --code <code>       # redeem the peer's connection code
+
 # Providers / models
 okit provider list [--json]     # list all providers
 okit provider switch [agent]    # interactive switch

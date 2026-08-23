@@ -20,6 +20,16 @@ okit vault test <platform>      # 测试云同步平台连接
 okit vault push                 # 推送密钥与配置到云端
 okit vault pull                 # 从云端拉取合并
 
+# 多机同步
+okit sync                          # 同步状态总览（--test 顺带测连接）
+okit sync password                 # 设置同步密码（跨机解密的根，多台必须一致）
+okit sync enable <platform>        # 配置并启用云平台（交互填凭据，可 --set KEY=VALUE）
+okit sync test [platform]          # 测试连接
+okit sync push / pull              # 推送 / 拉取合并
+okit sync export                   # 生成一次性同步码（含平台配置，另一台机器 import 一键迁移）
+okit sync pair --create            # 局域网配对：生成配对码（需 okit web 在运行）
+okit sync pair --code <连接码>      # 输入对方的连接码完成配对
+
 # Provider / 模型
 okit provider list [--json]     # 列出所有 Provider
 okit provider switch [agent]    # 交互式切换

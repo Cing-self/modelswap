@@ -47,6 +47,9 @@ export type UserConfig = {
     managedModels?: Record<string, string[]>;
   }>;
   sync?: {
+    // Cross-machine sync password: derives the cloud blob encryption key AND
+    // the sync identity. Required on every machine that shares a sync set.
+    password?: string;
     autoSync?: boolean;
     platforms?: {
       cloudflare?: {

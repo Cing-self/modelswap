@@ -26,7 +26,6 @@ import {
 } from "./commands/provider";
 import { migrateIfNeeded } from "./providers/migration";
 import { installSkill, showSkillPath } from "./commands/skill";
-
 const program = new Command();
 
 // 显示 Banner
@@ -304,6 +303,104 @@ program
   .action(async () => {
     const { showExtensionPath } = await import("./commands/extension");
     await showExtensionPath();
+  });
+
+// sync 子命令 - 多机同步（云端配置/推送拉取/同步码迁移/局域网配对）
+const syncCmd = program
+  .command("sync")
+  .description("多机同步：云端平台配置、推送/拉取、同步码迁移、局域网配对")
+  .action(async () => {
+    const { syncStatus } = await import("./commands/sync");
+    await syncStatus();
+  });
+
+syncCmd
+  .command("status")
+  .description("查看同步状态（--test 顺带测试各平台连接）")
+  .option("--test", "同时测试已启用平台的连接")
+  .action(async (options: { test?: boolean }) => {
+    const { syncStatus } = await import("./commands/sync");
+    await syncStatus(options);
+  });
+
+syncCmd
+  .command("password")
+  .description("设置同步密码（跨机解密的根，多台机器必须一致）")
+  .option("--stdin", "从标准输入读取（避免进入 shell 历史）")
+  .action(async (options: { stdin?: boolean }) => {
+    const { syncPassword } = await import("./commands/sync");
+    await syncPassword(options);
+  });
+
+syncCmd
+  .command("enable <platform>")
+  .description("配置并启用云平台（supabase/cloudflare-kv/webdav/…；交互填凭据，可 --set KEY=VALUE）")
+  .option("--set <kv...>", "非交互指定字段 KEY=VALUE（可多次）")
+  .option("--no-test", "配置后不测试连接")
+  .action(async (platform: string, options: { set?: string[]; test?: boolean }) => {
+    const { syncEnable } = await import("./commands/sync");
+    await syncEnable(platform, options);
+  });
+
+syncCmd
+  .command("disable <platform>")
+  .description("停用平台（保留配置）")
+  .action(async (platform: string) => {
+    const { syncDisable } = await import("./commands/sync");
+    await syncDisable(platform);
+  });
+
+syncCmd
+  .command("test [platform]")
+  .description("测试云平台连接（缺省测全部已启用平台）")
+  .action(async (platform?: string) => {
+    const { syncTest } = await import("./commands/sync");
+    await syncTest(platform);
+  });
+
+syncCmd
+  .command("push")
+  .description("推送密钥与 Provider 配置到已启用云平台")
+  .action(async () => {
+    const { syncPush } = await import("./commands/sync");
+    await syncPush();
+  });
+
+syncCmd
+  .command("pull")
+  .description("从云端拉取并合并（修改时间新者胜）")
+  .action(async () => {
+    const { syncPull } = await import("./commands/sync");
+    await syncPull();
+  });
+
+syncCmd
+  .command("export")
+  .description("生成一次性同步码（含平台配置，密码加密；供另一台机器 import）")
+  .option("--stdin", "从标准输入读取加密密码")
+  .action(async (options: { stdin?: boolean }) => {
+    const { syncExport } = await import("./commands/sync");
+    await syncExport(options);
+  });
+
+syncCmd
+  .command("import")
+  .description("导入同步码（一键迁移另一台机器的云平台配置）")
+  .option("--code <code>", "同步码")
+  .option("--stdin", "从标准输入读取同步码")
+  .action(async (options: { code?: string; stdin?: boolean }) => {
+    const { syncImport } = await import("./commands/sync");
+    await syncImport(options);
+  });
+
+syncCmd
+  .command("pair")
+  .description("局域网配对：--create 生成配对码 / --code <连接码> 加入对方")
+  .option("--create", "在本机生成配对码")
+  .option("--code <code>", "输入对方的连接码完成配对")
+  .action(async (options: { create?: boolean; code?: string }) => {
+    const { syncPair } = await import("./commands/sync");
+    await syncPair(options);
   });
 
 skill
