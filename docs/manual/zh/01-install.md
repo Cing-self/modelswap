@@ -18,6 +18,16 @@ npm run build
 node dist/main.js web
 ```
 
+### 桌面版提示"已损坏，无法打开"？
+
+macOS 对"浏览器下载 + 未签名"的应用会显示这个误导性提示——应用没有坏。解除（只需一次）：
+
+```bash
+xattr -dr com.apple.quarantine /Applications/OKIT.app
+```
+
+或系统设置 → 隐私与安全性 → 底部"仍要打开"。这是缺少 Apple 开发者签名导致的已知体验问题，签名已在规划中。
+
 ## 1.2 启动 Web 控制台
 
 ```bash

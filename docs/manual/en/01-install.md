@@ -18,6 +18,16 @@ npm run build
 node dist/main.js web
 ```
 
+### Desktop app says "damaged and can't be opened"?
+
+macOS shows this misleading message for browser-downloaded, unsigned apps — the app is NOT broken. Clear it (one time only):
+
+```bash
+xattr -dr com.apple.quarantine /Applications/OKIT.app
+```
+
+or System Settings → Privacy & Security → "Open Anyway" at the bottom. This is a known friction of shipping without an Apple developer signature; signing is planned.
+
 ## 1.2 Start the web console
 
 ```bash
