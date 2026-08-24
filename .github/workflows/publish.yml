@@ -93,13 +93,12 @@ jobs:
 
       # Desktop installer BEFORE npm publish: every artifact must build before
       # anything goes public, so a broken desktop build can't leave a
-      # half-published release. arm64-only dmg: Apple Silicon covers 2020+
-      # Macs and keeps the installer half the universal size; Intel Mac users
-      # install the CLI zip instead. --publish never: GH_TOKEN's mere presence
-      # makes electron-builder open its OWN draft release — publish-release.sh
-      # owns release creation.
-      - name: Build desktop installer (arm64 dmg)
-        run: npx electron-builder --mac dmg --publish never
+      # half-published release. arm64 + x64 dmg (universal dropped — it was
+      # ~2x the size of either single-arch build). --publish never: GH_TOKEN's
+      # mere presence makes electron-builder open its OWN draft release —
+      # publish-release.sh owns release creation.
+      - name: Build desktop installers (arm64 + x64 dmg)
+        run: npx electron-builder --mac dmg --arm64 --x64 --publish never
         env:
           GH_TOKEN: ${{ github.token }}
 

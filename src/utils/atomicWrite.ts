@@ -34,12 +34,22 @@ export async function atomicWrite(
   }
 }
 
+// Transient Windows failure codes: the dest (or the just-written tmp) can be
+// briefly held by Defender real-time scanning or a concurrent reader. POSIX
+// rename() atomically replaces and never returns these.
+const TRANSIENT_RENAME_CODES = ["EPERM", "EEXIST", "EBUSY"];
+const MAX_RENAME_ATTEMPTS = 8;
+
 async function renameWithRetry(src: string, dest: string, attempt = 1): Promise<void> {
   try {
     await fs.rename(src, dest);
   } catch (err: any) {
-    if (err && err.code && ["EPERM", "EEXIST", "EBUSY"].includes(err.code) && attempt < 3) {
-      await new Promise((resolve) => setTimeout(resolve, 50 * attempt));
+    const transient = err && err.code && TRANSIENT_RENAME_CODES.includes(err.code);
+    if (transient && attempt < MAX_RENAME_ATTEMPTS) {
+      // Exponential backoff, capped: 20ms 40ms 80ms 160ms 250ms 250ms 250ms.
+      // Under heavy contention (30 writers) 3 attempts were not enough on
+      // windows-latest CI — Defender held handles past the old 150ms window.
+      await new Promise((resolve) => setTimeout(resolve, Math.min(250, 20 * 2 ** (attempt - 1))));
       return renameWithRetry(src, dest, attempt + 1);
     }
     throw err;

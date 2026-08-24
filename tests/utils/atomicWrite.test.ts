@@ -47,7 +47,7 @@ describe('atomicWrite retry', () => {
     expect(mocks.files.has(tmp)).toBe(false);
   });
 
-  it('retries up to 3 times then throws', async () => {
+  it('retries up to 8 times (Windows AV contention) then throws', async () => {
     const filePath = '/tmp/test-atomic-maxretry.json';
 
     let callCount = 0;
@@ -57,7 +57,7 @@ describe('atomicWrite retry', () => {
     });
 
     await expect(atomicWrite(filePath, 'data')).rejects.toThrow('still locked');
-    expect(callCount).toBe(3);
+    expect(callCount).toBe(8);
   });
 
   it('uses a unique tmp name per call', async () => {
