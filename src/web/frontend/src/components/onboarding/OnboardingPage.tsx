@@ -9,6 +9,7 @@ import okitIcon from '../../assets/branding/okit-icon-command-v1.png';
 import { setOnboardingDone } from '../../lib/onboardingGate';
 import { useApp } from '../Layout/AppContext';
 import { useI18n } from '../../i18n';
+import { CheckCircle2, FolderOpen } from 'lucide-react';
 
 const STEPS = 4; // detect → keys → platform → done
 
@@ -41,6 +42,8 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
   const [adoptedCount, setAdoptedCount] = useState(0);
   const [adoptedIds, setAdoptedIds] = useState<Set<string>>(new Set());
   const [exiting, setExiting] = useState(false);
+  const [extensionConnected, setExtensionConnected] = useState(false);
+  const [openingExtension, setOpeningExtension] = useState(false);
   const exitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { check(); }, []);
@@ -59,9 +62,11 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
     try {
       // Phase 1: installed agents
       const startedAt = Date.now();
-      const [onboardData, adaptersData, providersData] = await Promise.all([
+      const [onboardData, adaptersData, providersData, extensionStatus] = await Promise.all([
         getOnboarding(), getAdapters(), listProviders(),
+        fetch('/api/vault/cdp-status').then(r => r.ok ? r.json() : { available: false }),
       ]);
+      setExtensionConnected(!!extensionStatus.available);
       setInstalledAgents(
         (adaptersData.adapters || []).filter((a: any) => a.installed)
           .map((a: any) => ({ id: a.id, name: a.name })),
@@ -160,6 +165,29 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
       showToast(err.message, 'error');
     } finally {
       setImporting(false);
+    }
+  }
+
+  // Chromium deliberately requires the user to approve loading an unpacked
+  // extension. We can open the right local folder, but must not pretend that
+  // a website may install it on the user's behalf.
+  async function openExtensionDirectory() {
+    if (openingExtension) return;
+    setOpeningExtension(true);
+    try {
+      const desktop = (window as any).okitDesktop;
+      const dir = desktop?.revealExtension
+        ? await desktop.revealExtension()
+        : (await fetch('/api/extension/reveal', { method: 'POST' }).then(async res => {
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+            return data;
+          })).dir;
+      showToast(t('onboarding.extensionOpened', { dir }), 'success');
+    } catch (err: any) {
+      showToast(err.message || t('onboarding.extensionOpenFail'), 'error');
+    } finally {
+      setOpeningExtension(false);
     }
   }
 
@@ -413,6 +441,20 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
             <div className="wiz-done-check">✓</div>
             <h1>{t('onboarding.doneTitle')}</h1>
             <p className="wiz-done-meta">{t('onboarding.doneMeta', { agents: installedAgents.length, keys: importedCount })}</p>
+            <aside className={`wiz-extension-card${extensionConnected ? ' is-connected' : ''}`}>
+              <span className="wiz-extension-icon" aria-hidden="true">
+                {extensionConnected ? <CheckCircle2 size={18} /> : <FolderOpen size={18} />}
+              </span>
+              <div className="wiz-extension-copy">
+                <strong>{t(extensionConnected ? 'onboarding.extensionConnected' : 'onboarding.extensionTitle')}</strong>
+                {!extensionConnected && <p>{t('onboarding.extensionDesc')}</p>}
+              </div>
+              {!extensionConnected && (
+                <button type="button" className="wiz-btn-secondary wiz-extension-action" onClick={openExtensionDirectory} disabled={openingExtension}>
+                  {openingExtension ? '…' : t('onboarding.extensionOpen')}
+                </button>
+              )}
+            </aside>
           </section>
         </div>
 

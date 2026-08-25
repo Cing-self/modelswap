@@ -310,6 +310,31 @@
 }
 @keyframes wizCheckPop { from { transform: scale(0.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 .wiz-done-meta { color: rgba(245,243,234,0.5); font-size: 14px; margin: -12px 0 0; letter-spacing: 0.02em; }
+.wiz-extension-card {
+  width: min(100%, 540px);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 28px;
+  padding: 14px;
+  border: 1px solid rgba(245,243,234,0.18);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.035);
+}
+.wiz-extension-card.is-connected { border-color: rgba(198,255,62,0.34); }
+.wiz-extension-icon {
+  width: 34px; height: 34px; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 9px; background: rgba(198,255,62,0.12); color: #C6FF3E;
+}
+.wiz-extension-copy { min-width: 0; flex: 1; }
+.wiz-extension-copy strong { display: block; color: #F5F3EA; font-size: 13px; }
+.wiz-extension-copy p { margin: 4px 0 0; color: rgba(245,243,234,0.54); font-size: 11.5px; line-height: 1.55; }
+.wiz-extension-action { flex: none; padding: 8px 11px; font-size: 12px; white-space: nowrap; }
+@media (max-width: 520px) {
+  .wiz-extension-card { align-items: flex-start; flex-wrap: wrap; }
+  .wiz-extension-action { width: 100%; }
+}
 /* Nav */
 .wiz-nav { display: flex; align-items: center; gap: 12px; padding-top: clamp(14px, 3vh, 26px); }
 .wiz-nav-spacer { flex: 1; }

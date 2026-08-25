@@ -4373,7 +4373,7 @@ async function autoCreateKey(req, res) {
     if (!isExtensionConnected()) {
       return res.status(503).json({
         success: false,
-        error: 'OKIT Chrome 扩展未连接。请先安装扩展：chrome://extensions → 加载已解压的扩展程序 → 选择 okit/extension 目录',
+        error: 'OKIT 浏览器扩展未连接。请在 Chrome 打开 chrome://extensions，或在 Edge 打开 edge://extensions，然后选择“加载已解压的扩展程序”并选择 OKIT 扩展目录。',
       });
     }
 

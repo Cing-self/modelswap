@@ -550,7 +550,7 @@ export default {
   'settings.updateNotes': '发布说明',
   'settings.updateDmgHint': '桌面应用用安装包更新；CLI 安装请运行 okit upgrade',
   'settings.revealExtension': '打开扩展目录',
-  'settings.extensionRevealed': '扩展已同步到 {dir}，请在 chrome://extensions 加载该目录',
+  'settings.extensionRevealed': '扩展目录已打开：{dir}。请在 Chrome 打开 chrome://extensions，或在 Edge 打开 edge://extensions，再选择“加载已解压的扩展程序”。',
   'settings.extensionRevealFail': '无法打开扩展目录',
   'settings.serviceStatus': 'Web 服务',
   'settings.serviceConnected': '连接正常',
@@ -888,6 +888,12 @@ export default {
   'onboarding.keyStepTitle': '导入密钥',
   'onboarding.prevStep': '上一步',
   'onboarding.nextStep': '下一步',
+  'onboarding.extensionTitle': '可选：连接浏览器扩展',
+  'onboarding.extensionDesc': '打开目录后，在 Chrome 或 Edge 的扩展管理页选择“加载已解压的扩展程序”。这是浏览器要求的确认步骤。',
+  'onboarding.extensionOpen': '打开扩展目录',
+  'onboarding.extensionOpened': '扩展目录已打开：{dir}',
+  'onboarding.extensionOpenFail': '无法打开扩展目录',
+  'onboarding.extensionConnected': '浏览器扩展已连接',
 
   // 总览
   'home.title': 'OKIT 访问层',

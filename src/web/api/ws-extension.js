@@ -186,7 +186,7 @@ function setupWebSocket(httpServer) {
 function sendCommand(action, params = {}, timeoutMs = 60000) {
   return new Promise((resolve, reject) => {
     if (!extWs || extWs.readyState !== 1) {
-      reject(new Error('Chrome Extension not connected. Please install the OKIT extension (chrome://extensions → Load unpacked → select okit/extension).'));
+      reject(new Error('OKIT browser extension is not connected. In Chrome open chrome://extensions, or in Edge open edge://extensions; then choose Load unpacked and select the OKIT extension folder.'));
       return;
     }
 
