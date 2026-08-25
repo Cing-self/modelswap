@@ -176,9 +176,10 @@ function createListenerApp(token) {
 
   // Pairing exchange — must sit BEFORE the Bearer auth middleware: the caller
   // doesn't hold the access token yet, the fresh pairing code is the
-  // credential. Single-use: a successful exchange consumes the session.
+  // credential. Single-use: only a password-verified exchange consumes it.
   app.post('/pair', async (req, res) => {
     const code = String(req.body?.code || '').trim();
+    const claimedUserId = String(req.body?.userId || '').trim();
     const session = getPendingPairing();
     if (!session) {
       return res.status(401).json({ error: '配对码无效或已过期' });
@@ -188,14 +189,21 @@ function createListenerApp(token) {
     if (code.length !== session.code.length || !crypto.timingSafeEqual(a, b)) {
       return res.status(401).json({ error: '配对码无效或已过期' });
     }
-    pendingPairing = null;
     let machineId = null;
     let userId = null;
     try {
       const config = await core.loadConfig();
       machineId = config.sync?.machineId || null;
       ({ userId } = await core.resolveSyncKeys(config));
-    } catch { /* no sync password configured on the hub yet */ }
+    } catch {
+      return res.status(409).json({ error: '主设备尚未设置同步密码，无法配对' });
+    }
+    if (!userId || !claimedUserId || claimedUserId !== userId) {
+      // Keep the session alive so the user can correct the password and retry
+      // without asking the primary device to generate another pairing code.
+      return res.status(403).json({ error: '两台设备的同步密码不一致，请先在两台设备上设置为相同的同步密码' });
+    }
+    pendingPairing = null;
     core.appendLog('lan-pair-exchange', 'lan', true, 'pairing code redeemed');
     res.json({
       version: 1,

@@ -397,6 +397,17 @@ async function handleLanPair(req, res) {
   if (!password) {
     return res.status(400).json({ error: '请输入同步密码（需与对端设备相同）' });
   }
+  let candidateUserId;
+  try {
+    const config = await core.loadConfig();
+    const candidateConfig = {
+      ...config,
+      sync: { ...(config.sync || {}), password },
+    };
+    ({ userId: candidateUserId } = await core.resolveSyncKeys(candidateConfig));
+  } catch (error) {
+    return res.status(500).json({ error: error.message || '无法验证同步密码' });
+  }
 
   // Exchange the short-lived pairing code for the peer's persistent access
   // token. The code is single-use and expires in minutes.
@@ -405,11 +416,15 @@ async function handleLanPair(req, res) {
     const exchange = await fetch(`${parsed.baseUrl}/pair`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: parsed.token }),
+      body: JSON.stringify({ code: parsed.token, userId: candidateUserId }),
       signal: AbortSignal.timeout(8000),
     });
     if (exchange.status === 401) {
       return res.status(400).json({ error: '配对码无效或已过期，请让对端重新生成配对码' });
+    }
+    if (exchange.status === 403) {
+      const detail = await exchange.json().catch(() => ({}));
+      return res.status(400).json({ error: detail.error || '两台设备的同步密码不一致' });
     }
     if (!exchange.ok) throw new Error(`对端响应异常 (${exchange.status})`);
     info = await exchange.json();

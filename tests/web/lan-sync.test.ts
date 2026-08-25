@@ -272,7 +272,7 @@ describe('sync.js LAN handlers', () => {
       // The exchange endpoint is called with the short pairing code...
       const [url, init] = fetchMock.mock.calls[0];
       expect(String(url)).toBe('http://192.168.1.5:3790/pair');
-      expect(JSON.parse(init.body).code).toBe('abc123def456');
+      expect(JSON.parse(init.body)).toEqual({ code: 'abc123def456', userId: 'u1' });
       // ...and the SAVED token is the exchanged one, not the pairing code.
       expect(currentConfig.sync.platforms.lan).toEqual({ baseUrl: 'http://192.168.1.5:3790', token: 'exchanged-access-token', enabled: true });
       expect(currentConfig.sync.autoSync).toBe(true);
@@ -429,7 +429,7 @@ describe('pairing exchange (listener /pair)', () => {
     const res = await fetch(`${baseUrl}/pair`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: session.code }),
+      body: JSON.stringify({ code: session.code, userId: 'u1' }),
     });
     expect(res.status).toBe(200);
     const info = await res.json();
@@ -441,7 +441,7 @@ describe('pairing exchange (listener /pair)', () => {
     const again = await fetch(`${baseUrl}/pair`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: session.code }),
+      body: JSON.stringify({ code: session.code, userId: 'u1' }),
     });
     expect(again.status).toBe(401);
   });
@@ -451,9 +451,26 @@ describe('pairing exchange (listener /pair)', () => {
     const res = await fetch(`${baseUrl}/pair`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: 'wrongcode' }),
+      body: JSON.stringify({ code: 'wrongcode', userId: 'u1' }),
     });
     expect(res.status).toBe(401);
+  });
+
+  it('rejects a password mismatch without consuming the pairing code', async () => {
+    const session = lanServer.createPairingCode();
+    const mismatch = await fetch(`${baseUrl}/pair`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: session.code, userId: 'wrong-user' }),
+    });
+    expect(mismatch.status).toBe(403);
+
+    const retry = await fetch(`${baseUrl}/pair`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: session.code, userId: 'u1' }),
+    });
+    expect(retry.status).toBe(200);
   });
 
   it('generating a new code invalidates the previous session', async () => {
@@ -462,7 +479,7 @@ describe('pairing exchange (listener /pair)', () => {
     const res = await fetch(`${baseUrl}/pair`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: first.code }),
+      body: JSON.stringify({ code: first.code, userId: 'u1' }),
     });
     expect(res.status).toBe(401);
   });
