@@ -174,7 +174,7 @@ export async function deleteProvider(id: string): Promise<{ success: boolean }> 
   return api(`/api/providers/${id}`, { method: 'DELETE' });
 }
 
-export async function switchProvider(agentId: string, providerId: string, modelId: string): Promise<{ success: boolean }> {
+export async function switchProvider(agentId: string, providerId: string, modelId: string): Promise<{ success: boolean; snapshotAvailable?: boolean }> {
   return api('/api/providers/switch', {
     method: 'POST',
     body: JSON.stringify({ agentId, providerId, modelId }),

@@ -8,11 +8,16 @@ export type SnapshotMeta = { id: string; createdAt: string; files: { name: strin
 const DEFAULT_ROOT = path.join(os.homedir(), ".okit");
 const SNAPSHOTS_DIR_NAME = "agent-snapshots";
 const MAX_SNAPSHOTS = 10;
+// Internal manifest for snapshots created by current OKIT versions. It records
+// files that did NOT exist at capture time, so an automatic rollback can also
+// remove a newly-created file after a failed first-time switch. It is never
+// exposed in the snapshot viewer.
+const MANIFEST_FILE = ".okit-snapshot.json";
 
 // Relative (to os.homedir()) config files owned by each agent. These are the
 // files a switch rewrites, so they are the ones we snapshot before a switch.
 const AGENT_CONFIG_FILES: Record<string, string[]> = {
-  claude: [".claude/settings.json", ".claude/.credentials.json", ".claude/.okit-key-helper.sh"],
+  claude: [".claude/settings.json", ".claude/.credentials.json", ".claude/.credentials.json.okit-backup", ".claude/.okit-key-helper.sh"],
   codex: [".codex/config.toml", ".codex/auth.json", ".codex/model-catalogs/model-catalogs.json"],
   grok: [".grok/config.toml"],
   "kimi-code": [".kimi-code/config.toml"],
@@ -94,6 +99,18 @@ async function listSnapshotIds(agentDir: string): Promise<string[]> {
   return ids.sort((a, b) => b.localeCompare(a));
 }
 
+async function readManifest(dir: string): Promise<{ present: string[] } | null> {
+  try {
+    const raw = JSON.parse(await fs.readFile(path.join(dir, MANIFEST_FILE), "utf-8"));
+    if (!raw || raw.version !== 1 || !Array.isArray(raw.present)
+      || raw.present.some((name: unknown) => typeof name !== "string")) return null;
+    return { present: raw.present };
+  } catch {
+    // Snapshots created before manifests remain fully restorable.
+    return null;
+  }
+}
+
 // Captures the agent's current config files as a new snapshot. `protectId`
 // names a snapshot that must survive retention pruning even when it is the
 // oldest — used before a restore so the capture cannot evict the very
@@ -111,16 +128,24 @@ export async function capturePreSwitchSnapshot(
       existing.push({ abs, name });
     }
   }
-  if (existing.length === 0) return null;
-
   const id = new Date().toISOString().replace(/[:.]/g, "-");
   const dir = path.join(snapshotRoot(rootDir), agentId, id);
-  await fs.ensureDir(dir);
-  await fs.chmod(dir, 0o700);
+  try {
+    await fs.ensureDir(dir);
+    await fs.chmod(dir, 0o700);
+    await fs.writeFile(path.join(dir, MANIFEST_FILE), JSON.stringify({
+      version: 1,
+      present: existing.map(file => file.name),
+    }));
 
-  for (const { abs, name } of existing) {
-    const content = await fs.readFile(abs, "utf-8");
-    await fs.writeFile(path.join(dir, name), content);
+    for (const { abs, name } of existing) {
+      const content = await fs.readFile(abs, "utf-8");
+      await fs.writeFile(path.join(dir, name), content);
+    }
+  } catch (error) {
+    // A half-written backup must never look like a valid recovery point.
+    await fs.remove(dir).catch(() => {});
+    throw error;
   }
 
   const agentDir = path.dirname(dir);
@@ -156,7 +181,7 @@ export async function listSnapshots(agentId: string, rootDir?: string): Promise<
       } catch {
         continue;
       }
-      if (!stat.isDirectory()) fileInfos.push({ name: entry, size: stat.size });
+    if (!stat.isDirectory() && entry !== MANIFEST_FILE) fileInfos.push({ name: entry, size: stat.size });
     }
     metas.push({
       id,
@@ -191,7 +216,7 @@ export async function getSnapshotFiles(
     } catch {
       continue;
     }
-    if (!stat.isDirectory()) out.push({ name: entry, content: await fs.readFile(full, "utf-8") });
+    if (!stat.isDirectory() && entry !== MANIFEST_FILE) out.push({ name: entry, content: await fs.readFile(full, "utf-8") });
   }
   return out.sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -233,7 +258,20 @@ export async function restoreSnapshot(agentId: string, id: string, rootDir?: str
   } catch {
     throw new Error(`Snapshot not found: ${agentId}/${id}`);
   }
+  const manifest = await readManifest(dir);
+  const present = manifest ? new Set(manifest.present) : null;
+
+  // New snapshots also record absent files. Removing files that were created
+  // during a failed switch is what makes a first-time / multi-file switch
+  // genuinely reversible, instead of merely restoring files that happened to
+  // exist before it started.
+  if (present) {
+    for (const { abs, name } of named) {
+      if (!present.has(name)) await fs.remove(abs);
+    }
+  }
   for (const entry of entries) {
+    if (entry === MANIFEST_FILE) continue;
     const full = path.join(dir, entry);
     let stat: { isDirectory(): boolean };
     try {

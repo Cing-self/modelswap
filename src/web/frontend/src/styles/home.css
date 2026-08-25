@@ -360,6 +360,29 @@
   opacity: 1;
 }
 
+/* The icon remains reachable so existing configuration can be inspected, but
+   a quiet slash makes it clear that this agent is not usable on this machine. */
+.agent-tab--unavailable {
+  opacity: 0.28;
+}
+
+.agent-tab--unavailable:hover,
+.agent-tab--unavailable.active {
+  opacity: 0.5;
+}
+
+.agent-tab-unavailable-mark {
+  position: absolute;
+  width: 47px;
+  height: 2px;
+  top: 24px;
+  left: 2px;
+  border-radius: 2px;
+  background: var(--ink-muted);
+  transform: rotate(-45deg);
+  pointer-events: none;
+}
+
 .agent-tab-icon {
   width: 40px;
   height: 40px;

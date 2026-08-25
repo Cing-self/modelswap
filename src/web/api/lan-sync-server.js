@@ -13,6 +13,9 @@ const { execSync } = require('child_process');
 const core = require('./cloud-sync-core');
 
 const DEFAULT_PORT = 3790;
+// Keep the fallback range intentionally small and predictable. The selected
+// port is persisted below, so it remains stable after the first allocation.
+const PORT_FALLBACK_COUNT = 10;
 const BLOB_BODY_LIMIT = '25mb';
 const BLOB_PATH = path.join(os.homedir(), '.okit', 'sync', 'lan-blob.json');
 
@@ -252,22 +255,37 @@ async function startLanSyncServer(port, token) {
   if (server) await stopLanSyncServer();
   lastError = null;
   await loadPersistedBlob();
+  let listener = null;
+  let actualPort = null;
+  let lastListenError = null;
 
-  const listener = http.createServer(createListenerApp(token));
-  try {
-    await new Promise((resolve, reject) => {
-      listener.once('error', reject);
-      listener.listen(port, '0.0.0.0', () => {
-        listener.off('error', reject);
-        resolve();
+  // Prefer the configured port. A pairing code always carries the actual
+  // endpoint, and applyConfig persists a fallback, so allocation is stable.
+  for (let offset = 0; offset <= PORT_FALLBACK_COUNT; offset += 1) {
+    const candidatePort = port + offset;
+    const candidate = http.createServer(createListenerApp(token));
+    try {
+      await new Promise((resolve, reject) => {
+        candidate.once('error', reject);
+        candidate.listen(candidatePort, '0.0.0.0', () => {
+          candidate.off('error', reject);
+          resolve();
+        });
       });
-    });
-  } catch (error) {
-    // No silent port roaming: connection codes embed the port, so a conflict
-    // must surface instead of landing on a port no peer knows about.
-    lastError = error.code === 'EADDRINUSE'
-      ? `端口 ${port} 已被占用，请在设置中修改局域网同步端口`
-      : error.message;
+      listener = candidate;
+      actualPort = candidatePort;
+      break;
+    } catch (error) {
+      lastListenError = error;
+      if (error.code !== 'EADDRINUSE') break;
+      candidate.removeAllListeners();
+    }
+  }
+
+  if (!listener || !actualPort) {
+    lastError = lastListenError?.code === 'EADDRINUSE'
+      ? '局域网同步暂时无法启动，请稍后重试'
+      : (lastListenError?.message || '局域网同步服务启动失败');
     core.appendLog('lan-sync-start', 'lan', false, lastError);
     console.error(`LAN sync listener failed to start: ${lastError}`);
     server = null;
@@ -282,10 +300,10 @@ async function startLanSyncServer(port, token) {
   });
 
   server = listener;
-  runningPort = port;
+  runningPort = actualPort;
   runningTokenHash = sha256Hex(token);
-  core.appendLog('lan-sync-start', 'lan', true, `listening on 0.0.0.0:${port}`);
-  return { running: true, port };
+  core.appendLog('lan-sync-start', 'lan', true, `listening on 0.0.0.0:${actualPort}`);
+  return { running: true, port: actualPort, autoAssigned: actualPort !== port };
 }
 
 async function stopLanSyncServer() {
@@ -323,11 +341,23 @@ async function applyConfig() {
   if (server && runningPort === port && runningTokenHash === tokenHash) {
     return getStatus();
   }
-  return startLanSyncServer(port, lan.token);
+  const result = await startLanSyncServer(port, lan.token);
+  // A local loopback target is this hub's own storage endpoint. Keep it in
+  // lockstep with an automatically assigned port; remote spokes stay intact.
+  if (result.running && result.port !== port) {
+    config.sync.lan = { ...lan, port: result.port };
+    const localPlatform = config.sync.platforms?.lan;
+    if (localPlatform?.baseUrl && /^http:\/\/(127\.0\.0\.1|localhost)(?::\d+)?$/i.test(localPlatform.baseUrl)) {
+      config.sync.platforms.lan = { ...localPlatform, baseUrl: `http://127.0.0.1:${result.port}` };
+    }
+    await core.saveConfig(config);
+  }
+  return result;
 }
 
 module.exports = {
   DEFAULT_PORT,
+  PORT_FALLBACK_COUNT,
   applyConfig,
   startLanSyncServer,
   stopLanSyncServer,

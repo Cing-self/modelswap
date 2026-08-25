@@ -91,7 +91,7 @@ function seedSnapshot(agentId: string, id: string, fileName = 'settings.json', c
 describe('agentConfigFiles', () => {
   it('covers all 10 agents with the expected paths', () => {
     const expected: [string, string[]][] = [
-      ['claude', ['.claude/settings.json', '.claude/.credentials.json', '.claude/.okit-key-helper.sh']],
+      ['claude', ['.claude/settings.json', '.claude/.credentials.json', '.claude/.credentials.json.okit-backup', '.claude/.okit-key-helper.sh']],
       ['codex', ['.codex/config.toml', '.codex/auth.json', '.codex/model-catalogs/model-catalogs.json']],
       ['grok', ['.grok/config.toml']],
       ['kimi-code', ['.kimi-code/config.toml']],
@@ -117,18 +117,18 @@ describe('capturePreSwitchSnapshot', () => {
     expect(id).toBeTruthy();
 
     const dir = snapshotDir('claude', id!);
-    // Exactly the 2 existing files under the snapshot dir, .credentials.json missing.
+    // The internal manifest plus the 2 existing files; .credentials.json is absent.
     const filesUnderDir = [...mocks.files.entries()]
       .filter(([k]) => k.startsWith(dir + sep))
       .map(([k, v]) => ({ name: path.basename(k), content: v }));
-    expect(filesUnderDir).toHaveLength(2);
+    expect(filesUnderDir).toHaveLength(3);
     expect(filesUnderDir.find(f => f.name === 'settings.json')!.content).toBe(mocks.files.get(SETTINGS_PATH));
     expect(filesUnderDir.find(f => f.name === '.okit-key-helper.sh')!.content).toBe(mocks.files.get(HELPER_PATH));
   });
 
-  it('returns null when no config file exists', async () => {
+  it('creates an empty-state snapshot when no config file exists', async () => {
     const id = await capturePreSwitchSnapshot('claude', ROOT);
-    expect(id).toBeNull();
+    expect(id).toBeTruthy();
   });
 
   it('rejects an invalid agentId', async () => {
@@ -229,6 +229,7 @@ describe('getSnapshotFiles / getCurrentFiles', () => {
     expect(currentFiles).toEqual([
       { name: 'settings.json', content: '{"snapped":true}' },
       { name: '.credentials.json', content: null },
+      { name: '.credentials.json.okit-backup', content: null },
       { name: '.okit-key-helper.sh', content: '#!/bin/sh\necho x\n' },
     ]);
   });
@@ -253,6 +254,17 @@ describe('restoreSnapshot', () => {
     expect(mocks.files.get(SETTINGS_PATH)).toBe('{"env":{"ANTHROPIC_BASE_URL":"https://before.example"}}');
     expect(mocks.files.get(HELPER_PATH)).toBe('#!/bin/sh\necho before\n');
     expect(mocks.files.has(SETTINGS_PATH + '.okit-tmp')).toBe(false);
+  });
+
+  it('removes files created after a first-time snapshot during restore', async () => {
+    const id = await capturePreSwitchSnapshot('claude', ROOT);
+    mocks.files.set(SETTINGS_PATH, '{"created":true}');
+    mocks.files.set(HELPER_PATH, '#!/bin/sh\\necho created\\n');
+
+    await restoreSnapshot('claude', id!, ROOT);
+
+    expect(mocks.files.has(SETTINGS_PATH)).toBe(false);
+    expect(mocks.files.has(HELPER_PATH)).toBe(false);
   });
 });
 

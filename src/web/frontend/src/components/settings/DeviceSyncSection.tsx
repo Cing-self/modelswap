@@ -84,7 +84,6 @@ export default function DeviceSyncSection() {
   const [lanModalStep, setLanModalStep] = useState<'choice' | 'primary' | 'join'>('choice');
   const [pairing, setPairing] = useState<LanPairingSession | null>(null);
   const [pairingDone, setPairingDone] = useState(false);
-  const [lanCodeAddress, setLanCodeAddress] = useState('');
   const [nowTs, setNowTs] = useState(Date.now());
   const { activeKey: copiedItem, showFeedback: showCopied } = useTransientFeedback();
 
@@ -148,7 +147,6 @@ export default function DeviceSyncSection() {
       const session = await createLanPairing();
       setPairing(session);
       setPairingDone(false);
-      setLanCodeAddress('');
     } catch (e: any) {
       if (!silent) showToast(e.message || t('settings.lanPairFail'), 'error');
     } finally { setLanBusy(null); }
@@ -330,10 +328,9 @@ export default function DeviceSyncSection() {
   // --- Derived ---------------------------------------------------------------
   const groups = [...new Set(vaultKeys.map(k => k.split('_')[0]).filter(Boolean))].sort();
   const lanCodes = pairing?.codes || [];
-  const lanSelectedAddress = lanCodeAddress && lanCodes.some(c => c.address === lanCodeAddress)
-    ? lanCodeAddress
-    : (lanCodes[0]?.address || '');
-  const lanSelectedCode = lanCodes.find(c => c.address === lanSelectedAddress)?.code || '';
+  // The server picks the usable local address. Network-interface selection is
+  // not a decision a person should have to make in the pairing flow.
+  const lanSelectedCode = lanCodes[0]?.code || '';
   const pairingRemainingMs = pairing ? Math.max(0, new Date(pairing.expiresAt).getTime() - nowTs) : 0;
   const pairingExpired = !!pairing && pairingRemainingMs === 0;
   const remainingSecs = Math.ceil(pairingRemainingMs / 1000);
@@ -658,7 +655,7 @@ export default function DeviceSyncSection() {
                   ) : (
                     <>
                       {overview && overview.lan.enabled && !overview.lan.running && (
-                        <div className="lan-modal-error">{overview.lan.error || t('settings.lanPairCodeEmpty')}</div>
+                        <div className="lan-modal-error">{t('settings.lanUnavailable')}</div>
                       )}
                       {pairing && !pairingExpired ? (
                         <div className="lan-code-card">
@@ -677,16 +674,6 @@ export default function DeviceSyncSection() {
                               {copiedItem === 'pairing-code' ? <Check size={14} /> : <Copy size={14} />}
                             </button>
                           </div>
-                          {lanCodes.length > 1 && (
-                            <div className="lan-address-row">
-                              <CustomSelect
-                                className="settings-select-wrap lan-address-select"
-                                value={lanSelectedAddress}
-                                onChange={(v: string) => setLanCodeAddress(v)}
-                                options={lanCodes.map(c => ({ value: c.address, label: c.address }))}
-                              />
-                            </div>
-                          )}
                           <p>{t('settings.lanCodeUseHint')}</p>
                         </div>
                       ) : (

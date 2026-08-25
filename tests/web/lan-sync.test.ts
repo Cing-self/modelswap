@@ -164,13 +164,33 @@ describe('lan-sync-server listener', () => {
     expect(await got.json()).toEqual(blob);
   });
 
-  it('surfaces port conflicts instead of silently roaming', async () => {
+  it('selects the next available port when the preferred port is occupied', async () => {
     await lanServer.stopLanSyncServer();
     const squatter = await holdPort(port);
     try {
       const started = await lanServer.startLanSyncServer(port, TOKEN);
-      expect(started.running).toBe(false);
-      expect(started.error).toContain('占用');
+      expect(started.running).toBe(true);
+      expect(started.port).toBe(port + 1);
+      expect(started.autoAssigned).toBe(true);
+    } finally {
+      await new Promise<void>((resolve) => squatter.close(() => resolve()));
+    }
+  });
+
+  it('persists an automatically assigned port and updates the local endpoint', async () => {
+    await lanServer.stopLanSyncServer();
+    currentConfig = {
+      sync: {
+        lan: { enabled: true, port, token: TOKEN },
+        platforms: { lan: { baseUrl: `http://127.0.0.1:${port}`, token: TOKEN, enabled: true } },
+      },
+    };
+    const squatter = await holdPort(port);
+    try {
+      const started = await lanServer.applyConfig();
+      expect(started).toMatchObject({ running: true, port: port + 1, autoAssigned: true });
+      expect(currentConfig.sync.lan.port).toBe(port + 1);
+      expect(currentConfig.sync.platforms.lan.baseUrl).toBe(`http://127.0.0.1:${port + 1}`);
     } finally {
       await new Promise<void>((resolve) => squatter.close(() => resolve()));
     }

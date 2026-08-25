@@ -3395,6 +3395,78 @@
   color: var(--green);
 }
 
+.settings-system-utilities,
+.settings-system-update {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.settings-system-utilities {
+  flex: none;
+  padding-left: 12px;
+  border-left: 1px solid color-mix(in srgb, var(--card-line) 75%, transparent);
+}
+
+.settings-system-update {
+  min-height: 30px;
+}
+
+.settings-system-icon-button {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-muted);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+
+.settings-system-icon-button:hover:not(:disabled) {
+  border-color: var(--card-line);
+  background: var(--card-inner);
+  color: var(--ink);
+  transform: translateY(-1px);
+}
+
+.settings-system-icon-button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.settings-system-icon-button.is-copied {
+  border-color: color-mix(in srgb, var(--green) 34%, var(--card-line));
+  background: color-mix(in srgb, var(--green) 8%, var(--card-inner));
+  color: var(--green);
+}
+
+.settings-system-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--card-line));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 8%, var(--card-inner));
+  color: var(--ink);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.settings-system-download:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 14%, var(--card-inner));
+}
+
+.settings-system-download:disabled { cursor: wait; }
+
 .settings-diagnostics-copy {
   flex: none;
   display: inline-flex;
@@ -3416,13 +3488,6 @@
 }
 
 /* ─── 检查更新（设置 → 关于与诊断）─── */
-.settings-update-row {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 12px;
-}
 .settings-update-info { font-size: 12px; color: var(--ink-muted); }
 .settings-update-info strong { color: var(--ink); font-variant-numeric: tabular-nums; }
 .settings-update-info.ok { color: var(--green); font-weight: 650; }
@@ -3505,6 +3570,13 @@
     align-items: stretch;
     flex-direction: column;
     padding: 12px 16px;
+  }
+
+  .settings-system-utilities {
+    justify-content: flex-end;
+    padding: 10px 0 0;
+    border-top: 1px solid color-mix(in srgb, var(--card-line) 75%, transparent);
+    border-left: 0;
   }
 
   .settings-diagnostics-copy {

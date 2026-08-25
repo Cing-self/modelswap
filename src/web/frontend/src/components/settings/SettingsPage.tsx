@@ -320,80 +320,72 @@ export default function SettingsPage() {
             </div>
           </dl>
 
-          <div className="settings-update-row">
-            {/* Desktop-only affordance: the app bundles the browser extension
-                (asarUnpack) — reveal it in Finder so the user can load it in
-                Chrome without needing the CLI. */}
-            {(window as any).okitDesktop?.revealExtension && (
-              <button
-                className="settings-diagnostics-copy"
-                type="button"
-                onClick={() => {
-                  (window as any).okitDesktop.revealExtension()
-                    .then((dir: string) => showToast(t('settings.extensionRevealed', { dir }), 'success'))
-                    .catch((err: any) => showToast(err.message, 'error'));
-                }}
-              >
-                <FolderOpen size={14} />
-                {t('settings.revealExtension')}
-              </button>
-            )}
-            {update.status === 'available' ? (
-              <>
-                <span className="settings-update-info">
-                  {t('settings.updateAvailable')}: {packageInfo.version} → <strong>{update.latest}</strong>
-                </span>
-                {update.dmgUrl && (
-                  <button
-                    className="settings-diagnostics-copy"
-                    type="button"
-                    onClick={handleDownloadUpdate}
-                    disabled={downloading}
-                    title={t('settings.updateDmgHint')}
-                  >
-                    {downloading ? <Loader2 size={14} className="home-config-save-spin" /> : <ArrowDownToLine size={14} />}
-                    {downloading ? t('settings.updateDownloading') : t('settings.updateDownload')}
-                  </button>
-                )}
-                {update.releaseUrl && (
-                  <a className="settings-update-link" href={update.releaseUrl} target="_blank" rel="noreferrer">
-                    {t('settings.updateNotes')}
-                  </a>
-                )}
-                {downloaded && <span className="settings-update-info ok">{t('settings.updateDownloaded')}</span>}
-              </>
-            ) : (
-              <>
-                <button
-                  className="settings-diagnostics-copy"
-                  type="button"
-                  onClick={handleCheckUpdate}
-                  disabled={update.status === 'checking'}
-                  title={t('settings.updateDmgHint')}
-                >
-                  {update.status === 'checking' ? <Loader2 size={14} className="home-config-save-spin" /> : <RefreshCw size={14} />}
-                  {t('settings.updateCheck')}
-                </button>
-                {update.status === 'upToDate' && (
-                  <span className="settings-update-info ok">{t('settings.updateUpToDate')}（{packageInfo.version}）</span>
-                )}
-                {update.status === 'error' && <span className="settings-update-info err">{update.error}</span>}
-              </>
-            )}
-          </div>
-
           <footer className="settings-system-actions">
             <span><CheckCircle2 size={14} />{t('settings.diagnosticsPrivacy')}</span>
-            <button
-              className={`settings-diagnostics-copy${copiedAction === 'diagnostics' ? ' is-copied' : ''}`}
-              type="button"
-              onClick={copyDiagnostics}
-              aria-label={copiedAction === 'diagnostics' ? t('common.copied') : t('settings.copyDiagnostics')}
-            >
-              {copiedAction === 'diagnostics'
-                ? <><CheckCircle2 size={15} />{t('common.copied')}</>
-                : <><Copy size={15} />{t('settings.copyDiagnostics')}</>}
-            </button>
+            <div className="settings-system-utilities">
+              {/* Desktop-only affordance: the app bundles the browser extension
+                  (asarUnpack) — reveal it without turning the status card into a toolbar. */}
+              {(window as any).okitDesktop?.revealExtension && (
+                <button
+                  className="settings-system-icon-button"
+                  type="button"
+                  onClick={() => {
+                    (window as any).okitDesktop.revealExtension()
+                      .then((dir: string) => showToast(t('settings.extensionRevealed', { dir }), 'success'))
+                      .catch((err: any) => showToast(err.message, 'error'));
+                  }}
+                  title={t('settings.revealExtension')}
+                  aria-label={t('settings.revealExtension')}
+                >
+                  <FolderOpen size={15} />
+                </button>
+              )}
+
+              <div className="settings-system-update" aria-live="polite">
+                {update.status === 'available' ? (
+                  <>
+                    <span className="settings-update-info">{packageInfo.version} → <strong>{update.latest}</strong></span>
+                    {update.dmgUrl && (
+                      <button className="settings-system-download" type="button" onClick={handleDownloadUpdate} disabled={downloading}>
+                        {downloading ? <Loader2 size={14} className="home-config-save-spin" /> : <ArrowDownToLine size={14} />}
+                        {downloading ? t('settings.updateDownloading') : t('settings.updateDownload')}
+                      </button>
+                    )}
+                    {update.releaseUrl && (
+                      <a className="settings-system-icon-button" href={update.releaseUrl} target="_blank" rel="noreferrer" title={t('settings.updateNotes')} aria-label={t('settings.updateNotes')}>
+                        <ArrowDownToLine size={15} />
+                      </a>
+                    )}
+                    {downloaded && <span className="settings-update-info ok">{t('settings.updateDownloaded')}</span>}
+                  </>
+                ) : (
+                  <>
+                    {update.status === 'upToDate' && <span className="settings-update-info ok">{t('settings.updateUpToDate')}</span>}
+                    {update.status === 'error' && <span className="settings-update-info err">{update.error}</span>}
+                    <button
+                      className="settings-system-icon-button"
+                      type="button"
+                      onClick={handleCheckUpdate}
+                      disabled={update.status === 'checking'}
+                      title={t('settings.updateCheck')}
+                      aria-label={t('settings.updateCheck')}
+                    >
+                      {update.status === 'checking' ? <Loader2 size={15} className="home-config-save-spin" /> : <RefreshCw size={15} />}
+                    </button>
+                  </>
+                )}
+              </div>
+
+              <button
+                className={`settings-system-icon-button${copiedAction === 'diagnostics' ? ' is-copied' : ''}`}
+                type="button"
+                onClick={copyDiagnostics}
+                title={copiedAction === 'diagnostics' ? t('common.copied') : t('settings.copyDiagnostics')}
+                aria-label={copiedAction === 'diagnostics' ? t('common.copied') : t('settings.copyDiagnostics')}
+              >
+                {copiedAction === 'diagnostics' ? <CheckCircle2 size={15} /> : <Copy size={15} />}
+              </button>
+            </div>
           </footer>
         </section>
 

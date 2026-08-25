@@ -116,7 +116,7 @@ try {
 } catch {
   _snapshots = require('../../../dist/providers/snapshots');
 }
-const { capturePreSwitchSnapshot } = _snapshots;
+const { capturePreSwitchSnapshot, restoreSnapshot } = _snapshots;
 
 // Snapshot before ANY agent-config write, not just provider switches (config
 // viewer edits, additive site add/remove). Failures warn and never block.
@@ -569,13 +569,20 @@ async function switchProvider(req, res) {
     // deleted because they had drifted from the TS adapters and were untested.
     const agentAdapter = _getAdapter(agentId);
     if (!agentAdapter) return res.status(404).json({ error: `Adapter not implemented: ${agentId}` });
-    // Snapshot the current agent config before overwriting it, so a bad switch
-    // can be reverted. A snapshot failure must not block the switch.
+    // A snapshot failure must not block switching — the agent may still work
+    // normally — but a successful snapshot turns the whole operation below
+    // into a recovery boundary.
+    let snapshotId = null;
     try {
-      await capturePreSwitchSnapshot(agentId);
+      snapshotId = await capturePreSwitchSnapshot(agentId);
     } catch (snapErr) {
       console.warn(`[switchProvider] snapshot failed: ${snapErr.message}`);
     }
+
+    // Keep OKIT's own selection record aligned with the agent files if a
+    // later write fails. Adapters update it as part of applyConfig, so it must
+    // participate in the same recovery path.
+    const configBeforeSwitch = await loadUserConfig();
     try {
       // Filtered provider: the card's visible model set + the model being
       // switched to. Adapters write provider.models into agent configs and
@@ -583,33 +590,52 @@ async function switchProvider(req, res) {
       const visibilityConfig = await loadUserConfig();
       const agentProvider = providerForAgentWrite(visibilityConfig, provider, [modelId]);
       await agentAdapter.applyConfig(agentProvider, route.remoteModelId);
+
+      // Save selection. Merge — adapters for additive agents (workbuddy) store
+      // their managedModels tracking under the same key, and a plain replace
+      // here would wipe it right after applyConfig wrote it.
+      const config = await loadUserConfig();
+      if (!config.providers) config.providers = {};
+      config.providers[agentId] = { ...config.providers[agentId], providerId, modelId };
+
+      // For Claude, also update legacy path
+      if (agentId === 'claude') {
+        config.claude = { ...config.claude, name: provider.name, model: modelId };
+      }
+
+      // Auto-record this switch in recentModels (prepend, dedupe by
+      // providerId+modelId, cap at RECENT_MODELS_MAX).
+      const entry = { providerId, modelId, agentId, lastUsedAt: new Date().toISOString() };
+      const recent = Array.isArray(config.recentModels) ? config.recentModels : [];
+      config.recentModels = [
+        entry,
+        ...recent.filter(m => !(m.providerId === providerId && m.modelId === modelId)),
+      ].slice(0, RECENT_MODELS_MAX);
+
+      await saveUserConfig(config);
     } catch (applyErr) {
       appendLog('provider-switch', `${agentId}:${providerId}`, false, `applyConfig failed: ${applyErr.message}`);
-      throw applyErr;
+      const recoveryErrors = [];
+      if (snapshotId) {
+        try {
+          await restoreSnapshot(agentId, snapshotId);
+        } catch (restoreErr) {
+          recoveryErrors.push(`config restore failed: ${restoreErr.message}`);
+        }
+      }
+      try {
+        await saveUserConfig(configBeforeSwitch);
+      } catch (configRestoreErr) {
+        recoveryErrors.push(`selection restore failed: ${configRestoreErr.message}`);
+      }
+      if (recoveryErrors.length) {
+        appendLog('provider-switch-recovery', `${agentId}:${providerId}`, false, recoveryErrors.join('; '));
+      }
+      // Keep technical evidence in the log; the UI only needs a useful result.
+      throw new Error(recoveryErrors.length
+        ? '切换未完成，部分配置无法自动恢复，请在设置中恢复最近的配置版本'
+        : '切换未完成，已恢复到切换前的配置');
     }
-
-    // Save selection. Merge — adapters for additive agents (workbuddy) store
-    // their managedModels tracking under the same key, and a plain replace
-    // here would wipe it right after applyConfig wrote it.
-    const config = await loadUserConfig();
-    if (!config.providers) config.providers = {};
-    config.providers[agentId] = { ...config.providers[agentId], providerId, modelId };
-
-    // For Claude, also update legacy path
-    if (agentId === 'claude') {
-      config.claude = { ...config.claude, name: provider.name, model: modelId };
-    }
-
-    // Auto-record this switch in recentModels (prepend, dedupe by
-    // providerId+modelId, cap at RECENT_MODELS_MAX).
-    const entry = { providerId, modelId, agentId, lastUsedAt: new Date().toISOString() };
-    const recent = Array.isArray(config.recentModels) ? config.recentModels : [];
-    config.recentModels = [
-      entry,
-      ...recent.filter(m => !(m.providerId === providerId && m.modelId === modelId)),
-    ].slice(0, RECENT_MODELS_MAX);
-
-    await saveUserConfig(config);
 
     appendLog('provider-switch', `${agentId}:${providerId}`, true, `model=${modelId}`);
 
@@ -618,6 +644,7 @@ async function switchProvider(req, res) {
       agentId,
       providerId,
       modelId,
+      snapshotAvailable: Boolean(snapshotId),
       route: { executionMode: route.executionMode, endpointId: route.endpointId, remoteModelId: route.remoteModelId },
     });
   } catch (err) {

@@ -309,8 +309,8 @@ export default function HomePage() {
   async function handleSwitch(agentId: string, providerId: string, modelId: string) {
     setSwitching(`${agentId}:${modelId}`);
     try {
-      await switchProvider(agentId, providerId, modelId);
-      showToast(t('agents.switchSuccess'), 'success');
+      const result = await switchProvider(agentId, providerId, modelId);
+      showToast(result.snapshotAvailable === false ? t('agents.switchWithoutSnapshot') : t('agents.switchSuccess'), result.snapshotAvailable === false ? 'info' : 'success');
       load();
     } catch (err: any) {
       showToast(err.message, 'error');
@@ -400,10 +400,10 @@ export default function HomePage() {
           return (
             <button
               key={agent.id}
-              className={`agent-tab${activeAgentId === agent.id ? ' active' : ''}${dragTabIndex === i ? ' dragging' : ''}${dropTabIndex === i && dragTabIndex !== null && dragTabIndex !== i ? ' drop-target' : ''}`}
+              className={`agent-tab${activeAgentId === agent.id ? ' active' : ''}${agent.installed === false ? ' agent-tab--unavailable' : ''}${dragTabIndex === i ? ' dragging' : ''}${dropTabIndex === i && dragTabIndex !== null && dragTabIndex !== i ? ' drop-target' : ''}`}
               role="tab"
               aria-selected={activeAgentId === agent.id}
-              aria-label={agent.name}
+              aria-label={agent.installed === false ? `${agent.name} (${t('common.notInstalled')})` : agent.name}
               onClick={() => { setActiveAgentId(agent.id); setExpandedProvider(null); closeHomePicker(); setShowAllModels(new Set()); }}
               title={agent.name}
               draggable
@@ -415,6 +415,7 @@ export default function HomePage() {
               onDragEnd={() => { setDragTabIndex(null); setDropTabIndex(null); }}
             >
               {icon && <img src={icon} alt="" className={['agent-tab-icon', getAgentIconClass(agent.id)].filter(Boolean).join(' ')} draggable={false} />}
+              {agent.installed === false && <span className="agent-tab-unavailable-mark" aria-hidden="true" />}
               {agent.current && <span className="agent-tab-dot" />}
             </button>
           );

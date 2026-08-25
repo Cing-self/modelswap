@@ -344,9 +344,9 @@ async function handleLanPairingPeek(req, res) {
   try {
     const config = await core.loadConfig();
     const lan = config.sync?.lan || {};
-    const pairing = lanServer.getPendingPairing();
-    if (!pairing || !lan.enabled) return res.json({ active: false });
     const status = lanServer.getStatus();
+    const pairing = lanServer.getPendingPairing();
+    if (!pairing || !lan.enabled || !status.running) return res.json({ active: false });
     const port = status.running ? status.port : (lan.port || lanServer.DEFAULT_PORT);
     const codes = lanServer.listLanAddresses().map(address => ({
       address,
@@ -367,9 +367,12 @@ async function handleLanPairingCreate(req, res) {
     if (!lan.enabled || !lan.token) {
       return res.status(400).json({ error: '请先开启局域网同步' });
     }
-    const session = lanServer.createPairingCode();
     const status = lanServer.getStatus();
-    const port = status.running ? status.port : (lan.port || lanServer.DEFAULT_PORT);
+    if (!status.running) {
+      return res.status(409).json({ error: '这台设备暂时无法接收新的局域网同步连接，请稍后重试' });
+    }
+    const session = lanServer.createPairingCode();
+    const port = status.port;
     const addresses = lanServer.listLanAddresses();
     const codes = addresses.map(address => ({
       address,
