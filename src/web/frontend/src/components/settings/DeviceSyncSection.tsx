@@ -167,18 +167,22 @@ export default function DeviceSyncSection() {
     setLanPairCode('');
   }
 
-  // "Connect existing devices" — this machine is the primary. Enable the
-  // listener behind the scenes if needed, then hand out a fresh pairing code.
+  // "Connect existing devices" — this machine is the primary. Enabling the
+  // listener needs the sync password first; when none is set yet the primary
+  // step collects it inline instead of dead-ending with a toast.
   async function choosePrimary() {
     setLanModalStep('primary');
     if (overview?.lan.enabled) {
       generatePairing();
       return;
     }
-    if (!syncPassword && !overview?.hasPassword) { showToast(t('settings.setSyncPwd'), 'error'); return; }
+    if (!syncPassword && !overview?.hasPassword) return; // wait for the inline password form
     setLanBusy('enable');
     try {
-      if (syncPassword) await saveSync(undefined, undefined, syncPassword);
+      if (syncPassword && !overview?.hasPassword) {
+        await saveSync(undefined, undefined, syncPassword);
+        setSyncPassword('');
+      }
       const status = await enableLanSync();
       await Promise.all([refreshOverview(), loadData()]);
       if (!status.running) {
@@ -247,7 +251,12 @@ export default function DeviceSyncSection() {
     if (!syncPassword && !overview?.hasPassword) { showToast(t('settings.setSyncPwd'), 'error'); return; }
     setLanBusy('pair');
     try {
-      if (syncPassword) await saveSync(undefined, undefined, syncPassword);
+      // First-time password (join side): store locally, must match the
+      // primary's password — both sides encrypt with it.
+      if (syncPassword && !overview?.hasPassword) {
+        await saveSync(undefined, undefined, syncPassword);
+        setSyncPassword('');
+      }
       const data = await pairLanDevice(code);
       showToast(t('settings.lanPaired', { name: data.peerName }), 'success');
       setLanPairCode('');
@@ -634,6 +643,18 @@ export default function DeviceSyncSection() {
                   </div>
                   {pairingDone ? (
                     <div className="lan-pair-success"><CheckCircle2 size={20} />{t('settings.lanPairedSuccess')}</div>
+                  ) : !overview?.lan.enabled && !overview?.hasPassword ? (
+                    // Listener off + no sync password yet: collect it here,
+                    // then enable and generate the pairing code in one go.
+                    <div className="lan-join-form">
+                      <label htmlFor="lan-primary-password">{t('settings.syncPassword')}</label>
+                      <input id="lan-primary-password" type="password" className="settings-input" placeholder={t('settings.syncPasswordDesc')}
+                        value={syncPassword} onChange={e => setSyncPassword(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter' && syncPassword.trim()) choosePrimary(); }} />
+                      <button className="lan-primary-action" onClick={choosePrimary} disabled={!syncPassword.trim() || lanBusy === 'enable'}>
+                        {lanBusy === 'enable' ? t('common.testing') : t('settings.lanSetPwdAndEnable')}
+                      </button>
+                    </div>
                   ) : (
                     <>
                       {overview && overview.lan.enabled && !overview.lan.running && (
@@ -698,6 +719,13 @@ export default function DeviceSyncSection() {
                     <input id="lan-pair-code" type="text" className="settings-input" placeholder={t('settings.lanPairPlaceholder')}
                       value={lanPairCode} onChange={e => setLanPairCode(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') handleLanPair(); }} />
+                    {!overview?.hasPassword && (
+                      <>
+                        <label htmlFor="lan-join-password">{t('settings.syncPassword')}</label>
+                        <input id="lan-join-password" type="password" className="settings-input" placeholder={t('settings.syncPasswordDesc')}
+                          value={syncPassword} onChange={e => setSyncPassword(e.target.value)} />
+                      </>
+                    )}
                     <button className="lan-primary-action" onClick={handleLanPair} disabled={lanBusy === 'pair'}>
                       {lanBusy === 'pair' ? t('settings.lanPairing') : t('settings.lanConnect')}
                     </button>
