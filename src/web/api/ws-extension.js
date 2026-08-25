@@ -212,7 +212,7 @@ function sendCommand(action, params = {}, timeoutMs = 60000) {
 function sendToExtension(command, timeoutMs = 60000) {
   return new Promise((resolve, reject) => {
     if (!extWs || extWs.readyState !== 1) {
-      reject(new Error('Chrome Extension not connected. Please install the OKIT extension.'));
+      reject(new Error('OKIT browser extension is not connected. Please install the OKIT browser extension.'));
       return;
     }
 

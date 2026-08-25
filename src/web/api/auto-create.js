@@ -562,7 +562,7 @@ function createAutoCreateRun({ platformConfig, tokenName }) {
 async function executeAutoCreateRun(run) {
   const { platformConfig, tokenName } = run;
   try {
-    if (!isExtensionConnected()) throw new Error('OKIT Chrome 扩展未连接');
+    if (!isExtensionConnected()) throw new Error('OKIT 浏览器扩展未连接');
     const result = await createBrowserPlatformKey(platformConfig, tokenName, run);
     if (isAssetData(result.value)) throw new Error('Extracted asset data, not API key.');
     markAutoCreateRun(run, 'succeeded', {
@@ -4327,7 +4327,7 @@ function listAutoCreatePlatforms(_req, res) {
  */
 async function openVerificationLoginTabs(_req, res) {
   if (!isExtensionConnected()) {
-    return res.status(503).json({ error: 'OKIT Chrome 扩展未连接。' });
+    return res.status(503).json({ error: 'OKIT 浏览器扩展未连接。' });
   }
   try {
     const [first, ...remaining] = BROWSER_LOGIN_VERIFICATION_PLATFORMS;
@@ -5486,7 +5486,7 @@ async function deleteAutoCreateKey(req, res) {
     }
     const platformConfig = AUTO_CREATE_PLATFORM_MAP.get(platform);
     if (!platformConfig) return res.status(400).json({ success: false, error: `Unknown platform: ${platform}` });
-    if (!isExtensionConnected()) return res.status(503).json({ success: false, error: 'OKIT Chrome 扩展未连接' });
+    if (!isExtensionConnected()) return res.status(503).json({ success: false, error: 'OKIT 浏览器扩展未连接' });
     return res.json(await deleteCreatedBrowserKey({ platform: platformConfig, createdName }));
   } catch (error) {
     return res.status(500).json({ success: false, error: error instanceof Error ? error.message : String(error) });
