@@ -1,6 +1,6 @@
 {
   "name": "@cing-self/okit-cli",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "description": "OKIT - Agent infrastructure toolkit for managing dev tools, auth, and upgrades",
   "main": "dist/main.js",
   "bin": {
