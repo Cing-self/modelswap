@@ -711,6 +711,14 @@ export default function DeviceSyncSection() {
                         pairingExpired && <div className="lan-modal-countdown lan-modal-countdown--expired">{t('settings.lanCodeExpired')}</div>
                       )}
                       <div className="lan-modal-actions">
+                        <button
+                          type="button"
+                          className="settings-test-btn"
+                          onClick={() => setPasswordModalOpen(true)}
+                          disabled={lanBusy === 'pairing' || lanBusy === 'enable'}
+                        >
+                          <KeyRound size={14} />{t('settings.sync2.changePassword')}
+                        </button>
                         <button className="lan-primary-action" onClick={() => generatePairing()} disabled={lanBusy === 'pairing' || lanBusy === 'enable'}>
                           {lanBusy === 'pairing' || lanBusy === 'enable'
                             ? t('common.testing')
