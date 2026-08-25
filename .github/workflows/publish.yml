@@ -1,46 +1,83 @@
 name: Publish to NPM and GitHub Release
 
+# Push-to-main IS the release trigger: the workflow verifies, bumps the
+# version, tags, pushes the bump commit back, and publishes — no local tag
+# pushing required. Manual dispatch is the escape hatch for choosing a
+# patch/minor/major bump.
+#
+# The version-bump commit is pushed with GITHUB_TOKEN and carries [skip ci],
+# so it never re-triggers this workflow (GitHub skips workflows for pushes
+# made with GITHUB_TOKEN regardless).
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Version bump'
+        type: choice
+        default: patch
+        options: [patch, minor, major]
+
+# Serialize releases: a second push queues behind the in-flight release
+# instead of racing the version bump. Never cancel mid-publish.
+concurrency:
+  group: publish-release
+  cancel-in-progress: false
 
 permissions:
   contents: write
 
 jobs:
-  validate-tag:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Verify tag matches package version
-        run: |
-          TAG="${GITHUB_REF#refs/tags/}"
-          PKG_VERSION="$(node -p "require('./package.json').version")"
-          EXPECTED="v${PKG_VERSION}"
-          echo "Tag: ${TAG}"
-          echo "Expected: ${EXPECTED}"
-          if [ "$TAG" != "$EXPECTED" ]; then
-            echo "::error::Git tag '$TAG' does not match package version '$PKG_VERSION'. Aborting release."
-            exit 1
-          fi
-
-  # Full preflight: tests, build, npm package contents, and BOTH architecture
-  # binaries must all succeed before anything is published. Publishing only
-  # starts after this job is green, so a broken build can no longer produce a
-  # half-published state (npm out, Release missing).
-  verify:
-    needs: validate-tag
+  release:
+    # Belt and suspenders next to the GITHUB_TOKEN no-retrigger rule.
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
     runs-on: macos-latest
+    permissions:
+      contents: write   # push the bump commit + tag, create the GitHub Release
+      id-token: write   # npm OIDC trusted publishing (no NPM_TOKEN secret)
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # auto-notes walks the full tag history
 
-      # Node 24 ships npm 11.5+ — required for npm OIDC trusted publishing in
-      # the publish job. Keep verify on the same runtime so a green verify
-      # means the publish environment works too.
+      # Node 24 ships npm 11.5+ — trusted publishing requires npm >= 11.5.1.
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Compute next version
+        id: bump
+        run: |
+          CURRENT="$(node -p "require('./package.json').version")"
+          BUMP="${{ github.event.inputs.bump || 'patch' }}"
+          NEXT="$(node -e "
+            const c = process.argv[1].split('.').map(Number);
+            const bump = process.argv[2];
+            if (bump === 'major') { c[0]++; c[1] = 0; c[2] = 0; }
+            else if (bump === 'minor') { c[1]++; c[2] = 0; }
+            else { c[2]++; }
+            console.log(c.join('.'));
+          " "$CURRENT" "$BUMP")"
+          if git rev-parse "refs/tags/v$NEXT" >/dev/null 2>&1; then
+            echo "::error::Tag v$NEXT already exists. Re-run after the in-flight release completes."
+            exit 1
+          fi
+          echo "Current: $CURRENT → Next: v$NEXT"
+          echo "version=$NEXT" >> "$GITHUB_OUTPUT"
+
+      - name: Commit version bump and tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          npm version "${{ steps.bump.outputs.version }}" --no-git-tag-version
+          git commit -am "chore(release): v${{ steps.bump.outputs.version }} [skip ci]"
+          git tag "v${{ steps.bump.outputs.version }}"
+          git push origin main --follow-tags
+
+      # ---- Everything below only runs on the bumped, tagged tree: a broken
+      # build fails BEFORE npm/Release ever see it. ----
 
       - name: Install frontend deps (locked)
         run: cd src/web/frontend && npm ci
@@ -63,34 +100,6 @@ jobs:
       - name: Validate npm package contents
         run: npm pack --dry-run
 
-  publish:
-    needs: verify
-    runs-on: macos-latest
-    permissions:
-      contents: write   # create the GitHub Release
-      id-token: write   # npm OIDC trusted publishing (no NPM_TOKEN secret)
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      # Node 24 ships npm 11.5+ — trusted publishing requires npm >= 11.5.1.
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-          registry-url: 'https://registry.npmjs.org'
-
-      - name: Install frontend deps (locked)
-        run: cd src/web/frontend && npm ci
-
-      - name: Build browser extension (shipped in the npm package)
-        run: cd extension && npm ci && npm run build
-
-      - run: npm ci
-
-      - name: Build
-        run: npm run build
-
       # Desktop installer BEFORE npm publish: every artifact must build before
       # anything goes public, so a broken desktop build can't leave a
       # half-published release. arm64 + x64 dmg (universal dropped — it was
@@ -108,12 +117,9 @@ jobs:
       - name: Publish to NPM
         run: npm publish --access public
 
-      # publish-release.sh owns the binary naming (okit-${TAG}-macos-{arch}.zip
-      # + .sha256 sidecars) and uploads both macOS assets, so CI and manual
-      # runs never drift.
-      - name: Build binaries and publish GitHub Release
+      # publish-release.sh sees the tag we just pushed (exists → skipped) and
+      # owns release creation + dmg/sha256 upload.
+      - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          TAG="${GITHUB_REF#refs/tags/}"
-          scripts/publish-release.sh "$TAG" --auto-notes
+        run: scripts/publish-release.sh "v${{ steps.bump.outputs.version }}" --auto-notes
