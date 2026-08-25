@@ -23,6 +23,7 @@ describe('agent-path augmented PATH', () => {
   });
 
   it('appends agent-specific installer dirs under the home dir', () => {
+    if (process.platform === 'win32') return; // vendor installers are POSIX-only
     const home = os.homedir();
     const entries = extraPathEntries(home);
     const names = ['.claude/local', '.opencode/bin', '.kimi-code/bin', '.grok/bin', '.mimocode/bin'];
