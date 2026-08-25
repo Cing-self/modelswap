@@ -701,7 +701,7 @@ export default function DeviceSyncSection() {
                       <div className="lan-modal-actions">
                         <button
                           type="button"
-                          className="settings-test-btn"
+                          className="lan-secondary-action"
                           onClick={() => setPasswordModalOpen(true)}
                           disabled={lanBusy === 'pairing' || lanBusy === 'enable'}
                         >

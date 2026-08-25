@@ -2936,6 +2936,36 @@
   cursor: default;
 }
 
+.lan-secondary-action {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 14px;
+  border: 1px solid var(--card-line);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ink-light);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 720;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+
+.lan-secondary-action:hover:not(:disabled) {
+  border-color: var(--card-line-hover);
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+  transform: translateY(-1px);
+}
+
+.lan-secondary-action:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
 .lan-join-form {
   display: grid;
   grid-template-columns: 1fr auto;
