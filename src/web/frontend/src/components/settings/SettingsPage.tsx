@@ -10,6 +10,19 @@ import SnapshotsSection from './SnapshotsSection';
 import packageInfo from '../../../../../../package.json';
 import { useTransientFeedback } from '../../hooks/useTransientFeedback';
 
+type UpdateDownload = {
+  id: string;
+  status: 'queued' | 'downloading' | 'completed' | 'failed';
+  received: number;
+  total: number | null;
+  error?: string | null;
+};
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024 * 1024) return `${Math.max(0, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(bytes >= 100 * 1024 * 1024 ? 0 : 1)} MB`;
+}
+
 /* 界面风格包：id 对应 <html data-style>，swatch 为 [暗色面板色, 强调色, 亮色面板色] */
 const UI_STYLES = [
   { id: 'command', nameKey: 'settings.styleCommand', descKey: 'settings.styleCommandDesc', preview: { rail: '#101512', canvas: '#f4f1e8', surface: '#ffffff', accent: '#526f2c', line: '#d4d9cf' } },
@@ -31,8 +44,8 @@ export default function SettingsPage() {
     status: 'idle' | 'checking' | 'upToDate' | 'available' | 'error';
     latest?: string; dmgUrl?: string; releaseUrl?: string; error?: string;
   }>({ status: 'idle' });
-  const [downloading, setDownloading] = useState(false);
-  const [downloaded, setDownloaded] = useState(false);
+  const [download, setDownload] = useState<UpdateDownload | null>(null);
+  const downloading = download?.status === 'queued' || download?.status === 'downloading';
 
   async function handleCheckUpdate() {
     setUpdate({ status: 'checking' });
@@ -57,7 +70,7 @@ export default function SettingsPage() {
 
   async function handleDownloadUpdate() {
     if (!update.dmgUrl || downloading) return;
-    setDownloading(true);
+    setDownload(null);
     try {
       const res = await fetch('/api/update-download', {
         method: 'POST',
@@ -66,13 +79,33 @@ export default function SettingsPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-      setDownloaded(true);
+      setDownload(data);
     } catch (err: any) {
       showToast(err.message, 'error');
-    } finally {
-      setDownloading(false);
     }
   }
+
+  useEffect(() => {
+    if (!download?.id || download.status === 'completed' || download.status === 'failed') return;
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/update-download/${encodeURIComponent(download.id)}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        if (!cancelled) setDownload(data);
+      } catch (err: any) {
+        if (!cancelled) setDownload(current => current ? { ...current, status: 'failed', error: err.message } : current);
+      }
+    };
+    void poll();
+    const timer = window.setInterval(poll, 400);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [download?.id, download?.status]);
+
+  const downloadProgress = download?.total && download.total > 0
+    ? Math.min(100, Math.floor((download.received / download.total) * 100))
+    : null;
 
   useEffect(() => { loadData(); }, []);
 
@@ -369,7 +402,13 @@ export default function SettingsPage() {
                         <ArrowDownToLine size={15} />
                       </a>
                     )}
-                    {downloaded && <span className="settings-update-info ok">{t('settings.updateDownloaded')}</span>}
+                    {downloading && <span className="settings-update-info settings-update-progress">
+                      {downloadProgress === null
+                        ? t('settings.updateDownloadingBytes', { received: formatFileSize(download?.received || 0) })
+                        : t('settings.updateDownloadingProgress', { progress: downloadProgress, received: formatFileSize(download?.received || 0), total: formatFileSize(download?.total || 0) })}
+                    </span>}
+                    {download?.status === 'completed' && <span className="settings-update-info ok">{t('settings.updateDownloaded')}</span>}
+                    {download?.status === 'failed' && <span className="settings-update-info err">{download.error || t('common.failed')}</span>}
                   </>
                 ) : (
                   <>

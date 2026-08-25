@@ -3,9 +3,10 @@
  *
  * GET  /api/update-check    → compares the running version against the latest
  *                             GitHub Release and returns asset URLs.
- * POST /api/update-download → downloads a Release asset to ~/Downloads (URL
- *                             whitelisted to this repo's releases) and opens
- *                             it on macOS.
+ * POST /api/update-download → starts a streamed Release-asset download to
+ *                             ~/Downloads; GET /api/update-download/:id
+ *                             exposes its progress. URLs are restricted to
+ *                             this repo's releases and macOS opens the DMG.
  *
  * Shared by the desktop app, the web console, and (via the same endpoint
  * semantics) the CLI — one source of truth for "what is the latest version".
@@ -14,7 +15,10 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { randomUUID } = require('crypto');
 const { exec } = require('child_process');
+const { Readable, Transform } = require('stream');
+const { pipeline } = require('stream/promises');
 
 const GITHUB_REPO = 'Cing-self/okit';
 const LATEST_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
@@ -25,6 +29,13 @@ const ASSET_URL_PREFIX = `https://github.com/${GITHUB_REPO}/releases/download/`;
 // 60s memory cache — GitHub's anonymous API quota is 60 req/h per IP.
 const CACHE_TTL_MS = 60 * 1000;
 let cache = { at: 0, data: null };
+
+// Downloads happen in the local server process so the installer can be saved
+// and opened without browser download permissions. Keep small, short-lived job
+// records so the UI can poll real byte progress rather than waiting on one
+// long-lived HTTP request with no feedback.
+const DOWNLOAD_JOB_TTL_MS = 10 * 60 * 1000;
+const downloadJobs = new Map();
 
 /** Numeric dotted-version compare (<0 / 0 / >0). */
 function compareVersions(a, b) {
@@ -69,6 +80,67 @@ function pickAssets(assets) {
   };
 }
 
+function downloadTarget(url) {
+  if (typeof url !== 'string' || !url.startsWith(ASSET_URL_PREFIX)) {
+    throw new Error('仅允许下载本仓库 Release 资产');
+  }
+  const fileName = path.basename(new URL(url).pathname); // basename = no traversal
+  if (!/^[\w.-]+$/.test(fileName)) {
+    throw new Error(`非法资产名: ${fileName}`);
+  }
+  return { fileName, dest: path.join(os.homedir(), 'Downloads', fileName) };
+}
+
+function publicDownloadJob(job) {
+  return {
+    id: job.id,
+    status: job.status,
+    received: job.received,
+    total: job.total,
+    error: job.error,
+    path: job.status === 'completed' ? job.dest : undefined,
+    opened: job.status === 'completed' ? job.opened : undefined,
+  };
+}
+
+function expireDownloadJob(id) {
+  const timer = setTimeout(() => downloadJobs.delete(id), DOWNLOAD_JOB_TTL_MS);
+  timer.unref?.();
+}
+
+async function runDownload(job) {
+  const tempPath = `${job.dest}.part-${job.id}`;
+  try {
+    job.status = 'downloading';
+    const dl = await fetch(job.url, { headers: { 'User-Agent': 'okit-update-check' } });
+    if (!dl.ok) throw new Error(`下载失败 HTTP ${dl.status}`);
+    if (!dl.body) throw new Error('下载响应没有文件内容');
+
+    const contentLength = Number(dl.headers.get('content-length'));
+    job.total = Number.isFinite(contentLength) && contentLength > 0 ? contentLength : null;
+    const progress = new Transform({
+      transform(chunk, _encoding, callback) {
+        job.received += chunk.length;
+        callback(null, chunk);
+      },
+    });
+    await pipeline(Readable.fromWeb(dl.body), progress, fs.createWriteStream(tempPath));
+    fs.renameSync(tempPath, job.dest);
+
+    job.status = 'completed';
+    job.opened = process.platform === 'darwin';
+    if (job.opened) {
+      exec(`open ${JSON.stringify(job.dest)}`, () => { /* opener failures don't change download success */ });
+    }
+  } catch (error) {
+    try { fs.rmSync(tempPath, { force: true }); } catch { /* best-effort temporary-file cleanup */ }
+    job.status = 'failed';
+    job.error = error instanceof Error ? error.message : String(error);
+  } finally {
+    expireDownloadJob(job.id);
+  }
+}
+
 async function getUpdateCheck(req, res) {
   try {
     // From src/web/api (or dist/web/api) the package root is three levels up.
@@ -93,34 +165,28 @@ async function getUpdateCheck(req, res) {
 }
 
 /**
- * Stream a whitelisted Release asset to ~/Downloads and (macOS) open it.
- * Synchronous-by-nature: the frontend shows a loading state; dmg downloads
- * typically finish well within the request window on a local server.
+ * Start a whitelisted Release-asset download. The caller polls the job status
+ * so a slow network never holds its request open or hides progress.
  */
 async function downloadUpdate(req, res) {
   try {
     const { url } = req.body || {};
-    if (typeof url !== 'string' || !url.startsWith(ASSET_URL_PREFIX)) {
-      return res.status(403).json({ error: '仅允许下载本仓库 Release 资产' });
-    }
-    const fileName = path.basename(new URL(url).pathname); // basename = no traversal
-    if (!/^[\w.-]+$/.test(fileName)) {
-      return res.status(400).json({ error: `非法资产名: ${fileName}` });
-    }
-    const dest = path.join(os.homedir(), 'Downloads', fileName);
-
-    const dl = await fetch(url, { headers: { 'User-Agent': 'okit-update-check' } });
-    if (!dl.ok) throw new Error(`下载失败 HTTP ${dl.status}`);
-    const buffer = Buffer.from(await dl.arrayBuffer());
-    fs.writeFileSync(dest, buffer);
-
-    if (process.platform === 'darwin') {
-      exec(`open ${JSON.stringify(dest)}`, () => { /* opener failures don't fail the download */ });
-    }
-    res.json({ success: true, path: dest, size: buffer.length, opened: process.platform === 'darwin' });
+    const { fileName, dest } = downloadTarget(url);
+    const job = { id: randomUUID(), url, fileName, dest, status: 'queued', received: 0, total: null, error: null, opened: false };
+    downloadJobs.set(job.id, job);
+    void runDownload(job);
+    res.status(202).json(publicDownloadJob(job));
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    const message = error instanceof Error ? error.message : String(error);
+    const status = message === '仅允许下载本仓库 Release 资产' ? 403 : 400;
+    res.status(status).json({ error: message });
   }
 }
 
-module.exports = { getUpdateCheck, downloadUpdate, compareVersions, pickAssets };
+function getUpdateDownloadStatus(req, res) {
+  const job = downloadJobs.get(req.params.downloadId);
+  if (!job) return res.status(404).json({ error: '下载任务不存在或已过期' });
+  res.json(publicDownloadJob(job));
+}
+
+module.exports = { getUpdateCheck, downloadUpdate, getUpdateDownloadStatus, compareVersions, pickAssets, downloadTarget };

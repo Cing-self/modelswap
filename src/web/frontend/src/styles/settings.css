@@ -3479,6 +3479,7 @@
 /* ─── 检查更新（设置 → 关于与诊断）─── */
 .settings-update-info { font-size: 12px; color: var(--ink-muted); }
 .settings-update-info strong { color: var(--ink); font-variant-numeric: tabular-nums; }
+.settings-update-progress { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .settings-update-info.ok { color: var(--green); font-weight: 650; }
 .settings-update-info.err { color: var(--red); font-weight: 650; }
 .settings-update-link {
@@ -3715,6 +3716,26 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.settings-workspace .devsync-password-card {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 13px 15px;
+}
+
+.devsync-password-copy { min-width: 0; flex: 1; }
+.devsync-password-copy small,
+.devsync-password-copy strong,
+.devsync-password-copy em { display: block; }
+.devsync-password-copy small { color: var(--ink-muted); font-size: 11px; }
+.devsync-password-copy strong { margin-top: 2px; color: var(--ink); font-size: 13px; }
+.devsync-password-copy em { margin-top: 2px; color: var(--ink-muted); font-size: 11px; font-style: normal; }
+.devsync-password-action { flex: none; }
+.devsync-password-form { display: grid; gap: 8px; }
+.devsync-password-form > label { color: var(--ink-muted); font-size: 12px; font-weight: 700; }
+.devsync-password-warning { display: flex; gap: 7px; align-items: flex-start; margin: 4px 0 0; color: var(--red); font-size: 12px; line-height: 1.5; }
+.devsync-password-warning svg { flex: none; margin-top: 2px; }
 
 .settings-workspace .devsync-section-block {
   min-width: 0;
