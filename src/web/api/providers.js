@@ -3,6 +3,7 @@ const path = require('path');
 const os = require('os');
 const { backupImportantData } = require('./backup');
 const { appendLog } = require('./log-writer');
+const { publishDataChanged } = require('./ui-events');
 const {
   QIANFAN_CODING_PROBE_MODEL,
   isQianfanCodingEndpoint,
@@ -149,6 +150,7 @@ async function saveProviders(providers) {
   await fs.ensureDir(OKIT_DIR);
   await backupImportantData('providers');
   await fs.writeFile(PROVIDERS_PATH, JSON.stringify({ providers, platforms: buildPlatforms(providers) }, null, 2));
+  publishDataChanged(['providers']);
   // Any providers.json write is a payload change for cloud sync (pull merges go
   // through cloud-sync-core's own writer, so this never fires for remote data).
   require('./sync-scheduler').markDirty('providers');

@@ -17,6 +17,7 @@ const {
   isModelAccessFailure,
 } = require('./endpoint-profiles');
 const { appendLog: appendVaultLog } = require('./log-writer');
+const { publishDataChanged } = require('./ui-events');
 
 const store = new VaultStore();
 
@@ -81,6 +82,7 @@ async function setVault(req, res) {
       await store.delete(originalKey);
     }
     appendVaultLog('vault-set', key, true);
+    publishDataChanged(['secrets']);
     res.json({ success: true, key, desc: desc || '' });
 
     // Auto-sync scheduler: debounced encrypted push (fire-and-forget)
@@ -99,6 +101,7 @@ async function deleteVault(req, res) {
     const deleted = await store.delete(key);
     if (deleted) {
       appendVaultLog('vault-delete', key, true);
+      publishDataChanged(['secrets']);
       res.json({ success: true });
       require('./sync-scheduler').markDirty('secrets');
     } else {
@@ -145,7 +148,10 @@ async function importVault(req, res) {
       }
     }
     res.json({ success: true, imported, skipped, total: secrets.length });
-    if (imported > 0) require('./sync-scheduler').markDirty('secrets');
+    if (imported > 0) {
+      publishDataChanged(['secrets']);
+      require('./sync-scheduler').markDirty('secrets');
+    }
   } catch (error) {
     console.error('Error importing vault:', error);
     res.status(500).json({ error: 'Failed to import vault' });
@@ -658,6 +664,7 @@ async function migrateGroups(req, res) {
     if (migrated > 0) {
       await store.save();
       appendVaultLog('migrate-groups', '', true, `${migrated} keys regrouped`);
+      publishDataChanged(['secrets']);
       require('./sync-scheduler').markDirty('secrets');
     }
 

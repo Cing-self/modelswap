@@ -7,6 +7,7 @@ import VaultFormModal from '../shared/VaultFormModal';
 import { normalizeGroupName } from '../../data/vault-groups';
 import { compareGroupNames, sortGroupEntries } from '../../lib/groupOrdering';
 import { useTransientFeedback } from '../../hooks/useTransientFeedback';
+import { useDataChanged } from '../../hooks/useDataChanged';
 
 type IconName = 'plus' | 'download' | 'upload' | 'copy' | 'check' | 'edit' | 'trash' | 'search' | 'more';
 
@@ -61,6 +62,7 @@ export default function VaultPage() {
   const { activeKey: copiedSecretKey, showFeedback: showSecretCopied } = useTransientFeedback();
 
   useEffect(() => { loadVault(); }, []);
+  useDataChanged(['secrets'], loadVault);
 
   useEffect(() => {
     if (!showMoreActions) return;

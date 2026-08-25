@@ -4,6 +4,7 @@ const os = require('os');
 const crypto = require('crypto');
 const { backupImportantData } = require('./backup');
 const { appendLog } = require('./log-writer');
+const { publishDataChanged } = require('./ui-events');
 
 const CONFIG_PATH = path.join(os.homedir(), '.okit', 'user.json');
 const PROVIDERS_PATH = path.join(os.homedir(), '.okit', 'providers.json');
@@ -403,6 +404,12 @@ async function syncPull() {
   config.sync.lastSyncPlatform = remoteFrom;
   await saveConfig(config);
 
+  const changedSections = [];
+  if (added > 0 || updated > 0) changedSections.push('secrets');
+  if (agentApplied) changedSections.push('agents');
+  if (providersApplied) changedSections.push('providers');
+  if (changedSections.length > 0) publishDataChanged(changedSections);
+
   appendLog('sync-pull', remoteFrom, true, `+${added} ~${updated} providers:${providers}${agentApplied ? '' : ' agent:kept-local'}${providersApplied ? '' : ' providers:kept-local'}`);
   return { added, updated, providers, total: (remoteData.secrets || []).length, agentApplied, providersApplied };
 }
@@ -459,6 +466,7 @@ async function importSyncCode(code, password) {
   };
   await saveConfig(config);
   appendLog('sync-code-import', payload.syncPlatform, true, `${secrets.length} secrets`);
+  publishDataChanged(['config', 'secrets']);
 
   return { platform: payload.syncPlatform, secrets: secrets.length };
 }

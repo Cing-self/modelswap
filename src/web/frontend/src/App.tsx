@@ -86,6 +86,24 @@ function DeepLinkHandler() {
   );
 }
 
+function DataChangeEvents() {
+  useEffect(() => {
+    const source = new EventSource('/api/events');
+    const onDataChanged = (event: MessageEvent<string>) => {
+      try {
+        const detail = JSON.parse(event.data);
+        if (detail?.type === 'data-changed' && Array.isArray(detail.sections)) {
+          window.dispatchEvent(new CustomEvent('okit:data-changed', { detail }));
+        }
+      } catch { /* Ignore malformed local events and stay connected. */ }
+    };
+    source.addEventListener('data-changed', onDataChanged);
+    return () => source.close();
+  }, []);
+
+  return null;
+}
+
 /**
  * Keep the frequently revisited pages mounted after their first visit.
  * Switching between routes then changes visibility instead of throwing away
@@ -193,6 +211,7 @@ export default function App() {
         <Route path="*" element={
           <div id="app">
             <DeepLinkHandler />
+            <DataChangeEvents />
             <Sidebar />
               <main className="main-content">
                 <div className="tab-content">

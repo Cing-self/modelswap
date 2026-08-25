@@ -8,6 +8,7 @@ import JsonTreeView from '../shared/JsonTreeView';
 import { Eye, EyeOff, Copy, Save, RefreshCw, X, Plus, FileJson, Loader2, Check, ArrowLeft } from 'lucide-react';
 import UsageSummary from './UsageSummary';
 import { useTransientFeedback } from '../../hooks/useTransientFeedback';
+import { useDataChanged } from '../../hooks/useDataChanged';
 
 const AGENT_ORDER_KEY = 'okit.agentOrder';
 
@@ -113,6 +114,7 @@ export default function HomePage() {
   }, [showToast]);
 
   useEffect(() => { load(); }, [load]);
+  useDataChanged(['providers', 'secrets', 'agents'], load);
 
   // Re-read persisted model-visibility exclusions and restored (extra) lists.
   // Called on mount and after adding a site — the backend seeds

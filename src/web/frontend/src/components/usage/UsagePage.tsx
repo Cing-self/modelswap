@@ -7,6 +7,7 @@ import { useUsagePolling } from '../../lib/useUsagePolling';
 import { useCoalescedUsageMap } from '../../lib/useCoalescedUsageMap';
 import { checkAlerts, fireNotifications } from '../../lib/usageAlerts';
 import { getProviderIcon, getProviderIconClass } from '../../assets/providers';
+import { useDataChanged } from '../../hooks/useDataChanged';
 
 // Display metadata for known supported providers (icon + human-readable name).
 const PROVIDER_META: Record<string, { name: string; typeKey: string; kind: 'subscription' | 'prepaid' }> = {
@@ -83,16 +84,21 @@ export default function UsagePage() {
   // Load supported provider IDs and the full provider list (for display names).
   // manualOnly = providers whose query drives the browser (extension
   // automation window) — excluded from every automatic fetch.
-  useEffect(() => {
-    Promise.all([getSupportedUsageProviders(), listProviders()])
-      .then(([sup, provData]) => {
+  const loadMetadata = useCallback(async () => {
+    try {
+      const [sup, provData] = await Promise.all([getSupportedUsageProviders(), listProviders()]);
         setSupportedIds(sup.providers || []);
         setManualOnlyIds(new Set(sup.manualOnly || []));
         setProviders(provData.providers || []);
-      })
-      .catch(() => {})
-      .finally(() => setMetaLoaded(true));
+    } catch {
+      // Keep the current data visible if a background refresh fails.
+    } finally {
+      setMetaLoaded(true);
+    }
   }, []);
+
+  useEffect(() => { void loadMetadata(); }, [loadMetadata]);
+  useDataChanged(['providers', 'secrets'], loadMetadata);
 
   const fetchOne = useCallback(async (id: string) => {
     setFetchingIds(prev => new Set(prev).add(id));

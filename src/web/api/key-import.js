@@ -12,6 +12,7 @@ const path = require('path');
 const os = require('os');
 const { VaultStore } = require('../../vault/store');
 const { appendLog } = require('./log-writer');
+const { publishDataChanged } = require('./ui-events');
 
 const store = new VaultStore();
 
@@ -274,6 +275,7 @@ async function importAgentKeys(req, res) {
       skipped.length ? `skipped ${skipped.length}` : undefined);
     // Auto-sync: vault contents changed.
     try { require('./sync-scheduler').markDirty('secrets'); } catch { /* scheduler optional */ }
+    if (created.length > 0) publishDataChanged(['secrets']);
     res.json({ success: true, created, skipped });
   } catch (err) {
     appendLog('agent-keys-import', '', false, err.message);

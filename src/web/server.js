@@ -15,6 +15,7 @@ const { createGrokProxyHandler } = require('./api/grok-proxy');
 const { listSnapshotsHandler, snapshotDetailHandler, restoreSnapshotHandler } = require('./api/snapshots');
 const { issueExtensionToken, isExtensionOrigin } = require('./api/ws-extension');
 const { getUpdateCheck, downloadUpdate, getUpdateDownloadStatus } = require('./api/update-check');
+const { subscribeUiEvents } = require('./api/ui-events');
 
 function createServer(port = 3780) {
   const app = express();
@@ -32,6 +33,7 @@ function createServer(port = 3780) {
   } }));
 
   // API Routes
+  app.get('/api/events', subscribeUiEvents);
   app.get('/api/logs', getLogs);
   app.get('/api/vault', listVault);
   app.get('/api/vault/list', listVault);

@@ -12,6 +12,7 @@ const crossData: Record<string, any[]> = crossDataRaw as any;
 // Provider metadata (groups, families) — generated from src/providers/metadata.ts by scripts/gen-presets.js
 import providersGenerated from '../../data/providers-generated.json';
 import { api } from '../../api/client';
+import { useDataChanged } from '../../hooks/useDataChanged';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const PROVIDER_GROUPS: { key: string; labelKey: string; ids: string[] }[] = (providersGenerated as any).groups;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -226,6 +227,7 @@ export default function ModelsPage() {
   }, [toast]);
 
   useEffect(() => { load(); }, [load]);
+  useDataChanged(['providers', 'secrets'], load);
 
   async function handleDelete(p: Provider) {
     setActionMenuId(null);
