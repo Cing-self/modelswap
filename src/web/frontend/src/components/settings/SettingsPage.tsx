@@ -342,8 +342,14 @@ export default function SettingsPage() {
           <footer className="settings-system-actions">
             <span><CheckCircle2 size={14} />{t('settings.diagnosticsPrivacy')}</span>
             <div className="settings-system-utilities">
-              <button className="settings-system-reveal" type="button" onClick={revealExtension}>
-                <FolderOpen size={15} />{t('settings.revealExtension')}
+              <button
+                className="settings-system-icon-button"
+                type="button"
+                onClick={revealExtension}
+                title={t('settings.revealExtension')}
+                aria-label={t('settings.revealExtension')}
+              >
+                <FolderOpen size={15} />
               </button>
 
               <div className="settings-system-update" aria-live="polite">
