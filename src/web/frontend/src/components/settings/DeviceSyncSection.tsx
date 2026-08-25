@@ -415,18 +415,6 @@ export default function DeviceSyncSection() {
         </div>
       </section>
 
-      <section className="settings-card devsync-password-card" aria-label={t('settings.syncPassword')}>
-        <span className="devsync-overview-icon"><KeyRound size={16} /></span>
-        <span className="devsync-password-copy">
-          <small>{t('settings.syncPassword')}</small>
-          <strong>{overview?.hasPassword ? t('settings.sync2.passwordSet') : t('settings.sync2.passwordUnset')}</strong>
-          <em>{t('settings.sync2.passwordLocalHint')}</em>
-        </span>
-        <button type="button" className="settings-test-btn devsync-password-action" onClick={() => setPasswordModalOpen(true)}>
-          {t('settings.sync2.changePassword')}
-        </button>
-      </section>
-
       <section className="settings-block devsync-section-block">
         <div className="settings-block-head devsync-section-head">
           <div className="devsync-section-title">

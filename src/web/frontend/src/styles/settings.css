@@ -3719,21 +3719,6 @@
   white-space: nowrap;
 }
 
-.settings-workspace .devsync-password-card {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 13px 15px;
-}
-
-.devsync-password-copy { min-width: 0; flex: 1; }
-.devsync-password-copy small,
-.devsync-password-copy strong,
-.devsync-password-copy em { display: block; }
-.devsync-password-copy small { color: var(--ink-muted); font-size: 11px; }
-.devsync-password-copy strong { margin-top: 2px; color: var(--ink); font-size: 13px; }
-.devsync-password-copy em { margin-top: 2px; color: var(--ink-muted); font-size: 11px; font-style: normal; }
-.devsync-password-action { flex: none; }
 .devsync-password-form { display: grid; gap: 8px; }
 .devsync-password-form > label { color: var(--ink-muted); font-size: 12px; font-weight: 700; }
 .devsync-password-warning { display: flex; gap: 7px; align-items: flex-start; margin: 4px 0 0; color: var(--red); font-size: 12px; line-height: 1.5; }
