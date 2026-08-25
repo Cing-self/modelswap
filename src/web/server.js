@@ -95,11 +95,19 @@ function createServer(port = 3780) {
       const wsExt = require('./api/ws-extension');
       const providersApi = require('./api/providers');
       const { recentFailures } = require('./api/logs');
+      const { augmentedPath } = require('./api/agent-path');
       res.json({
         version: require('../../package.json').version,
         port: runtimePort,
         nodeVersion: process.version,
-        platform: `${process.platform} ${os.release()} ${process.arch}`,
+        platform: `${process.platform} ${os.release()} ${os.arch}`,
+        // The server process's own PATH (GUI launches get launchd's minimal
+        // default) plus what detection actually resolves with — the pair
+        // explains "agent shows not installed" reports at a glance.
+        env: {
+          processPath: process.env.PATH || '',
+          detectionPath: augmentedPath(),
+        },
         extension: {
           connected: wsExt.isExtensionConnected(),
           version: wsExt.getExtensionVersion(),

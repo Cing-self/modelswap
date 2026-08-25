@@ -1657,14 +1657,18 @@ function findCommand(cmd) {
   if (typeof cmd !== 'string' || !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(cmd)) return null;
   const { spawnSync } = require('child_process');
   const platform = os.platform();
+  // Finder/Dock-launched desktop builds inherit launchd's minimal PATH —
+  // `which` would miss npm-global/homebrew/nvm-installed CLIs. agent-path
+  // appends the standard install locations before resolving.
+  const { detectionEnv } = require('./agent-path');
   try {
     if (platform === 'win32') {
       // No shell: pass args as array. `where` is the Windows equivalent of `which`.
-      const result = spawnSync('where', [cmd], { encoding: 'utf-8', timeout: 5000 });
+      const result = spawnSync('where', [cmd], { encoding: 'utf-8', timeout: 5000, env: detectionEnv() });
       const out = (result.stdout || '').trim();
       return out.split(/\r?\n/)[0] || null;
     }
-    const result = spawnSync('which', [cmd], { encoding: 'utf-8', timeout: 5000 });
+    const result = spawnSync('which', [cmd], { encoding: 'utf-8', timeout: 5000, env: detectionEnv() });
     const out = (result.stdout || '').trim();
     return out || null;
   } catch {
