@@ -9,7 +9,7 @@ export default {
   'nav.agents': 'Agent 配置',
   'nav.settings': '设置',
   'nav.backHome': '返回',
-  'nav.backConsole': '返回控制台',
+  'nav.backConsole': '返回',
   'nav.language': '语言',
   'nav.switchLanguage': '切换语言',
   'nav.collapseSidebar': '收起侧边栏',
