@@ -550,7 +550,6 @@ export default {
   'settings.updateNotes': 'Release notes',
   'settings.updateDmgHint': 'For the desktop app; CLI installs update via okit upgrade',
   'settings.revealExtension': 'Open extension folder',
-  'settings.extensionRevealed': 'Extension folder opened: {dir}. In Chrome, open chrome://extensions; in Edge, open edge://extensions; then choose “Load unpacked”.',
   'settings.extensionRevealFail': 'Could not open the extension folder',
   'settings.serviceStatus': 'Web service',
   'settings.serviceConnected': 'Connected',
@@ -891,7 +890,6 @@ export default {
   'onboarding.extensionTitle': 'Optional: connect the browser extension',
   'onboarding.extensionDesc': 'Open the folder, then use “Load unpacked” from the Chrome or Edge extensions page. The browser requires this confirmation.',
   'onboarding.extensionOpen': 'Open extension folder',
-  'onboarding.extensionOpened': 'Extension folder opened: {dir}',
   'onboarding.extensionOpenFail': 'Could not open the extension folder',
   'onboarding.extensionConnected': 'Browser extension connected',
 

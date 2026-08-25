@@ -129,14 +129,16 @@ export default function SettingsPage() {
   async function revealExtension() {
     try {
       const desktop = (window as any).okitDesktop;
-      const dir = desktop?.revealExtension
-        ? await desktop.revealExtension()
-        : (await fetch('/api/extension/reveal', { method: 'POST' }).then(async res => {
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-            return data;
-          })).dir;
-      showToast(t('settings.extensionRevealed', { dir }), 'success');
+      if (desktop?.revealExtension) {
+        await desktop.revealExtension();
+      } else {
+        await fetch('/api/extension/reveal', { method: 'POST' }).then(async res => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        });
+      }
+      // Opening the system folder is the confirmation; setup instructions live
+      // in the documentation rather than repeating in a product toast.
     } catch (err: any) {
       showToast(err.message || t('settings.extensionRevealFail'), 'error');
     }

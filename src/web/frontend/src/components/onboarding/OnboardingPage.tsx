@@ -176,14 +176,16 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
     setOpeningExtension(true);
     try {
       const desktop = (window as any).okitDesktop;
-      const dir = desktop?.revealExtension
-        ? await desktop.revealExtension()
-        : (await fetch('/api/extension/reveal', { method: 'POST' }).then(async res => {
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-            return data;
-          })).dir;
-      showToast(t('onboarding.extensionOpened', { dir }), 'success');
+      if (desktop?.revealExtension) {
+        await desktop.revealExtension();
+      } else {
+        await fetch('/api/extension/reveal', { method: 'POST' }).then(async res => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        });
+      }
+      // The folder opening is sufficient confirmation; the optional card and
+      // documentation carry the one-time installation instructions.
     } catch (err: any) {
       showToast(err.message || t('onboarding.extensionOpenFail'), 'error');
     } finally {
