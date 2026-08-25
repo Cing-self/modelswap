@@ -74,7 +74,12 @@ jobs:
           npm version "${{ steps.bump.outputs.version }}" --no-git-tag-version
           git commit -am "chore(release): v${{ steps.bump.outputs.version }} [skip ci]"
           git tag "v${{ steps.bump.outputs.version }}"
-          git push origin main --follow-tags
+          # Explicit refspecs: --follow-tags only pushes ANNOTATED tags, and
+          # `git tag` above creates a lightweight one (bit us on v1.0.17 —
+          # npm published but the tag never reached the remote, so
+          # publish-release.sh could not create the GitHub Release).
+          git push origin main
+          git push origin "refs/tags/v${{ steps.bump.outputs.version }}"
 
       # ---- Everything below only runs on the bumped, tagged tree: a broken
       # build fails BEFORE npm/Release ever see it. ----
