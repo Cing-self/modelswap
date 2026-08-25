@@ -14,7 +14,7 @@ const { getUsage, getSupportedUsageProviders, openXiaomiLogin } = require('./api
 const { createGrokProxyHandler } = require('./api/grok-proxy');
 const { listSnapshotsHandler, snapshotDetailHandler, restoreSnapshotHandler } = require('./api/snapshots');
 const { issueExtensionToken, isExtensionOrigin } = require('./api/ws-extension');
-const { getUpdateCheck, downloadUpdate } = require('./api/update-check');
+const { getUpdateCheck, downloadUpdate, getUpdateDownloadStatus } = require('./api/update-check');
 
 function createServer(port = 3780) {
   const app = express();
@@ -110,6 +110,7 @@ function createServer(port = 3780) {
   // the desktop app, the web console, and mirrors the CLI's upgrade source.
   app.get('/api/update-check', getUpdateCheck);
   app.post('/api/update-download', downloadUpdate);
+  app.get('/api/update-download/:downloadId', getUpdateDownloadStatus);
 
   // Diagnostics summary for support requests: real port, runtime, extension
   // link state, per-agent config presence, and the most recent failed

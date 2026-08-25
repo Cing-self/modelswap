@@ -65,6 +65,10 @@ export default function DeviceSyncSection() {
   const [vaultKeys, setVaultKeys] = useState<string[]>([]);
   const [autoSync, setAutoSync] = useState(false);
   const [syncPassword, setSyncPassword] = useState('');
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [replacementPassword, setReplacementPassword] = useState('');
+  const [replacementPasswordConfirm, setReplacementPasswordConfirm] = useState('');
+  const [passwordSaving, setPasswordSaving] = useState(false);
 
   // Panels: add-device dialog + collapsibles (collapsed by default)
 
@@ -129,7 +133,38 @@ export default function DeviceSyncSection() {
           ...(password ? { password } : {}),
         },
       });
+      return true;
     } catch { showToast(t('settings.saveFail'), 'error'); }
+    return false;
+  }
+
+  function closePasswordModal(force = false) {
+    if (passwordSaving && !force) return;
+    setPasswordModalOpen(false);
+    setReplacementPassword('');
+    setReplacementPasswordConfirm('');
+  }
+
+  async function handleReplacePassword() {
+    const password = replacementPassword.trim();
+    if (!password) { showToast(t('settings.sync2.passwordRequired'), 'error'); return; }
+    if (password !== replacementPasswordConfirm) { showToast(t('settings.sync2.passwordMismatch'), 'error'); return; }
+
+    const approved = await confirm(t('settings.sync2.passwordReplaceWarning'), {
+      title: t('settings.sync2.changePassword'),
+      type: 'warning',
+    });
+    if (!approved) return;
+
+    setPasswordSaving(true);
+    try {
+      const saved = await saveSync(undefined, undefined, password);
+      if (!saved) return;
+      setSyncPassword('');
+      closePasswordModal(true);
+      showToast(t('settings.sync2.passwordChanged'), 'success');
+      await refreshOverview();
+    } finally { setPasswordSaving(false); }
   }
 
   // --- Devices --------------------------------------------------------------
@@ -378,6 +413,18 @@ export default function DeviceSyncSection() {
             <span><small>{t('settings.sync2.cloudBackup')}</small><strong>{t('settings.sync2.cloudTargets', { n: cloudCount })}</strong></span>
           </div>
         </div>
+      </section>
+
+      <section className="settings-card devsync-password-card" aria-label={t('settings.syncPassword')}>
+        <span className="devsync-overview-icon"><KeyRound size={16} /></span>
+        <span className="devsync-password-copy">
+          <small>{t('settings.syncPassword')}</small>
+          <strong>{overview?.hasPassword ? t('settings.sync2.passwordSet') : t('settings.sync2.passwordUnset')}</strong>
+          <em>{t('settings.sync2.passwordLocalHint')}</em>
+        </span>
+        <button type="button" className="settings-test-btn devsync-password-action" onClick={() => setPasswordModalOpen(true)}>
+          {t('settings.sync2.changePassword')}
+        </button>
       </section>
 
       <section className="settings-block devsync-section-block">
@@ -704,6 +751,36 @@ export default function DeviceSyncSection() {
                   <div className="lan-hint">{t('settings.lanPasswordHint')}</div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {passwordModalOpen && (
+        <div className="auth-overlay" style={{ display: '' }} onClick={e => { if (e.target === e.currentTarget) closePasswordModal(); }}>
+          <div className="confirm-panel devsync-password-modal" role="dialog" aria-modal="true" aria-labelledby="sync-password-modal-title">
+            <header className="lan-modal-header">
+              <span className="lan-modal-header-icon"><KeyRound size={18} /></span>
+              <div>
+                <h3 id="sync-password-modal-title">{t('settings.sync2.changePassword')}</h3>
+                <p>{t('settings.sync2.passwordModalDesc')}</p>
+              </div>
+              <button className="lan-modal-close" onClick={() => closePasswordModal()} disabled={passwordSaving} aria-label={t('common.close')} title={t('common.close')}>
+                <X size={17} />
+              </button>
+            </header>
+            <div className="lan-modal-body devsync-password-form">
+              <label htmlFor="sync-password-new">{t('settings.sync2.passwordNew')}</label>
+              <input id="sync-password-new" type="password" autoComplete="new-password" className="settings-input" value={replacementPassword} onChange={e => setReplacementPassword(e.target.value)} />
+              <label htmlFor="sync-password-confirm">{t('settings.sync2.passwordConfirm')}</label>
+              <input id="sync-password-confirm" type="password" autoComplete="new-password" className="settings-input" value={replacementPasswordConfirm} onChange={e => setReplacementPasswordConfirm(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleReplacePassword(); }} />
+              <p className="devsync-password-warning"><AlertTriangle size={14} />{t('settings.sync2.passwordReplaceWarning')}</p>
+              <div className="lan-modal-actions">
+                <button type="button" className="settings-test-btn" onClick={() => closePasswordModal()} disabled={passwordSaving}>{t('common.cancel')}</button>
+                <button type="button" className="lan-primary-action" onClick={handleReplacePassword} disabled={passwordSaving || !replacementPassword || !replacementPasswordConfirm}>
+                  {passwordSaving ? t('common.saving') : t('settings.sync2.changePassword')}
+                </button>
+              </div>
             </div>
           </div>
         </div>
