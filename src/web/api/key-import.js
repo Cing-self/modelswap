@@ -114,21 +114,61 @@ function providerFromPath(p) {
   return undefined;
 }
 
-// Lazy access to the provider store (compiled path layout matches
-// providers.js's own requires).
+// Lazy access to the provider store. Same dual fallback as providers.js:
+// the first path resolves in the ts-node/dev layout, the second in the
+// compiled dist layout (npm package / desktop app). WITHOUT the fallback the
+// require fails silently, okitProviderIds stays null, and every finding
+// except `builtin:` ones is misclassified as a non-model credential and
+// hidden from the onboarding wizard (observed on a fresh machine: only the
+// two zcode builtin keys showed).
 let _providerStore;
+function loadProviderStore() {
+  if (_providerStore) return _providerStore;
+  try {
+    _providerStore = require('../../../providers/store');
+  } catch {
+    _providerStore = require('../../../dist/providers/store');
+  }
+  return _providerStore;
+}
+
+// Namespaces that hold app credentials (chat channels, search/gateway,
+// plugins, MCP servers, payment) — never model-invocation keys.
+const NON_MODEL_PATH_RE = /^(?:channels|gateway|plugins|plugin|mcp|integrations|notifications|payment)\./;
+// Well-known model-key names for env blocks (claude settings.json
+// env.ANTHROPIC_AUTH_TOKEN) and .env / root fields (codex auth.json
+// OPENAI_API_KEY). A whitelist on purpose: TAVILY_API_KEY / BRAVE_API_KEY
+// style app keys are indistinguishable by suffix and stay out of the vault.
+const MODEL_ENV_KEYS = new Set([
+  'ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY',
+  'Z_AI_API_KEY', 'ZAI_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY',
+  'DEEPSEEK_API_KEY', 'OPENROUTER_API_KEY', 'MOONSHOT_API_KEY',
+  'GLM_API_KEY', 'ZHIPU_API_KEY', 'BIGMODEL_API_KEY', 'XAI_API_KEY',
+  'GROK_API_KEY', 'MINIMAX_API_KEY', 'DASHSCOPE_API_KEY', 'QWEN_API_KEY',
+  'VOLCENGINE_API_KEY', 'MISTRAL_API_KEY', 'TOGETHER_API_KEY',
+  'GROQ_API_KEY', 'FIREWORKS_API_KEY',
+]);
 
 // Classify a finding as a MODEL-invocation key or not. Users only want model
 // API keys in the vault — Discord/Tavily/Brave/Stripe-MCP/gateway tokens are
 // app credentials, not LLM access, and stay untouched in their files.
-// Model = under an OKIT provider id, a zcode builtin plan, or an agent's
-// model-provider section (models.providers.*).
 function isModelKey(finding, okitProviderIds) {
+  const p = finding.path || '';
+  if (NON_MODEL_PATH_RE.test(p)) return false;
   if (finding.providerId) {
     if (finding.providerId.startsWith('builtin:')) return true;
     if (okitProviderIds && okitProviderIds.has(finding.providerId)) return true;
   }
-  if (/^models\.providers\./.test(finding.path)) return true;
+  if (/^models\.providers\./.test(p)) return true;
+  // env.<NAME> (JSON env blocks) and bare <NAME> (.env files, codex
+  // auth.json root): only well-known model-key names pass.
+  const name = p.replace(/^env\./, '');
+  if (/^[A-Z0-9_]+$/.test(name)) return MODEL_ENV_KEYS.has(name);
+  // A bare api-named field — codex/kimi/grok toml `api_key` (the TOML
+  // scanner flattens table headers out of the path) and workbuddy's flat
+  // models.json entries. Every file this scanner reads is a model-agent
+  // config, so a root api-key field is a model key.
+  if (/^(?:\[\d+\]\.)?(?:api[-_]?key|apikey)$/i.test(p)) return true;
   return false;
 }
 
@@ -145,8 +185,7 @@ async function scanRaw() {
   // Known OKIT provider ids for model-key classification.
   let okitProviderIds = null;
   try {
-    if (!_providerStore) _providerStore = require('../../../providers/store');
-    const provs = await _providerStore.loadProviders();
+    const provs = await loadProviderStore().loadProviders();
     okitProviderIds = new Set((provs || []).map(p => p.id));
   } catch { /* fall back to path-based classification */ }
   const findings = [];
@@ -242,4 +281,4 @@ async function importAgentKeys(req, res) {
   }
 }
 
-module.exports = { scanAgentKeys, importAgentKeys };
+module.exports = { scanAgentKeys, importAgentKeys, isModelKey };
