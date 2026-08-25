@@ -30,7 +30,6 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
   const [providers, setProviders] = useState<{ id: string; name: string; hasKey: boolean }[]>([]);
   const [platformQuery, setPlatformQuery] = useState('');
   const [activeProviderId, setActiveProviderId] = useState<string | null>(null);
-  const [keyName, setKeyName] = useState('');
   const [keyValue, setKeyValue] = useState('');
   const [keySaving, setKeySaving] = useState(false);
   const [configuredIds, setConfiguredIds] = useState<Set<string>>(new Set());
@@ -117,24 +116,24 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
     }
   }
 
-  // Suggested vault key name for a provider (ANTHROPIC_API_KEY style).
+  // Vault key name is auto-derived (ANTHROPIC_API_KEY style) — the wizard
+  // form only asks for the key value itself.
   const suggestKeyName = (providerId: string) =>
     providerId.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '') + '_API_KEY';
 
   async function savePlatformKey(p: { id: string; name: string }) {
     if (keySaving) return;
-    const name = (keyName || suggestKeyName(p.id)).trim();
-    if (!name || !keyValue.trim()) {
+    if (!keyValue.trim()) {
       showToast(t('onboarding.fillAll'), 'error');
       return;
     }
     setKeySaving(true);
     try {
+      const name = suggestKeyName(p.id);
       await setVault({ key: name, value: keyValue.trim(), desc: `${p.name}（初始化配置）`, group: '初始化配置' });
       await updateProvider(p.id, { vaultKey: name });
       setConfiguredIds(prev => new Set(prev).add(p.id));
       setActiveProviderId(null);
-      setKeyName('');
       setKeyValue('');
       showToast(t('onboarding.platformSaved', { name: p.name }), 'success');
       setProviders(prev => prev.map(x => x.id === p.id ? { ...x, hasKey: true } : x));
@@ -377,7 +376,6 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
                         onClick={() => {
                           if (active) { setActiveProviderId(null); return; }
                           setActiveProviderId(p.id);
-                          setKeyName(suggestKeyName(p.id));
                           setKeyValue('');
                         }}
                       >
@@ -389,16 +387,11 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
                       {active && (
                         <div className="wiz-platform-form">
                           <input
-                            type="text"
-                            value={keyName}
-                            onChange={e => setKeyName(e.target.value)}
-                            placeholder={t('onboarding.keyName')}
-                          />
-                          <input
                             type="password"
                             value={keyValue}
                             onChange={e => setKeyValue(e.target.value)}
                             placeholder={t('onboarding.keyValue')}
+                            autoFocus
                             onKeyDown={e => { if (e.key === 'Enter') savePlatformKey(p); }}
                           />
                           <button

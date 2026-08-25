@@ -604,6 +604,7 @@ export default {
   // LAN sync
   'settings.lanGenCode': 'Generate Pairing Code',
   'settings.lanRegenCode': 'Regenerate Code',
+  'settings.lanSetPwdAndEnable': 'Set password & generate code',
   'settings.lanCodeExpired': 'This code has expired',
   'settings.lanCodeExpiresIn': 'Valid for {time}',
   'settings.lanCodeHint': 'Pairing codes are valid for 5 minutes and single-use — paste one under "Add Device" on the other computer, and generate a fresh code for each pairing. Both devices must use the same sync password. If a firewall prompt appears on first connect, allow inbound connections for OKIT.',
@@ -842,7 +843,7 @@ export default {
   'auth.emptyDesc': 'There are no authorization items that need attention.',
 
   // Onboarding
-  'onboarding.fillAll': 'Please fill in all keys',
+  'onboarding.fillAll': 'Please enter the API key',
   'onboarding.configuring': 'Configuring...\n',
   'onboarding.result': '{tools} tools installed, {keys} keys saved',
   'onboarding.completed': 'Setup complete!',
@@ -864,7 +865,6 @@ export default {
   'onboarding.platformSearch': 'Search platforms…',
   'onboarding.platformHasKey': 'key set',
   'onboarding.platformSaved': 'Saved key for {name}',
-  'onboarding.keyName': 'Key name (stored in vault)',
   'onboarding.keyValue': 'API Key',
   'onboarding.platformSave': 'Save',
   'onboarding.adoptSection': 'Import agent configs',

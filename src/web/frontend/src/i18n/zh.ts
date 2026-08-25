@@ -604,6 +604,7 @@ export default {
   // 局域网同步
   'settings.lanGenCode': '生成配对码',
   'settings.lanRegenCode': '重新生成配对码',
+  'settings.lanSetPwdAndEnable': '设置密码并生成配对码',
   'settings.lanCodeExpired': '配对码已过期',
   'settings.lanCodeExpiresIn': '有效期剩 {time}',
   'settings.lanCodeHint': '配对码 5 分钟内有效、单次使用，在其他电脑「添加设备」中粘贴即可连接；每次配对请生成新配对码。两台设备需使用相同的同步密码。如首次连接被防火墙拦截，请允许 OKIT 的入站连接。',
@@ -842,7 +843,7 @@ export default {
   'auth.emptyDesc': '当前没有需要处理的授权项。',
 
   // 引导
-  'onboarding.fillAll': '请填写所有密钥',
+  'onboarding.fillAll': '请输入 API Key',
   'onboarding.configuring': '正在配置...\n',
   'onboarding.result': '{tools} 个工具已安装，{keys} 个密钥已保存',
   'onboarding.completed': '你已完成初始配置',
@@ -864,7 +865,6 @@ export default {
   'onboarding.platformSearch': '搜索平台…',
   'onboarding.platformHasKey': '已有密钥',
   'onboarding.platformSaved': '已保存 {name} 的密钥',
-  'onboarding.keyName': '密钥名称（存入密钥库）',
   'onboarding.keyValue': 'API Key',
   'onboarding.platformSave': '保存',
   'onboarding.adoptSection': 'Agent 配置导入',
