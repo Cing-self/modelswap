@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Activity, ArrowDownToLine, CheckCircle2, Copy, FolderOpen, Globe2, Loader2, Package, Palette, RefreshCw } from 'lucide-react';
+import { Activity, ArrowDownToLine, CheckCircle2, CircleAlert, Copy, FolderOpen, Globe2, Loader2, Package, Palette, RefreshCw } from 'lucide-react';
 import { getSettings } from '../../api/settings';
 import { useApp } from '../Layout/AppContext';
 import { useI18n } from '../../i18n';
@@ -123,6 +123,22 @@ export default function SettingsPage() {
       showCopied('diagnostics');
     } catch {
       showToast(t('settings.diagnosticsCopyFail'), 'error');
+    }
+  }
+
+  async function revealExtension() {
+    try {
+      const desktop = (window as any).okitDesktop;
+      const dir = desktop?.revealExtension
+        ? await desktop.revealExtension()
+        : (await fetch('/api/extension/reveal', { method: 'POST' }).then(async res => {
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+            return data;
+          })).dir;
+      showToast(t('settings.extensionRevealed', { dir }), 'success');
+    } catch (err: any) {
+      showToast(err.message || t('settings.extensionRevealFail'), 'error');
     }
   }
 
@@ -298,11 +314,14 @@ export default function SettingsPage() {
               <img src="/okit-icon-180.png" alt="" />
               <i />
             </span>
-            <div>
-              <span className="settings-system-kicker">{t('settings.runtimeOverview')}</span>
-              <h3>{serviceReady === null ? t('settings.serviceCheckingTitle') : serviceReady ? t('settings.serviceHealthyTitle') : t('settings.serviceUnavailableTitle')}</h3>
-              <p>{serviceReady === null ? t('settings.serviceCheckingDesc') : serviceReady ? t('settings.serviceHealthyDesc') : t('settings.serviceUnavailableDesc')}</p>
-            </div>
+            <span
+              className={`settings-system-health${serviceReady === null ? ' is-checking' : serviceReady ? ' is-ready' : ' is-error'}`}
+              role="status"
+              aria-label={serviceReady === null ? t('settings.serviceCheckingTitle') : serviceReady ? t('settings.serviceHealthyTitle') : t('settings.serviceUnavailableTitle')}
+              title={serviceReady === null ? t('settings.serviceCheckingTitle') : serviceReady ? t('settings.serviceHealthyTitle') : t('settings.serviceUnavailableTitle')}
+            >
+              {serviceReady === null ? <Loader2 size={25} /> : serviceReady ? <CheckCircle2 size={26} /> : <CircleAlert size={26} />}
+            </span>
           </div>
 
           <dl className="settings-system-facts">
@@ -323,23 +342,9 @@ export default function SettingsPage() {
           <footer className="settings-system-actions">
             <span><CheckCircle2 size={14} />{t('settings.diagnosticsPrivacy')}</span>
             <div className="settings-system-utilities">
-              {/* Desktop-only affordance: the app bundles the browser extension
-                  (asarUnpack) — reveal it without turning the status card into a toolbar. */}
-              {(window as any).okitDesktop?.revealExtension && (
-                <button
-                  className="settings-system-icon-button"
-                  type="button"
-                  onClick={() => {
-                    (window as any).okitDesktop.revealExtension()
-                      .then((dir: string) => showToast(t('settings.extensionRevealed', { dir }), 'success'))
-                      .catch((err: any) => showToast(err.message, 'error'));
-                  }}
-                  title={t('settings.revealExtension')}
-                  aria-label={t('settings.revealExtension')}
-                >
-                  <FolderOpen size={15} />
-                </button>
-              )}
+              <button className="settings-system-reveal" type="button" onClick={revealExtension}>
+                <FolderOpen size={15} />{t('settings.revealExtension')}
+              </button>
 
               <div className="settings-system-update" aria-live="polite">
                 {update.status === 'available' ? (

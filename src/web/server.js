@@ -1,6 +1,8 @@
 const express = require('express');
 const path = require('path');
 const os = require('os');
+const fs = require('fs-extra');
+const { spawn } = require('child_process');
 const { listVault, setVault, deleteVault, exportVault, importVault, getVaultValue, testApiKey, migrateGroups } = require('./api/vault');
 const { autoCreateKey, autoCreateRunStatus, resumeAutoCreateRun, deleteAutoCreateKey, recoverLatestZaiGlobalKey, cdpStatus, listAutoCreatePlatforms, openVerificationLoginTabs } = require('./api/auto-create');
 const { getLogs } = require('./api/logs');
@@ -80,6 +82,28 @@ function createServer(port = 3780) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
     res.json({ token: issueExtensionToken(), ttlSeconds: 120 });
+  });
+
+  // Browser-console counterpart to Electron's shell.showItemInFolder(). The
+  // local server is loopback-only, and this keeps the diagnostic action useful
+  // on macOS, Windows, and Linux instead of making it a Finder-only affordance.
+  app.post('/api/extension/reveal', async (_req, res) => {
+    const dir = path.resolve(__dirname, '../../extension');
+    try {
+      if (!await fs.pathExists(dir)) {
+        return res.status(404).json({ error: '未找到扩展目录' });
+      }
+      const command = process.platform === 'darwin'
+        ? ['open', [dir]]
+        : process.platform === 'win32'
+          ? ['explorer.exe', [dir]]
+          : ['xdg-open', [dir]];
+      const child = spawn(command[0], command[1], { detached: true, stdio: 'ignore' });
+      child.unref();
+      res.json({ success: true, dir });
+    } catch (error) {
+      res.status(500).json({ error: error.message || '无法打开扩展目录' });
+    }
   });
 
   // Update check + guided download (desktop dmg / release assets). Shared by
