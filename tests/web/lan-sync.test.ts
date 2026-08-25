@@ -92,6 +92,19 @@ function mockRes() {
 let port: number;
 let baseUrl: string;
 
+// Bind a genuinely free port WITHOUT fallback: if the chosen port turns out
+// to be lingered (slow CI runners), surface the failure and pick a new one
+// instead of letting the listener silently land on port+1.
+async function startListenerAtFreePort(): Promise<void> {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    port = await freePort();
+    const started = await lanServer.startLanSyncServer(port, TOKEN, { allowPortFallback: false });
+    if (started.running) return;
+    await lanServer.stopLanSyncServer();
+  }
+  throw new Error('failed to bind a free port after 5 attempts');
+}
+
 beforeEach(async () => {
   vi.clearAllMocks();
   currentConfig = { sync: { machineId: 'm-test' } };
@@ -102,13 +115,11 @@ beforeEach(async () => {
   mockCore.peekRemote.mockResolvedValue(null);
   mockCore.syncPush.mockResolvedValue({ secrets: 0, platforms: ['lan'], platform: 'lan' });
 
-  port = await freePort();
-  baseUrl = `http://127.0.0.1:${port}`;
   // Each test starts with an empty blob store (the module caches + persists
   // across restarts by design, which would leak between tests otherwise).
   await fs.remove(path.join(TMP_HOME, '.okit', 'sync', 'lan-blob.json'));
-  const started = await lanServer.startLanSyncServer(port, TOKEN);
-  expect(started.running).toBe(true);
+  await startListenerAtFreePort();
+  baseUrl = `http://127.0.0.1:${port}`;
 });
 
 afterEach(async () => {
@@ -158,8 +169,15 @@ describe('lan-sync-server listener', () => {
     const blob = { nonce: '11', ciphertext: '22', tag: '33' };
     await fetch(`${baseUrl}/blob`, { method: 'PUT', headers: auth, body: JSON.stringify(blob) });
     await lanServer.stopLanSyncServer();
-    const restarted = await lanServer.startLanSyncServer(port, TOKEN);
+    // A same-port rebind can race lingering socket teardown on slow runners;
+    // retry briefly instead of letting the fallback move the port.
+    let restarted = await lanServer.startLanSyncServer(port, TOKEN, { allowPortFallback: false });
+    for (let i = 0; i < 20 && !restarted.running; i += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      restarted = await lanServer.startLanSyncServer(port, TOKEN, { allowPortFallback: false });
+    }
     expect(restarted.running).toBe(true);
+    expect(restarted.port).toBe(port);
     const got = await fetch(`${baseUrl}/blob`, { headers: auth });
     expect(await got.json()).toEqual(blob);
   });

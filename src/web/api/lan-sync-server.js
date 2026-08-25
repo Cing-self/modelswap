@@ -267,7 +267,7 @@ function createListenerApp(token) {
   return app;
 }
 
-async function startLanSyncServer(port, token) {
+async function startLanSyncServer(port, token, { allowPortFallback = true } = {}) {
   if (server) await stopLanSyncServer();
   lastError = null;
   await loadPersistedBlob();
@@ -293,7 +293,11 @@ async function startLanSyncServer(port, token) {
       break;
     } catch (error) {
       lastListenError = error;
-      if (error.code !== 'EADDRINUSE') break;
+      // Tests bind an explicit port and must not be silently moved: without
+      // this flag a lingering socket on slow CI runners makes the listener
+      // land on port+1 while the caller keeps fetching the original port
+      // (observed as flaky ECONNREFUSED on macos-latest).
+      if (error.code !== 'EADDRINUSE' || !allowPortFallback) break;
       candidate.removeAllListeners();
     }
   }
