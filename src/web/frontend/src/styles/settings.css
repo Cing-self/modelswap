@@ -3727,21 +3727,6 @@
   white-space: nowrap;
 }
 
-.devsync-password-setup {
-  display: grid;
-  grid-template-columns: 120px minmax(0, 1fr);
-  align-items: center;
-  gap: 12px;
-  padding: 11px 14px;
-  border-top: 1px solid var(--card-line);
-}
-
-.devsync-password-setup label {
-  color: var(--ink-light);
-  font-size: 11.5px;
-  font-weight: 700;
-}
-
 .settings-workspace .devsync-section-block {
   min-width: 0;
   margin: 0;
@@ -4151,7 +4136,6 @@
     grid-column: auto;
   }
 
-  .devsync-password-setup,
   .settings-workspace .devsync-platform-editor > .settings-field,
   .settings-workspace .devsync-platform-editor .settings-field--secret {
     grid-template-columns: 1fr;

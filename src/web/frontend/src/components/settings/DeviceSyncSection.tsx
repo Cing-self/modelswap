@@ -132,14 +132,6 @@ export default function DeviceSyncSection() {
     } catch { showToast(t('settings.saveFail'), 'error'); }
   }
 
-  // --- Password (set-once flow: prominent until set, then in More Actions) ---
-  async function savePassword() {
-    if (!syncPassword) return;
-    await saveSync(undefined, undefined, syncPassword);
-    showToast(t('settings.keyAdded'));
-    await refreshOverview();
-  }
-
   // --- Devices --------------------------------------------------------------
   async function generatePairing(silent = false) {
     setLanBusy('pairing');
@@ -386,14 +378,6 @@ export default function DeviceSyncSection() {
             <span><small>{t('settings.sync2.cloudBackup')}</small><strong>{t('settings.sync2.cloudTargets', { n: cloudCount })}</strong></span>
           </div>
         </div>
-        {overview && !overview.hasPassword && (
-          <div className="devsync-password-setup">
-            <label htmlFor="devsync-password">{t('settings.syncPassword')}</label>
-            <input id="devsync-password" type="password" className="settings-input" placeholder={t('settings.syncPasswordDesc')}
-              value={syncPassword} onChange={e => { setSyncPassword(e.target.value); }}
-              onBlur={savePassword} />
-          </div>
-        )}
       </section>
 
       <section className="settings-block devsync-section-block">
