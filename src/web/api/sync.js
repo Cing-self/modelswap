@@ -393,6 +393,10 @@ async function handleLanPair(req, res) {
   } catch (error) {
     return res.status(400).json({ error: error.message });
   }
+  const password = String(req.body?.password || '').trim();
+  if (!password) {
+    return res.status(400).json({ error: '请输入同步密码（需与对端设备相同）' });
+  }
 
   // Exchange the short-lived pairing code for the peer's persistent access
   // token. The code is single-use and expires in minutes.
@@ -418,15 +422,18 @@ async function handleLanPair(req, res) {
 
   try {
     const config = await core.loadConfig();
-    if (!config.sync?.password) {
-      return res.status(400).json({ error: '请先设置同步密码（需与对端设备相同）' });
-    }
-    const { userId } = await core.resolveSyncKeys(config);
+    // Verify the password supplied for this pairing before saving it. This
+    // keeps an existing local configuration intact when pairing fails.
+    const candidateConfig = {
+      ...config,
+      sync: { ...(config.sync || {}), password },
+    };
+    const { userId } = await core.resolveSyncKeys(candidateConfig);
     if (info.userId && info.userId !== userId) {
       return res.status(400).json({ error: '两台设备的同步密码不一致，请先在两台设备上设置为相同的同步密码' });
     }
 
-    config.sync = { ...(config.sync || {}) };
+    config.sync = { ...(config.sync || {}), password };
     config.sync.platforms = { ...(config.sync.platforms || {}) };
     // Pairing overwrites the lan platform entry. If this machine was itself a
     // hub (loopback entry), stand down its listener: one platform slot means a

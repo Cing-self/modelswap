@@ -59,10 +59,10 @@ export async function regenerateLanToken(): Promise<LanSyncStatus & { success: b
   return api('/api/sync/lan/regenerate', { method: 'POST' });
 }
 
-export async function pairLanDevice(code: string): Promise<{ success: boolean; peerName: string; machineId: string | null; hubDisabled: boolean; autoSyncTurnedOn: boolean }> {
+export async function pairLanDevice(code: string, password: string): Promise<{ success: boolean; peerName: string; machineId: string | null; hubDisabled: boolean; autoSyncTurnedOn: boolean }> {
   return api('/api/sync/lan/pair', {
     method: 'POST',
-    body: JSON.stringify({ code }),
+    body: JSON.stringify({ code, password }),
   });
 }
 

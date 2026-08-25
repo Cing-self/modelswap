@@ -272,17 +272,15 @@ export default function DeviceSyncSection() {
 
   async function handleLanPair() {
     const code = lanPairCode.trim();
+    const password = syncPassword.trim();
     if (!code) { showToast(t('settings.lanPairCodeRequired'), 'error'); return; }
-    if (!syncPassword && !overview?.hasPassword) { showToast(t('settings.setSyncPwd'), 'error'); return; }
+    if (!password) { showToast(t('settings.setSyncPwd'), 'error'); return; }
     setLanBusy('pair');
     try {
-      // First-time password (join side): store locally, must match the
-      // primary's password — both sides encrypt with it.
-      if (syncPassword && !overview?.hasPassword) {
-        await saveSync(undefined, undefined, syncPassword);
-        setSyncPassword('');
-      }
-      const data = await pairLanDevice(code);
+      // The server verifies this against the primary before persisting it, so
+      // an invalid pairing code or password never replaces local sync config.
+      const data = await pairLanDevice(code, password);
+      setSyncPassword('');
       showToast(t('settings.lanPaired', { name: data.peerName }), 'success');
       setLanPairCode('');
       closeLanModal();
@@ -733,13 +731,10 @@ export default function DeviceSyncSection() {
                     <input id="lan-pair-code" type="text" className="settings-input" placeholder={t('settings.lanPairPlaceholder')}
                       value={lanPairCode} onChange={e => setLanPairCode(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') handleLanPair(); }} />
-                    {!overview?.hasPassword && (
-                      <>
-                        <label htmlFor="lan-join-password">{t('settings.syncPassword')}</label>
-                        <input id="lan-join-password" type="password" className="settings-input" placeholder={t('settings.syncPasswordDesc')}
-                          value={syncPassword} onChange={e => setSyncPassword(e.target.value)} />
-                      </>
-                    )}
+                    <label htmlFor="lan-join-password">{t('settings.syncPassword')}</label>
+                    <input id="lan-join-password" type="password" autoComplete="current-password" className="settings-input" placeholder={t('settings.syncPasswordDesc')}
+                      value={syncPassword} onChange={e => setSyncPassword(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') handleLanPair(); }} />
                     <button className="lan-primary-action" onClick={handleLanPair} disabled={lanBusy === 'pair'}>
                       {lanBusy === 'pair' ? t('settings.lanPairing') : t('settings.lanConnect')}
                     </button>

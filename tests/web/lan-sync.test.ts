@@ -265,7 +265,7 @@ describe('sync.js LAN handlers', () => {
       currentConfig = { sync: { password: 'pw' } };
       const res = mockRes();
       const code = `okit-lan://192.168.1.5:3790/abc123def456?name=${encodeURIComponent('Peer Mac')}`;
-      await syncHandlers.handleLanPair({ body: { code } } as any, res);
+      await syncHandlers.handleLanPair({ body: { code, password: 'pw' } } as any, res);
 
       expect(res.statusCode).toBe(200);
       expect(res.body.peerName).toBe('Peer Mac');
@@ -287,7 +287,7 @@ describe('sync.js LAN handlers', () => {
     try {
       currentConfig = { sync: { password: 'pw' } };
       const res = mockRes();
-      await syncHandlers.handleLanPair({ body: { code: `okit-lan://192.168.1.5:3790/stalecode` } } as any, res);
+      await syncHandlers.handleLanPair({ body: { code: `okit-lan://192.168.1.5:3790/stalecode`, password: 'pw' } } as any, res);
       expect(res.statusCode).toBe(400);
       expect(res.body.error).toContain('配对码无效或已过期');
       expect(currentConfig.sync.platforms).toBeUndefined();
@@ -306,7 +306,7 @@ describe('sync.js LAN handlers', () => {
     try {
       currentConfig = { sync: { password: 'pw' } };
       const res = mockRes();
-      await syncHandlers.handleLanPair({ body: { code: `okit-lan://192.168.1.5:3790/${TOKEN}` } } as any, res);
+      await syncHandlers.handleLanPair({ body: { code: `okit-lan://192.168.1.5:3790/${TOKEN}`, password: 'pw' } } as any, res);
       expect(res.statusCode).toBe(400);
       expect(res.body.error).toContain('同步密码不一致');
       expect(currentConfig.sync.platforms).toBeUndefined();
@@ -321,7 +321,7 @@ describe('sync.js LAN handlers', () => {
     try {
       currentConfig = { sync: { password: 'pw' } };
       const res = mockRes();
-      await syncHandlers.handleLanPair({ body: { code: `okit-lan://192.168.1.5:3790/${TOKEN}` } } as any, res);
+      await syncHandlers.handleLanPair({ body: { code: `okit-lan://192.168.1.5:3790/${TOKEN}`, password: 'pw' } } as any, res);
       expect(res.statusCode).toBe(400);
       expect(res.body.error).toContain('无法连接对端');
     } finally {
