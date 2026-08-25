@@ -44,6 +44,14 @@ function trackPeer(req) {
   let name = header.slice(0, sep);
   try { name = decodeURIComponent(name); } catch { /* keep raw */ }
   const address = String(req.socket.remoteAddress || '').replace(/^::ffff:/, '');
+  // A device can receive a new machineId after reinstalling or recreating its
+  // local config. When it reconnects from the same address with the same
+  // display name, replace the stale record instead of showing it twice.
+  for (const [existingId, peer] of recentPeers) {
+    if (existingId !== id && peer.name === name && peer.address === address) {
+      recentPeers.delete(existingId);
+    }
+  }
   recentPeers.set(id, { id, name, address, lastSeen: Date.now() });
 }
 

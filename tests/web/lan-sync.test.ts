@@ -355,6 +355,17 @@ describe('peer tracking (hub side)', () => {
     expect(peer!.online).toBe(true);
   });
 
+  it('replaces a stale record when the same device reconnects with a new id', async () => {
+    const name = encodeURIComponent('Reinstalled Mac');
+    for (const id of ['old-device-id', 'new-device-id']) {
+      await fetch(`${baseUrl}/ping`, {
+        headers: { Authorization: `Bearer ${TOKEN}`, 'x-okit-machine': `${name}#${id}` },
+      });
+    }
+    const matches = lanServer.getRecentPeers().filter(peer => peer.name === 'Reinstalled Mac');
+    expect(matches).toEqual([expect.objectContaining({ id: 'new-device-id' })]);
+  });
+
   it('adapter requests carry this machine identity to the peer', async () => {
     await lanAdapter.pushSync({ baseUrl, token: TOKEN }, 'u1', { nonce: 'aa', ciphertext: 'bb', tag: 'cc' });
     const peer = lanServer.getRecentPeers().find(p => p.id === 'm-test');
