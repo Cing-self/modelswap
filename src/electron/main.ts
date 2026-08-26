@@ -123,8 +123,8 @@ async function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 860,
-    minWidth: 1040,
-    minHeight: 720,
+    minWidth: 880,
+    minHeight: 600,
     title: "OKIT",
     icon: path.join(__dirname, "..", "web", "public", "okit-icon.png"),
     // On macOS the renderer owns a compact, draggable title surface. Use the
