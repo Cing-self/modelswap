@@ -79,9 +79,10 @@ function MainSidebar({ collapsed }: { collapsed: boolean }) {
           data-tip={t('nav.settings')}
           title={t('nav.settings')}
           aria-label={t('nav.settings')}
-          className={({ isActive }) => `sidebar-bottom-icon${isActive ? ' active' : ''}`}
+          className={({ isActive }) => `nav-item sidebar-bottom-action${isActive ? ' active' : ''}`}
         >
           <Settings size={18} strokeWidth={1.5} />
+          <span>{t('nav.settings')}</span>
         </NavLink>
       </div>
     </aside>
@@ -118,8 +119,9 @@ function SettingsSidebar({ collapsed }: { collapsed: boolean }) {
         </div>
       </nav>
       <div className="sidebar-bottom">
-        <button type="button" className="sidebar-bottom-icon" onClick={() => navigate('/')} data-tip={t('nav.backConsole')} aria-label={t('nav.backConsole')} title={t('nav.backConsole')}>
+        <button type="button" className="nav-item sidebar-bottom-action" onClick={() => navigate('/')} data-tip={t('nav.backConsole')} aria-label={t('nav.backConsole')} title={t('nav.backConsole')}>
           <ArrowLeft size={18} strokeWidth={ic} />
+          <span>{t('nav.backConsole')}</span>
         </button>
       </div>
     </aside>

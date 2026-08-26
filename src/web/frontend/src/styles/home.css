@@ -490,6 +490,11 @@
   min-height: auto;
 }
 
+/* Keep card-local dropdowns above the following provider cards. */
+.quick-start-page .provider-card--clickable.expanded {
+  z-index: 20;
+}
+
 .provider-card-types {
   display: flex;
   align-items: center;

@@ -591,6 +591,7 @@ export default function HomePage() {
                           <span className="provider-tier-label">{tier.toUpperCase()}</span>
                           <CustomSelect
                             className="provider-tier-select"
+                            dropdownMode="local"
                             ariaLabel={tier.toUpperCase()}
                             value={current}
                             onChange={value => changeTier(p.id, tier, value)}

@@ -148,12 +148,12 @@ body {
 }
 
 .sidebar-bottom {
-  padding: 8px 0 14px;
+  padding: 8px 10px 14px;
 }
 
-/* 底部图标按钮：裸图标，悬停柔和高亮 */
+/* 底部操作与主导航使用同一行高和层级；收缩后才退化为图标。 */
 .sidebar-bottom .sidebar-toggle,
-.sidebar-bottom .sidebar-bottom-icon {
+.sidebar-bottom .sidebar-bottom-action {
   width: 30px;
   height: 30px;
   flex: 0 0 auto;
@@ -163,10 +163,18 @@ body {
 }
 
 .sidebar-bottom .sidebar-toggle:hover,
-.sidebar-bottom .sidebar-bottom-icon:hover,
-.sidebar-bottom .sidebar-bottom-icon.active {
+.sidebar-bottom .sidebar-bottom-action:hover,
+.sidebar-bottom .sidebar-bottom-action.active {
   background: rgba(245, 243, 235, 0.12);
   color: var(--sidebar-fg);
+}
+
+.sidebar-bottom .sidebar-bottom-action {
+  width: 100%;
+  height: 36px;
+  min-height: 36px;
+  margin: 0;
+  justify-content: flex-start;
 }
 
 .nav-section-label {
@@ -201,12 +209,12 @@ body {
 }
 
 .nav-item svg,
-.sidebar-bottom-icon svg {
+.sidebar-bottom-action svg {
   stroke-width: 1.8;
 }
 
 .nav-new-btn,
-.sidebar-bottom-icon,
+.sidebar-bottom-action,
 .theme-toggle,
 .sidebar-toggle {
   border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
@@ -216,8 +224,8 @@ body {
 }
 
 .nav-new-btn:hover,
-.sidebar-bottom-icon:hover,
-.sidebar-bottom-icon.active,
+.sidebar-bottom-action:hover,
+.sidebar-bottom-action.active,
 .sidebar-toggle:hover {
   background: var(--sidebar-active);
   color: var(--sidebar-fg);
@@ -883,14 +891,14 @@ select:focus {
 }
 
 [data-theme="light"] .sidebar-bottom .sidebar-toggle,
-[data-theme="light"] .sidebar-bottom .sidebar-bottom-icon {
+[data-theme="light"] .sidebar-bottom .sidebar-bottom-action {
   border: none;
   background: transparent;
 }
 
 [data-theme="light"] .sidebar-bottom .sidebar-toggle:hover,
-[data-theme="light"] .sidebar-bottom .sidebar-bottom-icon:hover,
-[data-theme="light"] .sidebar-bottom .sidebar-bottom-icon.active {
+[data-theme="light"] .sidebar-bottom .sidebar-bottom-action:hover,
+[data-theme="light"] .sidebar-bottom .sidebar-bottom-action.active {
   background: rgba(23, 32, 29, 0.07);
   color: #111816;
 }
@@ -901,8 +909,8 @@ select:focus {
 
 [data-theme="light"] .nav-item:hover,
 [data-theme="light"] .nav-new-btn:hover,
-[data-theme="light"] .sidebar-bottom-icon:hover,
-[data-theme="light"] .sidebar-bottom-icon.active,
+[data-theme="light"] .sidebar-bottom-action:hover,
+[data-theme="light"] .sidebar-bottom-action.active,
 [data-theme="light"] .sidebar-toggle:hover {
   color: #111816;
   background: rgba(23, 32, 29, 0.055);
@@ -914,7 +922,7 @@ select:focus {
 }
 
 [data-theme="light"] .nav-new-btn,
-[data-theme="light"] .sidebar-bottom-icon,
+[data-theme="light"] .sidebar-bottom-action,
 [data-theme="light"] .theme-toggle,
 [data-theme="light"] .sidebar-toggle {
   border-color: rgba(23, 32, 29, 0.12);
@@ -2416,12 +2424,21 @@ select:focus {
 
 /* ─── 收缩态 tooltip（悬停显示导航名称） ─── */
 .sidebar--collapsed .nav-item,
-.sidebar--collapsed .sidebar-bottom-icon {
+.sidebar--collapsed .sidebar-bottom-action {
   position: relative;
 }
 
+.sidebar--collapsed .sidebar-bottom .sidebar-bottom-action {
+  width: 30px;
+  height: 30px;
+  min-height: 30px;
+  margin: 0;
+  padding: 7px;
+  justify-content: center;
+}
+
 .sidebar--collapsed .nav-item::after,
-.sidebar--collapsed .sidebar-bottom-icon::after {
+.sidebar--collapsed .sidebar-bottom-action::after {
   content: attr(data-tip);
   position: absolute;
   left: calc(100% + 12px);
@@ -2442,9 +2459,9 @@ select:focus {
 }
 
 .sidebar--collapsed .nav-item:hover::after,
-.sidebar--collapsed .sidebar-bottom-icon:hover::after,
+.sidebar--collapsed .sidebar-bottom-action:hover::after,
 .sidebar--collapsed .nav-item:focus-visible::after,
-.sidebar--collapsed .sidebar-bottom-icon:focus-visible::after {
+.sidebar--collapsed .sidebar-bottom-action:focus-visible::after {
   opacity: 1;
   transform: translateY(-50%) translateX(0);
 }
