@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate, useLocation, useSearchParams } from 'react-router-dom';
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { getOnboarding } from './api/settings';
 import { primeOnboardingFromSession, getOnboardingDoneCache, setOnboardingDone } from './lib/onboardingGate';
 import Sidebar from './components/Layout/Sidebar';
@@ -110,13 +111,34 @@ function DataChangeEvents() {
  * the window recognisable and supplies a safe drag area without affecting the
  * browser version of OKIT.
  */
-function DesktopWindowFrame({ children }: { children: React.ReactNode }) {
+function DesktopWindowFrame({
+  children,
+  sidebarCollapsed = true,
+  onToggleSidebar,
+  showSidebarToggle = false,
+}: {
+  children: React.ReactNode;
+  sidebarCollapsed?: boolean;
+  onToggleSidebar?: () => void;
+  showSidebarToggle?: boolean;
+}) {
   const isDesktop = typeof window !== 'undefined' && Boolean((window as any).okitDesktop);
+  const { t } = useI18n();
   if (!isDesktop) return <>{children}</>;
   return (
     <div className="desktop-window-frame">
       <div className="desktop-titlebar" aria-label="OKIT desktop window">
-        <span className="desktop-titlebar-brand">OKIT</span>
+        {showSidebarToggle && (
+          <button
+            type="button"
+            className="desktop-titlebar-sidebar-toggle"
+            aria-label={sidebarCollapsed ? t('nav.expandSidebar') : t('nav.collapseSidebar')}
+            title={sidebarCollapsed ? t('nav.expandSidebar') : t('nav.collapseSidebar')}
+            onClick={onToggleSidebar}
+          >
+            {sidebarCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
+          </button>
+        )}
       </div>
       {children}
     </div>
@@ -189,6 +211,15 @@ export default function App() {
     () => (primeOnboardingFromSession() ? 'app' : 'checking'),
   );
   const location = useLocation();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('okit-sidebar-collapsed') !== 'false');
+
+  const toggleSidebar = useCallback(() => {
+    setSidebarCollapsed(collapsed => {
+      const next = !collapsed;
+      localStorage.setItem('okit-sidebar-collapsed', String(next));
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     if (gate !== 'checking') return;
@@ -222,7 +253,11 @@ export default function App() {
   }
 
   return (
-    <DesktopWindowFrame>
+    <DesktopWindowFrame
+      sidebarCollapsed={sidebarCollapsed}
+      onToggleSidebar={toggleSidebar}
+      showSidebarToggle
+    >
       <DocumentTitle />
       <Routes>
         {/* Standalone model catalog — outside the app shell, own design. */}
@@ -231,7 +266,7 @@ export default function App() {
           <div id="app">
             <DeepLinkHandler />
             <DataChangeEvents />
-            <Sidebar />
+            <Sidebar collapsed={sidebarCollapsed} />
               <main className="main-content">
                 <div className="tab-content">
                   <PersistentDashboardRoutes />

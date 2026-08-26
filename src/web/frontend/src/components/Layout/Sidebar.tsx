@@ -27,14 +27,13 @@ const SETTINGS_SECTIONS = [
   { id: 'diagnostics', labelKey: 'settings.diagnostics', icon: <Activity size={15} strokeWidth={1.7} /> },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ collapsed }: { collapsed: boolean }) {
   const location = useLocation();
   const isSettings = location.pathname.startsWith('/settings');
-  return isSettings ? <SettingsSidebar /> : <MainSidebar />;
+  return isSettings ? <SettingsSidebar collapsed={collapsed} /> : <MainSidebar collapsed={collapsed} />;
 }
 
-/* ─── 主界面：永久收缩的图标栏 ─── */
-function MainSidebar() {
+function MainSidebar({ collapsed }: { collapsed: boolean }) {
   const { t } = useI18n();
 
   function renderNavItem(item: typeof WORKSPACE_ITEMS[number] | typeof TOOL_ITEMS[number]) {
@@ -56,9 +55,10 @@ function MainSidebar() {
   }
 
   return (
-    <aside className="sidebar sidebar--collapsed">
+    <aside className={`sidebar${collapsed ? ' sidebar--collapsed' : ''}`}>
       <div className="sidebar-brand">
         <img className="sidebar-brand-logo" src="/okit-icon-180.png" alt="OKIT" />
+        <span className="sidebar-brand-name">OKIT</span>
       </div>
       <nav className="nav-scroll" aria-label={t('nav.primary')}>
         {NAV_SECTIONS.map(section => (
@@ -83,7 +83,7 @@ function MainSidebar() {
 }
 
 /* ─── 设置界面：区块导航侧边栏 + 左下角返回 ─── */
-function SettingsSidebar() {
+function SettingsSidebar({ collapsed }: { collapsed: boolean }) {
   const { t } = useI18n();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -91,7 +91,7 @@ function SettingsSidebar() {
   const current = SETTINGS_SECTIONS.some(s => s.id === raw) ? raw : 'appearance';
 
   return (
-    <aside className="sidebar sidebar--settings">
+    <aside className={`sidebar sidebar--settings${collapsed ? ' sidebar--collapsed' : ''}`}>
       <div className="sidebar-settings-head">
         <img
           className="sidebar-settings-head-logo"
@@ -111,6 +111,7 @@ function SettingsSidebar() {
             type="button"
             className={`sidebar-settings-item${current === s.id ? ' active' : ''}`}
             onClick={() => navigate(`/settings?section=${s.id}`)}
+            data-tip={t(s.labelKey)}
             aria-label={t(s.labelKey)}
             title={t(s.labelKey)}
           >
@@ -120,7 +121,7 @@ function SettingsSidebar() {
         ))}
       </nav>
       <div className="sidebar-settings-bottom">
-        <button type="button" className="sidebar-back" onClick={() => navigate('/')} aria-label={t('nav.backConsole')} title={t('nav.backConsole')}>
+        <button type="button" className="sidebar-back" onClick={() => navigate('/')} data-tip={t('nav.backConsole')} aria-label={t('nav.backConsole')} title={t('nav.backConsole')}>
           <ArrowLeft size={14} strokeWidth={2} />
           <span>{t('nav.backConsole')}</span>
         </button>

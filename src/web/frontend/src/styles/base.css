@@ -206,10 +206,25 @@ body {
   -webkit-app-region: drag;
   user-select: none;
 }
-.desktop-titlebar-brand {
-  font-size: 13px;
-  font-weight: 780;
-  letter-spacing: 0.08em;
+.desktop-titlebar-sidebar-toggle {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: color-mix(in srgb, var(--ink) 62%, transparent);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  -webkit-app-region: no-drag;
+}
+.desktop-titlebar-sidebar-toggle:hover {
+  background: var(--sidebar-active);
+  color: var(--ink);
+}
+.desktop-titlebar-sidebar-toggle:focus-visible {
+  outline-offset: 1px;
 }
 /* ─── Sidebar ─── */
 .sidebar {

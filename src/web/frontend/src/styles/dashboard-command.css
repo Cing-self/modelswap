@@ -2680,6 +2680,96 @@ select:focus {
   padding: 8px;
 }
 
+/* Desktop sidebar collapse: the same compact icon rail is shared by the
+   settings navigator and the main navigator. */
+.sidebar--settings.sidebar--collapsed {
+  width: 56px;
+  min-width: 56px;
+  overflow: visible;
+}
+
+.sidebar--settings.sidebar--collapsed .sidebar-settings-head {
+  min-height: 58px;
+  justify-content: center;
+  padding: 12px 8px;
+}
+
+.sidebar--settings.sidebar--collapsed .sidebar-settings-head::after {
+  right: 8px;
+  left: 8px;
+}
+
+.sidebar--settings.sidebar--collapsed .sidebar-settings-head-copy {
+  display: none;
+}
+
+.sidebar--settings.sidebar--collapsed .sidebar-settings-nav {
+  min-width: 0;
+  padding: 8px;
+  gap: 4px;
+  overflow-x: hidden;
+}
+
+.sidebar--settings.sidebar--collapsed .sidebar-settings-item {
+  width: 40px;
+  min-height: 40px;
+  justify-content: center;
+  gap: 0;
+  padding: 0;
+}
+
+.sidebar--settings.sidebar--collapsed .sidebar-settings-item span,
+.sidebar--settings.sidebar--collapsed .sidebar-back span {
+  display: none;
+}
+
+.sidebar--settings.sidebar--collapsed .sidebar-settings-bottom {
+  display: flex;
+  align-items: center;
+  margin-top: auto;
+  padding: 8px;
+}
+
+.sidebar--settings.sidebar--collapsed .sidebar-back {
+  width: 40px;
+  min-height: 40px;
+  padding: 0;
+}
+
+.sidebar--settings.sidebar--collapsed .sidebar-settings-item,
+.sidebar--settings.sidebar--collapsed .sidebar-back {
+  position: relative;
+}
+
+.sidebar--settings.sidebar--collapsed .sidebar-settings-item::after,
+.sidebar--settings.sidebar--collapsed .sidebar-back::after {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 12px);
+  z-index: 60;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-3);
+  color: var(--ink);
+  content: attr(data-tip);
+  font-size: 12px;
+  font-weight: 650;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%) translateX(-4px);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  white-space: nowrap;
+}
+
+.sidebar--settings.sidebar--collapsed .sidebar-settings-item:hover::after,
+.sidebar--settings.sidebar--collapsed .sidebar-settings-item:focus-visible::after,
+.sidebar--settings.sidebar--collapsed .sidebar-back:hover::after,
+.sidebar--settings.sidebar--collapsed .sidebar-back:focus-visible::after {
+  opacity: 1;
+  transform: translateY(-50%);
+}
+
 .sidebar-back {
   width: 100%;
   display: flex;
