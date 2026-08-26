@@ -185,6 +185,13 @@ body {
 }
 .desktop-window-frame #app {
   height: 100%;
+  min-height: 0;
+}
+/* The dashboard normally sets a viewport-based minimum height. Inside the
+   desktop frame that would be 42px too tall, which clips the bottom margin
+   and its two rounded corners. */
+.desktop-window-frame .main-content {
+  min-height: 0;
 }
 .desktop-titlebar {
   position: absolute;
