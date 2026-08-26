@@ -196,8 +196,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
     models: [
       { id: "deepseek-v4-flash", name: "DeepSeek V4 Flash" },
       { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro" },
-      { id: "deepseek-chat", name: "DeepSeek Chat (V4)" },
-      { id: "deepseek-reasoner", name: "DeepSeek Reasoner (V4)" },
+      { id: "deepseek-v4-flash-vision-exp", name: "DeepSeek V4 Flash Vision (Experimental)" },
     ],
   },
   {

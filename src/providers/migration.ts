@@ -2,7 +2,7 @@ import fs from "fs-extra";
 import path from "path";
 import { OKIT_DIR } from "../config/registry";
 import { Provider, ProviderModel } from "./types";
-import { loadProviders, saveProviders } from "./store";
+import { atomicWriteJSON } from "../utils/atomicWrite";
 import { VaultStore } from "../vault/store";
 
 const CLAUDE_PROFILES_PATH = path.join(OKIT_DIR, "claude-profiles.json");
@@ -52,7 +52,11 @@ export async function migrateIfNeeded(): Promise<boolean> {
       });
     }
 
-    await saveProviders(providers);
+    // The obsolete Claude-profile importer remains a one-release v1 writer so
+    // upgrades interrupted between import and first normal provider load stay
+    // recoverable. The store migrates this atomically to v2 on its next read.
+    await fs.ensureDir(OKIT_DIR);
+    await atomicWriteJSON(PROVIDERS_PATH, { version: 1, providers });
     return true;
   } catch {
     return false;

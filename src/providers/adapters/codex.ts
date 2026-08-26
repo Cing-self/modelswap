@@ -3,14 +3,21 @@ import path from "path";
 import os from "os";
 import { BaseAdapter } from "./base";
 import { gatewayHeadersFor, modelLimitFor } from "./gateway";
-import { AgentSelection, AuthStatus, Provider, ProviderType } from "../types";
+import { AgentSelection, AuthStatus, Provider, ProviderType, ResolvedModel } from "../types";
 import { loadUserConfig, updateUserConfig } from "../../config/user";
 import { checkCodexOAuth } from "../auth";
 import { atomicWrite, atomicWriteJSON } from "../../utils/atomicWrite";
+import {
+  codexMapping,
+  getCodexConfigReasoningEffort,
+  mapModelToCodexCatalog,
+} from "../mappings/codex-mapping";
+import { appendLog } from "../../web/api/log-writer";
 
 const CODEX_DIR = path.join(os.homedir(), ".codex");
 const CODEX_CONFIG_PATH = path.join(CODEX_DIR, "config.toml");
 const CODEX_AUTH_PATH = path.join(CODEX_DIR, "auth.json");
+const OKIT_AUTH_HELPER_DIR = path.join(CODEX_DIR, ".okit-auth");
 
 export class CodexAdapter extends BaseAdapter {
   readonly id = "codex";
@@ -31,7 +38,8 @@ export class CodexAdapter extends BaseAdapter {
     return null;
   }
 
-  async applyConfig(provider: Provider, modelId: string): Promise<void> {
+  async applyConfig(provider: Provider, modelId: string, resolvedModel?: ResolvedModel): Promise<void> {
+    modelId = resolvedModel?.id || modelId;
     const apiKey = await this.resolveApiKey(provider);
 
     await fs.ensureDir(CODEX_DIR);
@@ -55,15 +63,17 @@ export class CodexAdapter extends BaseAdapter {
       toml = removeTopLevelTomlKey(toml, "disable_response_storage");
       toml = removeTopLevelTomlKey(toml, "web_search");
       toml = removeTopLevelTomlKey(toml, "model_catalog_json");
+      toml = removeTopLevelTomlKey(toml, "model_context_window");
+      toml = removeTopLevelTomlKey(toml, "model_supports_reasoning_summaries");
       toml = removeTopLevelTomlKey(toml, "api_base");
       // model_reasoning_effort is harmless for official too — keep it so
       // reasoning models behave the same across subscription and API modes.
       // toml = upsertTopLevelTomlKey(toml, "model_reasoning_effort", tomlString("high"));
       // Purge every [model_providers.okit-*] table we may have written.
       toml = removeAllOkitProviderTables(toml);
-      // Remove OPENAI_API_KEY from auth.json but PRESERVE OAuth tokens so
-      // the subscription stays logged in.
-      await removeApiKeyFromAuthJson(CODEX_AUTH_PATH);
+      // auth.json belongs to Codex itself (OAuth and user-managed OpenAI
+      // credentials).  OKIT never writes third-party keys there anymore.
+      await fs.remove(OKIT_AUTH_HELPER_DIR);
       await atomicWrite(CODEX_CONFIG_PATH, toml);
     } else {
       const providerId = getCodexProviderId(provider);
@@ -73,17 +83,26 @@ export class CodexAdapter extends BaseAdapter {
       toml = upsertTopLevelTomlKey(toml, "model_provider", tomlString(providerId));
       // Third-party gateways need these: response storage isn't implemented,
       // web_search_preview tool gets rejected, reasoning effort applies.
-      toml = upsertTopLevelTomlKey(toml, "model_reasoning_effort", tomlString("high"));
-      toml = upsertTopLevelTomlKey(toml, "disable_response_storage", "true");
-      toml = upsertTopLevelTomlKey(toml, "web_search", tomlString("disabled"));
+      const reasoningEffort = getCodexConfigReasoningEffort(resolvedModel);
+      toml = reasoningEffort
+        ? upsertTopLevelTomlKey(toml, "model_reasoning_effort", tomlString(reasoningEffort))
+        : removeTopLevelTomlKey(toml, "model_reasoning_effort");
+      toml = resolvedModel?.context
+        ? upsertTopLevelTomlKey(toml, "model_context_window", String(resolvedModel.context))
+        : removeTopLevelTomlKey(toml, "model_context_window");
+      toml = resolvedModel?.reasoning === undefined
+        ? removeTopLevelTomlKey(toml, "model_supports_reasoning_summaries")
+        : upsertTopLevelTomlKey(toml, "model_supports_reasoning_summaries", String(resolvedModel.reasoning));
+      toml = upsertTopLevelTomlKey(toml, "disable_response_storage", String(codexMapping.thirdPartyDefaults.disableResponseStorage));
+      toml = upsertTopLevelTomlKey(toml, "web_search", tomlString(codexMapping.thirdPartyDefaults.webSearch));
       toml = removeTopLevelTomlKey(toml, "api_base");
 
       // Codex dropped support for wire_api = "chat" — "responses" is required.
-      // requires_openai_auth tells Codex to pull the credential from auth.json's
-      // OPENAI_API_KEY. base_url normalization: append /v1 for origin-only URLs.
-      //
-      // Credential delivery via auth.json (not .env) is critical: the ChatGPT
-      // desktop app reads auth.json, NOT .env. cc-switch does the same.
+      // Third-party credentials must be scoped to this provider.  In
+      // particular, requires_openai_auth makes Codex send the logged-in
+      // ChatGPT OAuth token to the gateway, which is both incorrect and a
+      // frequent source of 401s.  The documented provider auth.command form
+      // avoids that cross-provider credential leak.
       //
       // http_headers: the opencode.ai gateway rate-limits anonymous traffic
       // separately from the official opencode client (verified 429 without the
@@ -91,16 +110,26 @@ export class CodexAdapter extends BaseAdapter {
       const providerLines = [
         `name = ${tomlString(provider.name)}`,
         `base_url = ${tomlString(normalizeBaseUrl(openAIEndpoint.baseUrl))}`,
-        `wire_api = "responses"`,
-        `requires_openai_auth = true`,
+        `wire_api = ${tomlString(codexMapping.thirdPartyDefaults.wireApi)}`,
       ];
       const gatewayHeaders = gatewayHeadersFor(openAIEndpoint.baseUrl);
       if (gatewayHeaders) {
         providerLines.push(`http_headers = ${tomlInlineTable(gatewayHeaders)}`);
       }
-      toml = upsertTomlTable(toml, `model_providers.${providerId}`, providerLines);
+      const providerTable = `model_providers.${providerId}`;
+      toml = removeLegacyProviderAuthTables(toml, providerTable);
+      toml = upsertTomlTable(toml, providerTable, providerLines);
 
-      if (apiKey) await upsertAuthJson(CODEX_AUTH_PATH, apiKey);
+      if (apiKey) {
+        const helperPath = providerAuthHelperPath(providerId);
+        await writeProviderAuthHelper(helperPath, apiKey);
+        toml = upsertTomlTable(toml, `${providerTable}.auth`, [
+          `command = ${tomlString(helperPath)}`,
+        ]);
+        // Remove only the stale value OKIT used to own.  Never remove a
+        // different user-managed OPENAI_API_KEY or OAuth session.
+        await removeManagedApiKeyFromAuthJson(CODEX_AUTH_PATH, apiKey);
+      }
       await atomicWrite(CODEX_CONFIG_PATH, toml);
 
       // Generate model-catalogs.json so the user can switch between this
@@ -119,6 +148,25 @@ export class CodexAdapter extends BaseAdapter {
         },
       },
     });
+  }
+
+  // A custom site is only physically removed on an explicit delete. Merely
+  // switching to the official subscription leaves its recoverable catalog on
+  // disk, while deletion must leave no model/provider residue behind.
+  async removeProvider(providerId: string): Promise<void> {
+    if (!(await fs.pathExists(CODEX_CONFIG_PATH))) {
+      await fs.remove(MODEL_CATALOG_PATH);
+      return;
+    }
+    let toml = await fs.readFile(CODEX_CONFIG_PATH, "utf-8");
+    const providerKey = `okit-${sanitizeTomlKey(providerId)}`;
+    toml = removeProviderTableFamily(toml, `model_providers.${providerKey}`);
+    await fs.remove(providerAuthHelperPath(providerKey));
+    if (!/\[model_providers\.okit-[^\]]+\]/.test(toml)) {
+      toml = removeTopLevelTomlKey(toml, "model_catalog_json");
+      await fs.remove(MODEL_CATALOG_PATH);
+    }
+    await atomicWrite(CODEX_CONFIG_PATH, toml);
   }
 }
 
@@ -154,36 +202,24 @@ async function writeModelCatalog(provider: Provider): Promise<void> {
   const included = provider.models.filter(m => visibleIds.has(m.id));
   const entries = included.map((m, i) => {
     const limit = modelLimitFor(provider.baseUrl, m.id);
-    const contextWindow = limit?.context ?? 128000;
-    return {
-      slug: m.id,
-      display_name: m.name || m.id,
-      description: `${provider.name} · ${m.name || m.id}`,
-      default_reasoning_level: "high",
-      supported_reasoning_levels: [
-        { effort: "none", description: "Disable Thinking" },
-        { effort: "high", description: "Enabled Thinking" },
-      ],
-      shell_type: "shell_command",
-      visibility: "list",
-      supported_in_api: true,
-      priority: i,
-      base_instructions: "",
-      supports_reasoning_summaries: true,
-      default_reasoning_summary: "none",
-      support_verbosity: false,
-      truncation_policy: { mode: "bytes", limit: 10000 },
-      supports_parallel_tool_calls: false,
-      supports_image_detail_original: false,
-      context_window: contextWindow,
-      max_context_window: contextWindow,
-      effective_context_window_percent: 95,
-      // Third-party coding endpoints generally don't support the web_search tool
-      // (it triggers "tool type not supported by this gateway"), so opt out.
-      experimental_supported_tools: [] as string[],
-      input_modalities: ["text"],
-      supports_search_tool: false,
+    const modelFacts = m.resolved || {
+      id: m.id,
+      name: m.name || m.id,
+      ...(m.meta?.description ? { description: m.meta.description } : {}),
+      ...(m.meta?.context ? { context: m.meta.context } : {}),
+      modalities: {
+        input: m.meta?.modalities?.input || (m.meta?.attachment ? ["text", "image"] : ["text"]),
+        output: m.meta?.modalities?.output || ["text"],
+      },
+      ...(m.meta?.reasoning === undefined ? {} : { reasoning: m.meta.reasoning }),
+      ...(m.meta?.reasoningOptions ? { reasoningOptions: m.meta.reasoningOptions } : {}),
     };
+    return mapModelToCodexCatalog({
+      model: modelFacts,
+      providerName: provider.name,
+      priority: i,
+      contextOverride: limit?.context,
+    });
   });
 
   await fs.ensureDir(MODEL_CATALOG_DIR);
@@ -193,6 +229,26 @@ async function writeModelCatalog(provider: Provider): Promise<void> {
   let toml = await fs.readFile(CODEX_CONFIG_PATH, "utf-8");
   toml = upsertTopLevelTomlKey(toml, "model_catalog_json", tomlString(MODEL_CATALOG_REF));
   await atomicWrite(CODEX_CONFIG_PATH, toml);
+
+  // Persist a safe, inspectable mapping trace. Never include credentials,
+  // auth commands or raw provider responses in this diagnostic event.
+  appendLog("codex-model-mapping", provider.id, true, {
+    mappingVersion: codexMapping.schemaVersion,
+    providerId: provider.id,
+    modelCount: entries.length,
+    models: entries.map((entry: any) => ({
+      id: entry.slug,
+      contextWindow: entry.context_window,
+      maxContextWindow: entry.max_context_window,
+      inputModalities: entry.input_modalities,
+      defaultReasoning: entry.default_reasoning_level,
+      reasoningLevels: (entry.supported_reasoning_levels || []).map((level: any) => level.effort),
+      reasoningSummaries: entry.supports_reasoning_summary_parameter,
+      verbosity: entry.support_verbosity,
+      parallelToolCalls: entry.supports_parallel_tool_calls,
+      searchTool: entry.supports_search_tool,
+    })),
+  });
 }
 
 // Append /v1 for origin-only base URLs (no path after host), preserve URLs that
@@ -286,27 +342,8 @@ function escapeRegex(value: string): string {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-// Write OPENAI_API_KEY into ~/.codex/auth.json. Codex CLI and the ChatGPT
-// desktop app both read credentials from here when requires_openai_auth=true.
-// Preserve any existing keys (e.g. OAuth tokens) the user may have set up.
-async function upsertAuthJson(authPath: string, apiKey: string): Promise<void> {
-  let auth: Record<string, unknown> = {};
-  if (await fs.pathExists(authPath)) {
-    try {
-      auth = JSON.parse(await fs.readFile(authPath, "utf-8"));
-    } catch {
-      // Corrupt auth.json — start fresh with just the key.
-      auth = {};
-    }
-  }
-  auth["OPENAI_API_KEY"] = apiKey;
-  await atomicWriteJSON(authPath, auth);
-}
-
-// Remove OPENAI_API_KEY from auth.json, preserving OAuth tokens and any other
-// fields. Called when switching back to the official OpenAI subscription so
-// Codex falls back to OAuth instead of a stale third-party key.
-async function removeApiKeyFromAuthJson(authPath: string): Promise<void> {
+/** Remove only an old key that this provider's previous OKIT write owned. */
+async function removeManagedApiKeyFromAuthJson(authPath: string, apiKey: string): Promise<void> {
   if (!(await fs.pathExists(authPath))) return;
   let auth: Record<string, unknown>;
   try {
@@ -314,10 +351,23 @@ async function removeApiKeyFromAuthJson(authPath: string): Promise<void> {
   } catch {
     return; // corrupt — leave it alone
   }
-  if ("OPENAI_API_KEY" in auth) {
+  if (auth["OPENAI_API_KEY"] === apiKey) {
     delete auth["OPENAI_API_KEY"];
     await atomicWriteJSON(authPath, auth);
   }
+}
+
+function providerAuthHelperPath(providerId: string): string {
+  return path.join(OKIT_AUTH_HELPER_DIR, `${sanitizeTomlKey(providerId)}.sh`);
+}
+
+async function writeProviderAuthHelper(helperPath: string, apiKey: string): Promise<void> {
+  await fs.ensureDir(path.dirname(helperPath));
+  await atomicWrite(helperPath, `#!/bin/sh\nprintf '%s\\n' ${shellQuote(apiKey)}\n`, { mode: 0o700 });
+}
+
+function shellQuote(value: string): string {
+  return `'${String(value).replace(/'/g, `'\\''`)}'`;
 }
 
 // Remove every [model_providers.okit-*] table from the TOML. OKIT-prefixed
@@ -337,5 +387,34 @@ function removeAllOkitProviderTables(toml: string): string {
     if (!skipping) result.push(line);
   }
   // Trim trailing blank lines left by removed tables.
+  return result.join("\n").replace(/\n{3,}/g, "\n\n").trimEnd() + "\n";
+}
+
+/** Remove a provider and all its nested tables (for example .auth). */
+function removeProviderTableFamily(toml: string, tableName: string): string {
+  const lines = toml.split("\n");
+  const result: string[] = [];
+  let skipping = false;
+  for (const line of lines) {
+    const headerMatch = line.match(/^\s*\[([^\]]+)\]\s*$/);
+    if (headerMatch) skipping = headerMatch[1] === tableName || headerMatch[1].startsWith(`${tableName}.`);
+    if (!skipping) result.push(line);
+  }
+  return result.join("\n").replace(/\n{3,}/g, "\n\n").trimEnd() + "\n";
+}
+
+/** Strip only obsolete auth subtables before adding the canonical one. */
+function removeLegacyProviderAuthTables(toml: string, tableName: string): string {
+  const lines = toml.split("\n");
+  const result: string[] = [];
+  let skipping = false;
+  for (const line of lines) {
+    const headerMatch = line.match(/^\s*\[([^\]]+)\]\s*$/);
+    if (headerMatch) {
+      const name = headerMatch[1];
+      skipping = name === `${tableName}.auth` || (name.startsWith(`${tableName}.`) && /auth/i.test(name));
+    }
+    if (!skipping) result.push(line);
+  }
   return result.join("\n").replace(/\n{3,}/g, "\n\n").trimEnd() + "\n";
 }

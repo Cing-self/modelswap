@@ -117,8 +117,81 @@ export interface Provider {
   nativeAgentIds?: string[];
   /** CLI subscription login only; never expose this provider to API adapters. */
   cliOnly?: boolean;
+  /**
+   * Materialized only at runtime for legacy callers.  Version 2 of
+   * providers.json deliberately never persists this field: model discovery
+   * and directory facts belong to the rebuildable metadata cache, while the
+   * user's chosen models live in user.json's agentProviders state.
+   */
   models: ProviderModel[];
 }
+
+/** Stable connection/site record persisted in providers.json. */
+export type ProviderSite = Omit<Provider, "models">;
+
+export type ModelMetadata = {
+  id: string;
+  name?: string;
+  description?: string;
+  family?: string;
+  context?: number;
+  input?: number;
+  output?: number;
+  modalities?: { input?: string[]; output?: string[] };
+  tool?: boolean;
+  reasoning?: boolean;
+  reasoningOptions?: ModelReasoningOption[];
+  structuredOutput?: boolean;
+  temperature?: boolean;
+  interleaved?: { field?: string };
+  knowledge?: string;
+  releaseDate?: string;
+  lastUpdated?: string;
+  openWeights?: boolean;
+  status?: string;
+  cost?: Record<string, unknown>;
+  providerConfig?: Record<string, unknown>;
+  experimental?: Record<string, unknown>;
+  source: "preset" | "modelsdev" | "remote" | "legacy" | "manual";
+  confidence: "high" | "medium" | "low";
+  fetchedAt?: string;
+  raw?: unknown;
+};
+
+export type ModelReasoningOption = {
+  type: "toggle" | "effort" | "budget_tokens" | string;
+  values?: string[];
+  min?: number;
+  max?: number;
+};
+
+/** The sole model shape adapters should derive their configuration from. */
+export type ResolvedModel = {
+  id: string;
+  name: string;
+  description?: string;
+  family?: string;
+  context?: number;
+  input?: number;
+  output?: number;
+  modalities: { input: string[]; output: string[] };
+  tool?: boolean;
+  reasoning?: boolean;
+  reasoningOptions?: ModelReasoningOption[];
+  structuredOutput?: boolean;
+  temperature?: boolean;
+  interleaved?: { field?: string };
+  knowledge?: string;
+  releaseDate?: string;
+  lastUpdated?: string;
+  openWeights?: boolean;
+  status?: string;
+  cost?: Record<string, unknown>;
+  providerConfig?: Record<string, unknown>;
+  experimental?: Record<string, unknown>;
+  source: ModelMetadata["source"] | "default";
+  confidence: ModelMetadata["confidence"] | "low";
+};
 
 export interface ProviderModel {
   id: string;              // model identifier (e.g. "glm-4.7")
@@ -134,14 +207,32 @@ export interface ProviderModel {
   // consumers can prefer catalog data when present.
   meta?: {
     source: 'modelsdev';
+    description?: string;
+    family?: string;
     context?: number;      // context window (tokens)
+    input?: number;
     output?: number;       // max output tokens
     toolCall?: boolean;    // model supports tool/function calling
     reasoning?: boolean;   // model supports reasoning/thinking
+    reasoningOptions?: ModelReasoningOption[];
+    structuredOutput?: boolean;
+    temperature?: boolean;
+    interleaved?: { field?: string };
+    knowledge?: string;
+    releaseDate?: string;
+    lastUpdated?: string;
+    openWeights?: boolean;
+    status?: string;
+    cost?: Record<string, unknown>;
+    providerConfig?: Record<string, unknown>;
+    experimental?: Record<string, unknown>;
     attachment?: boolean;  // accepts image/video inputs
+    modalities?: { input?: string[]; output?: string[] };
     deprecated?: boolean;
   };
   availability?: ProviderModelAvailability[];
+  /** Resolved immediately before an adapter writes this selected model. */
+  resolved?: ResolvedModel;
 }
 
 export interface ProviderModelAvailability {
@@ -181,7 +272,7 @@ export interface AgentAdapter {
   readonly supportedTypes: ProviderType[];
   detectOAuthStatus(): Promise<AuthStatus>;
   getCurrentConfig(): Promise<AgentSelection | null>;
-  applyConfig(provider: Provider, modelId: string): Promise<void>;
+  applyConfig(provider: Provider, modelId: string, resolvedModel?: ResolvedModel): Promise<void>;
   resolveApiKey(provider: Provider): Promise<string | undefined>;
   // Additive agents only (workbuddy): batch-write routed models into the
   // agent config without changing the "current" selection. Models whose id
@@ -211,6 +302,16 @@ export interface AgentAdapter {
 
 // Stored file format for providers.json
 export interface ProvidersData {
-  providers: Provider[];
+  version?: 1 | 2;
+  providers: Array<Provider | ProviderSite>;
+  /** Rebuildable local discovery/directory cache. Never included in sync. */
+  modelCache?: {
+    source: "okit";
+    version: 1;
+    fetchedAt: string;
+    providers: Record<string, ModelMetadata[]>;
+  };
+  /** Legacy files may contain this; it is discarded on v2 writes. */
   platforms?: Platform[];
+  [unknownField: string]: unknown;
 }

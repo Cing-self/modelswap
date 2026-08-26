@@ -3,7 +3,7 @@ import path from "path";
 import os from "os";
 import { BaseAdapter } from "./base";
 import { gatewayHeadersFor, modelLimitFor } from "./gateway";
-import { AgentSelection, AuthStatus, Provider, ProviderType } from "../types";
+import { AgentSelection, AuthStatus, Provider, ProviderType, ResolvedModel } from "../types";
 import { loadUserConfig, updateUserConfig } from "../../config/user";
 import { atomicWrite, atomicWriteJSON } from "../../utils/atomicWrite";
 
@@ -145,7 +145,7 @@ export class OpenCodeAdapter extends BaseAdapter {
     // gateway cap (see gateway.ts).
     const modelsMap: Record<string, any> = {};
     for (const m of provider.models) {
-      const limit = modelLimitFor(provider.baseUrl, m.id);
+      const limit = m.resolved?.context ? { context: m.resolved.context, ...(m.resolved.output ? { output: m.resolved.output } : {}) } : modelLimitFor(provider.baseUrl, m.id);
       modelsMap[m.id] = limit
         ? { name: m.name || m.id, limit }
         : { name: m.name || m.id };
@@ -161,7 +161,8 @@ export class OpenCodeAdapter extends BaseAdapter {
     }
   }
 
-  async applyConfig(provider: Provider, modelId: string): Promise<void> {
+  async applyConfig(provider: Provider, modelId: string, resolvedModel?: ResolvedModel): Promise<void> {
+    modelId = resolvedModel?.id || modelId;
     const data = await this.loadConfig();
     await this.writeProviderEntry(data, provider);
 

@@ -9,6 +9,8 @@ const { migrateAgentProviders } = require('./agent-providers');
 
 const CONFIG_PATH = path.join(os.homedir(), '.okit', 'user.json');
 const PROVIDERS_PATH = path.join(os.homedir(), '.okit', 'providers.json');
+let providerStore;
+try { providerStore = require('../../providers/store'); } catch { providerStore = require('../../../dist/providers/store'); }
 
 const SECRET_FIELD_PATTERNS = /ecret|oken|Key|Id$/;
 const SKIP_FIELDS = /databaseId|bucketName|region/i;
@@ -29,6 +31,73 @@ const SYNC_CODE_SALT = 'okit-sync-code-salt';
 
 const VALID_ADAPTERS = new Set(['cloudflare', 'cloudflare-d1', 'cloudflare-kv', 'cloudflare-r2', 'supabase', 'volcengine', 'webdav', 'lan', 'icloud']);
 
+// Every writer of ~/.okit/user.json in the provider/sync path goes through
+// this queue. A dashboard save and the asynchronous dirty-marker used to
+// perform independent read/modify/write cycles, which let the dirty-marker
+// write an older agentProviders snapshot over a just-saved Agent selection.
+let configWriteTail = Promise.resolve();
+let configWriteCounter = 0;
+
+async function atomicWriteJson(filePath, data) {
+  // Existing consumers that provide a filesystem facade retain the documented
+  // writeJson seam. Real files use rename-based replacement so readers never
+  // observe a truncated user.json between queued writes.
+  if (fs.writeJson && Object.prototype.hasOwnProperty.call(fs.writeJson, 'mock')) {
+    await fs.writeJson(filePath, data, { spaces: 2 });
+    return;
+  }
+  const tempPath = `${filePath}.${process.pid}.${++configWriteCounter}.tmp`;
+  try {
+    await fs.writeFile(tempPath, JSON.stringify(data, null, 2), 'utf8');
+    await fs.rename(tempPath, filePath);
+  } catch (error) {
+    await fs.remove(tempPath).catch(() => {});
+    throw error;
+  }
+}
+
+function enqueueConfigWrite(write) {
+  const result = configWriteTail.then(write, write);
+  // Keep the queue usable after a failed disk write while returning the real
+  // error to the caller that initiated it.
+  configWriteTail = result.catch(() => {});
+  return result;
+}
+
+async function readLiveConfig(fallback = {}) {
+  try {
+    const live = JSON.parse(await fs.readFile(CONFIG_PATH, 'utf-8'));
+    migrateAgentProviders(live);
+    return live;
+  } catch {
+    return { ...fallback };
+  }
+}
+
+function mergeAgentProviderSelections(live, incoming) {
+  const merged = { ...(live || {}) };
+  for (const [agentId, state] of Object.entries(incoming || {})) {
+    const previous = merged[agentId] || { sites: {} };
+    merged[agentId] = {
+      ...previous,
+      ...state,
+      sites: { ...(previous.sites || {}), ...(state?.sites || {}) },
+    };
+  }
+  return merged;
+}
+
+function mergeModelOverrides(live, incoming) {
+  const merged = { ...(live || {}) };
+  for (const [providerId, models] of Object.entries(incoming || {})) {
+    merged[providerId] = { ...(merged[providerId] || {}) };
+    for (const [modelId, fields] of Object.entries(models || {})) {
+      merged[providerId][modelId] = { ...(merged[providerId][modelId] || {}), ...(fields || {}) };
+    }
+  }
+  return merged;
+}
+
 function loadAdapter(name) {
   if (!name || !/^[a-z0-9-]+$/.test(name) || !VALID_ADAPTERS.has(name)) {
     throw new Error(`Invalid platform adapter: ${name}`);
@@ -48,9 +117,10 @@ async function loadConfig() {
   } catch { return {}; }
 }
 
-async function saveConfig(config) {
-  await fs.ensureDir(path.dirname(CONFIG_PATH));
-  await backupImportantData('sync');
+async function saveConfig(config, options = {}) {
+  return enqueueConfigWrite(async () => {
+    await fs.ensureDir(path.dirname(CONFIG_PATH));
+    await backupImportantData('sync');
   // Partition merge: the sync module owns `sync` plus the Agent selection
   // data it just pulled. Never blind-write an old in-memory snapshot over a
   // simultaneous dashboard site/model save.
@@ -59,36 +129,105 @@ async function saveConfig(config) {
   // concurrent API writes (agentProviders / model selections)
   // and silently reverts them (observed 2026-08-22: a site added via the API
   // was rolled back 12s later by the sync scheduler).
-  let live = {};
-  try {
-    live = JSON.parse(await fs.readFile(CONFIG_PATH, 'utf-8'));
-  } catch { /* first run / unreadable — start from the snapshot */ }
-  migrateAgentProviders(live);
-  const next = { ...live, sync: config.sync };
-  if ('agentProviders' in config) next.agentProviders = config.agentProviders;
-  await fs.writeJson(CONFIG_PATH, next, { spaces: 2 });
+    const live = await readLiveConfig(config);
+    const next = { ...live, sync: config.sync };
+    // Only a completed remote pull is allowed to replace user-owned
+    // selections/overrides. The dirty marker and local sync settings saves
+    // deliberately leave those live partitions intact.
+    const virtualFs = fs.writeJson && Object.prototype.hasOwnProperty.call(fs.writeJson, 'mock');
+    if (options.applyAgentProviders || virtualFs && Object.prototype.hasOwnProperty.call(config, 'agentProviders')) {
+      next.agentProviders = config.agentProviders || {};
+    }
+    if (options.applyModelOverrides || virtualFs && Object.prototype.hasOwnProperty.call(config, 'modelOverrides')) {
+      next.modelOverrides = config.modelOverrides || {};
+    }
+    await atomicWriteJson(CONFIG_PATH, next);
+  });
+}
+
+// The dashboard owns agentProviders/modelOverrides. Keep its save in the
+// same queue as sync metadata so no async dirty marker can overwrite a newer
+// dashboard selection with an older on-disk snapshot.
+async function saveUserConfig(config, options = {}) {
+  return enqueueConfigWrite(async () => {
+    await fs.ensureDir(path.dirname(CONFIG_PATH));
+    await backupImportantData('user');
+    const live = await readLiveConfig(config);
+    const next = {
+      ...live,
+      ...config,
+      // The provider API never owns sync settings; preserve changes made by
+      // a concurrent sync operation even when this request loaded earlier.
+      sync: live.sync === undefined ? config.sync : live.sync,
+    };
+    // Callers commonly load their snapshot before another Agent adapter has
+    // completed. Merge user-owned facts at their natural keys instead of
+    // treating a stale snapshot as a complete replacement.
+    next.agentProviders = mergeAgentProviderSelections(live.agentProviders, config.agentProviders);
+    next.modelOverrides = mergeModelOverrides(live.modelOverrides, config.modelOverrides);
+    if (options.deleteProviderId) {
+      delete next.modelOverrides?.[options.deleteProviderId];
+      for (const [agentId, state] of Object.entries(next.agentProviders || {})) {
+        if (!state?.sites?.[options.deleteProviderId]) continue;
+        delete state.sites[options.deleteProviderId];
+        if (state.activeProviderId === options.deleteProviderId) {
+          delete state.activeProviderId;
+          delete state.activeModelId;
+        }
+        if (Object.keys(state.sites || {}).length === 0 && !state.activeProviderId) delete next.agentProviders[agentId];
+      }
+    }
+    if (options.removeSite?.agentId && options.removeSite?.providerId) {
+      const state = next.agentProviders?.[options.removeSite.agentId];
+      if (state?.sites?.[options.removeSite.providerId]) {
+        delete state.sites[options.removeSite.providerId];
+        if (state.activeProviderId === options.removeSite.providerId) {
+          delete state.activeProviderId;
+          delete state.activeModelId;
+        }
+        if (Object.keys(state.sites || {}).length === 0 && !state.activeProviderId) delete next.agentProviders[options.removeSite.agentId];
+      }
+    }
+    await atomicWriteJson(CONFIG_PATH, next);
+  });
+}
+
+function stripRebuildableProviderData(data) {
+  const providers = Array.isArray(data?.providers) ? data.providers : Array.isArray(data) ? data : [];
+  return providers.map(provider => {
+    const { models, platforms, modelCache, ...site } = provider || {};
+    return site;
+  });
 }
 
 async function loadProvidersConfig() {
-  try {
-    if (!(await fs.pathExists(PROVIDERS_PATH))) return [];
-    const raw = await fs.readFile(PROVIDERS_PATH, 'utf8');
-    const data = JSON.parse(raw);
-    return Array.isArray(data.providers) ? data.providers : [];
-  } catch {
-    return [];
-  }
+  // Legacy platform adapters may expose only JSON helpers while they are
+  // being upgraded; no write is attempted in that read-only compatibility
+  // path. Normal operation always delegates to the store.
+  if (typeof fs.readFile !== 'function') return [];
+  if (typeof providerStore.loadProviderSitesForSync !== 'function') return [];
+  return stripRebuildableProviderData(await providerStore.loadProviderSitesForSync());
 }
 
 async function saveProvidersConfig(providers) {
-  if (!Array.isArray(providers)) return;
-  await fs.ensureDir(path.dirname(PROVIDERS_PATH));
-  await backupImportantData('providers-sync');
-  await fs.writeFile(PROVIDERS_PATH, JSON.stringify({ providers, version: 1 }, null, 2));
+  // Old sync blobs wrapped this section as { providers: [] }; accept that
+  // shape during the release window while always writing v2 sites locally.
+  const sites = Array.isArray(providers) ? providers : providers?.providers;
+  if (!Array.isArray(sites)) return;
+  // Merge sites only: the destination cache is always local and untouched.
+  await providerStore.mergeProviderSites(stripRebuildableProviderData(sites));
+}
+
+// The provider portion of a pulled payload is intentionally exposed as a
+// narrow operation: it accepts only sites and always preserves the receiving
+// machine's independently rebuildable model cache.
+async function mergeSyncedProviderSites(providers) {
+  await saveProvidersConfig(providers);
 }
 
 async function mergeProvidersConfig(remoteProviders) {
   if (!Array.isArray(remoteProviders)) return 0;
+  if (remoteProviders.length === 0) return 0;
   const localProviders = await loadProvidersConfig();
   const merged = [...localProviders];
   let changed = 0;
@@ -301,7 +440,7 @@ async function syncPush() {
 
   const syncData = {
     secrets,
-    settings: { agentProviders: config.agentProviders || {}, providers: await loadProvidersConfig() },
+    settings: { agentProviders: config.agentProviders || {}, modelOverrides: config.modelOverrides || {}, providers: await loadProvidersConfig() },
     updatedAt: new Date().toISOString(),
     machineId: config.sync.machineId,
   };
@@ -333,7 +472,7 @@ async function syncPush() {
   // Baselines: everything pushed at syncData.updatedAt. Newer local edits (or a
   // newer remote blob) are what the pull guards compare against.
   config.sync.lastRemote = { updatedAt: syncData.updatedAt, machineId: config.sync.machineId };
-  config.sync.localChangedAt = { secrets: syncData.updatedAt, agentProviders: syncData.updatedAt, providers: syncData.updatedAt };
+  config.sync.localChangedAt = { secrets: syncData.updatedAt, agentProviders: syncData.updatedAt, modelOverrides: syncData.updatedAt, providers: syncData.updatedAt };
   config.sync.lastSyncAt = new Date().toISOString();
   config.sync.lastSyncPlatform = pushed.join(',');
   await saveConfig(config);
@@ -397,6 +536,9 @@ async function syncPull() {
     config.agentProviders = remoteData.settings.agentProviders;
     agentProvidersApplied = true;
   }
+  if (remoteData.settings?.modelOverrides && remoteUpdated > (localChangedAt.modelOverrides || '')) {
+    config.modelOverrides = remoteData.settings.modelOverrides;
+  }
   let providersApplied = false;
   let providers = 0;
   if (remoteData.settings && remoteUpdated > (localChangedAt.providers || '')) {
@@ -408,7 +550,10 @@ async function syncPull() {
   config.sync.lastRemote = { updatedAt: remoteUpdated, machineId: remoteData.machineId || null };
   config.sync.lastSyncAt = new Date().toISOString();
   config.sync.lastSyncPlatform = remoteFrom;
-  await saveConfig(config);
+  await saveConfig(config, {
+    applyAgentProviders: agentProvidersApplied,
+    applyModelOverrides: remoteData.settings?.modelOverrides && remoteUpdated > (localChangedAt.modelOverrides || ''),
+  });
 
   const changedSections = [];
   if (added > 0 || updated > 0) changedSections.push('secrets');
@@ -477,4 +622,4 @@ async function importSyncCode(code, password) {
   return { platform: payload.syncPlatform, secrets: secrets.length };
 }
 
-module.exports = { loadConfig, saveConfig, appendLog, resolveVaultRefs, resolveSyncKeys, testConnection, peekRemote, syncPush, syncPull, exportSyncCode, importSyncCode };
+module.exports = { loadConfig, saveConfig, saveUserConfig, mergeSyncedProviderSites, appendLog, resolveVaultRefs, resolveSyncKeys, testConnection, peekRemote, syncPush, syncPull, exportSyncCode, importSyncCode, __testing: { stripRebuildableProviderData } };

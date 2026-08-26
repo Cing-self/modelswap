@@ -413,12 +413,8 @@
           "name": "DeepSeek V4 Pro"
         },
         {
-          "id": "deepseek-chat",
-          "name": "DeepSeek Chat (V4)"
-        },
-        {
-          "id": "deepseek-reasoner",
-          "name": "DeepSeek Reasoner (V4)"
+          "id": "deepseek-v4-flash-vision-exp",
+          "name": "DeepSeek V4 Flash Vision (Experimental)"
         }
       ]
     },
@@ -5864,28 +5860,14 @@
           ]
         },
         {
-          "id": "deepseek-chat",
-          "name": "DeepSeek Chat (V4)",
+          "id": "deepseek-v4-flash-vision-exp",
+          "name": "DeepSeek V4 Flash Vision (Experimental)",
           "availability": [
             {
               "offeringId": "deepseek",
               "endpointIds": [],
               "executionMode": "http_endpoint",
-              "remoteModelId": "deepseek-chat",
-              "status": "unknown",
-              "source": "legacy_unknown"
-            }
-          ]
-        },
-        {
-          "id": "deepseek-reasoner",
-          "name": "DeepSeek Reasoner (V4)",
-          "availability": [
-            {
-              "offeringId": "deepseek",
-              "endpointIds": [],
-              "executionMode": "http_endpoint",
-              "remoteModelId": "deepseek-reasoner",
+              "remoteModelId": "deepseek-v4-flash-vision-exp",
               "status": "unknown",
               "source": "legacy_unknown"
             }
