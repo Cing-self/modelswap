@@ -110,7 +110,7 @@ describe('CodexAdapter.applyConfig', () => {
     const toml = mocks.files.get(CODEX_CONFIG)!;
     expect(toml).toContain('model = "gpt-5.5"');
     // Official OAuth mode: no model_provider, no third-party-only fields.
-    expect(toml).not.toContain('model_provider');
+    expect(toml).not.toMatch(/^model_provider\s*=/m);
     expect(toml).not.toContain('disable_response_storage');
     expect(toml).not.toContain('web_search');
     expect(toml).not.toContain('model_catalog_json');
@@ -119,7 +119,7 @@ describe('CodexAdapter.applyConfig', () => {
     expect(mocks.files.has(CODEX_AUTH)).toBe(false);
   });
 
-  it('writes base_url under [model_providers.X] for non-official endpoints (not top-level api_base)', async () => {
+  it('writes base_url and provider-specific Vault auth for non-official endpoints', async () => {
     // The TS adapter correctly uses a [model_providers.X] table with base_url
     // and removes the legacy top-level api_base key (which was a Codex bug).
     const adapter = new CodexAdapter();
@@ -129,21 +129,21 @@ describe('CodexAdapter.applyConfig', () => {
     expect(toml).toContain('[model_providers.okit-custom-openai]');
     expect(toml).toContain('base_url = "https://custom.api.com/v1"');
     expect(toml).not.toContain('api_base');
-    // No env_key — credentials go via auth.json (requires_openai_auth=true),
-    // so the ChatGPT desktop app can find them too.
+    // Each provider resolves its own Vault key. A shared OPENAI_API_KEY cannot
+    // resume conversations from two different third-party providers safely.
     expect(toml).not.toContain('env_key');
+    expect(toml).toContain('[model_providers.okit-custom-openai.auth]');
+    expect(toml).toContain('"vault", "get", "CODEX_API_KEY"');
     // Codex requires wire_api = "responses" on current builds (chat was dropped).
     // Mirror cc-switch: unconditional "responses" regardless of endpoint protocol.
     expect(toml).toContain('wire_api = "responses"');
-    expect(toml).toContain('requires_openai_auth = true');
+    expect(toml).not.toContain('requires_openai_auth');
     // Top-level fields cc-switch always emits.
     expect(toml).toContain('disable_response_storage = true');
     expect(toml).toContain('model_reasoning_effort = "high"');
     // web_search disabled — third-party gateways reject the web_search tool.
     expect(toml).toContain('web_search = "disabled"');
-    // auth.json gets the key for third-party providers too.
-    const auth = JSON.parse(mocks.files.get(CODEX_AUTH)!);
-    expect(auth.OPENAI_API_KEY).toBe('sk-codex-456');
+    expect(mocks.files.has(CODEX_AUTH)).toBe(false);
   });
 
   it('appends /v1 to origin-only base URLs (cc-switch normalization)', async () => {
@@ -221,7 +221,7 @@ describe('CodexAdapter.applyConfig', () => {
     expect(toml).toContain('model_catalog_json = "~/.codex/model-catalogs/model-catalogs.json"');
   });
 
-  it('official OpenAI: strips third-party residue when switching back to subscription', async () => {
+  it('official OpenAI: clears the active override but preserves registered providers for old conversations', async () => {
     // Start with a config that has third-party gunk from a previous provider.
     mocks.files.set(CODEX_CONFIG, [
       'model = "mimo-v2.5"',
@@ -235,7 +235,10 @@ describe('CodexAdapter.applyConfig', () => {
       'name = "小米 MiMo Token Plan"',
       'base_url = "https://token-plan-sgp.xiaomimimo.com/v1"',
       'wire_api = "responses"',
-      'requires_openai_auth = true',
+      '',
+      '[model_providers.okit-xiaomi-coding.auth]',
+      'command = "/usr/bin/env"',
+      'args = ["ELECTRON_RUN_AS_NODE=1", "/Applications/OKIT.app/Contents/MacOS/OKIT", "main.js", "vault", "get", "XIAOMI_API_KEY"]',
       '',
       '[projects."/some/path"]',
       'trust_level = "trusted"',
@@ -250,12 +253,14 @@ describe('CodexAdapter.applyConfig', () => {
     const toml = mocks.files.get(CODEX_CONFIG)!;
     expect(toml).toContain('model = "gpt-5.6-sol"');
     // Third-party fields removed.
-    expect(toml).not.toContain('model_provider');
+    expect(toml).not.toMatch(/^model_provider\s*=/m);
     expect(toml).not.toContain('disable_response_storage');
     expect(toml).not.toContain('web_search');
     expect(toml).not.toContain('model_catalog_json');
-    // All okit-* provider tables purged.
-    expect(toml).not.toContain('[model_providers.okit-');
+    // Registrations and their independent auth survive so an existing thread
+    // that stores this provider id can still be reopened.
+    expect(toml).toContain('[model_providers.okit-xiaomi-coding]');
+    expect(toml).toContain('[model_providers.okit-xiaomi-coding.auth]');
     // Non-okit sections (projects) preserved.
     expect(toml).toContain('[projects."/some/path"]');
 
@@ -263,6 +268,33 @@ describe('CodexAdapter.applyConfig', () => {
     const auth = JSON.parse(mocks.files.get(CODEX_AUTH)!);
     expect(auth.OPENAI_API_KEY).toBeUndefined();
     expect(auth.tokens).toEqual({ id: 'oauth-keep' });
+  });
+
+  it('removes only the provider registration the user explicitly deletes', async () => {
+    mocks.files.set(CODEX_CONFIG, [
+      'model = "gpt-5.6-sol"',
+      '',
+      '[model_providers.okit-deepseek]',
+      'name = "DeepSeek"',
+      'base_url = "https://api.deepseek.com/v1"',
+      '',
+      '[model_providers.okit-deepseek.auth]',
+      'command = "/usr/bin/node"',
+      'args = ["main.js", "vault", "get", "DEEPSEEK_API_KEY"]',
+      '',
+      '[model_providers.okit-xiaomi]',
+      'name = "Xiaomi"',
+      'base_url = "https://api.xiaomimimo.com/v1"',
+      '',
+    ].join('\n'));
+
+    const adapter = new CodexAdapter();
+    await adapter.removeProvider('deepseek');
+
+    const toml = mocks.files.get(CODEX_CONFIG)!;
+    expect(toml).not.toContain('[model_providers.okit-deepseek]');
+    expect(toml).not.toContain('[model_providers.okit-deepseek.auth]');
+    expect(toml).toContain('[model_providers.okit-xiaomi]');
   });
 
   it('removes api_base for official OpenAI', async () => {

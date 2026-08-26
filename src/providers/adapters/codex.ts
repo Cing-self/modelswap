@@ -32,20 +32,17 @@ export class CodexAdapter extends BaseAdapter {
   }
 
   async applyConfig(provider: Provider, modelId: string): Promise<void> {
-    const apiKey = await this.resolveApiKey(provider);
-
     await fs.ensureDir(CODEX_DIR);
     let toml = "";
     if (await fs.pathExists(CODEX_CONFIG_PATH)) {
       toml = await fs.readFile(CODEX_CONFIG_PATH, "utf-8");
     }
 
-    // Official OpenAI subscription = OAuth mode. Mirror cc-switch's "OpenAI
-    // Official" preset which writes an EMPTY config + EMPTY auth: Codex falls
-    // back to its native OAuth login + default model catalog. We must strip
-    // all third-party residue (model_provider, [model_providers.okit-*],
-    // disable_response_storage, web_search, model_catalog_json, OPENAI_API_KEY)
-    // so the ChatGPT desktop app uses the subscription, not a stale API key.
+    // Official OpenAI subscription = OAuth mode. Only clear the ACTIVE
+    // third-party selection. Keep every [model_providers.okit-*] registration:
+    // existing Codex conversations persist their provider id, and deleting the
+    // table makes those conversations impossible to reopen ("provider not
+    // found"). A registration is removed only when the user removes that site.
     const isOfficial = provider.id === "openai-codex" || provider.id === "openai";
 
     if (isOfficial) {
@@ -59,10 +56,9 @@ export class CodexAdapter extends BaseAdapter {
       // model_reasoning_effort is harmless for official too — keep it so
       // reasoning models behave the same across subscription and API modes.
       // toml = upsertTopLevelTomlKey(toml, "model_reasoning_effort", tomlString("high"));
-      // Purge every [model_providers.okit-*] table we may have written.
-      toml = removeAllOkitProviderTables(toml);
-      // Remove OPENAI_API_KEY from auth.json but PRESERVE OAuth tokens so
-      // the subscription stays logged in.
+      // Remove the legacy shared API key from auth.json but preserve OAuth
+      // tokens. Third-party providers now use their own Vault-backed auth
+      // command, so switching providers never overwrites another site's key.
       await removeApiKeyFromAuthJson(CODEX_AUTH_PATH);
       await atomicWrite(CODEX_CONFIG_PATH, toml);
     } else {
@@ -79,11 +75,9 @@ export class CodexAdapter extends BaseAdapter {
       toml = removeTopLevelTomlKey(toml, "api_base");
 
       // Codex dropped support for wire_api = "chat" — "responses" is required.
-      // requires_openai_auth tells Codex to pull the credential from auth.json's
-      // OPENAI_API_KEY. base_url normalization: append /v1 for origin-only URLs.
-      //
-      // Credential delivery via auth.json (not .env) is critical: the ChatGPT
-      // desktop app reads auth.json, NOT .env. cc-switch does the same.
+      // base_url normalization appends /v1 for origin-only URLs. Authentication
+      // is a provider-specific command below, backed by OKIT's encrypted Vault;
+      // this keeps multiple providers resumable without writing keys to TOML.
       //
       // http_headers: the opencode.ai gateway rate-limits anonymous traffic
       // separately from the official opencode client (verified 429 without the
@@ -92,15 +86,23 @@ export class CodexAdapter extends BaseAdapter {
         `name = ${tomlString(provider.name)}`,
         `base_url = ${tomlString(normalizeBaseUrl(openAIEndpoint.baseUrl))}`,
         `wire_api = "responses"`,
-        `requires_openai_auth = true`,
       ];
       const gatewayHeaders = gatewayHeadersFor(openAIEndpoint.baseUrl);
       if (gatewayHeaders) {
         providerLines.push(`http_headers = ${tomlInlineTable(gatewayHeaders)}`);
       }
-      toml = upsertTomlTable(toml, `model_providers.${providerId}`, providerLines);
+      const providerTable = `model_providers.${providerId}`;
+      toml = upsertTomlTable(toml, providerTable, providerLines);
 
-      if (apiKey) await upsertAuthJson(CODEX_AUTH_PATH, apiKey);
+      if (provider.vaultKey) {
+        const auth = codexVaultAuthCommand(provider.vaultKey);
+        toml = upsertTomlTable(toml, `${providerTable}.auth`, [
+          `command = ${tomlString(auth.command)}`,
+          `args = ${tomlStringArray(auth.args)}`,
+        ]);
+      } else {
+        toml = removeTomlTable(toml, `${providerTable}.auth`);
+      }
       await atomicWrite(CODEX_CONFIG_PATH, toml);
 
       // Generate model-catalogs.json so the user can switch between this
@@ -119,6 +121,21 @@ export class CodexAdapter extends BaseAdapter {
         },
       },
     });
+  }
+
+  async removeProvider(providerId: string): Promise<void> {
+    if (!(await fs.pathExists(CODEX_CONFIG_PATH))) return;
+    const codexProviderId = providerId.startsWith("okit-")
+      ? providerId
+      : getCodexProviderId({ id: providerId } as Provider);
+    let toml = await fs.readFile(CODEX_CONFIG_PATH, "utf-8");
+    toml = removeTomlTable(toml, `model_providers.${codexProviderId}.auth`);
+    toml = removeTomlTable(toml, `model_providers.${codexProviderId}`);
+    if (readTopLevelTomlKey(toml, "model_provider") === codexProviderId) {
+      toml = removeTopLevelTomlKey(toml, "model_provider");
+      toml = removeTopLevelTomlKey(toml, "model_catalog_json");
+    }
+    await atomicWrite(CODEX_CONFIG_PATH, toml);
   }
 }
 
@@ -277,6 +294,10 @@ function tomlString(value: string): string {
   return `"${String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 }
 
+function tomlStringArray(values: string[]): string {
+  return `[${values.map(tomlString).join(", ")}]`;
+}
+
 function tomlInlineTable(headers: Record<string, string>): string {
   const pairs = Object.entries(headers).map(([k, v]) => `${tomlString(k)} = ${tomlString(v)}`);
   return `{ ${pairs.join(", ")} }`;
@@ -286,21 +307,42 @@ function escapeRegex(value: string): string {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-// Write OPENAI_API_KEY into ~/.codex/auth.json. Codex CLI and the ChatGPT
-// desktop app both read credentials from here when requires_openai_auth=true.
-// Preserve any existing keys (e.g. OAuth tokens) the user may have set up.
-async function upsertAuthJson(authPath: string, apiKey: string): Promise<void> {
-  let auth: Record<string, unknown> = {};
-  if (await fs.pathExists(authPath)) {
-    try {
-      auth = JSON.parse(await fs.readFile(authPath, "utf-8"));
-    } catch {
-      // Corrupt auth.json — start fresh with just the key.
-      auth = {};
-    }
+function readTopLevelTomlKey(toml: string, key: string): string | undefined {
+  const lines = toml.split("\n");
+  const tableStart = lines.findIndex(line => line.trim().startsWith("["));
+  const top = lines.slice(0, tableStart === -1 ? lines.length : tableStart);
+  const match = top.find(line => new RegExp(`^\\s*${escapeRegex(key)}\\s*=`).test(line));
+  return match?.match(/=\s*"([^"]+)"/)?.[1];
+}
+
+function removeTomlTable(toml: string, tableName: string): string {
+  const lines = toml.split("\n");
+  const header = new RegExp(`^\\s*\\[${escapeRegex(tableName)}\\]\\s*(?:#.*)?$`);
+  const start = lines.findIndex(line => header.test(line));
+  if (start < 0) return toml;
+  let end = start + 1;
+  while (end < lines.length && !/^\s*\[/.test(lines[end])) end++;
+  lines.splice(start, end - start);
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trimEnd() + "\n";
+}
+
+function codexVaultAuthCommand(vaultKey: string): { command: string; args: string[] } {
+  // The adapter runs from dist/providers/adapters in both CLI and desktop
+  // builds, so dist/main.js is a stable entry point for the existing raw
+  // `okit vault get` command. Packaged Electron can execute that entry point
+  // as Node when ELECTRON_RUN_AS_NODE is set through `env`.
+  const cliEntry = path.join(__dirname, "..", "..", "main.js");
+  if (process.versions.electron && process.platform !== "win32") {
+    return {
+      command: "/usr/bin/env",
+      args: ["ELECTRON_RUN_AS_NODE=1", process.execPath, cliEntry, "vault", "get", vaultKey],
+    };
   }
-  auth["OPENAI_API_KEY"] = apiKey;
-  await atomicWriteJSON(authPath, auth);
+  if (process.versions.electron && process.platform === "win32") {
+    const invocation = `set ELECTRON_RUN_AS_NODE=1&&"${process.execPath}" "${cliEntry}" vault get "${vaultKey}"`;
+    return { command: "cmd.exe", args: ["/d", "/s", "/c", invocation] };
+  }
+  return { command: process.execPath, args: [cliEntry, "vault", "get", vaultKey] };
 }
 
 // Remove OPENAI_API_KEY from auth.json, preserving OAuth tokens and any other
@@ -318,24 +360,4 @@ async function removeApiKeyFromAuthJson(authPath: string): Promise<void> {
     delete auth["OPENAI_API_KEY"];
     await atomicWriteJSON(authPath, auth);
   }
-}
-
-// Remove every [model_providers.okit-*] table from the TOML. OKIT-prefixed
-// provider ids are our namespace; anything else (e.g. user-defined or Azure)
-// is left untouched. Each table spans from its [header] to the next [header]
-// or EOF.
-function removeAllOkitProviderTables(toml: string): string {
-  const lines = toml.split("\n");
-  const result: string[] = [];
-  let skipping = false;
-  for (const line of lines) {
-    const headerMatch = line.match(/^\s*\[([^\]]+)\]\s*$/);
-    if (headerMatch) {
-      const tableName = headerMatch[1];
-      skipping = tableName.startsWith("model_providers.okit");
-    }
-    if (!skipping) result.push(line);
-  }
-  // Trim trailing blank lines left by removed tables.
-  return result.join("\n").replace(/\n{3,}/g, "\n\n").trimEnd() + "\n";
 }

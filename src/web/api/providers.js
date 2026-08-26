@@ -758,7 +758,11 @@ async function removeAgentProvider(req, res) {
     let snapshotId = null;
     try { snapshotId = await capturePreSwitchSnapshot(agentId); } catch {}
     try {
-      if (ADDITIVE_AGENTS.has(agentId) && agentAdapter?.removeProvider) {
+      // Codex is exclusive for the active selection, but its config keeps
+      // registrations for every previously added site so old conversations
+      // remain resumable. Remove a registration only when the user explicitly
+      // removes that site; additive adapters use the same hook for their data.
+      if (agentAdapter?.removeProvider) {
         await agentAdapter.removeProvider(providerId);
       }
 
