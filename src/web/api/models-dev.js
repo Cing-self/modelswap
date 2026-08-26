@@ -50,7 +50,9 @@ async function loadCatalog() {
   try {
     const st = await fs.stat(CACHE_PATH);
     if (Date.now() - st.mtimeMs < TTL_MS) {
-      const raw = JSON.parse(await fs.readFile(CACHE_PATH, 'utf-8'));
+      const cached = JSON.parse(await fs.readFile(CACHE_PATH, 'utf-8'));
+      // v2 records provenance while accepting old bare api.json snapshots.
+      const raw = cached && cached.data && cached.source === 'models.dev' ? cached.data : cached;
       return (_catalog = indexCatalog(raw));
     }
   } catch { /* no/failed cache */ }
@@ -58,11 +60,22 @@ async function loadCatalog() {
   try {
     const raw = await fetchJson(CATALOG_URL, 10000);
     await fs.ensureDir(path.dirname(CACHE_PATH));
-    await fs.writeFile(CACHE_PATH, JSON.stringify(raw));
+    await fs.writeFile(CACHE_PATH, JSON.stringify({
+      source: 'models.dev', version: 1, fetchedAt: new Date().toISOString(), data: raw,
+    }));
     return (_catalog = indexCatalog(raw));
   } catch {
     return null;
   }
+}
+
+/** Fresh network-only catalog for the standalone data demo.
+ * Never reads or writes OKIT's disk cache, so a failed request stays failed
+ * instead of silently presenting yesterday's data as current data.
+ */
+async function loadFreshCatalog() {
+  const raw = await fetchJson(CATALOG_URL, 15000);
+  return indexCatalog(raw);
 }
 
 function indexCatalog(raw) {
@@ -85,6 +98,7 @@ function indexCatalog(raw) {
 // (baseUrl first, then each endpoint's baseUrl) — hosts are stable and match
 // even when our preset ids differ from catalog keys.
 function resolveCatalogKey(catalog, provider) {
+  if (catalog.providers[provider.id]) return provider.id;
   const candidates = [provider.baseUrl, ...((provider.endpoints || []).map(e => e.baseUrl))]
     .filter(Boolean).map(normalizeHost).filter(Boolean);
   for (const host of candidates) {
@@ -92,6 +106,94 @@ function resolveCatalogKey(catalog, provider) {
     if (key) return key;
   }
   return null;
+}
+
+function findCatalogModel(catalog, provider, modelId) {
+  const key = resolveCatalogKey(catalog, provider);
+  const devProvider = key ? catalog.providers[key] : null;
+  let entry = devProvider && (devProvider.models || {})[modelId];
+  if (!entry && devProvider) {
+    for (const [fullId, value] of Object.entries(devProvider.models || {})) {
+      if (fullId.endsWith('/' + modelId)) { entry = value; break; }
+    }
+  }
+  if (!entry) {
+    const owners = catalog.globalIds.get(modelId);
+    if (owners && owners.length === 1) {
+      entry = (catalog.providers[owners[0]].models || {})[modelId]
+        || (catalog.providers[owners[0]].models || {})[`${owners[0]}/${modelId}`];
+    }
+  }
+  return entry || null;
+}
+
+function metadataFromCatalog(modelId, entry, fetchedAt, source = 'modelsdev', remoteModel) {
+  const limit = entry?.limit || {};
+  const modalities = entry?.modalities || {};
+  return {
+    id: modelId,
+    ...(remoteModel?.name || entry?.name ? { name: remoteModel?.name || entry.name } : {}),
+    ...(entry?.description ? { description: entry.description } : {}),
+    ...(entry?.family ? { family: entry.family } : {}),
+    ...(typeof entry?.attachment === 'boolean' ? { attachment: entry.attachment } : {}),
+    ...(Number.isFinite(limit.context) ? { context: limit.context } : {}),
+    ...(Number.isFinite(limit.input) ? { input: limit.input } : {}),
+    ...(Number.isFinite(limit.output) ? { output: limit.output } : {}),
+    ...(Array.isArray(modalities.input) || Array.isArray(modalities.output) ? {
+      modalities: {
+        ...(Array.isArray(modalities.input) ? { input: modalities.input } : {}),
+        ...(Array.isArray(modalities.output) ? { output: modalities.output } : {}),
+      },
+    } : {}),
+    ...(typeof entry?.tool_call === 'boolean' ? { tool: entry.tool_call } : {}),
+    ...(typeof entry?.reasoning === 'boolean' ? { reasoning: entry.reasoning } : {}),
+    ...(Array.isArray(entry?.reasoning_options) ? { reasoningOptions: entry.reasoning_options } : {}),
+    ...(typeof entry?.structured_output === 'boolean' ? { structuredOutput: entry.structured_output } : {}),
+    ...(typeof entry?.temperature === 'boolean' ? { temperature: entry.temperature } : {}),
+    ...(entry?.interleaved ? { interleaved: entry.interleaved } : {}),
+    ...(entry?.knowledge ? { knowledge: entry.knowledge } : {}),
+    ...(entry?.release_date ? { releaseDate: entry.release_date } : {}),
+    ...(entry?.last_updated ? { lastUpdated: entry.last_updated } : {}),
+    ...(typeof entry?.open_weights === 'boolean' ? { openWeights: entry.open_weights } : {}),
+    ...(entry?.status ? { status: entry.status } : {}),
+    ...(entry?.cost ? { cost: entry.cost } : {}),
+    ...(entry?.provider ? { providerConfig: entry.provider } : {}),
+    ...(entry?.experimental ? { experimental: entry.experimental } : {}),
+    source,
+    confidence: entry ? 'high' : 'medium',
+    fetchedAt,
+    raw: source === 'remote' ? { remote: remoteModel, modelsDev: entry || undefined } : entry,
+  };
+}
+
+function getFreshProviderMetadata(catalog, provider) {
+  const key = resolveCatalogKey(catalog, provider);
+  const entry = key ? catalog.providers[key] : null;
+  if (!entry) return null;
+  return {
+    key,
+    id: entry.id,
+    name: entry.name,
+    api: entry.api,
+    doc: entry.doc,
+    env: Array.isArray(entry.env) ? entry.env : [],
+    npm: entry.npm,
+  };
+}
+
+function listFreshProviderModels(catalog, provider, fetchedAt = new Date().toISOString()) {
+  const key = resolveCatalogKey(catalog, provider);
+  const devProvider = key ? catalog.providers[key] : null;
+  if (!devProvider) return [];
+  return Object.entries(devProvider.models || {}).map(([modelId, entry]) =>
+    metadataFromCatalog(modelId, entry, fetchedAt, 'modelsdev')
+  );
+}
+
+function enrichFreshRemoteModels(catalog, provider, models, fetchedAt = new Date().toISOString()) {
+  return (models || []).filter(model => model?.id).map(model =>
+    metadataFromCatalog(model.id, findCatalogModel(catalog, provider, model.id), fetchedAt, 'remote', model)
+  );
 }
 
 // Enrich fetched models with catalog metadata. Existing fields (id, name,
@@ -125,15 +227,26 @@ async function enrichModels(provider, models) {
       }
     }
     if (!entry) return m;
-    const limit = entry.limit || {};
-    const modalities = entry.modalities || {};
-    const meta = { source: 'modelsdev' };
-    if (limit.context) meta.context = limit.context;
-    if (limit.output) meta.output = limit.output;
-    if (typeof entry.tool_call === 'boolean') meta.toolCall = entry.tool_call;
-    if (typeof entry.reasoning === 'boolean') meta.reasoning = entry.reasoning;
-    if (Array.isArray(modalities.input)) meta.attachment = modalities.input.some(x => /image|video/i.test(String(x)));
-    if (entry.status === 'deprecated') meta.deprecated = true;
+    const metadata = metadataFromCatalog(m.id, entry, new Date().toISOString());
+    const {
+      id: _id,
+      name: _name,
+      source: _source,
+      confidence: _confidence,
+      fetchedAt: _fetchedAt,
+      raw: _raw,
+      tool,
+      ...catalogMeta
+    } = metadata;
+    const meta = {
+      source: 'modelsdev',
+      ...catalogMeta,
+      ...(tool === undefined ? {} : { toolCall: tool }),
+      ...(metadata.modalities?.input ? {
+        attachment: metadata.modalities.input.some(x => /image|video/i.test(String(x))),
+      } : {}),
+      ...(entry.status === 'deprecated' ? { deprecated: true } : {}),
+    };
     return { ...m, meta };
   });
 }
@@ -142,4 +255,13 @@ function clearCatalogCache() {
   _catalog = null;
 }
 
-module.exports = { enrichModels, loadCatalog, clearCatalogCache, CACHE_PATH };
+module.exports = {
+  enrichModels,
+  loadCatalog,
+  loadFreshCatalog,
+  listFreshProviderModels,
+  enrichFreshRemoteModels,
+  getFreshProviderMetadata,
+  clearCatalogCache,
+  CACHE_PATH,
+};

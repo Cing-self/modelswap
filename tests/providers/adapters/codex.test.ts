@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => {
     writeFile: vi.fn(async function(p: string, c: string) { files.set(p, c); }),
     rename: vi.fn(async function(oldPath: string, newPath: string) { const c = files.get(oldPath); if (c !== undefined) files.set(newPath, c); }),
     ensureDir: vi.fn(async function() {}),
+    remove: vi.fn(async function(p: string) { for (const key of files.keys()) if (key === p || key.startsWith(`${p}/`)) files.delete(key); }),
   };
 });
 
@@ -48,6 +49,9 @@ vi.mock('../../../src/vault/store', () => ({
 vi.mock('../../../src/providers/auth', () => ({
   checkCodexOAuth: vi.fn(async function() { return false; }),
 }));
+
+const logMocks = vi.hoisted(() => ({ appendLog: vi.fn() }));
+vi.mock('../../../src/web/api/log-writer.js', () => logMocks);
 
 const { CodexAdapter } = await import('../../../src/providers/adapters/codex');
 const { updateUserConfig } = await import('../../../src/config/user');
@@ -79,6 +83,7 @@ const customProvider = {
 beforeEach(() => {
   mocks.files.clear();
   vi.mocked(updateUserConfig).mockClear();
+  logMocks.appendLog.mockClear();
 });
 
 describe('CodexAdapter', () => {
@@ -155,6 +160,41 @@ describe('CodexAdapter.applyConfig', () => {
     expect(toml).toContain('base_url = "https://custom.api.com/v1"');
   });
 
+  it('replaces legacy OpenAI-auth residue with scoped provider authentication', async () => {
+    mocks.files.set(CODEX_CONFIG, [
+      'model = "old"',
+      '',
+      '[model_providers.okit-custom-openai]',
+      'name = "Old"',
+      'base_url = "https://old.example/v1"',
+      'wire_api = "responses"',
+      'requires_openai_auth = true',
+      'experimental_bearer_token_auth = true',
+      '',
+      '[model_providers.okit-custom-openai.auth]',
+      'command = "/old/credential-command"',
+      '',
+      '[projects."/keep"]',
+      'trust_level = "trusted"',
+      '',
+    ].join('\n'));
+    mocks.files.set(CODEX_AUTH, JSON.stringify({ OPENAI_API_KEY: 'sk-codex-456', tokens: { id: 'oauth-keep' } }));
+
+    await new CodexAdapter().applyConfig(customProvider, 'my-model');
+
+    const toml = mocks.files.get(CODEX_CONFIG)!;
+    expect(toml).not.toContain('requires_openai_auth');
+    expect(toml).not.toContain('experimental_bearer_token_auth');
+    expect(toml).toContain('[model_providers.okit-custom-openai.auth]');
+    expect(toml).toContain('"vault", "get", "CODEX_API_KEY"');
+    expect(toml).toContain('[projects."/keep"]');
+    // The legacy shared key is no longer referenced by this provider. Leave
+    // user-owned auth.json untouched until the user switches to official OAuth.
+    const auth = JSON.parse(mocks.files.get(CODEX_AUTH)!);
+    expect(auth.OPENAI_API_KEY).toBe('sk-codex-456');
+    expect(auth.tokens).toEqual({ id: 'oauth-keep' });
+  });
+
   it('adds opencode UA via http_headers for opencode.ai gateway endpoints', async () => {
     const zenProvider = { ...customProvider, baseUrl: 'https://opencode.ai/zen/v1' };
     const adapter = new CodexAdapter();
@@ -221,6 +261,63 @@ describe('CodexAdapter.applyConfig', () => {
     expect(toml).toContain('model_catalog_json = "~/.codex/model-catalogs/model-catalogs.json"');
   });
 
+  it('uses the Codex mapping for official model parameters instead of fixed none/high defaults', async () => {
+    const CATALOG_PATH = path.join(os.homedir(), '.codex', 'model-catalogs', 'model-catalogs.json');
+    const provider = {
+      ...customProvider,
+      models: [{
+        id: 'my-model',
+        name: 'My Model',
+        resolved: {
+          id: 'my-model',
+          name: 'My Model',
+          description: 'Catalog description',
+          context: 262144,
+          modalities: { input: ['text', 'image'], output: ['text'] },
+          reasoning: true,
+          reasoningOptions: [{ type: 'effort', values: ['low', 'medium', 'high'] }],
+          source: 'modelsdev',
+          confidence: 'high',
+        },
+      }],
+    };
+
+    await new CodexAdapter().applyConfig(provider, 'my-model', provider.models[0].resolved as any);
+
+    const catalog = JSON.parse(mocks.files.get(CATALOG_PATH)!);
+    expect(catalog.models[0]).toMatchObject({
+      description: 'Catalog description',
+      context_window: 262144,
+      max_context_window: 262144,
+      input_modalities: ['text', 'image'],
+      default_reasoning_level: 'high',
+      supported_reasoning_levels: [
+        { effort: 'low', description: 'Light reasoning' },
+        { effort: 'medium', description: 'Balanced reasoning' },
+        { effort: 'high', description: 'Enabled Thinking' },
+      ],
+    });
+    const toml = mocks.files.get(CODEX_CONFIG)!;
+    expect(toml).toContain('model_context_window = 262144');
+    expect(toml).toContain('model_reasoning_effort = "high"');
+    expect(toml).toContain('model_supports_reasoning_summaries = true');
+    expect(logMocks.appendLog).toHaveBeenCalledWith(
+      'codex-model-mapping',
+      'custom-openai',
+      true,
+      expect.objectContaining({
+        mappingVersion: 1,
+        modelCount: 1,
+        models: [expect.objectContaining({
+          id: 'my-model',
+          contextWindow: 262144,
+          inputModalities: ['text', 'image'],
+          reasoningLevels: ['low', 'medium', 'high'],
+        })],
+      }),
+    );
+  });
+
   it('official OpenAI: clears the active override but preserves registered providers for old conversations', async () => {
     // Start with a config that has third-party gunk from a previous provider.
     mocks.files.set(CODEX_CONFIG, [
@@ -264,7 +361,7 @@ describe('CodexAdapter.applyConfig', () => {
     // Non-okit sections (projects) preserved.
     expect(toml).toContain('[projects."/some/path"]');
 
-    // auth.json: OPENAI_API_KEY removed, OAuth tokens preserved.
+    // Legacy shared key is removed; OAuth tokens remain.
     const auth = JSON.parse(mocks.files.get(CODEX_AUTH)!);
     expect(auth.OPENAI_API_KEY).toBeUndefined();
     expect(auth.tokens).toEqual({ id: 'oauth-keep' });

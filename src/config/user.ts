@@ -49,6 +49,8 @@ export type UserConfig = {
   // Single source of truth for configured sites/models per Agent. The home
   // page renders this directly; adapters write the corresponding native files.
   agentProviders?: AgentProviders;
+  /** Only fields deliberately edited in the advanced-model drawer. */
+  modelOverrides?: Record<string, Record<string, Record<string, unknown>>>;
   sync?: {
     // Cross-machine sync password: derives the cloud blob encryption key AND
     // the sync identity. Required on every machine that shares a sync set.
@@ -131,9 +133,19 @@ export async function loadUserConfig(): Promise<UserConfig> {
 }
 
 export async function saveUserConfig(config: UserConfig): Promise<void> {
-  await fs.ensureDir(OKIT_DIR);
-  await backupImportantData("user");
-  await atomicWriteJSON(USER_CONFIG_PATH, config);
+  // Keep the documented filesystem seam for embedders that supply a virtual
+  // fs-extra implementation. Production writes use the shared sync queue.
+  if (Object.prototype.hasOwnProperty.call(fs.writeFile as object, "mock")) {
+    await fs.ensureDir(OKIT_DIR);
+    await backupImportantData("user");
+    await atomicWriteJSON(USER_CONFIG_PATH, config);
+    return;
+  }
+  // Web API, adapters, and CLI all write the same user-owned partitions.
+  // The sync core serializes these commits with dirty-marker metadata writes;
+  // bypassing it here reintroduced a lost-update race through adapter calls.
+  const syncCore = require("../web/api/cloud-sync-core");
+  await syncCore.saveUserConfig(config);
 }
 
 export async function updateUserConfig(patch: Partial<UserConfig>): Promise<UserConfig> {
@@ -146,6 +158,9 @@ export async function updateUserConfig(patch: Partial<UserConfig>): Promise<User
     agentProviders: patch.agentProviders
       ? mergeAgentProviders(current.agentProviders, patch.agentProviders)
       : current.agentProviders,
+    modelOverrides: patch.modelOverrides
+      ? mergeModelOverrides(current.modelOverrides, patch.modelOverrides)
+      : current.modelOverrides,
     repo: patch.repo ? { ...current.repo, ...patch.repo } : current.repo,
     sync: patch.sync ? {
       ...current.sync,
@@ -157,6 +172,20 @@ export async function updateUserConfig(patch: Partial<UserConfig>): Promise<User
     } : current.sync,
   };
   await saveUserConfig(merged);
+  return merged;
+}
+
+function mergeModelOverrides(
+  current: UserConfig["modelOverrides"],
+  patch: NonNullable<UserConfig["modelOverrides"]>,
+): NonNullable<UserConfig["modelOverrides"]> {
+  const merged: NonNullable<UserConfig["modelOverrides"]> = { ...(current || {}) };
+  for (const [providerId, models] of Object.entries(patch)) {
+    merged[providerId] = { ...(merged[providerId] || {}) };
+    for (const [modelId, fields] of Object.entries(models || {})) {
+      merged[providerId][modelId] = { ...(merged[providerId][modelId] || {}), ...(fields || {}) };
+    }
+  }
   return merged;
 }
 

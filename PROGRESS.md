@@ -1,0 +1,39 @@
+# OKIT data architecture progress
+
+## Return-work plan (2026-08-26)
+
+1. Goal: `providers.json` contains only sites; `models-cache.json` contains every rebuildable model fact.
+2. Order: store/migration → route every Web/sync write through store → real resolution into adapters → integration tests → reverse verification.
+3. Maximum migration risk: a combined v1 file can contain unknown site/model fields; write a timestamped backup first and retain unknown fields in the independent cache.
+4. Baseline: 5 fixed files/53 tests; 62 files/618 tests; build passed; existing working-tree changes are the prior failed implementation.
+5. The prior in-file `modelCache` design is rejected because it grows `providers.json` and Web/sync bypass the store.
+6. Sync must transfer only sites, selection, and overrides; it must never write or clear another machine's local cache.
+7. Completed storage rewrite: `models-cache.json` is independently atomic; `providers.json` strips models/modelCache/platforms; Web and sync now call the shared store rather than serializing provider JSON.
+8. Completed resolution wiring: selected models carry `ResolvedModel` into Codex, Claude, and OpenCode configuration; overrides deep-merge per site/model and are removed with a deleted site.
+9. Historical state superseded: the earlier sync compatibility failure was repaired during return work; see the final verification entries below.
+10. Sync compatibility is green again: old provider files now merge in one v2 write; a temporary-HOME compiled list request returned HTTP 200 with 40 providers after fixing the `id` ReferenceError and restored derived display platforms.
+11. Real temporary-HOME API→store→Codex/Claude/OpenCode test now verifies a two-model selection and actual three-Agent files. Reverse verification deliberately restored the Web legacy `{providers,platforms}` write: this test failed, then passed after restoring `_store.saveProviders`.
+
+1. Goal: make one user selection the source of truth for the dashboard and every Agent adapter.
+2. Order: baseline → failing acceptance tests → data layers/migration → refresh/resolve → adapters/API/UI → sync → verification.
+3. Maximum migration risk: legacy `providers.json` combines user instances with mutable model/catalog data; preserve every unknown field and back up before atomically writing.
+4. Baseline 2026-08-26: `git status --short` was clean.
+5. Baseline mismatch: `npm test -- --run` failed before discovery because `vitest` is not installed (`sh: vitest: command not found`); build was therefore not run in the chained baseline command.
+6. Upstream reread: models.dev documents provider-agnostic model facts and provider overrides; this matches the proposed metadata-cache precedence.
+7. Upstream reread: OpenCode documents explicit provider/model configuration; this supports deriving visible models solely from selection.
+8. Source variance: models.dev API and DeepSeek script could not be fetched by the browser (safe-URL/content-type errors); their supplied URLs remain the reference and implementation will not infer undocumented fields from them.
+9. Implemented v2 providers persistence: site records only; model facts move into local `modelCache`; derived `platforms` are never persisted.
+10. Legacy v1 files are atomically upgraded after a timestamped pre-migration backup; unknown root/site/model fields survive in cache `raw`; the obsolete Claude-profile import stays v1 for one release and upgrades on first normal read.
+11. Runtime callers remain compatible through materialized providers; `ResolvedModel` applies user override > profile > models.dev > remote/default facts.
+12. Refresh marks directory-only models unavailable, retains remote-only models, and never changes data for a failed fetch; model cache and models.dev cache keep provenance/version/fetchedAt.
+13. Cloud payload now contains only site records, agent selection and user overrides; it excludes model cache and platform projections. Deleting an active exclusive site falls back before clearing its Agent state.
+14. Source variance remains: browser could not fetch models.dev API or DeepSeek script; implementation uses only their supplied contract and the fetched models.dev repository schema.
+15. Verification: fixed suite 5 files/53 tests passed; full `npm test -- --run` passed 62 files/618 tests, skipped 0; `npm run build` passed.
+16. Reverse verification: deliberately changed unavailable-model route detection to inspect filtered availability; data-architecture test failed as expected, then passed after restoring the check.
+17. Return-work race repair: Web, CLI adapters, and sync dirty metadata now serialize user.json commits; stale snapshots merge by Agent/site and override field, while explicit deletion carries a deletion intent.
+18. Real temporary-HOME acceptance now covers on-disk migration backup/size/cache split; preview-without-selection-change; refresh remote-only/directory-only/offline; two-model home + Codex/Claude/OpenCode files; tier map; deletion cleanup; and A→B site sync retaining B's cache.
+19. Reverse verification (this run): restoring Web's legacy `{providers, platforms}` save made provider-flow fail at expected v2, then restoring `_store.saveProviders` returned the fixed suite green.
+20. Final verification (2026-08-26): fixed 5 files/57 tests, full 62 files/622 tests (skipped 0), build, and `git diff --check` all pass; provider-flow passed ten consecutive full-file runs.
+21. Independent upgrade-loss regression repaired: syncing into a legacy receiver now backs up its v1 file, merges embedded models into (without replacing) local models-cache facts, then performs one v2 sites write. Temporary-HOME regression verifies legacy-only and pre-existing cached models both survive alongside the remote site; fixed/full/build/diff verification remains green.
+22. Sync compatibility regression repaired: an empty legacy receiver has no model facts to preserve, so it is converted directly to the merged v2 sites document without creating a competing legacy backup write. This retains the established fs.writeFile sync compatibility path and its vaultKey assertion. `sync.test.js` passed 5 consecutive runs; fixed suite passed; full suite passed twice; build and diff-check passed.
+23. Codex switch regression repaired in the shared c12a worktree: `switchProvider()` now saves its updated Agent state normally rather than passing the deletion intent. The temporary-HOME provider-flow regression switches Codex from one of two selected models to the other and asserts the site plus both models remain while activeModel changes. Reported verification: targeted 2 files/13 tests, full 62 files/622 tests, build, and diff-check passed; real Codex→DeepSeek four-model state survived the auto-sync window in disk/API/UI.

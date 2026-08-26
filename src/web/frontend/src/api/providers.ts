@@ -108,6 +108,70 @@ export interface Platform {
   models: PlatformModel[];
 }
 
+export interface ModelDataRecord {
+  id: string;
+  name?: string;
+  description?: string;
+  family?: string;
+  attachment?: boolean;
+  context?: number;
+  input?: number;
+  output?: number;
+  modalities?: { input?: string[]; output?: string[] };
+  tool?: boolean;
+  reasoning?: boolean;
+  reasoningOptions?: Array<{ type: string; values?: string[]; min?: number; max?: number }>;
+  structuredOutput?: boolean;
+  temperature?: boolean;
+  interleaved?: { field?: string };
+  knowledge?: string;
+  releaseDate?: string;
+  lastUpdated?: string;
+  openWeights?: boolean;
+  status?: string;
+  cost?: Record<string, unknown>;
+  providerConfig?: Record<string, unknown>;
+  experimental?: Record<string, unknown>;
+  source: 'preset' | 'modelsdev' | 'remote' | 'legacy' | 'manual' | string;
+  confidence: 'high' | 'medium' | 'low';
+  fetchedAt?: string;
+  raw?: unknown;
+  selectedBy: string[];
+}
+
+export interface ModelDataProvider {
+  id: string;
+  name: string;
+  type: 'anthropic' | 'openai';
+  executionMode: 'http_endpoint' | 'agent_native';
+  catalog?: {
+    key: string;
+    id?: string;
+    name?: string;
+    api?: string;
+    doc?: string;
+    env: string[];
+    npm?: string;
+  } | null;
+  endpoints: Array<{ id: string; type: string; protocol?: string; baseUrl: string }>;
+  sources: Record<string, number>;
+  models: ModelDataRecord[];
+}
+
+export interface ModelDataSnapshot {
+  cache: { version: number; source: string; fetchedAt: string; file: string };
+  summary: {
+    providers: number;
+    models: number;
+    withContext: number;
+    withOutput: number;
+    withReasoning: number;
+    withTool: number;
+    withModalities: number;
+  };
+  providers: ModelDataProvider[];
+}
+
 export interface AgentInfo {
   id: string;
   name: string;
@@ -144,6 +208,18 @@ export async function listProviders(): Promise<{ providers: Provider[]; platform
   const data = await api('/api/providers') as { providers: Provider[]; platforms: Platform[] };
   providersCache = { data, at: Date.now() };
   return data;
+}
+
+export async function getModelData(): Promise<ModelDataSnapshot> {
+  return api('/api/demo/model-data');
+}
+
+export async function refreshModelData(): Promise<ModelDataSnapshot> {
+  return api('/api/demo/model-data/refresh', { method: 'POST' });
+}
+
+export async function refreshDemoProviderModels(providerId: string): Promise<{ success: boolean; provider: ModelDataProvider; errors?: Array<{ endpoint: string; error: string }> }> {
+  return api(`/api/demo/model-data/providers/${encodeURIComponent(providerId)}/refresh`, { method: 'POST' });
 }
 
 export async function getAdapters(): Promise<{ adapters: AgentInfo[] }> {

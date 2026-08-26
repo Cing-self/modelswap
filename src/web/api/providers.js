@@ -4,6 +4,7 @@ const os = require('os');
 const { backupImportantData } = require('./backup');
 const { appendLog } = require('./log-writer');
 const { publishDataChanged } = require('./ui-events');
+const syncCore = require('./cloud-sync-core');
 const { getAgentState, migrateAgentProviders, removeSite, replaceAgentState, setSite } = require('./agent-providers');
 const {
   QIANFAN_CODING_PROBE_MODEL,
@@ -90,9 +91,9 @@ let _platforms;
 let _routing;
 let _store;
 try {
-  _platforms = require('../../../providers/platforms');
-  _routing = require('../../../providers/routing');
-  _store = require('../../../providers/store');
+  _platforms = require('../../providers/platforms');
+  _routing = require('../../providers/routing');
+  _store = require('../../providers/store');
 } catch {
   // Fallback for dev mode where dist/ may not be in the expected relative position
   _platforms = require('../../../dist/providers/platforms');
@@ -105,7 +106,7 @@ try {
 // lazy require inside switchProvider escaped vitest's module interception.
 let _getAdapter;
 try {
-  _getAdapter = require('../../../providers/registry').getAdapter;
+  _getAdapter = require('../../providers/registry').getAdapter;
 } catch {
   _getAdapter = require('../../../dist/providers/registry').getAdapter;
 }
@@ -114,7 +115,7 @@ try {
 // pattern as the presets/registry requires above) so tests can mock the module.
 let _snapshots;
 try {
-  _snapshots = require('../../../providers/snapshots');
+  _snapshots = require('../../providers/snapshots');
 } catch {
   _snapshots = require('../../../dist/providers/snapshots');
 }
@@ -131,7 +132,7 @@ async function snapBeforeWrite(agentId, label) {
 }
 
 const buildPlatforms = _platforms.buildPlatforms;
-const { providerEndpointEntries, providerExecutionMode, providerSupportsAdapter, resolveModelRoute } = _routing;
+const { providerEndpointEntries, providerExecutionMode, providerSupportsAdapter, resolveModelRoute, resolveModel } = _routing;
 
 async function loadProviders() {
   const providers = await _store.loadProviders();
@@ -148,9 +149,9 @@ async function loadProviders() {
 }
 
 async function saveProviders(providers) {
-  await fs.ensureDir(OKIT_DIR);
-  await backupImportantData('providers');
-  await fs.writeFile(PROVIDERS_PATH, JSON.stringify({ providers, platforms: buildPlatforms(providers) }, null, 2));
+  // Store owns the versioned providers file and its independent model cache.
+  // A web action must never reconstruct or downgrade either JSON document.
+  await _store.saveProviders(providers);
   publishDataChanged(['providers']);
   // Any providers.json write is a payload change for cloud sync (pull merges go
   // through cloud-sync-core's own writer, so this never fires for remote data).
@@ -169,17 +170,15 @@ async function loadUserConfig() {
   } catch { return {}; }
 }
 
-async function saveUserConfig(config) {
-  await fs.ensureDir(OKIT_DIR);
-  await backupImportantData('user');
-  await fs.writeFile(USER_CONFIG_PATH, JSON.stringify(config, null, 2));
+async function saveUserConfig(config, options) {
+  await syncCore.saveUserConfig(config, options);
   publishDataChanged(['agents']);
   require('./sync-scheduler').markDirty('agentProviders');
 }
 
 let _agentsMeta;
 try {
-  _agentsMeta = require('../../../providers/agentsMeta');
+  _agentsMeta = require('../../providers/agentsMeta');
 } catch {
   _agentsMeta = require('../../../dist/providers/agentsMeta');
 }
@@ -219,6 +218,180 @@ async function listProviders(req, res) {
     res.json({ providers: sortedResult, platforms: buildPlatforms(sortedResult) });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+}
+
+let _demoModelSnapshot = null;
+let _demoFreshCatalog = null;
+
+function modelDataSelections(config) {
+  const selectedByProvider = new Map();
+  for (const [agentId, state] of Object.entries(config.agentProviders || {})) {
+    for (const [providerId, site] of Object.entries(state?.sites || {})) {
+      const providerEntry = selectedByProvider.get(providerId) || new Map();
+      for (const modelId of site?.modelIds || []) {
+        const agents = providerEntry.get(modelId) || [];
+        if (!agents.includes(agentId)) agents.push(agentId);
+        providerEntry.set(modelId, agents);
+      }
+      selectedByProvider.set(providerId, providerEntry);
+    }
+  }
+  return selectedByProvider;
+}
+
+function modelDataSummary(rows) {
+  const allModels = rows.flatMap(provider => provider.models);
+  return {
+    providers: rows.length,
+    models: allModels.length,
+    withContext: allModels.filter(model => Number.isFinite(model.context)).length,
+    withOutput: allModels.filter(model => Number.isFinite(model.output)).length,
+    withReasoning: allModels.filter(model => typeof model.reasoning === 'boolean').length,
+    withTool: allModels.filter(model => typeof model.tool === 'boolean').length,
+    withModalities: allModels.filter(model => model.modalities && typeof model.modalities === 'object').length,
+  };
+}
+
+function modelDataProviderRow(provider, models, selectedByProvider, catalog = null) {
+  const selected = selectedByProvider.get(provider.id) || new Map();
+  const decorated = models.map(model => ({ ...model, selectedBy: selected.get(model.id) || [] }));
+  const sources = {};
+  for (const model of decorated) sources[model.source || 'unknown'] = (sources[model.source || 'unknown'] || 0) + 1;
+  return {
+    id: provider.id,
+    name: provider.name,
+    type: provider.type,
+    executionMode: provider.executionMode || 'http_endpoint',
+    catalog,
+    endpoints: provider.executionMode === 'agent_native'
+      ? []
+      : providerEndpointEntries(provider).map(entry => ({
+          id: entry.id,
+          type: entry.endpoint.type,
+          protocol: entry.endpoint.protocol,
+          baseUrl: entry.endpoint.baseUrl,
+        })),
+    sources,
+    models: decorated,
+  };
+}
+
+async function buildFreshModelDataSnapshot() {
+  const modelsDev = require('./models-dev');
+  const [providers, config, catalog] = await Promise.all([
+    _store.loadProviderSites(),
+    loadUserConfig(),
+    modelsDev.loadFreshCatalog(),
+  ]);
+  _demoFreshCatalog = catalog;
+  const fetchedAt = new Date().toISOString();
+  const selectedByProvider = modelDataSelections(config);
+  const rows = providers.map(provider => modelDataProviderRow(
+    provider,
+    modelsDev.listFreshProviderModels(catalog, provider, fetchedAt),
+    selectedByProvider,
+    modelsDev.getFreshProviderMetadata(catalog, provider),
+  ));
+  _demoModelSnapshot = {
+    cache: {
+      version: 1,
+      source: 'models.dev-live',
+      fetchedAt,
+      file: '本次联网采集 · 仅保存在内存',
+    },
+    summary: modelDataSummary(rows),
+    providers: rows,
+  };
+  return _demoModelSnapshot;
+}
+
+async function getModelData(req, res) {
+  try {
+    res.json(_demoModelSnapshot || await buildFreshModelDataSnapshot());
+  } catch (err) {
+    res.status(502).json({ error: `全新模型数据拉取失败：${err.message}` });
+  }
+}
+
+async function refreshModelData(req, res) {
+  try {
+    res.json(await buildFreshModelDataSnapshot());
+  } catch (err) {
+    res.status(502).json({ error: `全新模型数据拉取失败：${err.message}` });
+  }
+}
+
+async function fetchFreshEndpointModels(endpoint, apiKey) {
+  const root = String(endpoint.baseUrl || '').replace(/\/+$/, '');
+  if (endpoint.type === 'openai') {
+    const headers = apiKey ? { Authorization: `Bearer ${apiKey}` } : {};
+    const result = await httpReq(`${root}/models`, { method: 'GET', headers, timeout: 10000 });
+    if (result.error) throw new Error(result.error);
+    if (result.status !== 200) throw new Error(`HTTP ${result.status}`);
+    const data = JSON.parse(result.body);
+    const list = Array.isArray(data) ? data : data.data;
+    return (Array.isArray(list) ? list : []).map(model => ({ id: model.id, name: model.name || model.display_name || model.id })).filter(model => model.id);
+  }
+
+  const headers = { 'anthropic-version': '2023-06-01' };
+  if (getAnthropicAuthMode(endpoint.baseUrl) === 'bearer') {
+    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+  } else if (/^https?:\/\/api\.minimax(?:i\.com|\.io)\/anthropic\/?$/i.test(String(endpoint.baseUrl || '').trim())) {
+    if (apiKey) headers['X-Api-Key'] = apiKey;
+  } else if (apiKey) {
+    headers['x-api-key'] = apiKey;
+  }
+  const result = await httpReq(`${root}/v1/models`, { method: 'GET', headers, timeout: 10000 });
+  if (result.error) throw new Error(result.error);
+  if (result.status !== 200) throw new Error(`HTTP ${result.status}`);
+  const data = JSON.parse(result.body);
+  return (Array.isArray(data.data) ? data.data : []).map(model => ({ id: model.id, name: model.display_name || model.name || model.id })).filter(model => model.id);
+}
+
+async function refreshDemoProviderModels(req, res) {
+  try {
+    const providers = await _store.loadProviderSites();
+    const provider = providers.find(item => item.id === req.params.id);
+    if (!provider) return res.status(404).json({ error: 'Provider 不存在' });
+    if (provider.executionMode === 'agent_native') {
+      return res.status(400).json({ error: '该平台没有可直接调用的模型列表接口' });
+    }
+
+    if (!_demoModelSnapshot || !_demoFreshCatalog) await buildFreshModelDataSnapshot();
+    const apiKey = provider.vaultKey ? await resolveVaultKey(provider.vaultKey) : undefined;
+    const models = [];
+    const errors = [];
+    for (const { endpoint } of providerEndpointEntries(provider)) {
+      try {
+        const pulled = await fetchFreshEndpointModels(endpoint, apiKey);
+        for (const model of pulled) if (!models.some(item => item.id === model.id)) models.push(model);
+      } catch (error) {
+        errors.push({ endpoint: endpoint.baseUrl, error: error.message });
+      }
+    }
+    if (!models.length) {
+      return res.status(502).json({ error: '平台没有返回模型列表', errors });
+    }
+
+    const fetchedAt = new Date().toISOString();
+    const modelsDev = require('./models-dev');
+    const config = await loadUserConfig();
+    const freshModels = modelsDev.enrichFreshRemoteModels(_demoFreshCatalog, provider, models, fetchedAt);
+    const row = modelDataProviderRow(
+      provider,
+      freshModels,
+      modelDataSelections(config),
+      modelsDev.getFreshProviderMetadata(_demoFreshCatalog, provider),
+    );
+    const index = _demoModelSnapshot.providers.findIndex(item => item.id === provider.id);
+    if (index >= 0) _demoModelSnapshot.providers[index] = row;
+    else _demoModelSnapshot.providers.push(row);
+    _demoModelSnapshot.cache.fetchedAt = fetchedAt;
+    _demoModelSnapshot.summary = modelDataSummary(_demoModelSnapshot.providers);
+    res.json({ success: true, provider: row, errors: errors.length ? errors : undefined });
+  } catch (err) {
+    res.status(502).json({ error: `平台模型拉取失败：${err.message}` });
   }
 }
 
@@ -410,20 +583,29 @@ async function createProvider(req, res) {
       return res.status(400).json({ error: 'Missing required fields: id, name' });
     }
 
+    const idx = providers.findIndex(p => p.id === id);
+    const existing = idx >= 0 ? providers[idx] : null;
+    // POST is also used as an upsert by older clients.  An omitted vaultKey
+    // means "leave this machine's binding alone"; only an explicit field may
+    // replace or clear it.  Losing this reference makes later switches fail
+    // with AUTH_REQUIRED even though the secret is still safely in the vault.
+    const hasVaultKey = Object.prototype.hasOwnProperty.call(req.body, 'vaultKey');
     const provider = {
+      ...(existing || {}),
       id,
       name,
-      type: type || (endpoints && endpoints[0] ? endpoints[0].type : 'openai'),
-      baseUrl: baseUrl || (endpoints && endpoints[0] ? endpoints[0].baseUrl : ''),
-      endpoints: endpoints || undefined,
-      vaultKey: vaultKey || undefined,
-      authMode: authMode || 'api_key',
-      executionMode: executionMode || 'http_endpoint',
-      nativeAgentIds: executionMode === 'agent_native' && Array.isArray(nativeAgentIds) ? nativeAgentIds : undefined,
-      models: models || [],
+      type: type || (endpoints && endpoints[0] ? endpoints[0].type : existing?.type || 'openai'),
+      baseUrl: baseUrl || (endpoints && endpoints[0] ? endpoints[0].baseUrl : existing?.baseUrl || ''),
+      endpoints: endpoints === undefined ? existing?.endpoints : endpoints,
+      ...(hasVaultKey ? { vaultKey: vaultKey || undefined } : {}),
+      authMode: authMode || existing?.authMode || 'api_key',
+      executionMode: executionMode || existing?.executionMode || 'http_endpoint',
+      nativeAgentIds: executionMode === 'agent_native'
+        ? (Array.isArray(nativeAgentIds) ? nativeAgentIds : existing?.nativeAgentIds)
+        : (executionMode ? undefined : existing?.nativeAgentIds),
+      models: models === undefined ? (existing?.models || []) : models,
     };
 
-    const idx = providers.findIndex(p => p.id === id);
     if (idx >= 0) providers[idx] = provider;
     else providers.push(provider);
 
@@ -445,7 +627,11 @@ async function updateProvider(req, res) {
     const editableFields = ['name', 'type', 'baseUrl', 'endpoints', 'vaultKey', 'authMode', 'models', 'executionMode', 'nativeAgentIds'];
     const patch = {};
     for (const field of editableFields) {
-      if (Object.prototype.hasOwnProperty.call(req.body, field)) patch[field] = req.body[field];
+      if (Object.prototype.hasOwnProperty.call(req.body, field)) {
+        // A deliberate unbind should remove the optional property rather than
+        // persisting vaultKey: null, which a peer could later treat as data.
+        patch[field] = field === 'vaultKey' && !req.body[field] ? undefined : req.body[field];
+      }
     }
     const routeOrCredentialChanged = ['type', 'baseUrl', 'endpoints', 'vaultKey', 'authMode', 'executionMode']
       .some(field => Object.prototype.hasOwnProperty.call(patch, field) && JSON.stringify(patch[field]) !== JSON.stringify(current[field]));
@@ -482,6 +668,7 @@ async function deleteProviderRoute(req, res) {
     // it. The exact site list lives in agentProviders, not in a separate UI
     // home list.
     const config = await loadUserConfig();
+    if (config.modelOverrides?.[id]) delete config.modelOverrides[id];
     let agentProvidersChanged = false;
     for (const [agentId, state] of Object.entries(config.agentProviders || {})) {
       if (!state?.sites?.[id]) continue;
@@ -495,12 +682,29 @@ async function deleteProviderRoute(req, res) {
         } catch (e) {
           console.warn(`[deleteProvider] removeProvider(${agentId}) failed: ${e.message}`);
         }
+      } else if (state.activeProviderId === id) {
+        // Exclusive agents cannot retain a deleted custom provider table.
+        // Route them through their official fallback before removing state.
+        const fallback = fallbackForAgent(agentId);
+        const fallbackProvider = fallback && providers.find(provider => provider.id === fallback.providerId);
+        const agentAdapter = _getAdapter(agentId);
+        if (fallbackProvider && agentAdapter) {
+          await snapBeforeWrite(agentId, 'deleteProvider');
+          await agentAdapter.applyConfig(providerForAgentWrite(fallbackProvider, [fallback.modelId]), fallback.modelId);
+          if (typeof agentAdapter.removeProvider === 'function') {
+            await agentAdapter.removeProvider(id);
+          }
+          const nextState = getAgentState(config, agentId);
+          nextState.activeProviderId = fallback.providerId;
+          nextState.activeModelId = fallback.modelId;
+          replaceAgentState(config, agentId, nextState);
+        }
       }
       removeSite(config, agentId, id);
       agentProvidersChanged = true;
     }
     if (agentProvidersChanged) {
-      await saveUserConfig(config);
+      await saveUserConfig(config, { deleteProviderId: id });
     }
 
     res.json({ success: true });
@@ -580,6 +784,10 @@ async function switchProvider(req, res) {
       next.activeModelId = modelId;
       replaceAgentState(config, agentId, next);
 
+      // Switching/enabling a site updates its active selection; it must not
+      // carry the explicit deletion intent used by removeAgentProvider().
+      // Passing removeSite here made the freshly enabled site disappear from
+      // agentProviders immediately after a successful adapter write.
       await saveUserConfig(config);
     } catch (applyErr) {
       appendLog('provider-switch', `${agentId}:${providerId}`, false, `applyConfig failed: ${applyErr.message}`);
@@ -628,9 +836,9 @@ async function switchProvider(req, res) {
 // the Agent's native config *and* atomically replaces the selected model list
 // for that one site.  The home page then renders the same list verbatim.
 
-function providerForAgentWrite(provider, modelIds) {
+function providerForAgentWrite(provider, modelIds, resolvedById = {}) {
   const ids = new Set(modelIds || []);
-  return { ...provider, models: (provider.models || []).filter(model => ids.has(model.id)) };
+  return { ...provider, models: (provider.models || []).filter(model => ids.has(model.id)).map(model => ({ ...model, ...(resolvedById[model.id] ? { resolved: resolvedById[model.id] } : {}) })) };
 }
 
 function fallbackForAgent(agentId) {
@@ -663,6 +871,7 @@ async function configureAgentProvider(req, res) {
     return res.status(400).json({ error: '请至少选择一个模型再保存' });
   }
   const primaryId = selectedIds.includes(primaryModelId) ? primaryModelId : selectedIds[0];
+  const before = await loadUserConfig();
 
   try {
     const routes = [];
@@ -670,19 +879,20 @@ async function configureAgentProvider(req, res) {
       const route = resolveModelRoute(provider, modelId, adapterMeta);
       const auth = await ensureProviderAuth(provider, providers, route.endpointId);
       if (!auth.ok) return res.status(401).json({ error: auth.message, code: auth.code });
-      routes.push({ modelId, route });
+      const override = before?.modelOverrides?.[providerId]?.[modelId] || {};
+      routes.push({ modelId, route, resolved: resolveModel(provider, modelId, {}, override) });
     }
 
     const agentAdapter = _getAdapter(agentId);
     if (!agentAdapter) return res.status(404).json({ error: `Adapter not implemented: ${agentId}` });
-    const before = await loadUserConfig();
     let snapshotId = null;
     try { snapshotId = await capturePreSwitchSnapshot(agentId); } catch (error) {
       console.warn(`[configureAgentProvider] snapshot failed: ${error.message}`);
     }
 
     try {
-      const writeProvider = providerForAgentWrite(provider, selectedIds);
+      const resolvedById = Object.fromEntries(routes.map(item => [item.modelId, item.resolved]));
+      const writeProvider = providerForAgentWrite(provider, selectedIds, resolvedById);
       if (ADDITIVE_AGENTS.has(agentId)) {
         // The adapters write a complete provider entry. Remove the previous
         // OKIT-owned entry first so unchecking a model is a real deletion,
@@ -703,7 +913,8 @@ async function configureAgentProvider(req, res) {
         }
       } else {
         const primaryRoute = routes.find(item => item.modelId === primaryId)?.route;
-        await agentAdapter.applyConfig(writeProvider, primaryRoute.remoteModelId);
+        const primaryResolved = routes.find(item => item.modelId === primaryId)?.resolved;
+        await agentAdapter.applyConfig(writeProvider, primaryRoute.remoteModelId, primaryResolved);
       }
 
       // Some legacy adapters still update their own old selection field while
@@ -783,7 +994,7 @@ async function removeAgentProvider(req, res) {
           replaceAgentState(config, agentId, fallbackState);
         }
       }
-      await saveUserConfig(config);
+      await saveUserConfig(config, { removeSite: { agentId, providerId } });
     } catch (error) {
       if (snapshotId) {
         try { await restoreSnapshot(agentId, snapshotId); } catch {}
@@ -1065,6 +1276,17 @@ async function setTierMap(req, res) {
       ...(Object.keys(map).length > 0 ? { tierMap: map } : { tierMap: undefined }),
     });
     await saveUserConfig(config);
+    // Persisting the mapping alone leaves Claude Code running with its old
+    // DEFAULT_* environment values until a later provider switch. Apply the
+    // current selected site immediately so the UI control and native config
+    // remain one operation.
+    if (state.activeProviderId === providerId && state.activeModelId) {
+      const provider = (await loadProviders()).find(item => item.id === providerId);
+      const adapter = _getAdapter('claude');
+      if (!provider || !adapter) throw new Error('Claude Code 站点不可用');
+      const selected = getAgentState(config, 'claude').sites[providerId]?.modelIds || [];
+      await adapter.applyConfig(providerForAgentWrite(provider, selected), state.activeModelId);
+    }
     res.json({ success: true, providerId, tierMap: map });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1693,13 +1915,12 @@ function withNativeAvailability(provider, models, source = 'static') {
   }));
 }
 
-// Full-replace refresh semantics for remote-origin models. After a successful
-// /models fetch, the platform's list is the source of truth: ids the platform
-// no longer returns are DROPPED (keeping them would let users select models
-// that 404), while user-added models (origin 'user') and any model an agent
-// currently has selected on THIS provider survive untouched. Legacy entries
-// (no origin) are treated as remote. Availability is rebuilt from this
-// fetch's discoveries for refreshed models, preserved for survivors.
+// Explicit three-way refresh semantics: remote∩directory is enriched; remote
+// only stays selectable with incomplete metadata; directory-only is retained
+// but marked unavailable for this account. A failed request never reaches this
+// function, so its old snapshot remains intact.
+const RETIRED_DEEPSEEK_DEFAULT_MODEL_IDS = new Set(['deepseek-chat', 'deepseek-reasoner']);
+
 function replaceRemoteModels(provider, discoveries, activeModelIds) {
   const now = new Date().toISOString();
   const byId = new Map();
@@ -1711,8 +1932,17 @@ function replaceRemoteModels(provider, discoveries, activeModelIds) {
   const seen = new Set();
   for (const model of provider.models || []) {
     const fresh = byId.get(model.id);
+    // DeepSeek retired these two aliases in favor of V4 Flash modes. They
+    // used to be part of OKIT's default catalog, so an old agent selection
+    // must not make a successful refresh reintroduce them as selectable
+    // models. Explicit user-added models remain untouched.
+    if (
+      provider.id === 'deepseek'
+      && RETIRED_DEEPSEEK_DEFAULT_MODEL_IDS.has(model.id)
+      && model.origin !== 'user'
+      && byId.has('deepseek-v4-flash')
+    ) continue;
     const survives = model.origin === 'user' || activeModelIds.has(model.id);
-    if (!fresh && !survives) continue; // delisted — drop
     const entry = { ...model };
     if (fresh) {
       entry.origin = 'remote';
@@ -1727,7 +1957,14 @@ function replaceRemoteModels(provider, discoveries, activeModelIds) {
         lastSeenAt: now,
       }));
     }
-    if (!Array.isArray(entry.availability) || entry.availability.length === 0) {
+    if (!fresh && !survives) {
+      // This came from the local directory rather than the authenticated
+      // account. Keep it visible as an unavailable fact, never route it.
+      entry.availability = [{
+        executionMode: 'http_endpoint', remoteModelId: model.id,
+        status: 'unavailable', source: 'static', discoveredAt: now, lastSeenAt: now,
+      }];
+    } else if (!Array.isArray(entry.availability) || entry.availability.length === 0) {
       entry.availability = [{
         executionMode: 'http_endpoint',
         remoteModelId: model.id,
@@ -2208,6 +2445,9 @@ function agentConfigPresence() {
 
 module.exports = {
   listProviders,
+  getModelData,
+  refreshModelData,
+  refreshDemoProviderModels,
   getAdaptersList,
   createProvider,
   updateProvider,
@@ -2236,5 +2476,6 @@ module.exports = {
     missingVaultKeyPrefix,
     repairMissingVaultBindings,
     revalidateProviderAuth,
+    replaceRemoteModels,
   },
 };

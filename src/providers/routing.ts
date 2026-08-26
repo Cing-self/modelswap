@@ -6,6 +6,7 @@ import {
   ProviderModel,
   ProviderModelAvailability,
   ProviderType,
+  ResolvedModel,
 } from "./types";
 
 export interface ResolvedModelRoute {
@@ -93,7 +94,8 @@ export function resolveModelRoute(provider: Provider, modelId: string, adapter: 
   if (!model) throw new Error(`Model not found: ${modelId}`);
 
   const executionMode = providerExecutionMode(provider);
-  const availability = modelAvailability(provider, model)
+  const allAvailability = modelAvailability(provider, model);
+  const availability = allAvailability
     .filter(item => item.status === "available" || item.status === "unknown");
 
   if (executionMode === "agent_native") {
@@ -115,7 +117,7 @@ export function resolveModelRoute(provider: Provider, modelId: string, adapter: 
 
   const endpoints = providerEndpointEntries(provider);
   const byId = new Map(endpoints.map(entry => [entry.id, entry.endpoint]));
-  const hasRecordedEndpointSource = availability.some(item =>
+  const hasRecordedEndpointSource = allAvailability.some(item =>
     item.executionMode === "http_endpoint"
     && Boolean(item.endpointId)
     && item.source !== "legacy_unknown",
@@ -152,6 +154,62 @@ export function resolveModelRoute(provider: Provider, modelId: string, adapter: 
       models: provider.models.map(candidate => candidate.id === model.id
         ? { ...candidate, id: remoteModelId }
         : candidate),
+    },
+  };
+}
+
+/**
+ * Merge model facts in the only permitted order. Callers pass the profile
+ * facts (for example a vendor-specific Codex limit) and explicitly saved user
+ * overrides; a model's models.dev metadata is already attached as `meta`.
+ * This makes adapters independent of display-only model arrays.
+ */
+export function resolveModel(
+  provider: Provider,
+  modelId: string,
+  profile: Partial<ResolvedModel> = {},
+  override: Partial<ResolvedModel> = {},
+): ResolvedModel {
+  const model = provider.models.find(candidate => candidate.id === modelId);
+  if (!model) throw new Error(`Model not found: ${modelId}`);
+  const catalog = model.meta;
+  const base: ResolvedModel = {
+    id: model.id,
+    name: model.name || model.id,
+    ...(catalog?.description ? { description: catalog.description } : {}),
+    ...(catalog?.family ? { family: catalog.family } : {}),
+    ...(catalog?.context ? { context: catalog.context } : {}),
+    ...(catalog?.input ? { input: catalog.input } : {}),
+    ...(catalog?.output ? { output: catalog.output } : {}),
+    modalities: {
+      input: catalog?.modalities?.input || (catalog?.attachment ? ["text", "image"] : ["text"]),
+      output: catalog?.modalities?.output || ["text"],
+    },
+    ...(catalog?.toolCall === undefined ? {} : { tool: catalog.toolCall }),
+    ...(catalog?.reasoning === undefined ? {} : { reasoning: catalog.reasoning }),
+    ...(catalog?.reasoningOptions ? { reasoningOptions: catalog.reasoningOptions } : {}),
+    ...(catalog?.structuredOutput === undefined ? {} : { structuredOutput: catalog.structuredOutput }),
+    ...(catalog?.temperature === undefined ? {} : { temperature: catalog.temperature }),
+    ...(catalog?.interleaved ? { interleaved: catalog.interleaved } : {}),
+    ...(catalog?.knowledge ? { knowledge: catalog.knowledge } : {}),
+    ...(catalog?.releaseDate ? { releaseDate: catalog.releaseDate } : {}),
+    ...(catalog?.lastUpdated ? { lastUpdated: catalog.lastUpdated } : {}),
+    ...(catalog?.openWeights === undefined ? {} : { openWeights: catalog.openWeights }),
+    ...(catalog?.status ? { status: catalog.status } : {}),
+    ...(catalog?.cost ? { cost: catalog.cost } : {}),
+    ...(catalog?.providerConfig ? { providerConfig: catalog.providerConfig } : {}),
+    ...(catalog?.experimental ? { experimental: catalog.experimental } : {}),
+    source: catalog?.source === "modelsdev" ? "modelsdev" : "default",
+    confidence: catalog?.source === "modelsdev" ? "high" : "low",
+  };
+  return {
+    ...base,
+    ...profile,
+    ...override,
+    modalities: {
+      ...base.modalities,
+      ...(profile.modalities || {}),
+      ...(override.modalities || {}),
     },
   };
 }

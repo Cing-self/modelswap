@@ -299,6 +299,265 @@
   gap: 16px;
 }
 
+/* ─── Route chunk loading skeletons ───
+   These render before a lazily-loaded page module has arrived. They mirror
+   the information hierarchy of Home and Vault, so first navigation never
+   falls back to a lone “加载中” label. */
+.route-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  min-height: 560px;
+  padding: 4px 0;
+}
+
+.route-skeleton-panel,
+.route-skeleton-vault-group {
+  border: 1px solid var(--card-line);
+  border-radius: var(--card-radius);
+  background: var(--card-surface);
+  box-shadow: var(--card-shadow);
+}
+
+.route-skeleton-panel { padding: 16px; }
+
+.route-skeleton-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 32px;
+}
+
+.route-skeleton-panel-head .skeleton-line { margin-left: 0; margin-right: 0; }
+
+.route-skeleton-action {
+  width: 74px;
+  height: 30px;
+  margin: 0;
+}
+
+.route-skeleton-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.route-skeleton-filter {
+  width: 88px;
+  height: 28px;
+  margin: 0;
+}
+
+.route-skeleton-filter--short { width: 70px; }
+
+.route-skeleton-usage-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 12px;
+  border: 1px solid var(--card-line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.route-skeleton-usage-item {
+  min-width: 0;
+  padding: 8px 0;
+}
+
+.route-skeleton-usage-item + .route-skeleton-usage-item { border-left: 1px solid var(--card-line); }
+.route-skeleton-usage-item .skeleton-line { margin-left: 12px; margin-right: 12px; }
+
+.route-skeleton-agent { padding-top: 8px; }
+.route-skeleton-icon-actions { display: flex; gap: 6px; }
+.route-skeleton-icon-actions .skeleton-shape--icon { margin: 0; width: 24px; height: 24px; }
+
+.route-skeleton-agent-tabs {
+  display: flex;
+  gap: 12px;
+  margin: 16px 8px 12px;
+}
+
+.route-skeleton-agent-tabs .skeleton-shape--icon {
+  width: 42px;
+  height: 42px;
+  margin: 0;
+  border-radius: 12px;
+}
+
+.route-skeleton-provider-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 64px;
+  margin-top: 10px;
+  padding: 0 14px;
+  border: 1px solid var(--card-line);
+  border-radius: var(--card-radius);
+  background: var(--card-surface);
+  box-shadow: var(--card-shadow);
+}
+
+.route-skeleton-provider-row .skeleton-shape--icon { margin: 0; }
+.route-skeleton-provider-row .skeleton-line { flex: 0 1 240px; margin: 0; }
+
+.route-skeleton-provider-list { display: flex; flex-direction: column; gap: 10px; }
+
+.route-skeleton-toggle {
+  width: 38px;
+  height: 22px;
+  margin-left: auto;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink-muted) 24%, transparent);
+}
+
+.route-skeleton--vault { gap: 18px; }
+
+.route-skeleton-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  min-height: 54px;
+}
+
+.route-skeleton--usage { gap: 16px; }
+
+.route-skeleton-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.route-skeleton-stat-card { min-height: 126px; padding: 13px; }
+.route-skeleton-stat-card .skeleton-line { margin-left: 0; margin-right: 0; }
+.route-skeleton-stat-value { width: 54%; height: 21px; }
+.route-skeleton-progress { width: 100%; height: 6px; margin-top: 16px; border-radius: 999px; background: color-mix(in srgb, var(--ink-muted) 20%, transparent); }
+
+.route-skeleton-chart { min-height: 264px; padding: 16px; }
+.route-skeleton-chart-bars { display: flex; align-items: flex-end; gap: 10px; height: 172px; margin-top: 22px; padding: 12px 8px 0; border-bottom: 1px dashed var(--card-line); }
+.route-skeleton-chart-bar { flex: 1; min-width: 8px; border-radius: 6px 6px 0 0; background: color-mix(in srgb, var(--accent, var(--green)) 22%, transparent); animation: skeleton-pulse 1.2s ease-in-out infinite; }
+
+.route-skeleton-model-layout {
+  display: grid;
+  grid-template-columns: 168px minmax(0, 1fr);
+  gap: 18px;
+  min-height: 456px;
+}
+
+.route-skeleton-model-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 10px;
+  border-right: 1px dashed var(--card-line);
+}
+
+.route-skeleton-model-nav .skeleton-line { width: 78%; margin: 4px 0; }
+.route-skeleton-model-content { min-width: 0; }
+.route-skeleton-model-content .route-skeleton-provider-list { margin-top: 16px; }
+
+.route-skeleton-settings-layout {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr);
+  gap: 22px;
+  min-height: 560px;
+}
+
+.route-skeleton-settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 12px 10px;
+  border-right: 1px solid var(--card-line);
+}
+
+.route-skeleton-settings-nav .skeleton-line { width: 72%; margin: 0; }
+.route-skeleton-settings-brand { width: 56% !important; height: 24px; margin-bottom: 16px !important; }
+
+.route-skeleton-settings-content {
+  min-width: 0;
+  padding: 12px 0;
+}
+
+.route-skeleton-settings-content > .skeleton-line { margin-left: 0; margin-right: 0; }
+.route-skeleton-settings-card { margin-top: 24px; padding: 16px; border: 1px solid var(--card-line); border-radius: var(--card-radius); background: var(--card-surface); box-shadow: var(--card-shadow); }
+.route-skeleton-settings-card > .skeleton-line { margin: 0; }
+
+.route-skeleton--compact { max-width: 980px; }
+
+.route-skeleton-vault-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 80px;
+}
+
+.route-skeleton-eyebrow { width: 64px; height: 9px; margin: 0 0 9px; }
+.route-skeleton-vault-title { width: 164px; height: 28px; margin: 0 0 9px; }
+.route-skeleton-vault-subtitle { width: min(360px, 60vw); margin: 0; }
+
+.route-skeleton-vault-summary {
+  display: flex;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--card-line);
+  border-radius: 9px;
+  background: var(--card-surface);
+}
+
+.route-skeleton-vault-summary .skeleton-line { width: 48px; margin: 0; }
+.route-skeleton-vault-filters { margin-top: 0; padding-bottom: 14px; border-bottom: 1px dashed var(--card-line); }
+
+.route-skeleton-vault-group { padding: 10px 14px; }
+.route-skeleton-vault-group .route-skeleton-panel-head { border-bottom: 1px dashed var(--card-line); }
+.route-skeleton-count { width: 24px; margin: 0 !important; }
+
+.route-skeleton-vault-row {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 24px;
+  align-items: center;
+  gap: 12px;
+  min-height: 61px;
+  border-bottom: 1px dashed var(--card-line);
+}
+
+.route-skeleton-vault-row:last-child { border-bottom: 0; }
+.route-skeleton-vault-row .skeleton-shape--icon { width: 24px; height: 24px; margin: 0; }
+.route-skeleton-vault-row-copy { min-width: 0; }
+.route-skeleton-vault-row-copy .skeleton-line { margin: 5px 0; }
+
+.route-skeleton .skeleton-line,
+.route-skeleton .skeleton-shape--pill,
+.route-skeleton .skeleton-shape--icon {
+  background: linear-gradient(100deg, color-mix(in srgb, var(--ink) 7%, transparent) 20%, color-mix(in srgb, var(--paper) 70%, var(--ink) 7%) 42%, color-mix(in srgb, var(--ink) 7%, transparent) 64%);
+  background-size: 220% 100%;
+  animation: route-skeleton-sheen 1.45s ease-in-out infinite;
+}
+
+@keyframes route-skeleton-sheen {
+  from { background-position: 100% 0; }
+  to { background-position: -120% 0; }
+}
+
+@media (max-width: 720px) {
+  .route-skeleton-usage-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .route-skeleton-usage-item:nth-child(3) { border-left: 0; border-top: 1px solid var(--card-line); }
+  .route-skeleton-usage-item:nth-child(4) { border-top: 1px solid var(--card-line); }
+  .route-skeleton-agent-tabs { gap: 8px; overflow: hidden; }
+  .route-skeleton-agent-tabs .skeleton-shape--icon:nth-child(n + 6) { display: none; }
+  .route-skeleton-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .route-skeleton-model-layout,
+  .route-skeleton-settings-layout { grid-template-columns: 1fr; }
+  .route-skeleton-model-nav,
+  .route-skeleton-settings-nav { display: none; }
+}
+
+@media (max-width: 520px) {
+  .route-skeleton-vault-head { align-items: flex-start; flex-direction: column; }
+  .route-skeleton-vault-summary { width: 100%; }
+}
+
 /* ─── Brand ─── */
 .home-brand {
   display: flex;

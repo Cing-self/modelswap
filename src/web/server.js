@@ -9,7 +9,7 @@ const { getLogs } = require('./api/logs');
 const { getSettings, updateSettings, testPlatformConnection, getPresets, getOnboarding, dismissOnboarding, resetOnboarding } = require('./api/settings');
 const { checkWrangler, listStores, listStoreSecrets, syncToCloudflare } = require('./api/cloudflare-sync');
 const { handlePush, handlePull, handleStatus, handleExportCode, handleImportCode, handleLanStatus, handleLanEnable, handleLanDisable, handleLanRegenerate, handleLanPairingPeek, handleLanPairingCreate, handleLanPair, handleSyncOverview } = require('./api/sync');
-const { listProviders, getAdaptersList, createProvider, updateProvider, deleteProvider, switchProvider, configureAgentProvider, removeAgentProvider, setAgentProviderEnabled, getAgentConfigFiles, saveAgentConfigFile, getTierMaps, setTierMap, launchAgent, getAuthStatus, verifyProviderAuth, triggerOAuthLogin, fetchModels, exportProviderCode, importProviderCode } = require('./api/providers');
+const { listProviders, getModelData, refreshModelData, refreshDemoProviderModels, getAdaptersList, createProvider, updateProvider, deleteProvider, switchProvider, configureAgentProvider, removeAgentProvider, setAgentProviderEnabled, getAgentConfigFiles, saveAgentConfigFile, getTierMaps, setTierMap, launchAgent, getAuthStatus, verifyProviderAuth, triggerOAuthLogin, fetchModels, exportProviderCode, importProviderCode } = require('./api/providers');
 const { getUsage, getSupportedUsageProviders, openXiaomiLogin } = require('./api/usage');
 const { createGrokProxyHandler } = require('./api/grok-proxy');
 const { listSnapshotsHandler, snapshotDetailHandler, restoreSnapshotHandler } = require('./api/snapshots');
@@ -181,6 +181,9 @@ function createServer(port = 3780) {
 
   // Provider routes
   app.get('/api/providers', listProviders);
+  app.get('/api/demo/model-data', getModelData);
+  app.post('/api/demo/model-data/refresh', refreshModelData);
+  app.post('/api/demo/model-data/providers/:id/refresh', refreshDemoProviderModels);
   app.get('/api/providers/adapters', getAdaptersList);
   app.post('/api/providers', createProvider);
   // One Agent-site record owns its selected models and drives both the native

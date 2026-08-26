@@ -3,10 +3,16 @@ import path from "path";
 import os from "os";
 import { BaseAdapter } from "./base";
 import { gatewayHeadersFor, modelLimitFor } from "./gateway";
-import { AgentSelection, AuthStatus, Provider, ProviderType } from "../types";
+import { AgentSelection, AuthStatus, Provider, ProviderType, ResolvedModel } from "../types";
 import { loadUserConfig, updateUserConfig } from "../../config/user";
 import { checkCodexOAuth } from "../auth";
 import { atomicWrite, atomicWriteJSON } from "../../utils/atomicWrite";
+import {
+  codexMapping,
+  getCodexConfigReasoningEffort,
+  mapModelToCodexCatalog,
+} from "../mappings/codex-mapping";
+import { appendLog } from "../../web/api/log-writer";
 
 const CODEX_DIR = path.join(os.homedir(), ".codex");
 const CODEX_CONFIG_PATH = path.join(CODEX_DIR, "config.toml");
@@ -31,7 +37,8 @@ export class CodexAdapter extends BaseAdapter {
     return null;
   }
 
-  async applyConfig(provider: Provider, modelId: string): Promise<void> {
+  async applyConfig(provider: Provider, modelId: string, resolvedModel?: ResolvedModel): Promise<void> {
+    modelId = resolvedModel?.id || modelId;
     await fs.ensureDir(CODEX_DIR);
     let toml = "";
     if (await fs.pathExists(CODEX_CONFIG_PATH)) {
@@ -52,6 +59,8 @@ export class CodexAdapter extends BaseAdapter {
       toml = removeTopLevelTomlKey(toml, "disable_response_storage");
       toml = removeTopLevelTomlKey(toml, "web_search");
       toml = removeTopLevelTomlKey(toml, "model_catalog_json");
+      toml = removeTopLevelTomlKey(toml, "model_context_window");
+      toml = removeTopLevelTomlKey(toml, "model_supports_reasoning_summaries");
       toml = removeTopLevelTomlKey(toml, "api_base");
       // model_reasoning_effort is harmless for official too — keep it so
       // reasoning models behave the same across subscription and API modes.
@@ -69,9 +78,18 @@ export class CodexAdapter extends BaseAdapter {
       toml = upsertTopLevelTomlKey(toml, "model_provider", tomlString(providerId));
       // Third-party gateways need these: response storage isn't implemented,
       // web_search_preview tool gets rejected, reasoning effort applies.
-      toml = upsertTopLevelTomlKey(toml, "model_reasoning_effort", tomlString("high"));
-      toml = upsertTopLevelTomlKey(toml, "disable_response_storage", "true");
-      toml = upsertTopLevelTomlKey(toml, "web_search", tomlString("disabled"));
+      const reasoningEffort = getCodexConfigReasoningEffort(resolvedModel);
+      toml = reasoningEffort
+        ? upsertTopLevelTomlKey(toml, "model_reasoning_effort", tomlString(reasoningEffort))
+        : removeTopLevelTomlKey(toml, "model_reasoning_effort");
+      toml = resolvedModel?.context
+        ? upsertTopLevelTomlKey(toml, "model_context_window", String(resolvedModel.context))
+        : removeTopLevelTomlKey(toml, "model_context_window");
+      toml = resolvedModel?.reasoning === undefined
+        ? removeTopLevelTomlKey(toml, "model_supports_reasoning_summaries")
+        : upsertTopLevelTomlKey(toml, "model_supports_reasoning_summaries", String(resolvedModel.reasoning));
+      toml = upsertTopLevelTomlKey(toml, "disable_response_storage", String(codexMapping.thirdPartyDefaults.disableResponseStorage));
+      toml = upsertTopLevelTomlKey(toml, "web_search", tomlString(codexMapping.thirdPartyDefaults.webSearch));
       toml = removeTopLevelTomlKey(toml, "api_base");
 
       // Codex dropped support for wire_api = "chat" — "responses" is required.
@@ -85,13 +103,14 @@ export class CodexAdapter extends BaseAdapter {
       const providerLines = [
         `name = ${tomlString(provider.name)}`,
         `base_url = ${tomlString(normalizeBaseUrl(openAIEndpoint.baseUrl))}`,
-        `wire_api = "responses"`,
+        `wire_api = ${tomlString(codexMapping.thirdPartyDefaults.wireApi)}`,
       ];
       const gatewayHeaders = gatewayHeadersFor(openAIEndpoint.baseUrl);
       if (gatewayHeaders) {
         providerLines.push(`http_headers = ${tomlInlineTable(gatewayHeaders)}`);
       }
       const providerTable = `model_providers.${providerId}`;
+      toml = removeLegacyProviderAuthTables(toml, providerTable);
       toml = upsertTomlTable(toml, providerTable, providerLines);
 
       if (provider.vaultKey) {
@@ -131,9 +150,12 @@ export class CodexAdapter extends BaseAdapter {
     let toml = await fs.readFile(CODEX_CONFIG_PATH, "utf-8");
     toml = removeTomlTable(toml, `model_providers.${codexProviderId}.auth`);
     toml = removeTomlTable(toml, `model_providers.${codexProviderId}`);
-    if (readTopLevelTomlKey(toml, "model_provider") === codexProviderId) {
+    const removedWasActive = readTopLevelTomlKey(toml, "model_provider") === codexProviderId;
+    const hasOtherOkitProviders = /\[model_providers\.okit-[^\]]+\]/.test(toml);
+    if (removedWasActive || !hasOtherOkitProviders) {
       toml = removeTopLevelTomlKey(toml, "model_provider");
       toml = removeTopLevelTomlKey(toml, "model_catalog_json");
+      await fs.remove(MODEL_CATALOG_PATH);
     }
     await atomicWrite(CODEX_CONFIG_PATH, toml);
   }
@@ -171,36 +193,24 @@ async function writeModelCatalog(provider: Provider): Promise<void> {
   const included = provider.models.filter(m => visibleIds.has(m.id));
   const entries = included.map((m, i) => {
     const limit = modelLimitFor(provider.baseUrl, m.id);
-    const contextWindow = limit?.context ?? 128000;
-    return {
-      slug: m.id,
-      display_name: m.name || m.id,
-      description: `${provider.name} · ${m.name || m.id}`,
-      default_reasoning_level: "high",
-      supported_reasoning_levels: [
-        { effort: "none", description: "Disable Thinking" },
-        { effort: "high", description: "Enabled Thinking" },
-      ],
-      shell_type: "shell_command",
-      visibility: "list",
-      supported_in_api: true,
-      priority: i,
-      base_instructions: "",
-      supports_reasoning_summaries: true,
-      default_reasoning_summary: "none",
-      support_verbosity: false,
-      truncation_policy: { mode: "bytes", limit: 10000 },
-      supports_parallel_tool_calls: false,
-      supports_image_detail_original: false,
-      context_window: contextWindow,
-      max_context_window: contextWindow,
-      effective_context_window_percent: 95,
-      // Third-party coding endpoints generally don't support the web_search tool
-      // (it triggers "tool type not supported by this gateway"), so opt out.
-      experimental_supported_tools: [] as string[],
-      input_modalities: ["text"],
-      supports_search_tool: false,
+    const modelFacts = m.resolved || {
+      id: m.id,
+      name: m.name || m.id,
+      ...(m.meta?.description ? { description: m.meta.description } : {}),
+      ...(m.meta?.context ? { context: m.meta.context } : {}),
+      modalities: {
+        input: m.meta?.modalities?.input || (m.meta?.attachment ? ["text", "image"] : ["text"]),
+        output: m.meta?.modalities?.output || ["text"],
+      },
+      ...(m.meta?.reasoning === undefined ? {} : { reasoning: m.meta.reasoning }),
+      ...(m.meta?.reasoningOptions ? { reasoningOptions: m.meta.reasoningOptions } : {}),
     };
+    return mapModelToCodexCatalog({
+      model: modelFacts,
+      providerName: provider.name,
+      priority: i,
+      contextOverride: limit?.context,
+    });
   });
 
   await fs.ensureDir(MODEL_CATALOG_DIR);
@@ -210,6 +220,26 @@ async function writeModelCatalog(provider: Provider): Promise<void> {
   let toml = await fs.readFile(CODEX_CONFIG_PATH, "utf-8");
   toml = upsertTopLevelTomlKey(toml, "model_catalog_json", tomlString(MODEL_CATALOG_REF));
   await atomicWrite(CODEX_CONFIG_PATH, toml);
+
+  // Persist a safe, inspectable mapping trace. Never include credentials,
+  // auth commands or raw provider responses in this diagnostic event.
+  appendLog("codex-model-mapping", provider.id, true, {
+    mappingVersion: codexMapping.schemaVersion,
+    providerId: provider.id,
+    modelCount: entries.length,
+    models: entries.map((entry: any) => ({
+      id: entry.slug,
+      contextWindow: entry.context_window,
+      maxContextWindow: entry.max_context_window,
+      inputModalities: entry.input_modalities,
+      defaultReasoning: entry.default_reasoning_level,
+      reasoningLevels: (entry.supported_reasoning_levels || []).map((level: any) => level.effort),
+      reasoningSummaries: entry.supports_reasoning_summary_parameter,
+      verbosity: entry.support_verbosity,
+      parallelToolCalls: entry.supports_parallel_tool_calls,
+      searchTool: entry.supports_search_tool,
+    })),
+  });
 }
 
 // Append /v1 for origin-only base URLs (no path after host), preserve URLs that
@@ -360,4 +390,19 @@ async function removeApiKeyFromAuthJson(authPath: string): Promise<void> {
     delete auth["OPENAI_API_KEY"];
     await atomicWriteJSON(authPath, auth);
   }
+}
+/** Strip only obsolete auth subtables before adding the canonical one. */
+function removeLegacyProviderAuthTables(toml: string, tableName: string): string {
+  const lines = toml.split("\n");
+  const result: string[] = [];
+  let skipping = false;
+  for (const line of lines) {
+    const headerMatch = line.match(/^\s*\[([^\]]+)\]\s*$/);
+    if (headerMatch) {
+      const name = headerMatch[1];
+      skipping = name === `${tableName}.auth` || (name.startsWith(`${tableName}.`) && /auth/i.test(name));
+    }
+    if (!skipping) result.push(line);
+  }
+  return result.join("\n").replace(/\n{3,}/g, "\n\n").trimEnd() + "\n";
 }

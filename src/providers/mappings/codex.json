@@ -1,0 +1,205 @@
+{
+  "schemaVersion": 1,
+  "agent": "codex",
+  "updatedAt": "2026-08-26",
+  "sources": {
+    "officialConfigReference": "https://learn.chatgpt.com/docs/config-file/config-reference",
+    "officialRuntimeCatalog": "~/.codex/models_cache.json",
+    "officialRuntimeCatalogClientVersion": "0.150.0",
+    "modelMetadata": "models.dev"
+  },
+  "officialProviderSupport": {
+    "reservedBuiltIns": [
+      { "id": "openai", "kind": "cloud", "configuration": "native" },
+      { "id": "ollama", "kind": "local", "configuration": "native" },
+      { "id": "lmstudio", "kind": "local", "configuration": "native" }
+    ],
+    "documentedBuiltIns": [
+      {
+        "id": "amazon-bedrock",
+        "kind": "cloud",
+        "fields": ["aws.profile", "aws.region"]
+      }
+    ],
+    "customProvider": {
+      "protocols": ["responses"],
+      "fields": {
+        "name": "string",
+        "base_url": "string",
+        "wire_api": "responses",
+        "auth.command": "string",
+        "auth.args": "array<string>",
+        "auth.cwd": "string",
+        "auth.refresh_interval_ms": "number",
+        "auth.timeout_ms": "number",
+        "env_key": "string",
+        "env_key_instructions": "string",
+        "experimental_bearer_token": "string",
+        "http_headers": "map<string,string>",
+        "env_http_headers": "map<string,string>",
+        "query_params": "map<string,string>",
+        "request_max_retries": "number",
+        "requires_openai_auth": "boolean",
+        "stream_idle_timeout_ms": "number",
+        "stream_max_retries": "number",
+        "supports_standalone_web_search": "boolean",
+        "supports_websockets": "boolean"
+      }
+    }
+  },
+  "officialModelSupport": {
+    "configToml": {
+      "model": { "type": "string", "source": "model.id" },
+      "model_provider": { "type": "string", "source": "provider.id" },
+      "model_catalog_json": { "type": "string(path)", "source": "generated" },
+      "model_context_window": { "type": "number", "source": "model.context" },
+      "model_reasoning_effort": {
+        "type": "enum",
+        "values": ["minimal", "low", "medium", "high", "xhigh"],
+        "source": "model.reasoningOptions"
+      },
+      "model_reasoning_summary": {
+        "type": "enum",
+        "values": ["auto", "concise", "detailed", "none"],
+        "source": "agent-default-or-user-choice"
+      },
+      "model_supports_reasoning_summaries": { "type": "boolean", "source": "model.reasoning" },
+      "model_verbosity": {
+        "type": "enum",
+        "values": ["low", "medium", "high"],
+        "source": "agent-default-or-user-choice"
+      }
+    },
+    "runtimeCatalog": {
+      "stability": "runtime-schema-not-documented-as-stable-config-api",
+      "observedFields": [
+        "slug",
+        "display_name",
+        "description",
+        "default_reasoning_level",
+        "supported_reasoning_levels",
+        "shell_type",
+        "visibility",
+        "supported_in_api",
+        "priority",
+        "additional_speed_tiers",
+        "service_tiers",
+        "availability_nux",
+        "upgrade",
+        "model_messages",
+        "include_skills_usage_instructions",
+        "include_plugin_usage_instructions",
+        "include_apps_usage_instructions",
+        "default_reasoning_summary",
+        "supports_reasoning_summary_parameter",
+        "support_verbosity",
+        "default_verbosity",
+        "apply_patch_tool_type",
+        "web_search_tool_type",
+        "truncation_policy",
+        "supports_image_detail_original",
+        "context_window",
+        "max_context_window",
+        "effective_context_window_percent",
+        "experimental_supported_tools",
+        "input_modalities",
+        "supports_search_tool",
+        "use_responses_lite",
+        "node_repl_auto_review_required",
+        "node_repl_disabled",
+        "tool_mode",
+        "multi_agent_version",
+        "comp_hash"
+      ],
+      "observedOfficialReasoningEfforts": ["low", "medium", "high", "xhigh", "max", "ultra"],
+      "acceptedMappedReasoningEfforts": ["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"],
+      "observedOfficialModels": [
+        { "id": "gpt-5.6-sol", "defaultReasoning": "low", "reasoning": ["low", "medium", "high", "xhigh", "max", "ultra"], "contextWindow": 272000, "maxContextWindow": 872000, "inputModalities": ["text", "image"], "verbosity": true, "search": true, "imageDetailOriginal": true },
+        { "id": "gpt-5.6-terra", "defaultReasoning": "medium", "reasoning": ["low", "medium", "high", "xhigh", "max", "ultra"], "contextWindow": 272000, "maxContextWindow": 872000, "inputModalities": ["text", "image"], "verbosity": true, "search": true, "imageDetailOriginal": true },
+        { "id": "gpt-5.6-luna", "defaultReasoning": "medium", "reasoning": ["low", "medium", "high", "xhigh", "max"], "contextWindow": 272000, "maxContextWindow": 872000, "inputModalities": ["text", "image"], "verbosity": true, "search": true, "imageDetailOriginal": true },
+        { "id": "gpt-reserve", "defaultReasoning": "medium", "reasoning": ["low", "medium", "high", "xhigh", "max"], "contextWindow": 272000, "maxContextWindow": 872000, "inputModalities": ["text", "image"], "verbosity": true, "search": true, "imageDetailOriginal": true },
+        { "id": "gpt-5.5", "defaultReasoning": "medium", "reasoning": ["low", "medium", "high", "xhigh"], "contextWindow": 272000, "maxContextWindow": 272000, "inputModalities": ["text", "image"], "verbosity": true, "search": true, "imageDetailOriginal": true },
+        { "id": "gpt-5.4", "defaultReasoning": "medium", "reasoning": ["low", "medium", "high", "xhigh"], "contextWindow": 272000, "maxContextWindow": 1000000, "inputModalities": ["text", "image"], "verbosity": true, "search": true, "imageDetailOriginal": true },
+        { "id": "gpt-5.4-mini", "defaultReasoning": "medium", "reasoning": ["low", "medium", "high", "xhigh"], "contextWindow": 272000, "maxContextWindow": 272000, "inputModalities": ["text", "image"], "verbosity": true, "search": true, "imageDetailOriginal": true },
+        { "id": "gpt-5.3-codex-spark", "defaultReasoning": "high", "reasoning": ["low", "medium", "high", "xhigh"], "contextWindow": 128000, "maxContextWindow": 128000, "inputModalities": ["text"], "verbosity": true, "search": true, "imageDetailOriginal": false },
+        { "id": "codex-auto-review", "defaultReasoning": "medium", "reasoning": ["low", "medium", "high", "xhigh", "max"], "contextWindow": 272000, "maxContextWindow": 872000, "inputModalities": ["text", "image"], "verbosity": true, "search": true, "imageDetailOriginal": true }
+      ]
+    }
+  },
+  "modelMapping": {
+    "direct": {
+      "id": ["slug"],
+      "name": ["display_name"],
+      "description": ["description"],
+      "context": ["context_window", "max_context_window"],
+      "modalities.input": ["input_modalities"]
+    },
+    "transforms": {
+      "reasoning+reasoningOptions": ["default_reasoning_level", "supported_reasoning_levels"],
+      "reasoning": ["supports_reasoning_summary_parameter", "supports_reasoning_summaries"]
+    },
+    "agentDefaults": {
+      "shell_type": "shell_command",
+      "visibility": "list",
+      "supported_in_api": true,
+      "default_reasoning_summary": "none",
+      "support_verbosity": false,
+      "truncation_policy": { "mode": "bytes", "limit": 10000 },
+      "supports_parallel_tool_calls": false,
+      "supports_image_detail_original": false,
+      "effective_context_window_percent": 95,
+      "experimental_supported_tools": [],
+      "supports_search_tool": false
+    },
+    "reasoning": {
+      "preferredDefaultOrder": ["high", "medium", "low", "xhigh", "max", "ultra", "minimal", "none"],
+      "toggle": {
+        "off": "none",
+        "on": "high"
+      },
+      "budgetTokens": {
+        "mode": "lossy-toggle",
+        "off": "none",
+        "on": "high"
+      },
+      "fallbackWhenReasoningTrue": ["none", "high"],
+      "fallbackWhenUnknown": ["none", "high"],
+      "fallbackWhenReasoningFalse": ["none"],
+      "descriptions": {
+        "none": "Disable Thinking",
+        "minimal": "Minimal reasoning",
+        "low": "Light reasoning",
+        "medium": "Balanced reasoning",
+        "high": "Enabled Thinking",
+        "xhigh": "Extra high reasoning",
+        "max": "Maximum reasoning",
+        "ultra": "Maximum reasoning with automatic delegation"
+      }
+    },
+    "fallbacks": {
+      "contextWindow": 128000
+    },
+    "notMapped": {
+      "input": "Codex catalog has no independent maximum-input field",
+      "output": "Codex catalog has no independent maximum-output field",
+      "modalities.output": "Codex catalog only declares input_modalities",
+      "tool": "models.dev tool_call does not prove Codex parallel-tool support",
+      "structuredOutput": "No stable Codex catalog field is documented for this capability",
+      "temperature": "Agent runtime setting, not a model-catalog capability",
+      "interleaved": "Provider-specific request encoding; requires a provider transform",
+      "knowledge": "Informational metadata only",
+      "releaseDate": "Informational metadata only",
+      "lastUpdated": "Informational metadata only",
+      "openWeights": "Informational metadata only",
+      "status": "Used by OKIT availability filtering, not emitted to Codex",
+      "cost": "Informational metadata only",
+      "providerConfig": "models.dev SDK metadata is not Codex provider configuration",
+      "experimental": "Must not be forwarded without an explicit Codex transform"
+    }
+  },
+  "thirdPartyDefaults": {
+    "wireApi": "responses",
+    "disableResponseStorage": true,
+    "webSearch": "disabled"
+  }
+}

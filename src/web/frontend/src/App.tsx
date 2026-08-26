@@ -12,6 +12,7 @@ import { useI18n } from './i18n';
 // while a chunk loads to avoid visible layout shifts.
 const HomePage = lazy(() => import('./components/home/HomePage'));
 const ModelsPage = lazy(() => import('./components/models/ModelsPage'));
+const ModelDataPage = lazy(() => import('./components/models/ModelDataPage'));
 const UsagePage = lazy(() => import('./components/usage/UsagePage'));
 const VaultPage = lazy(() => import('./components/vault/VaultPage'));
 const SettingsPage = lazy(() => import('./components/settings/SettingsPage'));
@@ -19,16 +20,195 @@ const OnboardingPage = lazy(() => import('./components/onboarding/OnboardingPage
 const AgentsPage = lazy(() => import('./components/agents/AgentsPage'));
 const ModelCatalogPage = lazy(() => import('./components/catalog/ModelCatalogPage'));
 
-function PageLoading() {
+function SkeletonProviderRows({ count = 4 }: { count?: number }) {
   return (
-    <div
-      className="page-loading"
-      aria-busy="true"
-      style={{ padding: '2rem', color: 'var(--ink-muted)', fontSize: '0.95rem' }}
-    >
-      加载中…
+    <div className="route-skeleton-provider-list">
+      {Array.from({ length: count }).map((_, index) => (
+        <div key={index} className="route-skeleton-provider-row">
+          <div className="skeleton-shape--icon" />
+          <div className="skeleton-line skeleton-line--title" />
+          <div className="route-skeleton-toggle" />
+        </div>
+      ))}
     </div>
   );
+}
+
+function UsageRouteSkeleton() {
+  return (
+    <div className="route-skeleton route-skeleton--usage" aria-busy="true" aria-label="正在加载用量统计">
+      <header className="route-skeleton-header">
+        <div>
+          <div className="skeleton-line route-skeleton-eyebrow" />
+          <div className="skeleton-line route-skeleton-vault-title" />
+        </div>
+        <div className="skeleton-shape--pill route-skeleton-action" />
+      </header>
+      <div className="route-skeleton-stat-grid">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div key={index} className="route-skeleton-panel route-skeleton-stat-card">
+            <div className="skeleton-line skeleton-line--short" />
+            <div className="skeleton-line route-skeleton-stat-value" />
+            <div className="route-skeleton-progress" />
+          </div>
+        ))}
+      </div>
+      <section className="route-skeleton-panel route-skeleton-chart">
+        <div className="route-skeleton-panel-head"><div className="skeleton-line skeleton-line--title" /><div className="skeleton-shape--pill route-skeleton-filter" /></div>
+        <div className="route-skeleton-chart-bars">
+          {Array.from({ length: 12 }).map((_, index) => <div key={index} className="route-skeleton-chart-bar" style={{ height: `${34 + ((index * 17) % 54)}%` }} />)}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function ModelsRouteSkeleton() {
+  return (
+    <div className="route-skeleton route-skeleton--models" aria-busy="true" aria-label="正在加载模型管控">
+      <header className="route-skeleton-header">
+        <div><div className="skeleton-line route-skeleton-eyebrow" /><div className="skeleton-line route-skeleton-vault-title" /></div>
+        <div className="skeleton-shape--pill route-skeleton-action" />
+      </header>
+      <div className="route-skeleton-model-layout">
+        <aside className="route-skeleton-model-nav">
+          {Array.from({ length: 7 }).map((_, index) => <div key={index} className="skeleton-line" />)}
+        </aside>
+        <section className="route-skeleton-model-content">
+          <div className="route-skeleton-filter-row"><div className="skeleton-shape--pill route-skeleton-filter" /><div className="skeleton-shape--pill route-skeleton-filter route-skeleton-filter--short" /></div>
+          <SkeletonProviderRows />
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function SettingsRouteSkeleton() {
+  return (
+    <div className="route-skeleton route-skeleton--settings" aria-busy="true" aria-label="正在加载设置">
+      <div className="route-skeleton-settings-layout">
+        <aside className="route-skeleton-settings-nav">
+          <div className="skeleton-line route-skeleton-settings-brand" />
+          {Array.from({ length: 4 }).map((_, index) => <div key={index} className="skeleton-line" />)}
+        </aside>
+        <section className="route-skeleton-settings-content">
+          <div className="skeleton-line route-skeleton-eyebrow" />
+          <div className="skeleton-line route-skeleton-vault-title" />
+          <div className="skeleton-line route-skeleton-vault-subtitle" />
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div key={index} className="route-skeleton-settings-card">
+              <div className="skeleton-line skeleton-line--title" />
+              <div className="route-skeleton-filter-row">
+                <div className="skeleton-shape--pill route-skeleton-filter" />
+                <div className="skeleton-shape--pill route-skeleton-filter" />
+                <div className="skeleton-shape--pill route-skeleton-filter route-skeleton-filter--short" />
+              </div>
+            </div>
+          ))}
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function CompactRouteSkeleton({ label }: { label: string }) {
+  return (
+    <div className="route-skeleton route-skeleton--compact" aria-busy="true" aria-label={label}>
+      <header className="route-skeleton-header">
+        <div><div className="skeleton-line route-skeleton-eyebrow" /><div className="skeleton-line route-skeleton-vault-title" /></div>
+      </header>
+      <section className="route-skeleton-panel"><SkeletonProviderRows count={5} /></section>
+    </div>
+  );
+}
+
+function PageLoading() {
+  const { pathname } = useLocation();
+
+  if (pathname === '/') {
+    return (
+      <div className="route-skeleton route-skeleton--home" aria-busy="true" aria-label="正在加载快速启动">
+        <section className="route-skeleton-panel route-skeleton-usage">
+          <div className="route-skeleton-panel-head">
+            <div className="skeleton-line skeleton-line--title" />
+            <div className="skeleton-shape--pill route-skeleton-action" />
+          </div>
+          <div className="route-skeleton-filter-row">
+            <div className="skeleton-shape--pill route-skeleton-filter" />
+            <div className="skeleton-shape--pill route-skeleton-filter route-skeleton-filter--short" />
+          </div>
+          <div className="route-skeleton-usage-grid">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="route-skeleton-usage-item">
+                <div className="skeleton-line skeleton-line--short" />
+                <div className="skeleton-line skeleton-line--title" />
+              </div>
+            ))}
+          </div>
+        </section>
+        <section className="route-skeleton-agent">
+          <div className="route-skeleton-panel-head">
+            <div className="skeleton-line skeleton-line--title" />
+            <div className="route-skeleton-icon-actions">
+              <div className="skeleton-shape--icon" />
+              <div className="skeleton-shape--icon" />
+            </div>
+          </div>
+          <div className="route-skeleton-agent-tabs">
+            {Array.from({ length: 8 }).map((_, index) => <div key={index} className="skeleton-shape--icon" />)}
+          </div>
+          <SkeletonProviderRows count={3} />
+        </section>
+      </div>
+    );
+  }
+
+  if (pathname === '/vault') {
+    return (
+      <div className="route-skeleton route-skeleton--vault" aria-busy="true" aria-label="正在加载密钥管理">
+        <header className="route-skeleton-vault-head">
+          <div>
+            <div className="skeleton-line route-skeleton-eyebrow" />
+            <div className="skeleton-line route-skeleton-vault-title" />
+            <div className="skeleton-line route-skeleton-vault-subtitle" />
+          </div>
+          <div className="route-skeleton-vault-summary">
+            <div className="skeleton-line skeleton-line--short" />
+            <div className="skeleton-line skeleton-line--short" />
+          </div>
+        </header>
+        <div className="route-skeleton-filter-row route-skeleton-vault-filters">
+          {Array.from({ length: 5 }).map((_, index) => <div key={index} className="skeleton-shape--pill route-skeleton-filter" />)}
+        </div>
+        {Array.from({ length: 2 }).map((_, groupIndex) => (
+          <section key={groupIndex} className="route-skeleton-vault-group">
+            <div className="route-skeleton-panel-head">
+              <div className="skeleton-line skeleton-line--title" />
+              <div className="skeleton-line route-skeleton-count" />
+            </div>
+            {Array.from({ length: groupIndex === 0 ? 4 : 3 }).map((_, rowIndex) => (
+              <div key={rowIndex} className="route-skeleton-vault-row">
+                <div className="skeleton-shape--icon" />
+                <div className="route-skeleton-vault-row-copy">
+                  <div className="skeleton-line skeleton-line--title" />
+                  <div className="skeleton-line skeleton-line--short" />
+                </div>
+                <div className="skeleton-shape--icon" />
+              </div>
+            ))}
+          </section>
+        ))}
+      </div>
+    );
+  }
+
+  if (pathname === '/models' || pathname === '/model-data') return <ModelsRouteSkeleton />;
+  if (pathname === '/usage') return <UsageRouteSkeleton />;
+  if (pathname.startsWith('/settings')) return <SettingsRouteSkeleton />;
+  if (pathname === '/agents') return <CompactRouteSkeleton label="正在加载 Agent" />;
+  if (pathname === '/catalog') return <CompactRouteSkeleton label="正在加载模型目录" />;
+
+  return <CompactRouteSkeleton label="正在加载页面" />;
 }
 
 function LazyRoute({ children }: { children: React.ReactNode }) {
@@ -48,6 +228,7 @@ function DocumentTitle() {
     const titles: Record<string, string> = {
       '/vault': t('nav.vault'),
       '/models': t('nav.models'),
+      '/model-data': '模型数据 DEMO',
       '/usage': t('nav.usage'),
       '/agents': t('nav.agents'),
       '/settings': t('nav.settings'),
@@ -262,6 +443,8 @@ export default function App() {
       <Routes>
         {/* Standalone model catalog — outside the app shell, own design. */}
         <Route path="/catalog" element={<LazyRoute><ModelCatalogPage /></LazyRoute>} />
+        {/* Standalone model/platform data demo — intentionally not part of the product shell. */}
+        <Route path="/model-data" element={<LazyRoute><ModelDataPage /></LazyRoute>} />
         <Route path="*" element={
           <div id="app">
             <DeepLinkHandler />

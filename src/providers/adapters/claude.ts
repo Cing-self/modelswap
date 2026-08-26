@@ -3,7 +3,7 @@ import path from "path";
 import os from "os";
 import { execFileSync } from "child_process";
 import { BaseAdapter } from "./base";
-import { AgentSelection, AuthStatus, Provider, ProviderType } from "../types";
+import { AgentSelection, AuthStatus, Provider, ProviderType, ResolvedModel } from "../types";
 import { loadUserConfig, updateUserConfig } from "../../config/user";
 import { checkClaudeOAuth } from "../auth";
 import { atomicWrite, atomicWriteJSON } from "../../utils/atomicWrite";
@@ -69,7 +69,8 @@ export class ClaudeAdapter extends BaseAdapter {
     return null;
   }
 
-  async applyConfig(provider: Provider, modelId: string): Promise<void> {
+  async applyConfig(provider: Provider, modelId: string, resolvedModel?: ResolvedModel): Promise<void> {
+    modelId = resolvedModel?.id || modelId;
     const apiKey = await this.resolveApiKey(provider);
     // Claude Code speaks the Anthropic Messages API protocol, so we MUST use an
     // anthropic-type endpoint. A single base URL can't serve both protocols
