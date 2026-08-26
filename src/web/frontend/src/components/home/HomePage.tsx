@@ -83,6 +83,13 @@ export default function HomePage() {
   // Per-provider list of model ids the user ADDED to the card (inclusion
   // model). Absent or empty = empty card; the picker lists everything else.
   const [modelVisible, setModelVisible] = useState<Record<string, string[]>>({});
+  // Keep the latest value outside React's render cycle as well. A user can
+  // tick several models and immediately add another site; using the state
+  // captured by an earlier render would otherwise save an older, incomplete
+  // list and make the already-written agent models disappear from the card.
+  const modelVisibleRef = useRef<Record<string, string[]>>({});
+  const modelVisibilityRevision = useRef(0);
+  const modelVisibilityWrites = useRef<Promise<void>>(Promise.resolve());
   // Search queries for the provider/model picker popups. Reset each time a
   // picker opens so a stale query never hides the list you're looking for.
   const [providerPickerSearch, setProviderPickerSearch] = useState('');
@@ -120,15 +127,40 @@ export default function HomePage() {
   // Called on mount and after adding a site — the backend seeds
   // "flagship-only"/hide-all exclusions on add, and the card should reflect
   // that immediately.
-  const refreshModelVisible = useCallback(() => {
-    getCatalogVisible().then(res => setModelVisible(res.visible || {})).catch(() => {});
+  const refreshModelVisible = useCallback(async () => {
+    // Do not let an older GET response overwrite model choices the user just
+    // made locally while that request was in flight.
+    const revision = modelVisibilityRevision.current;
+    try {
+      const res = await getCatalogVisible();
+      if (revision !== modelVisibilityRevision.current) return;
+      const visible = res.visible || {};
+      modelVisibleRef.current = visible;
+      setModelVisible(visible);
+    } catch {
+      // The UI remains usable with its current optimistic state. The next
+      // reload will retry this read.
+    }
+  }, []);
+
+  const queueModelVisibilitySave = useCallback((providerId: string, visible: string[]) => {
+    const save = () => setCatalogVisible(providerId, visible).then(() => undefined);
+    const pending = modelVisibilityWrites.current.then(save, save);
+    // Keep the queue alive after a failed write so later choices can still be
+    // persisted. The caller receives the original rejection and shows it.
+    modelVisibilityWrites.current = pending.catch(() => undefined);
+    return pending;
   }, []);
 
   const handleAddHome = useCallback(async (providerId: string) => {
     if (!activeAgentId) return;
     try {
+      // Model additions save the complete visibility list. Wait for pending
+      // saves before a site add writes user.json, so it cannot commit a stale
+      // snapshot that drops models selected seconds earlier.
+      await modelVisibilityWrites.current;
       await addHomeProvider(activeAgentId, providerId);
-      refreshModelVisible();
+      await refreshModelVisible();
       await load();
     } catch (err: any) {
       showToast(err.message, 'error');
@@ -247,7 +279,7 @@ export default function HomePage() {
 
   // Load model visibility exclusions + claude tier maps once on mount.
   useEffect(() => {
-    refreshModelVisible();
+    void refreshModelVisible();
     getTierMaps().then(res => setTierMaps(res.tierMaps || {})).catch(() => {});
   }, [refreshModelVisible]);
 
@@ -260,27 +292,33 @@ export default function HomePage() {
   // Remove a model from the card (the × on a chip) — drop it from the
   // provider's added-models list.
   const removeFromCard = useCallback(async (providerId: string, modelId: string) => {
-    const next = (modelVisible[providerId] || []).filter(id => id !== modelId);
-    setModelVisible(prev => ({ ...prev, [providerId]: next }));
+    const next = (modelVisibleRef.current[providerId] || []).filter(id => id !== modelId);
+    const updated = { ...modelVisibleRef.current, [providerId]: next };
+    modelVisibilityRevision.current += 1;
+    modelVisibleRef.current = updated;
+    setModelVisible(updated);
     try {
-      await setCatalogVisible(providerId, next);
+      await queueModelVisibilitySave(providerId, next);
     } catch (err: any) {
       showToast(err.message, 'error');
     }
-  }, [modelVisible, showToast]);
+  }, [queueModelVisibilitySave, showToast]);
 
   // Add a model to the card (a checkbox in the "add models" view).
   const addToCard = useCallback(async (providerId: string, modelId: string) => {
-    const cur = modelVisible[providerId] || [];
+    const cur = modelVisibleRef.current[providerId] || [];
     if (cur.includes(modelId)) return;
     const next = [...cur, modelId];
-    setModelVisible(prev => ({ ...prev, [providerId]: next }));
+    const updated = { ...modelVisibleRef.current, [providerId]: next };
+    modelVisibilityRevision.current += 1;
+    modelVisibleRef.current = updated;
+    setModelVisible(updated);
     try {
-      await setCatalogVisible(providerId, next);
+      await queueModelVisibilitySave(providerId, next);
     } catch (err: any) {
       showToast(err.message, 'error');
     }
-  }, [modelVisible, showToast]);
+  }, [queueModelVisibilitySave, showToast]);
 
   // Change one tier (haiku/sonnet/opus) mapping for a provider. Persists to
   // backend then re-switches the active claude provider so settings.json

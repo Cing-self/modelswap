@@ -244,10 +244,14 @@ body {
 
 .main-content {
   position: relative;
+  min-height: calc(100vh - 16px);
+  margin: 8px 8px 8px 0;
   padding: 30px 34px;
-  border-radius: 16px 0 0 16px;
+  border: 1px solid var(--card-line);
+  border-radius: 17px;
   background: var(--panel-bg);
   background-size: auto, auto, 48px 48px, 48px 48px, auto;
+  box-shadow: 0 12px 34px color-mix(in srgb, black 9%, transparent);
   scrollbar-color: rgba(245, 243, 235, 0.18) transparent;
 }
 
