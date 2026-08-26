@@ -5,7 +5,8 @@ import { useApp } from '../Layout/AppContext';
 import { getAgentIcon, getAgentIconClass } from '../../assets/agents';
 import { getProviderIcon, getProviderIconClass } from '../../assets/providers';
 import JsonTreeView from '../shared/JsonTreeView';
-import { Eye, EyeOff, Copy, Save, RefreshCw, X, Plus, FileJson, Loader2, Check, ArrowLeft, ChevronDown } from 'lucide-react';
+import CustomSelect from '../shared/CustomSelect';
+import { Eye, EyeOff, Copy, Save, RefreshCw, X, Plus, FileJson, Loader2, Check, ArrowLeft } from 'lucide-react';
 import UsageSummary from './UsageSummary';
 import { useTransientFeedback } from '../../hooks/useTransientFeedback';
 import { useDataChanged } from '../../hooks/useDataChanged';
@@ -585,24 +586,20 @@ export default function HomePage() {
                       const tierMap = tierMaps[p.id] || {};
                       const current = tierMap[tier] || '';
                       return (
-                        <label key={tier} className={`provider-tier-row provider-tier-row--${tier}`}>
+                        <div key={tier} className={`provider-tier-row provider-tier-row--${tier}`}>
                           <span className="provider-tier-marker" aria-hidden="true">{tier[0].toUpperCase()}</span>
                           <span className="provider-tier-label">{tier.toUpperCase()}</span>
-                          <span className="provider-tier-select-wrap">
-                            <select
-                              className="provider-tier-select"
-                              aria-label={tier.toUpperCase()}
-                              value={current}
-                              onChange={(e) => changeTier(p.id, tier, e.target.value)}
-                            >
-                              <option value="">{t('home.tierFollowPrimary')}</option>
-                              {visibleAfterExclude.map(m => (
-                                <option key={m.id} value={m.id}>{m.name || m.id}</option>
-                              ))}
-                            </select>
-                            <ChevronDown className="provider-tier-select-chevron" size={14} strokeWidth={2.25} aria-hidden="true" />
-                          </span>
-                        </label>
+                          <CustomSelect
+                            className="provider-tier-select"
+                            ariaLabel={tier.toUpperCase()}
+                            value={current}
+                            onChange={value => changeTier(p.id, tier, value)}
+                            options={[
+                              { value: '', label: t('home.tierFollowPrimary') },
+                              ...visibleAfterExclude.map(model => ({ value: model.id, label: model.name || model.id })),
+                            ]}
+                          />
+                        </div>
                       );
                     })}
                   </div>

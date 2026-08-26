@@ -13,3 +13,15 @@
 @import './usage.css';
 @import './catalog.css';
 @import './snapshots.css';
+
+/* Keep scrolling available but remove native scrollbar chrome. */
+* {
+  -ms-overflow-style: none;
+  scrollbar-width: none !important;
+}
+
+*::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}

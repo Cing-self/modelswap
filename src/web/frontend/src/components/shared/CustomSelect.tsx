@@ -5,12 +5,13 @@ interface CustomSelectProps {
   options: { value: string; label: string }[];
   onChange: (value: string) => void;
   placeholder?: string;
+  ariaLabel?: string;
   className?: string;
   dropdownMode?: 'fixed' | 'local';
   disabled?: boolean;
 }
 
-export default function CustomSelect({ value, options, onChange, placeholder, className, dropdownMode = 'fixed', disabled = false }: CustomSelectProps) {
+export default function CustomSelect({ value, options, onChange, placeholder, ariaLabel, className, dropdownMode = 'fixed', disabled = false }: CustomSelectProps) {
   const [open, setOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [dropStyle, setDropStyle] = useState<React.CSSProperties>({});
@@ -134,6 +135,7 @@ export default function CustomSelect({ value, options, onChange, placeholder, cl
         }}
         disabled={disabled}
         aria-haspopup="listbox"
+        aria-label={ariaLabel}
         aria-expanded={open}
         aria-controls={listboxId}
         aria-activedescendant={open && highlightedIndex >= 0 ? `${listboxId}-option-${highlightedIndex}` : undefined}
