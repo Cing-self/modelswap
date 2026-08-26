@@ -117,8 +117,6 @@ function DesktopWindowFrame({ children }: { children: React.ReactNode }) {
     <div className="desktop-window-frame">
       <div className="desktop-titlebar" aria-label="OKIT desktop window">
         <span className="desktop-titlebar-brand">OKIT</span>
-        <span className="desktop-titlebar-divider" aria-hidden="true" />
-        <span className="desktop-titlebar-context">AI 配置控制台</span>
       </div>
       {children}
     </div>

@@ -127,10 +127,13 @@ async function createWindow() {
     minHeight: 720,
     title: "OKIT",
     icon: path.join(__dirname, "..", "web", "public", "okit-icon.png"),
-    // On macOS the renderer owns a compact, draggable title surface. This
-    // prevents the system-coloured title bar from cutting across the app.
-    backgroundColor: "#f5ebe0",
+    // On macOS the renderer owns a compact, draggable title surface. Use the
+    // same base colour as the sidebar so the window frame never cuts across
+    // the content canvas with a different material while it boots.
+    backgroundColor: "#fbfaf5",
     ...(process.platform === "darwin" ? {
+      // Let the renderer draw the title surface while keeping the familiar
+      // macOS close/minimise/zoom controls accessible in that same strip.
       titleBarStyle: "hiddenInset" as const,
       trafficLightPosition: { x: 16, y: 13 },
     } : {}),

@@ -174,15 +174,14 @@ body {
   overflow: hidden;
 }
 
-/* Desktop-only macOS title surface. Electron's hiddenInset title bar places
-   the traffic lights in this strip, so it reads as one continuous app frame
-   instead of a separate system-coloured band. */
+/* Desktop-only macOS title surface. It uses the sidebar material so the
+   window header is one continuous frame, separate from the content canvas. */
 .desktop-window-frame {
   position: relative;
   height: 100vh;
   padding-top: 42px;
   overflow: hidden;
-  background: var(--kraft);
+  background: var(--sidebar-bg);
 }
 .desktop-window-frame #app {
   height: 100%;
@@ -195,8 +194,7 @@ body {
   align-items: center;
   height: 42px;
   padding: 0 20px 0 92px;
-  border-bottom: 1px solid color-mix(in srgb, var(--ink) 9%, transparent);
-  background: var(--kraft);
+  background: var(--sidebar-bg);
   color: var(--ink);
   -webkit-app-region: drag;
   user-select: none;
@@ -206,19 +204,6 @@ body {
   font-weight: 780;
   letter-spacing: 0.08em;
 }
-.desktop-titlebar-divider {
-  width: 1px;
-  height: 13px;
-  margin: 0 9px;
-  background: color-mix(in srgb, var(--ink) 18%, transparent);
-}
-.desktop-titlebar-context {
-  color: var(--ink-muted);
-  font-size: 11px;
-  font-weight: 580;
-  letter-spacing: 0.04em;
-}
-
 /* ─── Sidebar ─── */
 .sidebar {
   width: var(--sidebar-w);
