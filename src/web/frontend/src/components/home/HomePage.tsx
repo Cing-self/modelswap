@@ -45,7 +45,7 @@ function applySavedAgentOrder(list: AgentInfo[]): AgentInfo[] {
 
 export default function HomePage() {
   const { t } = useI18n();
-  const { showToast } = useApp();
+  const { showToast, confirm } = useApp();
   const [adapters, setAdapters] = useState<AgentInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
@@ -204,15 +204,18 @@ export default function HomePage() {
     }
   }, [activeAgentId, configRevealed, showToast]);
 
-  const handleToggleReveal = useCallback(() => {
+  const handleToggleReveal = useCallback(async () => {
     if (!configRevealed) {
-      const ok = window.confirm(t('home.configRevealConfirm'));
+      const ok = await confirm(t('home.configRevealConfirm'), {
+        title: t('home.configRevealSensitive'),
+        type: 'warn',
+      });
       if (!ok) return;
       handleViewConfig(true);
     } else {
       handleViewConfig(false);
     }
-  }, [configRevealed, handleViewConfig, t]);
+  }, [configRevealed, confirm, handleViewConfig, t]);
 
   const handleSaveConfig = useCallback(async (filePath: string) => {
     if (!activeAgentId) return;
