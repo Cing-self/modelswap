@@ -21,16 +21,25 @@ const NAV_SECTIONS = [
 
 /* 设置页侧边栏锚点，与 SettingsPage 各区块 id 一一对应 */
 const SETTINGS_SECTIONS = [
-  { id: 'appearance', labelKey: 'settings.appearance', icon: <Palette size={15} strokeWidth={1.7} /> },
-  { id: 'sync', labelKey: 'settings.sync2.title', icon: <RefreshCw size={15} strokeWidth={1.7} /> },
-  { id: 'snapshots', labelKey: 'settings.snapshots.title', icon: <History size={15} strokeWidth={1.7} /> },
-  { id: 'diagnostics', labelKey: 'settings.diagnostics', icon: <Activity size={15} strokeWidth={1.7} /> },
+  { id: 'appearance', labelKey: 'settings.appearance', icon: <Palette size={18} strokeWidth={ic} /> },
+  { id: 'sync', labelKey: 'settings.sync2.title', icon: <RefreshCw size={18} strokeWidth={ic} /> },
+  { id: 'snapshots', labelKey: 'settings.snapshots.title', icon: <History size={18} strokeWidth={ic} /> },
+  { id: 'diagnostics', labelKey: 'settings.diagnostics', icon: <Activity size={18} strokeWidth={ic} /> },
 ];
 
 export default function Sidebar({ collapsed }: { collapsed: boolean }) {
   const location = useLocation();
   const isSettings = location.pathname.startsWith('/settings');
   return isSettings ? <SettingsSidebar collapsed={collapsed} /> : <MainSidebar collapsed={collapsed} />;
+}
+
+function SidebarBrand() {
+  return (
+    <div className="sidebar-brand">
+      <img className="sidebar-brand-logo" src="/okit-icon-180.png" alt="OKIT" />
+      <span className="sidebar-brand-name">OKIT</span>
+    </div>
+  );
 }
 
 function MainSidebar({ collapsed }: { collapsed: boolean }) {
@@ -56,10 +65,7 @@ function MainSidebar({ collapsed }: { collapsed: boolean }) {
 
   return (
     <aside className={`sidebar${collapsed ? ' sidebar--collapsed' : ''}`}>
-      <div className="sidebar-brand">
-        <img className="sidebar-brand-logo" src="/okit-icon-180.png" alt="OKIT" />
-        <span className="sidebar-brand-name">OKIT</span>
-      </div>
+      <SidebarBrand />
       <nav className="nav-scroll" aria-label={t('nav.primary')}>
         {NAV_SECTIONS.map(section => (
           <div className="nav-section" key={section.labelKey}>
@@ -92,38 +98,28 @@ function SettingsSidebar({ collapsed }: { collapsed: boolean }) {
 
   return (
     <aside className={`sidebar sidebar--settings${collapsed ? ' sidebar--collapsed' : ''}`}>
-      <div className="sidebar-settings-head">
-        <img
-          className="sidebar-settings-head-logo"
-          src="/okit-icon-180.png"
-          alt=""
-          aria-hidden="true"
-        />
-        <div className="sidebar-settings-head-copy">
-          <span className="sidebar-settings-head-kicker">OKIT SETTINGS</span>
-          <strong>{t('settings.title')}</strong>
+      <SidebarBrand />
+      <nav className="nav-scroll" aria-label={t('settings.title')}>
+        <div className="nav-section">
+          {SETTINGS_SECTIONS.map(s => (
+            <button
+              key={s.id}
+              type="button"
+              className={`nav-item${current === s.id ? ' active' : ''}`}
+              onClick={() => navigate(`/settings?section=${s.id}`)}
+              data-tip={t(s.labelKey)}
+              aria-label={t(s.labelKey)}
+              title={t(s.labelKey)}
+            >
+              {s.icon}
+              <span>{t(s.labelKey)}</span>
+            </button>
+          ))}
         </div>
-      </div>
-      <nav className="sidebar-settings-nav" aria-label={t('settings.title')}>
-        {SETTINGS_SECTIONS.map(s => (
-          <button
-            key={s.id}
-            type="button"
-            className={`sidebar-settings-item${current === s.id ? ' active' : ''}`}
-            onClick={() => navigate(`/settings?section=${s.id}`)}
-            data-tip={t(s.labelKey)}
-            aria-label={t(s.labelKey)}
-            title={t(s.labelKey)}
-          >
-            {s.icon}
-            <span>{t(s.labelKey)}</span>
-          </button>
-        ))}
       </nav>
-      <div className="sidebar-settings-bottom">
-        <button type="button" className="sidebar-back" onClick={() => navigate('/')} data-tip={t('nav.backConsole')} aria-label={t('nav.backConsole')} title={t('nav.backConsole')}>
-          <ArrowLeft size={14} strokeWidth={2} />
-          <span>{t('nav.backConsole')}</span>
+      <div className="sidebar-bottom">
+        <button type="button" className="sidebar-bottom-icon" onClick={() => navigate('/')} data-tip={t('nav.backConsole')} aria-label={t('nav.backConsole')} title={t('nav.backConsole')}>
+          <ArrowLeft size={18} strokeWidth={ic} />
         </button>
       </div>
     </aside>
