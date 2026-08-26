@@ -2522,7 +2522,7 @@ select:focus {
   padding: 12px 8px 6px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 0;
   scrollbar-width: none;
 }
 
@@ -2533,8 +2533,9 @@ select:focus {
   display: flex;
   align-items: center;
   gap: 9px;
-  min-height: 40px;
-  padding: 9px 10px;
+  min-height: 36px;
+  margin: 2px;
+  padding: 8px;
   border: none;
   border-radius: 8px;
   background: transparent;
@@ -2548,20 +2549,20 @@ select:focus {
 }
 
 .sidebar-settings-item:hover {
-  color: var(--ink);
-  background: var(--card-inner);
+  color: var(--sidebar-fg);
+  background: var(--sidebar-hover);
 }
 
 .sidebar-settings-item.active {
-  color: var(--ink);
-  background: var(--card-inner);
-  box-shadow: inset 2px 0 0 var(--accent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  box-shadow: none;
   font-weight: 800;
 }
 
 [data-theme="dark"] .sidebar-settings-item.active {
-  color: var(--ink);
-  background: var(--card-inner);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .sidebar-settings-item svg {
@@ -2570,7 +2571,7 @@ select:focus {
 }
 
 .sidebar-settings-item.active svg {
-  color: var(--accent);
+  color: currentColor;
 }
 
 /* Dark command center: cool graphite cards against the neutral canvas. */
@@ -2713,6 +2714,7 @@ select:focus {
 .sidebar--settings.sidebar--collapsed .sidebar-settings-item {
   width: 40px;
   min-height: 40px;
+  margin: 0;
   justify-content: center;
   gap: 0;
   padding: 0;
@@ -2835,6 +2837,7 @@ select:focus {
   .sidebar-settings-item {
     width: 40px;
     min-height: 40px;
+    margin: 0;
     flex: none;
     justify-content: center;
     gap: 0;
