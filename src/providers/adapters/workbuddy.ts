@@ -82,15 +82,48 @@ export class WorkBuddyAdapter extends BaseAdapter {
 
   async getCurrentConfig(): Promise<AgentSelection | null> {
     const config = await loadUserConfig();
-    const sel = (config as any).providers?.workbuddy;
-    if (sel?.providerId && sel?.modelId) return sel;
+    const state = config.agentProviders?.workbuddy;
+    if (state?.activeProviderId && state?.activeModelId) {
+      return { providerId: state.activeProviderId, modelId: state.activeModelId };
+    }
+    // Read-only compatibility for callers that still pass an in-memory legacy
+    // config; loadUserConfig migrates persisted files before normal use.
+    const legacy = (config as any).providers?.workbuddy;
+    if (legacy?.providerId && legacy?.modelId) return legacy;
     return null;
   }
 
   private async readManaged(): Promise<ManagedModels> {
     const config = await loadUserConfig();
-    const managed = (config as any).providers?.workbuddy?.managedModels;
-    return managed && typeof managed === "object" ? managed : {};
+    const sites = config.agentProviders?.workbuddy?.sites || {};
+    if (Object.keys(sites).length > 0) {
+      return Object.fromEntries(Object.entries(sites).map(([providerId, site]) => [providerId, [...(site.modelIds || [])]]));
+    }
+    const legacy = (config as any).providers?.workbuddy?.managedModels;
+    return legacy && typeof legacy === "object" ? legacy : {};
+  }
+
+  private async persistState(managed: ManagedModels, active?: AgentSelection | null): Promise<void> {
+    const config = await loadUserConfig();
+    const previous = config.agentProviders?.workbuddy || { sites: {} };
+    const sites: Record<string, any> = { ...previous.sites };
+    for (const providerId of Object.keys(sites)) {
+      if (!(providerId in managed)) sites[providerId] = null;
+    }
+    for (const [providerId, modelIds] of Object.entries(managed)) {
+      sites[providerId] = { ...sites[providerId], modelIds: [...new Set(modelIds)], enabled: true };
+    }
+    const next = {
+      ...previous,
+      ...(active?.providerId ? { activeProviderId: active.providerId } : {}),
+      ...(active?.modelId ? { activeModelId: active.modelId } : {}),
+      sites,
+    };
+    if (active === null) {
+      next.activeProviderId = undefined;
+      next.activeModelId = undefined;
+    }
+    await updateUserConfig({ agentProviders: { workbuddy: next } } as any);
   }
 
   private upsertEntry(
@@ -166,9 +199,7 @@ export class WorkBuddyAdapter extends BaseAdapter {
     managed[provider.id] = [...new Set([...(managed[provider.id] || []), modelId])];
 
     await writeModelsFile(models);
-    await updateUserConfig({
-      providers: { workbuddy: { providerId: provider.id, modelId, managedModels: managed } },
-    } as any);
+    await this.persistState(managed, { providerId: provider.id, modelId });
   }
 
   async applyModels(entries: Array<{ provider: Provider; modelId: string }>): Promise<{ written: string[]; skipped: string[] }> {
@@ -195,15 +226,7 @@ export class WorkBuddyAdapter extends BaseAdapter {
 
     if (written.length > 0) {
       await writeModelsFile(models);
-      // Persist tracking without moving the "current" selection — enabling a
-      // site only makes its models available; switching happens in WorkBuddy.
-      const config = await loadUserConfig();
-      const sel = (config as any).providers?.workbuddy || {};
-      await updateUserConfig({
-        providers: {
-          workbuddy: { providerId: sel.providerId, modelId: sel.modelId, managedModels: managed },
-        },
-      } as any);
+      await this.persistState(managed, await this.getCurrentConfig());
     }
     return { written, skipped };
   }
@@ -216,11 +239,10 @@ export class WorkBuddyAdapter extends BaseAdapter {
   }
 
   async removeProvider(providerId: string): Promise<void> {
-    const config = await loadUserConfig();
-    const sel = (config as any).providers?.workbuddy || {};
+    const sel = await this.getCurrentConfig();
     const managed = await this.readManaged();
     const ids = managed[providerId] || [];
-    if (!(providerId in managed) && sel.providerId !== providerId) return;
+    if (!(providerId in managed) && sel?.providerId !== providerId) return;
 
     // Keep entries still claimed by another OKIT provider (shared model ids
     // between merged families, e.g. kimi/moonshot).
@@ -233,15 +255,7 @@ export class WorkBuddyAdapter extends BaseAdapter {
     delete managed[providerId];
 
     await writeModelsFile(kept);
-    const wasCurrent = sel.providerId === providerId;
-    await updateUserConfig({
-      providers: {
-        workbuddy: {
-          providerId: wasCurrent ? undefined : sel.providerId,
-          modelId: wasCurrent ? undefined : sel.modelId,
-          managedModels: managed,
-        },
-      },
-    } as any);
+    const wasCurrent = sel?.providerId === providerId;
+    await this.persistState(managed, wasCurrent ? null : sel);
   }
 }

@@ -48,7 +48,7 @@ describe('hasPendingLocalChanges', () => {
   it('detects sections changed after the last sync', () => {
     const sync = {
       lastSyncAt: '2026-08-01T10:00:00.000Z',
-      localChangedAt: { secrets: '2026-08-01T09:00:00.000Z', agent: '2026-08-01T11:00:00.000Z', providers: '2026-08-01T09:00:00.000Z' },
+      localChangedAt: { secrets: '2026-08-01T09:00:00.000Z', agentProviders: '2026-08-01T11:00:00.000Z', providers: '2026-08-01T09:00:00.000Z' },
     };
     expect(scheduler.hasPendingLocalChanges(sync)).toBe(true);
   });
@@ -56,7 +56,7 @@ describe('hasPendingLocalChanges', () => {
   it('reports clean when all baselines predate the last sync', () => {
     const sync = {
       lastSyncAt: '2026-08-01T12:00:00.000Z',
-      localChangedAt: { secrets: '2026-08-01T10:00:00.000Z', agent: '2026-08-01T11:00:00.000Z', providers: '2026-08-01T10:00:00.000Z' },
+      localChangedAt: { secrets: '2026-08-01T10:00:00.000Z', agentProviders: '2026-08-01T11:00:00.000Z', providers: '2026-08-01T10:00:00.000Z' },
     };
     expect(scheduler.hasPendingLocalChanges(sync)).toBe(false);
   });

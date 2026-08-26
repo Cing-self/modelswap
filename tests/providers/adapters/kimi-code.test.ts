@@ -356,7 +356,12 @@ describe('KimiCodeAdapter.applyConfig (v2 config format)', () => {
 
     expect(updateUserConfig).toHaveBeenCalledWith(
       expect.objectContaining({
-        providers: { 'kimi-code': { providerId: 'custom-openai', modelId: 'my-model' } },
+        agentProviders: {
+          'kimi-code': {
+            activeProviderId: 'custom-openai', activeModelId: 'my-model',
+            sites: { 'custom-openai': { modelIds: ['my-model'] } },
+          },
+        },
       }),
     );
   });

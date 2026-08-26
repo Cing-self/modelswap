@@ -206,7 +206,7 @@ describe('syncPull', () => {
     expect(savedConfig.sync.lastSyncAt).toBeTruthy();
   });
 
-  it('merges agent settings from remote', async () => {
+  it('merges Agent site/model settings from remote', async () => {
     // Phase 1: push
     mockFs.readJson.mockResolvedValue(VALID_CONFIG);
     mockStore.exportAll.mockResolvedValue(SAMPLE_SECRETS);
@@ -219,9 +219,9 @@ describe('syncPull', () => {
 
     await syncPush();
 
-    // Phase 2: pull with agent config
+    // Phase 2: pull with Agent provider state
     const pullConfig = JSON.parse(JSON.stringify(VALID_CONFIG));
-    pullConfig.agent = { provider: 'openai' };
+    pullConfig.agentProviders = { codex: { activeProviderId: 'openai', activeModelId: 'gpt-5', sites: { openai: { modelIds: ['gpt-5'] } } } };
     mockStore.exportAll.mockResolvedValue([]);
     mockFs.readJson.mockResolvedValue(pullConfig);
     mockSupabaseAdapter.pullSync.mockResolvedValue(encryptedBlob);
@@ -229,7 +229,7 @@ describe('syncPull', () => {
     await syncPull();
 
     const savedConfig = mockFs.writeJson.mock.calls[1][1];
-    expect(savedConfig.agent).toBeDefined();
+    expect(savedConfig.agentProviders).toBeDefined();
   });
 
   it('syncs model provider configuration including vault key bindings', async () => {
@@ -289,12 +289,12 @@ describe('syncPull', () => {
       await syncPush();
       // blob.updatedAt is now 2026-08-01T10:00:00.000Z
 
-      // Second machine pulled earlier, then edited agent + providers at 11:00
+      // Second machine pulled earlier, then edited Agent sites + providers at 11:00
       const cfg = JSON.parse(JSON.stringify(VALID_CONFIG));
-      cfg.agent = { provider: 'local-provider' };
+      cfg.agentProviders = { codex: { activeProviderId: 'local-provider', activeModelId: 'local-model', sites: { 'local-provider': { modelIds: ['local-model'] } } } };
       cfg.sync.localChangedAt = {
         secrets: '2026-08-01T09:00:00.000Z',
-        agent: '2026-08-01T11:00:00.000Z',
+        agentProviders: '2026-08-01T11:00:00.000Z',
         providers: '2026-08-01T11:00:00.000Z',
       };
       mockFs.readJson.mockResolvedValue(cfg);
@@ -304,10 +304,10 @@ describe('syncPull', () => {
 
       const result = await syncPull();
 
-      expect(result.agentApplied).toBe(false);
+      expect(result.agentProvidersApplied).toBe(false);
       expect(result.providersApplied).toBe(false);
       const savedConfig = mockFs.writeJson.mock.calls[mockFs.writeJson.mock.calls.length - 1][1];
-      expect(savedConfig.agent).toEqual({ provider: 'local-provider' });
+      expect(savedConfig.agentProviders.codex.activeProviderId).toBe('local-provider');
       expect(mockFs.writeFile.mock.calls.find(([file]) => String(file).includes('providers.json'))).toBeUndefined();
     } finally {
       vi.useRealTimers();
@@ -319,7 +319,7 @@ describe('syncPull', () => {
     try {
       vi.setSystemTime(new Date('2026-08-01T10:00:00Z'));
       const pushConfig = JSON.parse(JSON.stringify(VALID_CONFIG));
-      pushConfig.agent = { provider: 'remote-provider' };
+      pushConfig.agentProviders = { codex: { activeProviderId: 'remote-provider', activeModelId: 'remote-model', sites: { 'remote-provider': { modelIds: ['remote-model'] } } } };
       mockFs.readJson.mockResolvedValue(pushConfig);
       mockStore.exportAll.mockResolvedValue(SAMPLE_SECRETS);
       mockStore.get.mockResolvedValue('resolved');
@@ -329,10 +329,10 @@ describe('syncPull', () => {
 
       // Local config untouched since 09:00, remote blob written at 10:00
       const cfg = JSON.parse(JSON.stringify(VALID_CONFIG));
-      cfg.agent = { provider: 'local-provider' };
+      cfg.agentProviders = { codex: { activeProviderId: 'local-provider', activeModelId: 'local-model', sites: { 'local-provider': { modelIds: ['local-model'] } } } };
       cfg.sync.localChangedAt = {
         secrets: '2026-08-01T09:00:00.000Z',
-        agent: '2026-08-01T09:00:00.000Z',
+        agentProviders: '2026-08-01T09:00:00.000Z',
         providers: '2026-08-01T09:00:00.000Z',
       };
       mockFs.readJson.mockResolvedValue(cfg);
@@ -342,10 +342,10 @@ describe('syncPull', () => {
 
       const result = await syncPull();
 
-      expect(result.agentApplied).toBe(true);
+      expect(result.agentProvidersApplied).toBe(true);
       expect(result.providersApplied).toBe(true);
       const savedConfig = mockFs.writeJson.mock.calls[mockFs.writeJson.mock.calls.length - 1][1];
-      expect(savedConfig.agent).toEqual({ provider: 'remote-provider' });
+      expect(savedConfig.agentProviders.codex.activeProviderId).toBe('remote-provider');
     } finally {
       vi.useRealTimers();
     }

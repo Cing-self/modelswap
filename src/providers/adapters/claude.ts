@@ -62,11 +62,9 @@ export class ClaudeAdapter extends BaseAdapter {
 
   async getCurrentConfig(): Promise<AgentSelection | null> {
     const config = await loadUserConfig();
-    const sel = (config as any).providers?.claude;
-    if (sel?.providerId && sel?.modelId) return sel;
-    // Fallback to legacy claude config
-    if (config.claude?.name && config.claude?.model) {
-      return { providerId: config.claude.name.toLowerCase(), modelId: config.claude.model };
+    const state = config.agentProviders?.claude;
+    if (state?.activeProviderId && state?.activeModelId) {
+      return { providerId: state.activeProviderId, modelId: state.activeModelId };
     }
     return null;
   }
@@ -156,9 +154,9 @@ export class ClaudeAdapter extends BaseAdapter {
       // let custom providers map each Anthropic tier (haiku/sonnet/opus) to a
       // different backing model so the CLI never 404s when it falls back to a
       // smaller variant. If the user configured per-provider tier overrides
-      // (claudeTierMaps in user.json), use them; otherwise default every tier
+      // (saved on this Claude site), use them; otherwise default every tier
       // to the selected model (same behavior as cc-switch).
-      const tierMap = (await loadUserConfig()).claudeTierMaps?.[provider.id];
+      const tierMap = (await loadUserConfig()).agentProviders?.claude?.sites?.[provider.id]?.tierMap;
       env.ANTHROPIC_MODEL = modelId;
       env.ANTHROPIC_DEFAULT_HAIKU_MODEL = tierMap?.haiku || modelId;
       env.ANTHROPIC_DEFAULT_SONNET_MODEL = tierMap?.sonnet || modelId;
@@ -190,10 +188,16 @@ export class ClaudeAdapter extends BaseAdapter {
 
     await atomicWriteJSON(CLAUDE_SETTINGS_PATH, data);
 
-    // Save selection to both new and legacy paths
     await updateUserConfig({
-      providers: { claude: { providerId: provider.id, modelId } },
-      claude: { name: provider.name, model: modelId },
-    } as any);
+      agentProviders: {
+        claude: {
+          activeProviderId: provider.id,
+          activeModelId: modelId,
+          sites: {
+            [provider.id]: { modelIds: [...new Set([...(provider.models || []).map(item => item.id), modelId])] },
+          },
+        },
+      },
+    });
   }
 }

@@ -9,7 +9,7 @@ const { getLogs } = require('./api/logs');
 const { getSettings, updateSettings, testPlatformConnection, getPresets, getOnboarding, dismissOnboarding, resetOnboarding } = require('./api/settings');
 const { checkWrangler, listStores, listStoreSecrets, syncToCloudflare } = require('./api/cloudflare-sync');
 const { handlePush, handlePull, handleStatus, handleExportCode, handleImportCode, handleLanStatus, handleLanEnable, handleLanDisable, handleLanRegenerate, handleLanPairingPeek, handleLanPairingCreate, handleLanPair, handleSyncOverview } = require('./api/sync');
-const { listProviders, getAdaptersList, createProvider, updateProvider, deleteProvider, switchProvider, addHomeProvider, removeHomeProvider, applyAgentModels, disableAgentProvider, getAgentConfigFiles, saveAgentConfigFile, setCatalogVisible, getCatalogVisible, getTierMaps, setTierMap, launchAgent, getAuthStatus, verifyProviderAuth, triggerOAuthLogin, fetchModels, exportProviderCode, importProviderCode } = require('./api/providers');
+const { listProviders, getAdaptersList, createProvider, updateProvider, deleteProvider, switchProvider, configureAgentProvider, removeAgentProvider, setAgentProviderEnabled, getAgentConfigFiles, saveAgentConfigFile, getTierMaps, setTierMap, launchAgent, getAuthStatus, verifyProviderAuth, triggerOAuthLogin, fetchModels, exportProviderCode, importProviderCode } = require('./api/providers');
 const { getUsage, getSupportedUsageProviders, openXiaomiLogin } = require('./api/usage');
 const { createGrokProxyHandler } = require('./api/grok-proxy');
 const { listSnapshotsHandler, snapshotDetailHandler, restoreSnapshotHandler } = require('./api/snapshots');
@@ -183,20 +183,13 @@ function createServer(port = 3780) {
   app.get('/api/providers', listProviders);
   app.get('/api/providers/adapters', getAdaptersList);
   app.post('/api/providers', createProvider);
-  // Home-page provider list (curated per agent).
-  app.post('/api/providers/agents/:agentId/home', addHomeProvider);
-  app.delete('/api/providers/agents/:agentId/home/:providerId', removeHomeProvider);
-  // Additive agents: append specific models of an already-added site into the
-  // agent's own config (used by the home "add models" picker).
-  app.post('/api/providers/agents/:agentId/models', applyAgentModels);
-  // Additive agents (workbuddy): per-site disable — removes the site's entries
-  // from the agent's own config while keeping it in the home list.
-  app.post('/api/providers/agents/:agentId/disable', disableAgentProvider);
+  // One Agent-site record owns its selected models and drives both the native
+  // Agent config and the home-page card. There is no separate "home" list.
+  app.put('/api/providers/agents/:agentId/sites/:providerId', configureAgentProvider);
+  app.delete('/api/providers/agents/:agentId/sites/:providerId', removeAgentProvider);
+  app.post('/api/providers/agents/:agentId/sites/:providerId/enabled', setAgentProviderEnabled);
   app.get('/api/providers/agents/:agentId/config-files', getAgentConfigFiles);
   app.put('/api/providers/agents/:agentId/config-files', saveAgentConfigFile);
-  // Codex model-catalog exclusion (which models show in /model).
-  app.get('/api/providers/catalog/visible', getCatalogVisible);
-  app.put('/api/providers/catalog/visible/:providerId', setCatalogVisible);
   app.get('/api/providers/tier-maps', getTierMaps);
   app.put('/api/providers/tier-maps/:providerId', setTierMap);
   app.put('/api/providers/:id', updateProvider);

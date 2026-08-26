@@ -24,8 +24,10 @@ export class CodexAdapter extends BaseAdapter {
 
   async getCurrentConfig(): Promise<AgentSelection | null> {
     const config = await loadUserConfig();
-    const sel = (config as any).providers?.codex;
-    if (sel?.providerId && sel?.modelId) return sel;
+    const state = config.agentProviders?.codex;
+    if (state?.activeProviderId && state?.activeModelId) {
+      return { providerId: state.activeProviderId, modelId: state.activeModelId };
+    }
     return null;
   }
 
@@ -107,8 +109,16 @@ export class CodexAdapter extends BaseAdapter {
     }
 
     await updateUserConfig({
-      providers: { codex: { providerId: provider.id, modelId } },
-    } as any);
+      agentProviders: {
+        codex: {
+          activeProviderId: provider.id,
+          activeModelId: modelId,
+          sites: {
+            [provider.id]: { modelIds: [...new Set([...(provider.models || []).map(item => item.id), modelId])] },
+          },
+        },
+      },
+    });
   }
 }
 
@@ -130,17 +140,12 @@ const MODEL_CATALOG_REF = "~/.codex/model-catalogs/model-catalogs.json";
 // (https://mimo.mi.com/docs/zh-CN/tokenplan/integration/codex-configuration),
 // which is Codex's native model-catalog shape.
 async function writeModelCatalog(provider: Provider): Promise<void> {
-  // Read the user's visible-models list for this provider (models ADDED on
-  // the card — inclusion model). Pre-migration configs fall back to the
-  // legacy exclusion computation so the catalog stays correct either way.
-  const userConfig = await loadUserConfig() as any;
-  const visibleIds = userConfig.codexCatalogVisibleMigrated && userConfig.codexCatalogVisible
-    ? new Set<string>(userConfig.codexCatalogVisible[provider.id] || [])
-    : new Set<string>(
-        (provider.models || [])
-          .map(m => m.id)
-          .filter(id => !(userConfig.codexCatalogExcluded?.[provider.id] || []).includes(id)),
-      );
+  // The Codex catalog mirrors this Agent site's selected models. The global
+  // provider directory must never decide what appears in /model.
+  const userConfig = await loadUserConfig();
+  const visibleIds = new Set<string>(
+    userConfig.agentProviders?.codex?.sites?.[provider.id]?.modelIds || (provider.models || []).map(m => m.id),
+  );
 
   // Build the catalog from the visible models. Each entry carries the fields
   // Codex requires; unknown capabilities default to safe values. Gateway

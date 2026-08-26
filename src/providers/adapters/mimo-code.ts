@@ -98,8 +98,10 @@ export class MimoCodeAdapter extends BaseAdapter {
 
   async getCurrentConfig(): Promise<AgentSelection | null> {
     const config = await loadUserConfig();
-    const sel = (config as any).providers?.["mimo-code"];
-    if (sel?.providerId && sel?.modelId) return sel;
+    const state = config.agentProviders?.["mimo-code"];
+    if (state?.activeProviderId && state?.activeModelId) {
+      return { providerId: state.activeProviderId, modelId: state.activeModelId };
+    }
     return null;
   }
 
@@ -148,8 +150,14 @@ export class MimoCodeAdapter extends BaseAdapter {
 
     await this.saveConfig(data);
     await updateUserConfig({
-      providers: { "mimo-code": { providerId: provider.id, modelId } },
-    } as any);
+      agentProviders: {
+        "mimo-code": {
+          activeProviderId: provider.id,
+          activeModelId: modelId,
+          sites: { [provider.id]: { modelIds: [...new Set([...(provider.models || []).map(item => item.id), modelId])] } },
+        },
+      },
+    });
   }
 
   // Additive (multi-site): write one site's provider entry without touching

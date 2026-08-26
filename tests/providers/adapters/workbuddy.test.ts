@@ -48,6 +48,18 @@ vi.mock('../../../src/config/user', () => ({
         mocks.userConfig.providers[key] = value;
       }
     }
+    if (patch?.agentProviders?.workbuddy) {
+      const state = patch.agentProviders.workbuddy;
+      const managedModels = Object.fromEntries(Object.entries(state.sites || {})
+        .filter(([, site]: any) => site)
+        .map(([providerId, site]: any) => [providerId, site.modelIds || []]));
+      mocks.userConfig.providers.workbuddy = {
+        providerId: state.activeProviderId,
+        modelId: state.activeModelId,
+        managedModels,
+      };
+      mocks.userConfig.agentProviders = { ...(mocks.userConfig.agentProviders || {}), workbuddy: state };
+    }
     return mocks.userConfig;
   }),
 }));
@@ -95,6 +107,7 @@ function readModelsFile(): any[] {
 beforeEach(() => {
   mocks.files.clear();
   mocks.userConfig.providers = {};
+  mocks.userConfig.agentProviders = {};
 });
 
 describe('resolveModelCapabilities', () => {

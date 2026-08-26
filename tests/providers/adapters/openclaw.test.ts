@@ -148,7 +148,12 @@ describe('OpenClawAdapter.applyConfig (cc-switch schema)', () => {
 
     expect(updateUserConfig).toHaveBeenCalledWith(
       expect.objectContaining({
-        providers: { openclaw: { providerId: 'deepseek', modelId: 'deepseek-chat' } },
+        agentProviders: {
+          openclaw: {
+            activeProviderId: 'deepseek', activeModelId: 'deepseek-chat',
+            sites: { deepseek: { modelIds: ['deepseek-chat'] } },
+          },
+        },
       }),
     );
   });

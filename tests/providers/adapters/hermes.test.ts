@@ -183,7 +183,12 @@ describe('HermesAdapter.applyConfig (config.yaml schema)', () => {
 
     expect(updateUserConfig).toHaveBeenCalledWith(
       expect.objectContaining({
-        providers: { hermes: { providerId: 'deepseek', modelId: 'deepseek-chat' } },
+        agentProviders: {
+          hermes: {
+            activeProviderId: 'deepseek', activeModelId: 'deepseek-chat',
+            sites: { deepseek: { modelIds: ['deepseek-chat'] } },
+          },
+        },
       }),
     );
   });

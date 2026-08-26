@@ -120,13 +120,10 @@ export interface AgentInfo {
    *  enable/disable per site instead of exclusive switch. */
   additive?: boolean;
   current: { providerId: string; providerName: string; modelId: string } | null;
-  /** Providers shown on the home page (user-curated subset). */
+  /** Exact sites/models saved for this Agent. */
   compatibleProviders: { id: string; name: string; type: string; baseUrl?: string; models: ProviderModel[]; allModels?: ProviderModel[]; enabled?: boolean }[];
-  /** All configured-and-compatible providers, for the "+ add" picker. */
-  availableProviders?: { id: string; name: string; type: string; added: boolean }[];
-  // Reconciliation: entries in the agent's own config that are not on the
-  // home list. known=true → under an OKIT provider id (adopt or remove);
-  // known=false → created outside OKIT (read-only, never touched).
+  /** Full compatible catalog, used only by the add-site model picker. */
+  availableProviders?: { id: string; name: string; type: string; baseUrl?: string; models: ProviderModel[]; allModels?: ProviderModel[]; added: boolean }[];
   externalSites?: { id: string; name: string; known: boolean }[];
 }
 
@@ -181,27 +178,30 @@ export async function switchProvider(agentId: string, providerId: string, modelI
   });
 }
 
-// --- Home-page provider list (curated per agent) ---
+// --- Agent site + selected models ---
 
-export async function addHomeProvider(agentId: string, providerId: string): Promise<{ success: boolean; homeProviders: string[] }> {
-  return api(`/api/providers/agents/${encodeURIComponent(agentId)}/home`, {
-    method: 'POST',
-    body: JSON.stringify({ providerId }),
+export async function saveAgentProviderSite(
+  agentId: string,
+  providerId: string,
+  modelIds: string[],
+  primaryModelId?: string,
+): Promise<{ success: boolean; modelIds: string[]; primaryModelId?: string; snapshotAvailable?: boolean }> {
+  return api(`/api/providers/agents/${encodeURIComponent(agentId)}/sites/${encodeURIComponent(providerId)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ modelIds, primaryModelId }),
   });
 }
 
-export async function removeHomeProvider(agentId: string, providerId: string): Promise<{ success: boolean; homeProviders: string[] }> {
-  return api(`/api/providers/agents/${encodeURIComponent(agentId)}/home/${encodeURIComponent(providerId)}`, {
+export async function removeAgentProviderSite(agentId: string, providerId: string): Promise<{ success: boolean }> {
+  return api(`/api/providers/agents/${encodeURIComponent(agentId)}/sites/${encodeURIComponent(providerId)}`, {
     method: 'DELETE',
   });
 }
 
-// Additive agents only (workbuddy): remove this site's entries from the
-// agent's own config. The provider stays in the home list.
-export async function disableAgentProvider(agentId: string, providerId: string): Promise<{ success: boolean }> {
-  return api(`/api/providers/agents/${encodeURIComponent(agentId)}/disable`, {
+export async function setAgentProviderSiteEnabled(agentId: string, providerId: string, enabled: boolean): Promise<{ success: boolean }> {
+  return api(`/api/providers/agents/${encodeURIComponent(agentId)}/sites/${encodeURIComponent(providerId)}/enabled`, {
     method: 'POST',
-    body: JSON.stringify({ providerId }),
+    body: JSON.stringify({ enabled }),
   });
 }
 
@@ -225,28 +225,6 @@ export async function saveAgentConfigFile(agentId: string, filePath: string, con
   return api(`/api/providers/agents/${encodeURIComponent(agentId)}/config-files`, {
     method: 'PUT',
     body: JSON.stringify({ filePath, content }),
-  });
-}
-
-// --- Codex model-catalog exclusion ---
-
-export async function getCatalogVisible(): Promise<{ visible: Record<string, string[]> }> {
-  return api('/api/providers/catalog/visible');
-}
-
-// Set the model ids shown on a provider's card (inclusion model: the list of
-// models the user ADDED; absent/empty = empty card).
-export async function setCatalogVisible(providerId: string, visible: string[]): Promise<{ success: boolean; providerId: string; visible: string[] }> {
-  return api(`/api/providers/catalog/visible/${encodeURIComponent(providerId)}`, {
-    method: 'PUT',
-    body: JSON.stringify({ visible }),
-  });
-}
-
-export async function setCatalogExcluded(providerId: string, excluded: string[]): Promise<{ success: boolean; providerId: string; excluded: string[] }> {
-  return api(`/api/providers/catalog/excluded/${encodeURIComponent(providerId)}`, {
-    method: 'PUT',
-    body: JSON.stringify({ excluded }),
   });
 }
 
@@ -297,16 +275,6 @@ export async function fetchModels(providerId?: string, config?: { endpoints?: Pr
   return api('/api/providers/fetch-models', {
     method: 'POST',
     body: JSON.stringify({ providerId, ...config }),
-  });
-}
-
-// Append specific models of an already-added site into an additive agent's
-// own config (used by the home "add models" picker). No-op for non-additive
-// agents — they write the single model on switch instead.
-export async function applyAgentModels(agentId: string, providerId: string, modelIds: string[]): Promise<{ success: boolean; skipped?: string[] }> {
-  return api(`/api/providers/agents/${encodeURIComponent(agentId)}/models`, {
-    method: 'POST',
-    body: JSON.stringify({ providerId, modelIds }),
   });
 }
 

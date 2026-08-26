@@ -1197,6 +1197,17 @@
 }
 .home-add-picker-search input::placeholder { color: var(--ink-muted); }
 .home-add-picker-search input:focus { border-color: var(--ink); }
+.home-picker-save-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 16px; border-top: 1.5px solid var(--border, #d4cebe);
+  color: var(--ink-muted); font-size: 12px;
+}
+.home-picker-save-btn {
+  display: inline-flex; align-items: center; gap: 7px; padding: 8px 12px;
+  border: 1.5px solid var(--ink); border-radius: 6px; background: var(--ink);
+  color: var(--paper); font: inherit; font-weight: 700; cursor: pointer;
+}
+.home-picker-save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 /* Rotating spinner for the in-picker refresh button */
 .spin { animation: okit-spin 0.9s linear infinite; }
 @keyframes okit-spin { to { transform: rotate(360deg); } }

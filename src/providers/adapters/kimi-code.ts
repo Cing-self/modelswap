@@ -37,8 +37,10 @@ export class KimiCodeAdapter extends BaseAdapter {
 
   async getCurrentConfig(): Promise<AgentSelection | null> {
     const config = await loadUserConfig();
-    const sel = (config as any).providers?.["kimi-code"];
-    if (sel?.providerId && sel?.modelId) return sel;
+    const state = config.agentProviders?.["kimi-code"];
+    if (state?.activeProviderId && state?.activeModelId) {
+      return { providerId: state.activeProviderId, modelId: state.activeModelId };
+    }
     return null;
   }
 
@@ -93,8 +95,14 @@ export class KimiCodeAdapter extends BaseAdapter {
     await this.healModelFields();
 
     await updateUserConfig({
-      providers: { "kimi-code": { providerId: provider.id, modelId } },
-    } as any);
+      agentProviders: {
+        "kimi-code": {
+          activeProviderId: provider.id,
+          activeModelId: modelId,
+          sites: { [provider.id]: { modelIds: [...new Set([...(provider.models || []).map(item => item.id), modelId])] } },
+        },
+      },
+    });
   }
 
   // Kimi Code re-serializes config.toml when it saves (thinking toggle,

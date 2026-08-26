@@ -99,8 +99,10 @@ export class GrokAdapter extends BaseAdapter {
 
   async getCurrentConfig(): Promise<AgentSelection | null> {
     const config = await loadUserConfig();
-    const sel = (config as any).providers?.grok;
-    if (sel?.providerId && sel?.modelId) return sel;
+    const state = config.agentProviders?.grok;
+    if (state?.activeProviderId && state?.activeModelId) {
+      return { providerId: state.activeProviderId, modelId: state.activeModelId };
+    }
     return null;
   }
 
@@ -127,8 +129,14 @@ export class GrokAdapter extends BaseAdapter {
 
     await atomicWrite(GROK_CONFIG_PATH, normalizeToml(toml));
     await updateUserConfig({
-      providers: { grok: { providerId: provider.id, modelId } },
-    } as any);
+      agentProviders: {
+        grok: {
+          activeProviderId: provider.id,
+          activeModelId: modelId,
+          sites: { [provider.id]: { modelIds: [...new Set([...(provider.models || []).map(item => item.id), modelId])] } },
+        },
+      },
+    });
   }
 
   // Additive (multi-site): write one site's model tables without touching

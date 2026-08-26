@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const { backupImportantData } = require('./backup');
 const { appendLog } = require('./log-writer');
 const { publishDataChanged } = require('./ui-events');
+const { migrateAgentProviders } = require('./agent-providers');
 
 const CONFIG_PATH = path.join(os.homedir(), '.okit', 'user.json');
 const PROVIDERS_PATH = path.join(os.homedir(), '.okit', 'providers.json');
@@ -38,28 +39,33 @@ function loadAdapter(name) {
 async function loadConfig() {
   try {
     if (!(await fs.pathExists(CONFIG_PATH))) return {};
-    return await fs.readJson(CONFIG_PATH);
+    const config = await fs.readJson(CONFIG_PATH);
+    if (migrateAgentProviders(config)) {
+      await backupImportantData('user');
+      await fs.writeJson(CONFIG_PATH, config, { spaces: 2 });
+    }
+    return config;
   } catch { return {}; }
 }
 
 async function saveConfig(config) {
   await fs.ensureDir(path.dirname(CONFIG_PATH));
   await backupImportantData('sync');
-  // Partition merge: the sync module owns ONLY the `sync` key of user.json.
+  // Partition merge: the sync module owns `sync` plus the Agent selection
+  // data it just pulled. Never blind-write an old in-memory snapshot over a
+  // simultaneous dashboard site/model save.
   // Re-read the live file and write it back with just this partition
   // replaced. Never blind-write the whole in-memory snapshot — it races with
-  // concurrent API writes (homeProviders / managedModels / model visibility)
+  // concurrent API writes (agentProviders / model selections)
   // and silently reverts them (observed 2026-08-22: a site added via the API
   // was rolled back 12s later by the sync scheduler).
   let live = {};
   try {
     live = JSON.parse(await fs.readFile(CONFIG_PATH, 'utf-8'));
   } catch { /* first run / unreadable — start from the snapshot */ }
+  migrateAgentProviders(live);
   const next = { ...live, sync: config.sync };
-  // syncPull also owns the legacy `agent` settings key (remote merge with a
-  // local-edit baseline guard). Spread conditionally: an absent key must not
-  // erase a live value.
-  if ('agent' in config) next.agent = config.agent;
+  if ('agentProviders' in config) next.agentProviders = config.agentProviders;
   await fs.writeJson(CONFIG_PATH, next, { spaces: 2 });
 }
 
@@ -295,7 +301,7 @@ async function syncPush() {
 
   const syncData = {
     secrets,
-    settings: { agent: config.agent || {}, providers: await loadProvidersConfig() },
+    settings: { agentProviders: config.agentProviders || {}, providers: await loadProvidersConfig() },
     updatedAt: new Date().toISOString(),
     machineId: config.sync.machineId,
   };
@@ -327,7 +333,7 @@ async function syncPush() {
   // Baselines: everything pushed at syncData.updatedAt. Newer local edits (or a
   // newer remote blob) are what the pull guards compare against.
   config.sync.lastRemote = { updatedAt: syncData.updatedAt, machineId: config.sync.machineId };
-  config.sync.localChangedAt = { secrets: syncData.updatedAt, agent: syncData.updatedAt, providers: syncData.updatedAt };
+  config.sync.localChangedAt = { secrets: syncData.updatedAt, agentProviders: syncData.updatedAt, providers: syncData.updatedAt };
   config.sync.lastSyncAt = new Date().toISOString();
   config.sync.lastSyncPlatform = pushed.join(',');
   await saveConfig(config);
@@ -380,16 +386,16 @@ async function syncPull() {
     }
   }
 
-  // Config guards: apply remote agent/providers only when the remote blob is newer
+  // Config guards: apply remote agentProviders/providers only when the remote blob is newer
   // than the last local edit of that section, so an auto-pull loop never clobbers
   // newer local config with stale remote config. Missing localChangedAt (legacy
   // installs) keeps the old unconditional-apply behavior.
   const remoteUpdated = remoteData.updatedAt || '';
   const localChangedAt = config.sync.localChangedAt || {};
-  let agentApplied = false;
-  if (remoteData.settings?.agent && remoteUpdated > (localChangedAt.agent || '')) {
-    config.agent = { ...(config.agent || {}), ...remoteData.settings.agent };
-    agentApplied = true;
+  let agentProvidersApplied = false;
+  if (remoteData.settings?.agentProviders && remoteUpdated > (localChangedAt.agentProviders || '')) {
+    config.agentProviders = remoteData.settings.agentProviders;
+    agentProvidersApplied = true;
   }
   let providersApplied = false;
   let providers = 0;
@@ -406,12 +412,12 @@ async function syncPull() {
 
   const changedSections = [];
   if (added > 0 || updated > 0) changedSections.push('secrets');
-  if (agentApplied) changedSections.push('agents');
+  if (agentProvidersApplied) changedSections.push('agents');
   if (providersApplied) changedSections.push('providers');
   if (changedSections.length > 0) publishDataChanged(changedSections);
 
-  appendLog('sync-pull', remoteFrom, true, `+${added} ~${updated} providers:${providers}${agentApplied ? '' : ' agent:kept-local'}${providersApplied ? '' : ' providers:kept-local'}`);
-  return { added, updated, providers, total: (remoteData.secrets || []).length, agentApplied, providersApplied };
+  appendLog('sync-pull', remoteFrom, true, `+${added} ~${updated} providers:${providers}${agentProvidersApplied ? '' : ' agents:kept-local'}${providersApplied ? '' : ' providers:kept-local'}`);
+  return { added, updated, providers, total: (remoteData.secrets || []).length, agentProvidersApplied, providersApplied };
 }
 
 async function exportSyncCode(passwordOverride) {

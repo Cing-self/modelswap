@@ -42,8 +42,10 @@ export class OpenCodeAdapter extends BaseAdapter {
 
   async getCurrentConfig(): Promise<AgentSelection | null> {
     const config = await loadUserConfig();
-    const sel = (config as any).providers?.opencode;
-    if (sel?.providerId && sel?.modelId) return sel;
+    const state = config.agentProviders?.opencode;
+    if (state?.activeProviderId && state?.activeModelId) {
+      return { providerId: state.activeProviderId, modelId: state.activeModelId };
+    }
     return null;
   }
 
@@ -108,8 +110,14 @@ export class OpenCodeAdapter extends BaseAdapter {
 
     await this.saveConfig(data);
     await updateUserConfig({
-      providers: { opencode: { providerId: provider.id, modelId } },
-    } as any);
+      agentProviders: {
+        opencode: {
+          activeProviderId: provider.id,
+          activeModelId: modelId,
+          sites: { [provider.id]: { modelIds: [...new Set([...(provider.models || []).map(item => item.id), modelId])] } },
+        },
+      },
+    });
   }
 
   // Additive (multi-site): write one site's provider entry without touching

@@ -251,15 +251,50 @@ export class ZCodeAdapter extends BaseAdapter {
 
   async getCurrentConfig(): Promise<AgentSelection | null> {
     const config = await loadUserConfig();
-    const sel = (config as any).providers?.zcode;
-    if (sel?.providerId && sel?.modelId) return sel;
+    const state = config.agentProviders?.zcode;
+    if (state?.activeProviderId && state?.activeModelId) {
+      return { providerId: state.activeProviderId, modelId: state.activeModelId };
+    }
+    const legacy = (config as any).providers?.zcode;
+    if (legacy?.providerId && legacy?.modelId) return legacy;
     return null;
   }
 
   private async readManaged(): Promise<ManagedModels> {
     const config = await loadUserConfig();
-    const managed = (config as any).providers?.zcode?.managedModels;
-    return managed && typeof managed === "object" ? managed : {};
+    const sites = config.agentProviders?.zcode?.sites || {};
+    if (Object.keys(sites).length > 0) {
+      return Object.fromEntries(Object.entries(sites).map(([providerId, site]) => [providerId, [...(site.modelIds || [])]]));
+    }
+    const legacy = (config as any).providers?.zcode?.managedModels;
+    return legacy && typeof legacy === "object" ? legacy : {};
+  }
+
+  private async persistState(managed: ManagedModels, active?: AgentSelection | null, enabled?: Record<string, boolean>): Promise<void> {
+    const config = await loadUserConfig();
+    const previous = config.agentProviders?.zcode || { sites: {} };
+    const sites: Record<string, any> = { ...previous.sites };
+    for (const providerId of Object.keys(sites)) {
+      if (!(providerId in managed)) sites[providerId] = null;
+    }
+    for (const [providerId, modelIds] of Object.entries(managed)) {
+      sites[providerId] = {
+        ...sites[providerId],
+        modelIds: [...new Set(modelIds)],
+        ...(enabled?.[providerId] === undefined ? {} : { enabled: enabled[providerId] }),
+      };
+    }
+    const next = {
+      ...previous,
+      ...(active?.providerId ? { activeProviderId: active.providerId } : {}),
+      ...(active?.modelId ? { activeModelId: active.modelId } : {}),
+      sites,
+    };
+    if (active === null) {
+      next.activeProviderId = undefined;
+      next.activeModelId = undefined;
+    }
+    await updateUserConfig({ agentProviders: { zcode: next } } as any);
   }
 
   async applyConfig(provider: Provider, modelId: string): Promise<void> {
@@ -288,9 +323,7 @@ export class ZCodeAdapter extends BaseAdapter {
 
     await writeV2Config(data);
     await syncMediaOverrides(provider.id, provider);
-    await updateUserConfig({
-      providers: { zcode: { providerId: provider.id, modelId, managedModels: managed } },
-    } as any);
+    await this.persistState(managed, { providerId: provider.id, modelId });
   }
 
   async applyModels(entries: Array<{ provider: Provider; modelId: string }>): Promise<{ written: string[]; skipped: string[] }> {
@@ -343,15 +376,7 @@ export class ZCodeAdapter extends BaseAdapter {
           await syncMediaOverrides(providerId, group.provider);
         }
       }
-      // Persist tracking without moving the "current" selection — enabling a
-      // site only makes its models available; switching happens in ZCode.
-      const config = await loadUserConfig();
-      const sel = (config as any).providers?.zcode || {};
-      await updateUserConfig({
-        providers: {
-          zcode: { providerId: sel.providerId, modelId: sel.modelId, managedModels: managed },
-        },
-      } as any);
+      await this.persistState(managed, await this.getCurrentConfig());
     }
     return { written, skipped };
   }
@@ -370,11 +395,7 @@ export class ZCodeAdapter extends BaseAdapter {
   // user is using right now" — ZCode has no global current-model field.
   async getActiveModel(): Promise<{ providerId: string; modelId: string } | null> {
     const fallback = async (): Promise<{ providerId: string; modelId: string } | null> => {
-      const config = await loadUserConfig();
-      const sel = (config as any).providers?.zcode;
-      return sel?.providerId && sel?.modelId
-        ? { providerId: sel.providerId, modelId: sel.modelId }
-        : null;
+      return this.getCurrentConfig();
     };
 
     const dbPath = path.join(os.homedir(), ".zcode", "v2", "tasks-index.sqlite");
@@ -411,12 +432,11 @@ export class ZCodeAdapter extends BaseAdapter {
   }
 
   async setProviderEnabled(providerId: string, enabled: boolean): Promise<void> {
-    const config = await loadUserConfig();
-    const sel = (config as any).providers?.zcode || {};
+    const sel = await this.getCurrentConfig();
     const managed = await this.readManaged();
     // Nothing OKIT wrote for this provider and it isn't the current selection
     // — nothing to flip.
-    if (!(providerId in managed) && sel.providerId !== providerId) return;
+    if (!(providerId in managed) && sel?.providerId !== providerId) return;
 
     const data = await readV2Config();
     const entry = data.provider?.[providerId];
@@ -431,21 +451,12 @@ export class ZCodeAdapter extends BaseAdapter {
     // A disabled provider can't stay current — clear the selection so the
     // home page shows the switch off. managedModels is kept so re-enabling
     // (switchProvider) continues to own the entry.
-    const wasCurrent = sel.providerId === providerId;
-    await updateUserConfig({
-      providers: {
-        zcode: {
-          providerId: wasCurrent ? undefined : sel.providerId,
-          modelId: wasCurrent ? undefined : sel.modelId,
-          managedModels: managed,
-        },
-      },
-    } as any);
+    const wasCurrent = sel?.providerId === providerId;
+    await this.persistState(managed, wasCurrent ? null : sel, { [providerId]: enabled });
   }
 
   async removeProvider(providerId: string): Promise<void> {
-    const config = await loadUserConfig();
-    const sel = (config as any).providers?.zcode || {};
+    const sel = await this.getCurrentConfig();
     const managed = await this.readManaged();
     const data = await readV2Config();
     const hasEntry = typeof data.provider === "object" && data.provider !== null && providerId in data.provider;
@@ -453,7 +464,7 @@ export class ZCodeAdapter extends BaseAdapter {
     // entry under a non-builtin id. managedModels can lose records to sync
     // overwrites of user.json — the config entry itself (under an OKIT
     // provider id, never a ZCode builtin:*) is evidence OKIT wrote it.
-    if (!(providerId in managed) && sel.providerId !== providerId && (providerId.startsWith("builtin:") || !hasEntry)) return;
+    if (!(providerId in managed) && sel?.providerId !== providerId && (providerId.startsWith("builtin:") || !hasEntry)) return;
 
     if (hasEntry) {
       delete data.provider[providerId];
@@ -462,15 +473,7 @@ export class ZCodeAdapter extends BaseAdapter {
     await clearMediaOverrides(providerId);
 
     delete managed[providerId];
-    const wasCurrent = sel.providerId === providerId;
-    await updateUserConfig({
-      providers: {
-        zcode: {
-          providerId: wasCurrent ? undefined : sel.providerId,
-          modelId: wasCurrent ? undefined : sel.modelId,
-          managedModels: managed,
-        },
-      },
-    } as any);
+    const wasCurrent = sel?.providerId === providerId;
+    await this.persistState(managed, wasCurrent ? null : sel);
   }
 }

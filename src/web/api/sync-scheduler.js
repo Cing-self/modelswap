@@ -8,7 +8,7 @@ const PULL_INTERVAL_MS = 5 * 60 * 1000;
 const STARTUP_DELAY_MS = 15 * 1000;
 const MAX_PUSH_RETRIES = 3;
 const RETRY_BACKOFF_MS = [10 * 1000, 30 * 1000, 60 * 1000];
-const SECTIONS = ['secrets', 'agent', 'providers'];
+const SECTIONS = ['secrets', 'agentProviders', 'providers'];
 
 let started = false;
 let busy = false;

@@ -4,6 +4,7 @@ const os = require('os');
 const { backupImportantData } = require('./backup');
 const { appendLog } = require('./log-writer');
 const { publishDataChanged } = require('./ui-events');
+const { getAgentState, migrateAgentProviders, removeSite, replaceAgentState, setSite } = require('./agent-providers');
 const {
   QIANFAN_CODING_PROBE_MODEL,
   isQianfanCodingEndpoint,
@@ -161,10 +162,7 @@ async function loadUserConfig() {
     if (!(await fs.pathExists(USER_CONFIG_PATH))) return {};
     const content = await fs.readFile(USER_CONFIG_PATH, 'utf-8');
     const config = JSON.parse(content);
-    // This was only an unused history list. Remove it on the next normal
-    // dashboard read so existing installations do not retain dead data.
-    if (Object.prototype.hasOwnProperty.call(config, 'recentModels')) {
-      delete config.recentModels;
+    if (migrateAgentProviders(config)) {
       await saveUserConfig(config);
     }
     return config;
@@ -175,6 +173,8 @@ async function saveUserConfig(config) {
   await fs.ensureDir(OKIT_DIR);
   await backupImportantData('user');
   await fs.writeFile(USER_CONFIG_PATH, JSON.stringify(config, null, 2));
+  publishDataChanged(['agents']);
+  require('./sync-scheduler').markDirty('agentProviders');
 }
 
 let _agentsMeta;
@@ -200,7 +200,6 @@ async function listProviders(req, res) {
   try {
     const providers = await loadProviders();
     const config = await loadUserConfig();
-    const providersConfig = config.providers || {};
 
     // Attach current selection info
     const result = providers.map(p => {
@@ -208,8 +207,11 @@ async function listProviders(req, res) {
         ...p,
         models: sortModels(p.models || []),
         usedBy: ADAPTERS
-          .filter(a => adapterSupportsProvider(a, p) && providersConfig[a.id]?.providerId === p.id)
-          .map(a => ({ id: a.id, name: a.name, modelId: providersConfig[a.id]?.modelId })),
+          .filter(a => adapterSupportsProvider(a, p) && getAgentState(config, a.id).activeProviderId === p.id)
+          .map(a => {
+            const state = getAgentState(config, a.id);
+            return { id: a.id, name: a.name, modelId: state.activeModelId };
+          }),
       };
     });
 
@@ -224,14 +226,13 @@ async function getAdaptersList(req, res) {
   try {
     const providers = await loadProviders();
     const config = await loadUserConfig();
-    const providersConfig = config.providers || {};
 
     const result = await Promise.all(ADAPTERS.map(async adapter => {
-      const sel = providersConfig[adapter.id];
+      const state = getAgentState(config, adapter.id);
       // All type-compatible providers that are configured (have a key / verified /
-      // oauth-eligible). These are candidates for the "add to home" picker.
+      // oauth-eligible). These are candidates for the site/model picker.
       const isProviderReady = (p) => {
-        if (sel?.providerId === p.id) return true;
+        if (state.sites[p.id] || state.activeProviderId === p.id) return true;
         if (p.authMode === 'none') return true;
         if (p.authVerified) return true;
         if (p.vaultKey) return true;
@@ -240,33 +241,17 @@ async function getAdaptersList(req, res) {
       };
       const allCompatible = providers.filter(p => adapterSupportsProvider(adapter, p) && isProviderReady(p));
 
-      // The home list is user-curated: only provider ids the user explicitly
-      // added via addHomeProvider. Empty/absent = render nothing (the user adds
-      // their own from the "+ 添加" button).
-      const homeIds = Array.isArray(config.homeProviders?.[adapter.id]) ? config.homeProviders[adapter.id] : [];
-      const homeSet = new Set(homeIds);
-      const homeProviders = allCompatible.filter(p => homeSet.has(p.id));
-
-      // Additive agents keep MANY sites enabled at once — ask the adapter which
-      // provider ids are actually present/enabled in its config so each card's
-      // toggle reflects the real state instead of the single "current" pick.
-      let enabledSet = new Set();
+      // A multi-site Agent may be able to report which site it is using at
+      // this moment. This is display-only; the saved site/model list remains
+      // the user-facing source of truth and is never reconstructed from agent
+      // files (which can contain manual entries).
       let activeModel = null;
       if (ADDITIVE_AGENTS.has(adapter.id)) {
         const instance = _getAdapter(adapter.id);
-        if (instance && typeof instance.listEnabledProviders === 'function') {
-          try {
-            enabledSet = new Set(await instance.listEnabledProviders());
-          } catch (err) {
-            console.warn(`[getAdaptersList] listEnabledProviders(${adapter.id}) failed: ${err.message}`);
-          }
-        }
-        // Prefer the model the agent is ACTUALLY using (ZCode records it per
-        // task in its sqlite index) over OKIT's last-written selection.
         if (instance && typeof instance.getActiveModel === 'function') {
           try {
             const active = await instance.getActiveModel();
-            if (active?.providerId && active?.modelId) {
+            if (active?.providerId && active?.modelId && state.sites[active.providerId]) {
               activeModel = active;
             }
           } catch (err) {
@@ -274,10 +259,11 @@ async function getAdaptersList(req, res) {
           }
         }
       }
-      const currentSel = activeModel || (sel?.providerId && sel?.modelId
-        ? { providerId: sel.providerId, modelId: sel.modelId }
+      const currentSel = activeModel || (state.activeProviderId && state.activeModelId
+        ? { providerId: state.activeProviderId, modelId: state.activeModelId }
         : null);
       const currentProvider = currentSel?.providerId ? providers.find(p => p.id === currentSel.providerId) : null;
+      const selectedProviders = allCompatible.filter(p => state.sites[p.id]);
 
       return {
         ...adapter,
@@ -288,42 +274,30 @@ async function getAdaptersList(req, res) {
         current: currentSel
           ? { providerId: currentSel.providerId, providerName: currentProvider?.name || currentSel.providerId, modelId: currentSel.modelId }
           : null,
-        // Providers shown on the home page (user-curated subset), sorted.
-        compatibleProviders: sortProviders(homeProviders).map(p => ({
+        // The home page renders exactly the saved site/model selection. The
+        // full provider catalog is deliberately sent separately for the picker.
+        compatibleProviders: sortProviders(selectedProviders).map(p => {
+          const site = state.sites[p.id];
+          const selectedIds = new Set(site.modelIds || []);
+          const selectedModels = tagRecentModels(sortModels((p.models || []).filter(m => selectedIds.has(m.id))));
+          return {
           id: p.id, name: p.name, type: p.type, baseUrl: p.baseUrl,
-          models: tagRecentModels(sortModels(p.models || [])),
-          // Additive: real per-site enabled state (many can be on at once).
-          // Exclusive agents: mirrors the single current selection.
-          enabled: ADDITIVE_AGENTS.has(adapter.id)
-            ? enabledSet.has(p.id) || sel?.providerId === p.id
-            : sel?.providerId === p.id,
-        })),
-        // All configured-and-compatible providers, for the "+ 添加" picker.
-        // Excludes the official subscription presets (anthropic-agent /
-        // openai-codex) — those are the built-in fallback for
-        // single-type agents and don't need to be added manually. Sorted.
+          models: selectedModels,
+          allModels: tagRecentModels(sortModels(p.models || [])),
+          enabled: site.enabled !== false,
+        };
+        }),
+        // The picker gets the complete model directory, but only a site/model
+        // save changes the state above. Official subscriptions are fallbacks,
+        // not additional sites, so leave them out of the add-site list.
         availableProviders: sortProviders(allCompatible
           .filter(p => !['anthropic-agent', 'openai-codex'].includes(p.id))
         ).map(p => ({
-            id: p.id, name: p.name, type: p.type,
-            added: homeSet.has(p.id),
+            id: p.id, name: p.name, type: p.type, baseUrl: p.baseUrl,
+            models: tagRecentModels(sortModels(p.models || [])),
+            added: Boolean(state.sites[p.id]),
           })),
-        // Reconciliation: entries living in the agent's own config file but
-        // NOT on the home list — written by old OKIT versions before the
-        // home-list curation existed, orphaned when ownership tracking was
-        // lost, or created by the user outside OKIT. Entries under a known
-        // OKIT provider id can be adopted into the home list or removed;
-        // unknown ids are the user's own and surface read-only (never
-        // touched).
-        externalSites: ADDITIVE_AGENTS.has(adapter.id)
-          ? [...enabledSet]
-              .filter(id => !homeSet.has(id) && !id.startsWith('builtin:'))
-              .map(id => {
-                const known = providers.find(p => p.id === id);
-                return { id, name: (known && known.name) || id, known: !!known };
-              })
-              .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'))
-          : [],
+        externalSites: [],
       };
     }));
 
@@ -504,15 +478,13 @@ async function deleteProviderRoute(req, res) {
     providers.splice(idx, 1);
     await saveProviders(providers);
 
-    // Deleting a provider globally must not orphan additive agents: remove the
-    // entries OKIT wrote for it in each affected agent's own config (snapshotted
-    // first) and drop it from the per-agent home lists.
+    // Deleting a global connection must also remove every Agent site that used
+    // it. The exact site list lives in agentProviders, not in a separate UI
+    // home list.
     const config = await loadUserConfig();
-    const home = { ...(config.homeProviders || {}) };
-    let homeChanged = false;
-    for (const agentId of Object.keys(home)) {
-      const list = Array.isArray(home[agentId]) ? home[agentId] : [];
-      if (!list.includes(id)) continue;
+    let agentProvidersChanged = false;
+    for (const [agentId, state] of Object.entries(config.agentProviders || {})) {
+      if (!state?.sites?.[id]) continue;
       if (ADDITIVE_AGENTS.has(agentId)) {
         try {
           const agentAdapter = _getAdapter(agentId);
@@ -524,13 +496,10 @@ async function deleteProviderRoute(req, res) {
           console.warn(`[deleteProvider] removeProvider(${agentId}) failed: ${e.message}`);
         }
       }
-      const next = list.filter(p => p !== id);
-      if (next.length === 0) delete home[agentId];
-      else home[agentId] = next;
-      homeChanged = true;
+      removeSite(config, agentId, id);
+      agentProvidersChanged = true;
     }
-    if (homeChanged) {
-      config.homeProviders = home;
+    if (agentProvidersChanged) {
       await saveUserConfig(config);
     }
 
@@ -590,24 +559,26 @@ async function switchProvider(req, res) {
     // participate in the same recovery path.
     const configBeforeSwitch = await loadUserConfig();
     try {
-      // Filtered provider: the card's visible model set + the model being
-      // switched to. Adapters write provider.models into agent configs and
-      // must not receive the platform's full catalog.
+      // Adapters receive only the models the user selected for this Agent
+      // site. A switch may never turn a whole provider catalog back on.
       const visibilityConfig = await loadUserConfig();
-      const agentProvider = providerForAgentWrite(visibilityConfig, provider, [modelId]);
+      const state = getAgentState(visibilityConfig, agentId);
+      const selectedIds = [...new Set([...(state.sites[providerId]?.modelIds || []), modelId])];
+      const agentProvider = providerForAgentWrite(provider, selectedIds);
       await agentAdapter.applyConfig(agentProvider, route.remoteModelId);
 
-      // Save selection. Merge — adapters for additive agents (workbuddy) store
-      // their managedModels tracking under the same key, and a plain replace
-      // here would wipe it right after applyConfig wrote it.
+      // Persist the active selection in the same Agent/site record that drives
+      // the home page. Legacy adapter writes are migrated by loadUserConfig().
       const config = await loadUserConfig();
-      if (!config.providers) config.providers = {};
-      config.providers[agentId] = { ...config.providers[agentId], providerId, modelId };
-
-      // For Claude, also update legacy path
-      if (agentId === 'claude') {
-        config.claude = { ...config.claude, name: provider.name, model: modelId };
-      }
+      const next = getAgentState(config, agentId);
+      setSite(config, agentId, providerId, {
+        modelIds: selectedIds,
+        enabled: next.sites[providerId]?.enabled !== false,
+        tierMap: next.sites[providerId]?.tierMap,
+      });
+      next.activeProviderId = providerId;
+      next.activeModelId = modelId;
+      replaceAgentState(config, agentId, next);
 
       await saveUserConfig(config);
     } catch (applyErr) {
@@ -649,345 +620,217 @@ async function switchProvider(req, res) {
   }
 }
 
-// --- Home-page provider list (curated per agent) ---------------------------
+// --- Agent site + model selection -----------------------------------------
 //
-// The home page only shows providers the user explicitly added — not every
-// configured provider. This keeps the daily-driver surface small. Adding a
-// provider to the home list does NOT switch to it; it just surfaces it for
-// quick switching. Removing hides it from the home list without deleting it.
+// `agentProviders` is intentionally the only user-facing state here.  A
+// provider in providers.json is merely a connection/model directory; it does
+// not mean that any Agent is using it.  Saving this endpoint therefore writes
+// the Agent's native config *and* atomically replaces the selected model list
+// for that one site.  The home page then renders the same list verbatim.
 
-// ─── Model visibility: inclusion model ─────────────────────────────────────
-//
-// One list per provider — codexCatalogVisible — holding the model ids the
-// user ADDED to the card. Default (absent) = empty card; the user curates by
-// adding, never by hiding. Replaced the old exclusion model (hide list +
-// stealth-restore list + recent auto-hide gating): with an empty-by-default
-// card those mechanisms are redundant — the picker simply lists everything
-// not added yet, with the recent flag as a display-ordering hint only.
+function providerForAgentWrite(provider, modelIds) {
+  const ids = new Set(modelIds || []);
+  return { ...provider, models: (provider.models || []).filter(model => ids.has(model.id)) };
+}
 
-// Legacy → inclusion migration. visible = (recent && not hidden) ∪ restored.
-// Providers without any legacy state keep their "all recent visible" cards.
-// Runs once; drops the legacy fields afterwards.
-async function migrateVisibility(config) {
-  if (config.codexCatalogVisibleMigrated) return config;
+function fallbackForAgent(agentId) {
+  return {
+    claude: { providerId: 'anthropic-agent', modelId: 'claude-sonnet-4-6' },
+    codex: { providerId: 'openai-codex', modelId: 'gpt-5.6-sol' },
+  }[agentId] || null;
+}
+
+async function configureAgentProvider(req, res) {
+  const { agentId } = req.params;
+  const { modelIds, primaryModelId } = req.body || {};
+  const providerId = req.params.providerId || req.body?.providerId;
+  if (!agentId || !providerId || !Array.isArray(modelIds)) {
+    return res.status(400).json({ error: 'Missing agentId, providerId or modelIds' });
+  }
+
+  const adapterMeta = ADAPTERS.find(adapter => adapter.id === agentId);
+  if (!adapterMeta) return res.status(404).json({ error: `Agent not found: ${agentId}` });
   const providers = await loadProviders();
-  const visible = {};
-  for (const p of providers) {
-    const excluded = new Set((config.codexCatalogExcluded || {})[p.id] || []);
-    const extra = new Set((config.codexCatalogExtra || {})[p.id] || []);
-    visible[p.id] = tagRecentModels(p.models || [])
-      .filter(m => extra.has(m.id) || (!excluded.has(m.id) && m.recent))
-      .map(m => m.id);
+  const provider = providers.find(item => item.id === providerId);
+  if (!provider) return res.status(404).json({ error: `Provider 不存在: ${providerId}` });
+  if (!adapterSupportsProvider(adapterMeta, provider)) {
+    return res.status(400).json({ error: `${adapterMeta.name} 不支持 ${provider.type} 协议的站点` });
   }
-  config.codexCatalogVisible = visible;
-  config.codexCatalogVisibleMigrated = true;
-  delete config.codexCatalogExcluded;
-  delete config.codexCatalogExtra;
-  return config;
-}
 
-// The visible ids for one provider; falls back to legacy computation if the
-// migration hasn't run yet (write paths must stay correct even pre-migration).
-function visibleIdsFor(config, provider) {
-  if (config.codexCatalogVisibleMigrated) {
-    return (config.codexCatalogVisible || {})[provider.id] || [];
+  const selectedIds = [...new Set(modelIds.filter(id => typeof id === 'string'))]
+    .filter(id => (provider.models || []).some(model => model.id === id));
+  if (selectedIds.length === 0) {
+    return res.status(400).json({ error: '请至少选择一个模型再保存' });
   }
-  const excluded = new Set((config.codexCatalogExcluded || {})[provider.id] || []);
-  const extra = new Set((config.codexCatalogExtra || {})[provider.id] || []);
-  return tagRecentModels(provider.models || [])
-    .filter(m => extra.has(m.id) || (!excluded.has(m.id) && m.recent))
-    .map(m => m.id);
-}
+  const primaryId = selectedIds.includes(primaryModelId) ? primaryModelId : selectedIds[0];
 
-// The provider object handed to agent adapters carries ONLY the card's
-// visible (user-added) model set — adapters write provider.models into the
-// agent's own config, so passing the full catalog would flood the agent's
-// model picker. The batch being written and any model an agent currently has
-// selected on this provider are always included (an in-use model must never
-// be dropped from the agent's config just because it's off the card).
-function providerForAgentWrite(config, provider, extraIds) {
-  const visible = new Set([...visibleIdsFor(config, provider), ...(extraIds || [])]);
-  const active = new Set(
-    Object.values(config.providers || {})
-      .filter(sel => sel && sel.providerId === provider.id && sel.modelId)
-      .map(sel => sel.modelId),
-  );
-  const models = (provider.models || []).filter(m => visible.has(m.id) || active.has(m.id));
-  return { ...provider, models };
-}
-
-async function addHomeProvider(req, res) {
   try {
-    const { agentId } = req.params;
-    const { providerId } = req.body;
-    if (!agentId || !providerId) {
-      return res.status(400).json({ error: 'Missing agentId or providerId' });
-    }
-    const config = await loadUserConfig();
-    const home = { ...(config.homeProviders || {}) };
-    const list = Array.isArray(home[agentId]) ? [...home[agentId]] : [];
-    if (!list.includes(providerId)) list.push(providerId);
-    home[agentId] = list;
-    config.homeProviders = home;
-
-    const providers = await loadProviders();
-    const provider = providers.find(p => p.id === providerId);
-
-    // Adding a site starts EMPTY: no visible-models entry is created, and any
-    // earlier entry for this provider is dropped — re-adding = fresh start.
-    await migrateVisibility(config);
-    if (config.codexCatalogVisible && providerId in config.codexCatalogVisible) {
-      const nextVisible = { ...config.codexCatalogVisible };
-      delete nextVisible[providerId];
-      config.codexCatalogVisible = nextVisible;
+    const routes = [];
+    for (const modelId of selectedIds) {
+      const route = resolveModelRoute(provider, modelId, adapterMeta);
+      const auth = await ensureProviderAuth(provider, providers, route.endpointId);
+      if (!auth.ok) return res.status(401).json({ error: auth.message, code: auth.code });
+      routes.push({ modelId, route });
     }
 
-    // Additive agents (workbuddy/zcode): adding a provider to the home list
-    // also writes its models into the agent's own config so the agent's model
-    // picker offers them. Which models follow the home card's visibility
-    // rules (recent + not manually hidden); ids colliding with entries OKIT
-    // didn't write are skipped by the adapter, never overwritten.
-    //
-    // The agent-config write happens BEFORE the home list is persisted: if the
-    // write fails we must NOT report success — otherwise the UI shows a site
-    // that was never configured in the agent (fake success).
-    let skippedModels;
-    if (ADDITIVE_AGENTS.has(agentId)) {
-      let entries = null;
-      try {
-        const jsAdapter = ADAPTERS.find(a => a.id === agentId);
-        const agentAdapter = _getAdapter(agentId);
-        if (jsAdapter && agentAdapter && typeof agentAdapter.applyModels === 'function' && provider) {
-          const visible = new Set(visibleIdsFor(config, provider));
-          const candidates = (provider.models || []).filter(m => visible.has(m.id));
-          // Fresh add = empty card → nothing to write yet. The user checks
-          // models in the "add models" view, which writes them via
-          // applyAgentModels — no empty provider entry here.
-          if (candidates.length > 0) {
-            // Hand the adapter a provider whose model list is exactly the
-            // visible set — adapters write provider.models into the agent
-            // config and must not see the full catalog.
-            const writeProvider = { ...provider, models: candidates };
-            entries = [];
-            for (const m of candidates) {
-              try {
-                const route = resolveModelRoute(provider, m.id, jsAdapter);
-                entries.push({ provider: writeProvider, modelId: route.remoteModelId });
-              } catch { /* model not routable for this agent — skip */ }
-            }
-            await snapBeforeWrite(agentId, 'addHomeProvider');
-            const result = await agentAdapter.applyModels(entries);
-            skippedModels = result.skipped;
-          }
-        }
-      } catch (e) {
-        appendLog('home-provider-add', `${agentId}:${providerId}`, false, `agent config write failed: ${e.message}`);
-        return res.status(500).json({
-          error: `写入 ${agentId} 配置失败: ${e.message}`,
-          code: 'AGENT_WRITE_FAILED',
-        });
-      }
-    }
-
-    await saveUserConfig(config);
-    appendLog('home-provider-add', `${agentId}:${providerId}`, true,
-      skippedModels ? `skipped ${skippedModels.length} model(s)` : undefined);
-    res.json({ success: true, homeProviders: list, skippedModels });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-}
-
-async function removeHomeProvider(req, res) {
-  try {
-    const { agentId, providerId } = req.params;
-    if (!agentId || !providerId) {
-      return res.status(400).json({ error: 'Missing agentId or providerId' });
-    }
-    const config = await loadUserConfig();
-    const home = { ...(config.homeProviders || {}) };
-    const list = Array.isArray(home[agentId]) ? [...home[agentId]].filter(id => id !== providerId) : [];
-
-    // Additive agents: removing a provider from the home list also removes
-    // the entries OKIT wrote for it in the agent's own config (including
-    // their keys). Entries not written by OKIT are never touched.
-    //
-    // The agent-config removal happens BEFORE the home list is persisted: a
-    // failure must surface as an error, not leave the UI believing the site
-    // was removed while the agent still has it configured (fake success).
-    if (ADDITIVE_AGENTS.has(agentId)) {
-      try {
-        const agentAdapter = _getAdapter(agentId);
-        if (agentAdapter && typeof agentAdapter.removeProvider === 'function') {
-          await snapBeforeWrite(agentId, 'removeHomeProvider');
-          await agentAdapter.removeProvider(providerId);
-        }
-      } catch (e) {
-        appendLog('home-provider-remove', `${agentId}:${providerId}`, false, `agent config write failed: ${e.message}`);
-        return res.status(500).json({
-          error: `从 ${agentId} 配置移除失败: ${e.message}`,
-          code: 'AGENT_WRITE_FAILED',
-        });
-      }
-    }
-
-    if (list.length === 0) {
-      delete home[agentId];
-    } else {
-      home[agentId] = list;
-    }
-    config.homeProviders = home;
-
-    // Deleting a site deletes its state: once the provider is no longer on
-    // ANY agent's home list, drop its visible-models list so a later re-add
-    // is a genuine fresh start. Still listed on another agent → stays (the
-    // list is shared per provider, not per agent).
-    await migrateVisibility(config);
-    const stillListed = Object.values(home).some(l => Array.isArray(l) && l.includes(providerId));
-    if (!stillListed && config.codexCatalogVisible && providerId in config.codexCatalogVisible) {
-      const nextVisible = { ...config.codexCatalogVisible };
-      delete nextVisible[providerId];
-      config.codexCatalogVisible = nextVisible;
-    }
-    await saveUserConfig(config);
-
-    const warnings = [];
-
-    // If the user removed the LAST provider OR the currently-active provider
-    // for a single-type agent (claude / codex), auto-switch back to
-    // the official subscription so the CLI doesn't keep using stale config.
-    // Single-type agents are exclusive — the active provider must always be
-    // one that still exists in the home list. This is a convenience re-target,
-    // not the requested action — failures degrade to a warning, never to a
-    // fake success of the removal itself (which did succeed).
-    const SINGLE_TYPE_AGENTS = {
-      'claude': { providerId: 'anthropic-agent', modelId: 'claude-sonnet-4-6' },
-      'codex': { providerId: 'openai-codex', modelId: 'gpt-5.6-sol' },
-    };
-    const currentSel = config.providers?.[agentId];
-    const removedWasCurrent = currentSel?.providerId === providerId;
-    const shouldFallback = list.length === 0 || removedWasCurrent;
-    if (shouldFallback && SINGLE_TYPE_AGENTS[agentId]) {
-      try {
-        const fallback = SINGLE_TYPE_AGENTS[agentId];
-        const adapter = ADAPTERS.find(a => a.id === agentId);
-        const providers = await loadProviders();
-        const provider = providers.find(p => p.id === fallback.providerId);
-        if (adapter && provider && adapterSupportsProvider(adapter, provider)) {
-          const agentAdapter = _getAdapter(agentId);
-          if (agentAdapter) {
-            try {
-              await capturePreSwitchSnapshot(agentId);
-            } catch (snapErr) {
-              console.warn(`[removeHomeProvider] snapshot failed: ${snapErr.message}`);
-            }
-            await agentAdapter.applyConfig(provider, fallback.modelId);
-            const cfg = await loadUserConfig();
-            if (!cfg.providers) cfg.providers = {};
-            cfg.providers[agentId] = { providerId: fallback.providerId, modelId: fallback.modelId };
-            await saveUserConfig(cfg);
-          }
-        }
-      } catch (e) {
-        warnings.push(`已从列表移除，但回退官方订阅失败: ${e.message}`);
-        appendLog('home-provider-fallback', `${agentId}:${providerId}`, false, e.message);
-      }
-    }
-
-    appendLog('home-provider-remove', `${agentId}:${providerId}`, true,
-      warnings.length ? warnings.join('; ') : undefined);
-    res.json({ success: true, homeProviders: list, warnings });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-}
-
-// Write specific models of a home provider into an additive agent's own
-// config. Called when the user checks models in the "add models" picker —
-// with the empty-by-default add flow this is the moment models actually enter
-// the agent. Append-only by design (adapters don't support per-model removal);
-// unchecking a model later only hides it from the OKIT card.
-async function applyAgentModels(req, res) {
-  try {
-    const { agentId } = req.params;
-    const { providerId, modelIds } = req.body;
-    if (!agentId || !providerId || !Array.isArray(modelIds) || modelIds.length === 0) {
-      return res.status(400).json({ error: 'Missing agentId, providerId or modelIds' });
-    }
-    if (!ADDITIVE_AGENTS.has(agentId)) {
-      // Non-additive agents don't keep per-model entries — switching writes
-      // the single selected model. Nothing to do here.
-      return res.json({ success: true, skipped: [] });
-    }
-    const jsAdapter = ADAPTERS.find(a => a.id === agentId);
-    const agentAdapter = _getAdapter(agentId);
-    if (!jsAdapter || !agentAdapter || typeof agentAdapter.applyModels !== 'function') {
-      return res.status(404).json({ error: `Agent not supported: ${agentId}` });
-    }
-    const providers = await loadProviders();
-    const provider = providers.find(p => p.id === providerId);
-    if (!provider) return res.status(404).json({ error: `Provider 不存在: ${providerId}` });
-
-    const entries = [];
-    const skipped = [];
-    // Filtered provider: visible set + the batch, so adapters write exactly
-    // what the user curated (not the platform's full catalog).
-    const writeConfig = await loadUserConfig();
-    const writeProvider = providerForAgentWrite(writeConfig, provider, modelIds);
-    for (const modelId of modelIds) {
-      try {
-        const route = resolveModelRoute(provider, modelId, jsAdapter);
-        entries.push({ provider: writeProvider, modelId: route.remoteModelId });
-      } catch { skipped.push(modelId); }
-    }
-    if (entries.length === 0) {
-      return res.status(400).json({ error: '没有可写入的模型', skipped });
-    }
-    await snapBeforeWrite(agentId, 'applyAgentModels');
-    const result = await agentAdapter.applyModels(entries);
-    appendLog('agent-models-apply', `${agentId}:${providerId}`, true,
-      result.skipped && result.skipped.length ? `skipped ${result.skipped.length}` : undefined);
-    res.json({ success: true, skipped: [...skipped, ...(result.skipped || [])] });
-  } catch (err) {
-    appendLog('agent-models-apply', `${req.params.agentId}:${(req.body || {}).providerId}`, false, err.message);
-    res.status(500).json({ error: err.message });
-  }
-}
-
-// Additive agents only (workbuddy/zcode): turn a site OFF in the agent's own
-// config. The provider STAYS in the home list — this is the "switch off" for
-// a site. Agents whose config supports an enabled flag (zcode) keep the
-// entries and only flip enabled:false; agents without one (workbuddy) remove
-// the entries entirely. Toggling back on rewrites via switchProvider.
-// Exclusive agents don't support per-site disabling (their config only holds
-// one active provider).
-async function disableAgentProvider(req, res) {
-  try {
-    const { agentId } = req.params;
-    const { providerId } = req.body || {};
-    if (!agentId || !providerId) {
-      return res.status(400).json({ error: 'Missing agentId or providerId' });
-    }
-    if (!ADDITIVE_AGENTS.has(agentId)) {
-      return res.status(400).json({ error: `${agentId} 不支持按站点停用` });
-    }
     const agentAdapter = _getAdapter(agentId);
     if (!agentAdapter) return res.status(404).json({ error: `Adapter not implemented: ${agentId}` });
-    await snapBeforeWrite(agentId, 'disableAgentProvider');
-    if (typeof agentAdapter.setProviderEnabled === 'function') {
-      // Keep the entries, flip the enabled flag (zcode).
+    const before = await loadUserConfig();
+    let snapshotId = null;
+    try { snapshotId = await capturePreSwitchSnapshot(agentId); } catch (error) {
+      console.warn(`[configureAgentProvider] snapshot failed: ${error.message}`);
+    }
+
+    try {
+      const writeProvider = providerForAgentWrite(provider, selectedIds);
+      if (ADDITIVE_AGENTS.has(agentId)) {
+        // The adapters write a complete provider entry. Remove the previous
+        // OKIT-owned entry first so unchecking a model is a real deletion,
+        // not merely a visual hide.
+        const previous = getAgentState(before, agentId).sites[providerId];
+        if (previous && typeof agentAdapter.removeProvider === 'function') {
+          await agentAdapter.removeProvider(providerId);
+        }
+        if (typeof agentAdapter.applyModels !== 'function') {
+          throw new Error(`${adapterMeta.name} 不支持写入多个站点模型`);
+        }
+        const result = await agentAdapter.applyModels(routes.map(({ route }) => ({
+          provider: writeProvider,
+          modelId: route.remoteModelId,
+        })));
+        if (result?.skipped?.length) {
+          throw new Error(`以下模型未写入 ${adapterMeta.name}: ${result.skipped.join('、')}`);
+        }
+      } else {
+        const primaryRoute = routes.find(item => item.modelId === primaryId)?.route;
+        await agentAdapter.applyConfig(writeProvider, primaryRoute.remoteModelId);
+      }
+
+      // Some legacy adapters still update their own old selection field while
+      // writing. Reloading migrates that transient write, then this exact site
+      // replacement becomes authoritative.
+      const config = await loadUserConfig();
+      const state = getAgentState(config, agentId);
+      setSite(config, agentId, providerId, { modelIds: selectedIds, enabled: true, tierMap: state.sites[providerId]?.tierMap });
+      const next = getAgentState(config, agentId);
+      if (!ADDITIVE_AGENTS.has(agentId)) {
+        next.activeProviderId = providerId;
+        next.activeModelId = primaryId;
+        replaceAgentState(config, agentId, next);
+      } else if (!next.activeProviderId || !next.activeModelId) {
+        next.activeProviderId = providerId;
+        next.activeModelId = primaryId;
+        replaceAgentState(config, agentId, next);
+      }
+      await saveUserConfig(config);
+    } catch (error) {
+      if (snapshotId) {
+        try { await restoreSnapshot(agentId, snapshotId); } catch (restoreError) {
+          console.warn(`[configureAgentProvider] restore failed: ${restoreError.message}`);
+        }
+      }
+      await saveUserConfig(before);
+      throw error;
+    }
+
+    appendLog('agent-provider-save', `${agentId}:${providerId}`, true, `models=${selectedIds.length}`);
+    res.json({ success: true, agentId, providerId, modelIds: selectedIds, primaryModelId: primaryId, snapshotAvailable: Boolean(snapshotId) });
+  } catch (error) {
+    appendLog('agent-provider-save', `${agentId}:${providerId}`, false, error.message);
+    res.status(500).json({ error: error.message });
+  }
+}
+
+async function removeAgentProvider(req, res) {
+  const { agentId, providerId } = req.params;
+  if (!agentId || !providerId) return res.status(400).json({ error: 'Missing agentId or providerId' });
+  const adapterMeta = ADAPTERS.find(adapter => adapter.id === agentId);
+  if (!adapterMeta) return res.status(404).json({ error: `Agent not found: ${agentId}` });
+
+  try {
+    const before = await loadUserConfig();
+    const state = getAgentState(before, agentId);
+    if (!state.sites[providerId]) return res.json({ success: true, agentId, providerId });
+    if (!ADDITIVE_AGENTS.has(agentId) && state.activeProviderId === providerId && !fallbackForAgent(agentId)) {
+      return res.status(400).json({ error: '当前站点正在使用，请先切换到其他站点后再移除' });
+    }
+    const agentAdapter = _getAdapter(agentId);
+    let snapshotId = null;
+    try { snapshotId = await capturePreSwitchSnapshot(agentId); } catch {}
+    try {
+      if (ADDITIVE_AGENTS.has(agentId) && agentAdapter?.removeProvider) {
+        await agentAdapter.removeProvider(providerId);
+      }
+
+      const config = await loadUserConfig();
+      const next = getAgentState(config, agentId);
+      const removedWasCurrent = next.activeProviderId === providerId;
+      removeSite(config, agentId, providerId);
+
+      if (!ADDITIVE_AGENTS.has(agentId) && removedWasCurrent) {
+        const fallback = fallbackForAgent(agentId);
+        const providers = await loadProviders();
+        const fallbackProvider = fallback && providers.find(item => item.id === fallback.providerId);
+        if (fallback && fallbackProvider && agentAdapter) {
+          await agentAdapter.applyConfig(providerForAgentWrite(fallbackProvider, [fallback.modelId]), fallback.modelId);
+          const fallbackState = getAgentState(config, agentId);
+          fallbackState.activeProviderId = fallback.providerId;
+          fallbackState.activeModelId = fallback.modelId;
+          replaceAgentState(config, agentId, fallbackState);
+        }
+      }
+      await saveUserConfig(config);
+    } catch (error) {
+      if (snapshotId) {
+        try { await restoreSnapshot(agentId, snapshotId); } catch {}
+      }
+      await saveUserConfig(before);
+      throw error;
+    }
+    appendLog('agent-provider-remove', `${agentId}:${providerId}`, true);
+    res.json({ success: true, agentId, providerId });
+  } catch (error) {
+    appendLog('agent-provider-remove', `${agentId}:${providerId}`, false, error.message);
+    res.status(500).json({ error: error.message });
+  }
+}
+
+async function setAgentProviderEnabled(req, res) {
+  const { agentId } = req.params;
+  const { enabled } = req.body || {};
+  const providerId = req.params.providerId || req.body?.providerId;
+  if (!agentId || !providerId || typeof enabled !== 'boolean') {
+    return res.status(400).json({ error: 'Missing agentId, providerId or enabled' });
+  }
+  if (!ADDITIVE_AGENTS.has(agentId)) {
+    return res.status(400).json({ error: `${agentId} 不支持按站点启停` });
+  }
+  if (enabled) {
+    const config = await loadUserConfig();
+    const site = getAgentState(config, agentId).sites[providerId];
+    req.body = { ...req.body, modelIds: site?.modelIds || [] };
+    return configureAgentProvider(req, res);
+  }
+  try {
+    const config = await loadUserConfig();
+    const site = getAgentState(config, agentId).sites[providerId];
+    if (!site) return res.status(404).json({ error: '站点未配置' });
+    const agentAdapter = _getAdapter(agentId);
+    await snapBeforeWrite(agentId, 'setAgentProviderEnabled');
+    if (typeof agentAdapter?.setProviderEnabled === 'function') {
       await agentAdapter.setProviderEnabled(providerId, false);
-    } else if (typeof agentAdapter.removeProvider === 'function') {
-      // No enabled flag in the agent's config — remove the entries (workbuddy).
+    } else if (typeof agentAdapter?.removeProvider === 'function') {
       await agentAdapter.removeProvider(providerId);
     } else {
       return res.status(400).json({ error: `${agentId} adapter 不支持停用站点` });
     }
-    appendLog('provider-disable', `${agentId}:${providerId}`, true);
-    res.json({ success: true, agentId, providerId });
-  } catch (err) {
-    appendLog('provider-disable', `${agentId}:${req.params.providerId}`, false, err.message);
-    res.status(500).json({ error: err.message });
+    setSite(config, agentId, providerId, { ...site, enabled: false });
+    await saveUserConfig(config);
+    appendLog('agent-provider-disable', `${agentId}:${providerId}`, true);
+    res.json({ success: true, agentId, providerId, enabled: false });
+  } catch (error) {
+    appendLog('agent-provider-disable', `${agentId}:${providerId}`, false, error.message);
+    res.status(500).json({ error: error.message });
   }
 }
 
@@ -1176,45 +1019,6 @@ async function saveAgentConfigFile(req, res) {
   }
 }
 
-// --- Codex model-catalog exclusion -----------------------------------------
-//
-// Users choose which of a provider's models appear in Codex's /model list by
-// unchecking them in the UI. We persist the UNCHECKED ids (not the checked
-// ones) so that a brand-new model on the provider defaults to "checked =
-// visible" without the user having to opt in. Toggling rewrites the catalog
-// immediately so the change is reflected next time Codex reads it.
-
-// Per-provider list of model ids the user ADDED to the card (inclusion
-// model — see migrateVisibility). Absent entry = empty card.
-async function setCatalogVisible(req, res) {
-  try {
-    const { providerId } = req.params;
-    const { visible } = req.body; // string[] of model ids to show
-    if (!providerId || !Array.isArray(visible)) {
-      return res.status(400).json({ error: 'Missing providerId or visible[]' });
-    }
-    const config = await loadUserConfig();
-    await migrateVisibility(config);
-    if (!config.codexCatalogVisible) config.codexCatalogVisible = {};
-    config.codexCatalogVisible[providerId] = visible;
-    await saveUserConfig(config);
-    res.json({ success: true, providerId, visible });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-}
-
-async function getCatalogVisible(_req, res) {
-  try {
-    const config = await loadUserConfig();
-    await migrateVisibility(config);
-    await saveUserConfig(config); // persist the one-time migration
-    res.json({ visible: config.codexCatalogVisible || {} });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-}
-
 // --- Claude Code tier mapping ------------------------------------------------
 //
 // Claude Code uses ANTHROPIC_MODEL + DEFAULT_HAIKU/SONNET/OPUS_MODEL. For
@@ -1226,7 +1030,11 @@ async function getCatalogVisible(_req, res) {
 async function getTierMaps(_req, res) {
   try {
     const config = await loadUserConfig();
-    res.json({ tierMaps: config.claudeTierMaps || {} });
+    const state = getAgentState(config, 'claude');
+    const tierMaps = Object.fromEntries(Object.entries(state.sites)
+      .filter(([, site]) => site?.tierMap)
+      .map(([providerId, site]) => [providerId, site.tierMap]));
+    res.json({ tierMaps });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1240,17 +1048,18 @@ async function setTierMap(req, res) {
       return res.status(400).json({ error: 'Missing providerId' });
     }
     const config = await loadUserConfig();
-    if (!config.claudeTierMaps) config.claudeTierMaps = {};
     // Empty string / null = clear that tier (fall back to ANTHROPIC_MODEL).
     const map = {};
     if (haiku) map.haiku = haiku;
     if (sonnet) map.sonnet = sonnet;
     if (opus) map.opus = opus;
-    if (Object.keys(map).length === 0) {
-      delete config.claudeTierMaps[providerId];
-    } else {
-      config.claudeTierMaps[providerId] = map;
-    }
+    const state = getAgentState(config, 'claude');
+    const site = state.sites[providerId];
+    if (!site) return res.status(404).json({ error: '请先添加该 Claude Code 站点' });
+    setSite(config, 'claude', providerId, {
+      ...site,
+      ...(Object.keys(map).length > 0 ? { tierMap: map } : { tierMap: undefined }),
+    });
     await saveUserConfig(config);
     res.json({ success: true, providerId, tierMap: map });
   } catch (err) {
@@ -2039,9 +1848,8 @@ async function fetchModels(req, res) {
       // an in-flight selection never dangles.
       const userConfig = await loadUserConfig();
       const activeModelIds = new Set(
-        Object.values(userConfig.providers || {})
-          .filter(sel => sel && sel.providerId === providerId && sel.modelId)
-          .map(sel => sel.modelId),
+        Object.values(userConfig.agentProviders || {})
+          .flatMap(state => state?.sites?.[providerId]?.modelIds || []),
       );
       p.models = replaceRemoteModels(p, discoveries, activeModelIds);
       // models.dev enrichment: platform /models gives bare ids — attach
@@ -2050,18 +1858,6 @@ async function fetchModels(req, res) {
         p.models = await require('./models-dev').enrichModels(p, p.models);
       } catch (enrichErr) {
         console.warn(`[fetchModels] models.dev enrichment failed: ${enrichErr.message}`);
-      }
-      // Drop visible ids the platform no longer lists (delisted models must
-      // leave the card, not linger as ghost chips).
-      const userCfg = await loadUserConfig();
-      await migrateVisibility(userCfg);
-      if (userCfg.codexCatalogVisible && Array.isArray(userCfg.codexCatalogVisible[providerId])) {
-        const freshIds = new Set(p.models.map(m => m.id));
-        const pruned = userCfg.codexCatalogVisible[providerId].filter(id => freshIds.has(id));
-        if (pruned.length !== userCfg.codexCatalogVisible[providerId].length) {
-          userCfg.codexCatalogVisible = { ...userCfg.codexCatalogVisible, [providerId]: pruned };
-          await saveUserConfig(userCfg);
-        }
       }
       await saveProviders(providers);
     }
@@ -2413,15 +2209,12 @@ module.exports = {
   updateProvider,
   deleteProvider: deleteProviderRoute,
   switchProvider,
-  addHomeProvider,
-  removeHomeProvider,
-  applyAgentModels,
-  disableAgentProvider,
+  configureAgentProvider,
+  removeAgentProvider,
+  setAgentProviderEnabled,
   getAgentConfigFiles,
   saveAgentConfigFile,
   agentConfigPresence,
-  setCatalogVisible,
-  getCatalogVisible,
   getTierMaps,
   setTierMap,
   launchAgent,

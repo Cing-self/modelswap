@@ -40,7 +40,7 @@ async function handlePull(req, res) {
     if (busy) return res.status(409).json({ error: '同步正在进行中，请稍候再试' });
     if (error) throw error;
     const kept = [];
-    if (!result.agentApplied) kept.push('Agent 配置保留本机');
+    if (!result.agentProvidersApplied) kept.push('Agent 站点与模型配置保留本机');
     if (!result.providersApplied) kept.push('模型商配置保留本机');
     const keptNote = kept.length > 0 ? `（${kept.join('，')}）` : '';
     res.json({

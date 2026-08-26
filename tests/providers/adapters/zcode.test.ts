@@ -45,7 +45,21 @@ vi.mock('../../../src/config/user', () => ({
         ...Object.fromEntries(Object.entries(patch.providers).map(([agent, sel]) => {
           const prev = userConfigStore.providers?.[agent] || {};
           return [agent, { ...prev, ...(sel as object) }];
-        })),
+      })),
+      };
+    }
+    if (patch.agentProviders?.zcode) {
+      const state = patch.agentProviders.zcode;
+      userConfigStore.agentProviders = { ...(userConfigStore.agentProviders || {}), zcode: state };
+      userConfigStore.providers = {
+        ...(userConfigStore.providers || {}),
+        zcode: {
+          providerId: state.activeProviderId,
+          modelId: state.activeModelId,
+          managedModels: Object.fromEntries(Object.entries(state.sites || {})
+            .filter(([, site]: any) => site)
+            .map(([providerId, site]: any) => [providerId, site.modelIds || []])),
+        },
       };
     }
     return patch;

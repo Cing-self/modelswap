@@ -215,14 +215,18 @@ describe('ClaudeAdapter.applyConfig', () => {
     expect(written.env.ANTHROPIC_BASE_URL).toBe('https://ark.cn-beijing.volces.com/api/coding');
   });
 
-  it('updates user config with both new and legacy paths', async () => {
+  it('updates the Claude site selection in user config', async () => {
     const adapter = new ClaudeAdapter();
     await adapter.applyConfig(testProvider, 'glm-4.7');
 
     expect(updateUserConfig).toHaveBeenCalledWith(
       expect.objectContaining({
-        providers: { claude: { providerId: 'volcengine', modelId: 'glm-4.7' } },
-        claude: { name: '火山引擎', model: 'glm-4.7' },
+        agentProviders: {
+          claude: {
+            activeProviderId: 'volcengine', activeModelId: 'glm-4.7',
+            sites: { volcengine: { modelIds: ['glm-4.7'] } },
+          },
+        },
       }),
     );
   });

@@ -205,7 +205,12 @@ describe('OpenCodeAdapter.applyConfig (cc-switch schema)', () => {
 
     expect(updateUserConfig).toHaveBeenCalledWith(
       expect.objectContaining({
-        providers: { opencode: { providerId: 'deepseek', modelId: 'deepseek-chat' } },
+        agentProviders: {
+          opencode: {
+            activeProviderId: 'deepseek', activeModelId: 'deepseek-chat',
+            sites: { deepseek: { modelIds: ['deepseek-chat'] } },
+          },
+        },
       }),
     );
   });

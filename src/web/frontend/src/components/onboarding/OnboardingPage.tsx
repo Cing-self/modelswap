@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getOnboarding, dismissOnboarding, resetOnboarding } from '../../api/settings';
 import { setVault, scanAgentKeys, importAgentKeys, AgentKeyFinding } from '../../api/vault';
-import { getAdapters, listProviders, updateProvider, addHomeProvider } from '../../api/providers';
+import { getAdapters, listProviders, updateProvider } from '../../api/providers';
 import { getAgentIcon, getAgentIconClass } from '../../assets/agents';
 import { getProviderIcon, getProviderIconClass } from '../../assets/providers';
 import okitIcon from '../../assets/branding/okit-icon-command-v1.png';
@@ -107,15 +107,13 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
   async function adoptSelected() {
     if (adopting) return;
     setAdopting(true);
-    let ok = 0;
     try {
-      for (const x of externalSites) {
-        const id = `${x.agentId}|${x.providerId}`;
-        if (!selectedSites.has(id) || adoptedIds.has(id)) continue;
-        try { await addHomeProvider(x.agentId, x.providerId); ok++; setAdoptedIds(prev => new Set(prev).add(id)); }
-        catch { /* individual failure doesn't block the rest */ }
-      }
-      if (ok > 0) showToast(t('onboarding.adoptDone', { count: ok }), 'success');
+      // A site is no longer allowed to enter the dashboard without an
+      // explicit model selection. The home page owns that picker, so the
+      // onboarding scan can report external configuration but cannot silently
+      // "adopt" an arbitrary full provider catalog here.
+      const count = [...selectedSites].filter(id => !adoptedIds.has(id)).length;
+      if (count > 0) showToast('请在首页为站点选择需要的模型后保存', 'info');
     } finally {
       setAdopting(false);
     }

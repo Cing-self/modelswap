@@ -29,8 +29,10 @@ export class OpenClawAdapter extends BaseAdapter {
 
   async getCurrentConfig(): Promise<AgentSelection | null> {
     const config = await loadUserConfig();
-    const sel = (config as any).providers?.openclaw;
-    if (sel?.providerId && sel?.modelId) return sel;
+    const state = config.agentProviders?.openclaw;
+    if (state?.activeProviderId && state?.activeModelId) {
+      return { providerId: state.activeProviderId, modelId: state.activeModelId };
+    }
     return null;
   }
 
@@ -76,7 +78,13 @@ export class OpenClawAdapter extends BaseAdapter {
 
     await atomicWriteJSON(OPENCLAW_CONFIG_PATH, data);
     await updateUserConfig({
-      providers: { openclaw: { providerId: provider.id, modelId } },
-    } as any);
+      agentProviders: {
+        openclaw: {
+          activeProviderId: provider.id,
+          activeModelId: modelId,
+          sites: { [provider.id]: { modelIds: [...new Set([...(provider.models || []).map(item => item.id), modelId])] } },
+        },
+      },
+    });
   }
 }

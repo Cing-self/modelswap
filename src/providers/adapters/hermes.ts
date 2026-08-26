@@ -28,8 +28,10 @@ export class HermesAdapter extends BaseAdapter {
 
   async getCurrentConfig(): Promise<AgentSelection | null> {
     const config = await loadUserConfig();
-    const sel = (config as any).providers?.hermes;
-    if (sel?.providerId && sel?.modelId) return sel;
+    const state = config.agentProviders?.hermes;
+    if (state?.activeProviderId && state?.activeModelId) {
+      return { providerId: state.activeProviderId, modelId: state.activeModelId };
+    }
     return null;
   }
 
@@ -80,7 +82,13 @@ export class HermesAdapter extends BaseAdapter {
 
     await atomicWrite(HERMES_CONFIG_PATH, yaml.dump(data, { lineWidth: 120, noRefs: true }));
     await updateUserConfig({
-      providers: { hermes: { providerId: provider.id, modelId } },
-    } as any);
+      agentProviders: {
+        hermes: {
+          activeProviderId: provider.id,
+          activeModelId: modelId,
+          sites: { [provider.id]: { modelIds: [...new Set([...(provider.models || []).map(item => item.id), modelId])] } },
+        },
+      },
+    });
   }
 }

@@ -7,14 +7,31 @@ import { atomicWriteJSON } from "../utils/atomicWrite";
 
 type Language = "zh" | "en";
 
+export type ClaudeTierMap = {
+  haiku?: string;
+  sonnet?: string;
+  opus?: string;
+};
+
+// The one user-facing configuration source for an agent. Multi-site agents
+// keep one entry per configured provider; exclusive agents use `active*` and
+// may have one site entry carrying Claude Code's tier mapping.
+export type AgentProviderSite = {
+  modelIds: string[];
+  enabled?: boolean;
+  tierMap?: ClaudeTierMap;
+};
+
+export type AgentProviderState = {
+  sites: Record<string, AgentProviderSite>;
+  activeProviderId?: string;
+  activeModelId?: string;
+};
+
+export type AgentProviders = Record<string, AgentProviderState>;
+
 export type UserConfig = {
   language?: Language;
-  claude?: {
-    name?: string;
-    model?: string;
-    agentTeams?: boolean;
-    teammateMode?: "auto" | "in-process" | "tmux";
-  };
   git?: {
     name?: string;
     email?: string;
@@ -29,14 +46,9 @@ export type UserConfig = {
       token?: string;
     };
   };
-  providers?: Record<string, {
-    providerId?: string;
-    modelId?: string;
-    // Additive agents (workbuddy): model ids OKIT wrote into the agent's own
-    // config file, keyed by OKIT providerId — used to never touch entries
-    // OKIT didn't create. See ManagedModels in providers/types.ts.
-    managedModels?: Record<string, string[]>;
-  }>;
+  // Single source of truth for configured sites/models per Agent. The home
+  // page renders this directly; adapters write the corresponding native files.
+  agentProviders?: AgentProviders;
   sync?: {
     // Cross-machine sync password: derives the cloud blob encryption key AND
     // the sync identity. Required on every machine that shares a sync set.
@@ -97,25 +109,6 @@ export type UserConfig = {
   hints?: {
     mainHelpShown?: boolean;
   };
-  // Provider ids the user has explicitly added to each agent's home-page list.
-  // Empty/absent = show nothing (the user adds their own). This is the "常用
-  // 站点" concept: the home page only renders what the user curated, not every
-  // configured provider.
-  homeProviders?: Record<string, string[]>;
-  // Codex model-catalog exclusion: per-provider lists of model ids the user
-  // UNCHECKED in the UI. When writing ~/.codex/model-catalogs/..., the codex
-  // adapter omits these so /model only lists models the user wants. Absent
-  // entry = all models included (default "all checked").
-  // Models the user ADDED to a provider's card (inclusion model; absent =
-  // empty card). Replaced the legacy exclusion/extra pair.
-  codexCatalogVisible?: Record<string, string[]>;
-  codexCatalogVisibleMigrated?: boolean;
-  // Claude Code tier mapping: per-provider overrides for the three Anthropic
-  // model tiers. Keys are providerIds; values are { haiku, sonnet, opus }
-  // model-id strings. When a claude provider is switched, the adapter reads
-  // this to write ANTHROPIC_DEFAULT_HAIKU/SONNET/OPUS_MODEL differentially.
-  // Absent tier = fall back to ANTHROPIC_MODEL (the selected model).
-  claudeTierMaps?: Record<string, { haiku?: string; sonnet?: string; opus?: string }>;
 };
 
 const USER_CONFIG_PATH = path.join(OKIT_DIR, "user.json");
@@ -125,12 +118,7 @@ const LEGACY_CLAUDE_PATH = path.join(OKIT_DIR, "claude-current.json");
 export async function loadUserConfig(): Promise<UserConfig> {
   const config = await readJson(USER_CONFIG_PATH);
   if (config) {
-    // Remove retired, unused model-history fields from older user configs once.
-    if (Object.prototype.hasOwnProperty.call(config, "favoriteModels") || Object.prototype.hasOwnProperty.call(config, "recentModels")) {
-      const { favoriteModels: _favoriteModels, recentModels: _recentModels, ...cleanConfig } = config;
-      await saveUserConfig(cleanConfig);
-      return cleanConfig;
-    }
+    if (migrateAgentProviders(config)) await saveUserConfig(config);
     return config;
   }
 
@@ -153,16 +141,12 @@ export async function updateUserConfig(patch: Partial<UserConfig>): Promise<User
   const merged = {
     ...current,
     ...patch,
-    claude: patch.claude ? { ...current.claude, ...patch.claude } : current.claude,
     hints: patch.hints ? { ...current.hints, ...patch.hints } : current.hints,
     git: patch.git ? { ...current.git, ...patch.git } : current.git,
-    providers: patch.providers ? { ...current.providers, ...patch.providers } : current.providers,
+    agentProviders: patch.agentProviders
+      ? mergeAgentProviders(current.agentProviders, patch.agentProviders)
+      : current.agentProviders,
     repo: patch.repo ? { ...current.repo, ...patch.repo } : current.repo,
-    // Per-agent home-page provider lists: merge per agent key.
-    homeProviders: patch.homeProviders ? { ...current.homeProviders, ...patch.homeProviders } : current.homeProviders,
-    codexCatalogVisible: patch.codexCatalogVisible ? { ...current.codexCatalogVisible, ...patch.codexCatalogVisible } : current.codexCatalogVisible,
-    codexCatalogVisibleMigrated: patch.codexCatalogVisibleMigrated ?? current.codexCatalogVisibleMigrated,
-    claudeTierMaps: patch.claudeTierMaps ? { ...current.claudeTierMaps, ...patch.claudeTierMaps } : current.claudeTierMaps,
     sync: patch.sync ? {
       ...current.sync,
       ...patch.sync,
@@ -174,6 +158,117 @@ export async function updateUserConfig(patch: Partial<UserConfig>): Promise<User
   };
   await saveUserConfig(merged);
   return merged;
+}
+
+export function mergeAgentProviders(
+  current: AgentProviders | undefined,
+  patch: AgentProviders,
+): AgentProviders {
+  const merged: AgentProviders = { ...(current || {}) };
+  for (const [agentId, state] of Object.entries(patch || {})) {
+    const previous = merged[agentId] || { sites: {} };
+    const sites = { ...previous.sites };
+    for (const [providerId, site] of Object.entries(state.sites || {})) {
+      if (site === null) delete sites[providerId];
+      else sites[providerId] = { ...sites[providerId], ...site };
+    }
+    merged[agentId] = {
+      ...previous,
+      ...state,
+      sites,
+    };
+  }
+  return merged;
+}
+
+/**
+ * One-time, lossless migration from the old UI state fields and legacy Agent
+ * selections. It mutates the config so both adapters and API callers use the
+ * same shape as soon as user.json is next read.
+ */
+export function migrateAgentProviders(config: UserConfig & Record<string, any>): boolean {
+  const legacyProviders = config.providers && typeof config.providers === "object" ? config.providers : {};
+  const legacyHome = config.homeProviders && typeof config.homeProviders === "object" ? config.homeProviders : {};
+  const legacyVisible = config.codexCatalogVisible && typeof config.codexCatalogVisible === "object" ? config.codexCatalogVisible : {};
+  const legacyTierMaps = config.claudeTierMaps && typeof config.claudeTierMaps === "object" ? config.claudeTierMaps : {};
+  const retired = ["providers", "homeProviders", "codexCatalogVisible", "codexCatalogVisibleMigrated", "claudeTierMaps", "claude", "agent", "favoriteModels", "recentModels"];
+  const hasRetiredFields = retired.some(key => Object.prototype.hasOwnProperty.call(config, key));
+  const hasEmptySites = Object.values(config.agentProviders || {}).some(state =>
+    Object.values(state?.sites || {}).some(site => !Array.isArray(site?.modelIds) || site.modelIds.length === 0),
+  );
+  if (!hasRetiredFields && !hasEmptySites) return false;
+
+  const next: AgentProviders = { ...(config.agentProviders || {}) };
+  const ensureAgent = (agentId: string): AgentProviderState => {
+    const current = next[agentId];
+    if (current) {
+      current.sites = current.sites || {};
+      return current;
+    }
+    const created: AgentProviderState = { sites: {} };
+    next[agentId] = created;
+    return created;
+  };
+  const mergeSite = (agentId: string, providerId: string, modelIds: unknown, extras?: Partial<AgentProviderSite>) => {
+    if (!providerId) return;
+    const state = ensureAgent(agentId);
+    const previous = state.sites[providerId] || { modelIds: [] };
+    const incoming = Array.isArray(modelIds) ? modelIds.filter((id): id is string => typeof id === "string") : [];
+    state.sites[providerId] = {
+      ...previous,
+      ...extras,
+      modelIds: [...new Set([...previous.modelIds, ...incoming])],
+    };
+  };
+
+  for (const [agentId, raw] of Object.entries(legacyProviders)) {
+    if (!raw || typeof raw !== "object") continue;
+    const legacy = raw as { providerId?: string; modelId?: string; managedModels?: Record<string, string[]> };
+    const state = ensureAgent(agentId);
+    if (legacy.providerId) state.activeProviderId = state.activeProviderId || legacy.providerId;
+    if (legacy.modelId) state.activeModelId = state.activeModelId || legacy.modelId;
+    if (legacy.providerId) mergeSite(agentId, legacy.providerId, legacy.modelId ? [legacy.modelId] : []);
+    for (const [providerId, modelIds] of Object.entries(legacy.managedModels || {})) {
+      mergeSite(agentId, providerId, modelIds, { enabled: true });
+    }
+  }
+
+  for (const [agentId, providerIds] of Object.entries(legacyHome)) {
+    if (!Array.isArray(providerIds)) continue;
+    for (const providerId of providerIds) {
+      if (typeof providerId !== "string") continue;
+      const modelIds = legacyVisible[providerId] || [];
+      if (modelIds.length > 0) mergeSite(agentId, providerId, modelIds, { enabled: true });
+    }
+  }
+
+  const legacyClaude = config.claude && typeof config.claude === "object" ? config.claude : null;
+  if (legacyClaude?.name && legacyClaude?.model) {
+    const state = ensureAgent("claude");
+    state.activeProviderId = state.activeProviderId || String(legacyClaude.name).toLowerCase();
+    state.activeModelId = state.activeModelId || legacyClaude.model;
+    mergeSite("claude", state.activeProviderId, [state.activeModelId]);
+  }
+  for (const [providerId, rawMap] of Object.entries(legacyTierMaps)) {
+    if (!rawMap || typeof rawMap !== "object") continue;
+    const tierMap = rawMap as ClaudeTierMap;
+    const tierModels = [tierMap.haiku, tierMap.sonnet, tierMap.opus].filter((id): id is string => typeof id === "string");
+    mergeSite("claude", providerId, tierModels, { tierMap });
+  }
+
+  // A new site cannot be saved without at least one selected model. Empty
+  // legacy home cards were display-only state, so do not carry them into the
+  // new source of truth as ghost sites.
+  for (const [agentId, state] of Object.entries(next)) {
+    for (const [providerId, site] of Object.entries(state.sites)) {
+      if (!Array.isArray(site.modelIds) || site.modelIds.length === 0) delete state.sites[providerId];
+    }
+    if (Object.keys(state.sites).length === 0 && !state.activeProviderId) delete next[agentId];
+  }
+
+  config.agentProviders = next;
+  for (const key of retired) delete config[key];
+  return true;
 }
 
 async function migrateLegacyConfig(): Promise<UserConfig | null> {
@@ -188,9 +283,15 @@ async function migrateLegacyConfig(): Promise<UserConfig | null> {
 
   const legacyClaude = await readJson(LEGACY_CLAUDE_PATH);
   if (legacyClaude && typeof legacyClaude.name === "string") {
-    config.claude = {
-      name: legacyClaude.name,
-      model: legacyClaude.model,
+    const providerId = legacyClaude.name.toLowerCase();
+    config.agentProviders = {
+      claude: {
+        activeProviderId: providerId,
+        activeModelId: legacyClaude.model,
+        sites: {
+          [providerId]: { modelIds: legacyClaude.model ? [legacyClaude.model] : [] },
+        },
+      },
     };
     changed = true;
   }

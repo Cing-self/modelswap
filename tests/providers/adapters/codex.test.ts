@@ -293,7 +293,12 @@ describe('CodexAdapter.applyConfig', () => {
 
     expect(updateUserConfig).toHaveBeenCalledWith(
       expect.objectContaining({
-        providers: { codex: { providerId: 'openai', modelId: 'gpt-5.5' } },
+        agentProviders: {
+          codex: {
+            activeProviderId: 'openai', activeModelId: 'gpt-5.5',
+            sites: { openai: { modelIds: ['gpt-5.5'] } },
+          },
+        },
       }),
     );
   });
