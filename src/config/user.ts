@@ -3,18 +3,9 @@ import path from "path";
 import os from "os";
 import { OKIT_DIR } from "./registry";
 import { backupImportantData } from "./backup";
-import { atomicWrite, atomicWriteJSON } from "../utils/atomicWrite";
+import { atomicWriteJSON } from "../utils/atomicWrite";
 
 type Language = "zh" | "en";
-
-// A model that was used in a successful switchProvider call. Auto-maintained:
-// each switch prepends the model (deduped by providerId+modelId), capped at 10.
-export interface RecentModel {
-  providerId: string;
-  modelId: string;
-  agentId: string;      // which external CLI agent was switched
-  lastUsedAt: string;   // ISO timestamp
-}
 
 export type UserConfig = {
   language?: Language;
@@ -106,8 +97,6 @@ export type UserConfig = {
   hints?: {
     mainHelpShown?: boolean;
   };
-  // Auto-recorded on each successful switchProvider.
-  recentModels?: RecentModel[];
   // Provider ids the user has explicitly added to each agent's home-page list.
   // Empty/absent = show nothing (the user adds their own). This is the "常用
   // 站点" concept: the home page only renders what the user curated, not every
@@ -136,9 +125,9 @@ const LEGACY_CLAUDE_PATH = path.join(OKIT_DIR, "claude-current.json");
 export async function loadUserConfig(): Promise<UserConfig> {
   const config = await readJson(USER_CONFIG_PATH);
   if (config) {
-    // Remove the retired model-favorites field from older user configs once.
-    if (Object.prototype.hasOwnProperty.call(config, "favoriteModels")) {
-      const { favoriteModels: _removed, ...cleanConfig } = config;
+    // Remove retired, unused model-history fields from older user configs once.
+    if (Object.prototype.hasOwnProperty.call(config, "favoriteModels") || Object.prototype.hasOwnProperty.call(config, "recentModels")) {
+      const { favoriteModels: _favoriteModels, recentModels: _recentModels, ...cleanConfig } = config;
       await saveUserConfig(cleanConfig);
       return cleanConfig;
     }
@@ -169,9 +158,6 @@ export async function updateUserConfig(patch: Partial<UserConfig>): Promise<User
     git: patch.git ? { ...current.git, ...patch.git } : current.git,
     providers: patch.providers ? { ...current.providers, ...patch.providers } : current.providers,
     repo: patch.repo ? { ...current.repo, ...patch.repo } : current.repo,
-    // Arrays are replaced wholesale — callers read-modify-write the full list
-    // (e.g. switchProvider prepends to recentModels after deduping).
-    recentModels: patch.recentModels ?? current.recentModels,
     // Per-agent home-page provider lists: merge per agent key.
     homeProviders: patch.homeProviders ? { ...current.homeProviders, ...patch.homeProviders } : current.homeProviders,
     codexCatalogVisible: patch.codexCatalogVisible ? { ...current.codexCatalogVisible, ...patch.codexCatalogVisible } : current.codexCatalogVisible,

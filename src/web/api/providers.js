@@ -160,7 +160,14 @@ async function loadUserConfig() {
   try {
     if (!(await fs.pathExists(USER_CONFIG_PATH))) return {};
     const content = await fs.readFile(USER_CONFIG_PATH, 'utf-8');
-    return JSON.parse(content);
+    const config = JSON.parse(content);
+    // This was only an unused history list. Remove it on the next normal
+    // dashboard read so existing installations do not retain dead data.
+    if (Object.prototype.hasOwnProperty.call(config, 'recentModels')) {
+      delete config.recentModels;
+      await saveUserConfig(config);
+    }
+    return config;
   } catch { return {}; }
 }
 
@@ -184,9 +191,6 @@ const ADAPTERS = _agentsMeta.AGENTS_META;
 // config, and removing/disabling removes them. Exclusive agents
 // (claude/codex/...) keep single-active-switch semantics.
 const ADDITIVE_AGENTS = new Set(['workbuddy', 'zcode', 'kimi-code', 'grok', 'mimo-code', 'opencode']);
-
-// Cap for models auto-recorded after a successful switch.
-const RECENT_MODELS_MAX = 10;
 
 function adapterSupportsProvider(adapter, provider) {
   return providerSupportsAdapter(provider, adapter);
@@ -604,15 +608,6 @@ async function switchProvider(req, res) {
       if (agentId === 'claude') {
         config.claude = { ...config.claude, name: provider.name, model: modelId };
       }
-
-      // Auto-record this switch in recentModels (prepend, dedupe by
-      // providerId+modelId, cap at RECENT_MODELS_MAX).
-      const entry = { providerId, modelId, agentId, lastUsedAt: new Date().toISOString() };
-      const recent = Array.isArray(config.recentModels) ? config.recentModels : [];
-      config.recentModels = [
-        entry,
-        ...recent.filter(m => !(m.providerId === providerId && m.modelId === modelId)),
-      ].slice(0, RECENT_MODELS_MAX);
 
       await saveUserConfig(config);
     } catch (applyErr) {
