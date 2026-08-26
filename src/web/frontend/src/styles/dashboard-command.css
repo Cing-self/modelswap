@@ -2457,15 +2457,6 @@ select:focus {
   border-right: 0;
 }
 
-#app:has(.sidebar--settings) .main-content {
-  /* Keep the top and right breathing room, but remove the empty lower canvas
-     that otherwise appears below the rounded panel. */
-  margin: 8px 8px 0 0;
-  border: 1px solid var(--card-line);
-  border-radius: 17px;
-  box-shadow: 0 12px 34px color-mix(in srgb, black 9%, transparent);
-}
-
 .sidebar-settings-head {
   position: relative;
   display: flex;
@@ -2870,7 +2861,7 @@ select:focus {
     width: auto;
     min-width: 0;
     min-height: calc(100vh - 16px);
-    margin: 8px 8px 0 0;
+    margin: 8px 8px 8px 0;
     border: 1px solid var(--card-line);
     border-radius: 14px;
     box-shadow: none;
