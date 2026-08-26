@@ -389,7 +389,11 @@ function stripProviderTables(toml: string, tableProviderId: string, aliasPrefix:
   const source = toml.split("\n");
   const out: string[] = [];
   let skipping = false;
-  const providerHeader = new RegExp(`^\\s*\\[providers\\.${escapeRegex(tableProviderId)}\\]\\s*(?:#.*)?$`);
+  // Include child tables such as `[providers.okit-foo.custom_headers]`.
+  // A previous interrupted cleanup could leave one of those behind without
+  // its parent provider table, and treating only the parent as owned leaves a
+  // ghost provider configuration on disk.
+  const providerHeader = new RegExp(`^\\s*\\[providers\\.${escapeRegex(tableProviderId)}(?:\\.[a-zA-Z0-9_-]+)*\\]\\s*(?:#.*)?$`);
   const modelsHeader = new RegExp(`^\\s*\\[models\\.${escapeRegex(aliasPrefix)}-[a-zA-Z0-9_-]*\\]\\s*(?:#.*)?$`);
   for (const line of source) {
     if (skipping) {

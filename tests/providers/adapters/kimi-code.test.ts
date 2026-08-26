@@ -501,6 +501,24 @@ describe('KimiCodeAdapter multi-site (additive)', () => {
     expect(toml).not.toContain('default_model');
   });
 
+  it('removeProvider strips an orphaned provider child table', async () => {
+    mocks.files.set(CONFIG_PATH, [
+      '[providers.okit-custom-openai.custom_headers]',
+      'User-Agent = "openai"',
+      '',
+      '[thinking]',
+      'enabled = true',
+    ].join('\n'));
+
+    const adapter = new KimiCodeAdapter();
+    await adapter.removeProvider('custom-openai');
+
+    const toml = mocks.files.get(CONFIG_PATH)!;
+    expect(toml).not.toContain('okit-custom-openai');
+    expect(toml).toContain('[thinking]');
+    expect(toml).toContain('enabled = true');
+  });
+
   it('removeProvider is a no-op when the provider has no tables', async () => {
     mocks.files.set(CONFIG_PATH, '[thinking]\nenabled = true\n');
     const adapter = new KimiCodeAdapter();
