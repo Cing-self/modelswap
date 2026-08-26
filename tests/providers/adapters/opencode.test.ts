@@ -50,6 +50,16 @@ const { updateUserConfig } = await import('../../../src/config/user');
 
 // OpenCode reads ~/.config/opencode/opencode.json (NOT ~/.opencode/config.json).
 const CONFIG_PATH = path.join(os.homedir(), '.config', 'opencode', 'opencode.json');
+const DESKTOP_STORE_PATH = path.join(
+  os.homedir(),
+  process.platform === 'darwin'
+    ? path.join('Library', 'Application Support')
+    : process.platform === 'win32'
+      ? path.join('AppData', 'Roaming')
+      : '.config',
+  'ai.opencode.desktop',
+  'opencode.global.dat',
+);
 
 const openaiProvider = {
   id: 'deepseek',
@@ -199,6 +209,46 @@ describe('OpenCodeAdapter.applyConfig (cc-switch schema)', () => {
     expect(Object.keys(written.provider)).toEqual(['glm', 'deepseek']);
   });
 
+  it('keeps provider allow/deny lists aligned when enabling a provider', async () => {
+    mocks.files.set(CONFIG_PATH, JSON.stringify({
+      enabled_providers: ['zai'],
+      disabled_providers: ['deepseek', 'openai'],
+      provider: {},
+    }));
+
+    const adapter = new OpenCodeAdapter();
+    await adapter.applyConfig(openaiProvider, 'deepseek-chat');
+
+    const written = JSON.parse(mocks.files.get(CONFIG_PATH)!);
+    expect(written.enabled_providers).toEqual(['zai', 'deepseek']);
+    expect(written.disabled_providers).toEqual(['openai']);
+  });
+
+  it('shows selected models and hides stale models in OpenCode Desktop', async () => {
+    mocks.files.set(DESKTOP_STORE_PATH, JSON.stringify({
+      model: JSON.stringify({
+        user: [
+          { providerID: 'deepseek', modelID: 'deepseek-chat', visibility: 'hide' },
+          { providerID: 'deepseek', modelID: 'old-model', visibility: 'show' },
+          { providerID: 'zai', modelID: 'glm-4.7', visibility: 'show' },
+        ],
+        recent: [{ providerID: 'zai', modelID: 'glm-4.7' }],
+      }),
+    }));
+
+    const adapter = new OpenCodeAdapter();
+    await adapter.applyConfig(openaiProvider, 'deepseek-chat');
+
+    const desktop = JSON.parse(mocks.files.get(DESKTOP_STORE_PATH)!);
+    const state = JSON.parse(desktop.model);
+    expect(state.user).toEqual([
+      { providerID: 'deepseek', modelID: 'deepseek-chat', visibility: 'show' },
+      { providerID: 'deepseek', modelID: 'old-model', visibility: 'hide' },
+      { providerID: 'zai', modelID: 'glm-4.7', visibility: 'show' },
+    ]);
+    expect(state.recent).toEqual([{ providerID: 'zai', modelID: 'glm-4.7' }]);
+  });
+
   it('records selection in user.json', async () => {
     const adapter = new OpenCodeAdapter();
     await adapter.applyConfig(openaiProvider, 'deepseek-chat');
@@ -253,5 +303,22 @@ describe('OpenCodeAdapter additive interface', () => {
     const written = JSON.parse(mocks.files.get(CONFIG_PATH)!);
     expect(Object.keys(written.provider)).toEqual(['qianfan']);
     expect(written.model).toBeUndefined();
+  });
+
+  it('removeProvider hides the provider models in OpenCode Desktop', async () => {
+    mocks.files.set(CONFIG_PATH, JSON.stringify({ provider: { deepseek: {} } }));
+    mocks.files.set(DESKTOP_STORE_PATH, JSON.stringify({
+      model: JSON.stringify({
+        user: [{ providerID: 'deepseek', modelID: 'deepseek-chat', visibility: 'show' }],
+        recent: [],
+      }),
+    }));
+
+    const adapter = new OpenCodeAdapter();
+    await adapter.removeProvider('deepseek');
+
+    const desktop = JSON.parse(mocks.files.get(DESKTOP_STORE_PATH)!);
+    const state = JSON.parse(desktop.model);
+    expect(state.user[0].visibility).toBe('hide');
   });
 });

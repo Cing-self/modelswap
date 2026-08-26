@@ -21,6 +21,21 @@ import { atomicWrite, atomicWriteJSON } from "../../utils/atomicWrite";
 // OKIT-authored providers (user-added sites) get explicit limits so max_tokens
 // never exceeds the gateway cap (see gateway.ts).
 const OPENCODE_CONFIG_PATH = path.join(os.homedir(), ".config", "opencode", "opencode.json");
+const OPENCODE_DESKTOP_APP_IDS = [
+  "ai.opencode.desktop",
+  "ai.opencode.desktop.beta",
+  "ai.opencode.desktop.dev",
+];
+
+function openCodeDesktopStorePaths(): string[] {
+  const home = os.homedir();
+  const appData = process.platform === "darwin"
+    ? path.join(home, "Library", "Application Support")
+    : process.platform === "win32"
+      ? (process.env.APPDATA || path.join(home, "AppData", "Roaming"))
+      : (process.env.XDG_CONFIG_HOME || path.join(home, ".config"));
+  return OPENCODE_DESKTOP_APP_IDS.map(id => path.join(appData, id, "opencode.global.dat"));
+}
 
 // Map OKIT's protocol type to the AI SDK package OpenCode loads for it.
 function npmPackageFor(type: ProviderType): string {
@@ -62,6 +77,48 @@ export class OpenCodeAdapter extends BaseAdapter {
     await atomicWriteJSON(OPENCODE_CONFIG_PATH, data);
   }
 
+  // OpenCode Desktop keeps the switches from "Manage models" in its own
+  // electron-store file instead of opencode.json. A configured provider can
+  // therefore be valid (and visible to `opencode models`) while every model is
+  // still hidden in the desktop picker. Keep that UI-only visibility cache in
+  // sync when it already exists; opencode.json remains the source of truth.
+  private async syncDesktopModelVisibility(providerId: string, visibleModelIds: string[]): Promise<void> {
+    const visible = new Set(visibleModelIds);
+    for (const storePath of openCodeDesktopStorePaths()) {
+      try {
+        if (!(await fs.pathExists(storePath))) continue;
+        const document = JSON.parse(await fs.readFile(storePath, "utf-8"));
+        const rawState = document?.model;
+        const stringEncoded = typeof rawState === "string";
+        const state = stringEncoded ? JSON.parse(rawState) : rawState;
+        if (!state || typeof state !== "object" || Array.isArray(state)) continue;
+
+        const users = Array.isArray(state.user) ? [...state.user] : [];
+        const indexes = new Map<string, number>();
+        users.forEach((item, index) => {
+          if (item?.providerID === providerId && typeof item.modelID === "string") {
+            indexes.set(item.modelID, index);
+          }
+        });
+
+        for (const [modelId, index] of indexes) {
+          users[index] = { ...users[index], visibility: visible.has(modelId) ? "show" : "hide" };
+        }
+        for (const modelId of visible) {
+          if (indexes.has(modelId)) continue;
+          users.push({ providerID: providerId, modelID: modelId, visibility: "show" });
+        }
+
+        const nextState = { ...state, user: users };
+        document.model = stringEncoded ? JSON.stringify(nextState) : nextState;
+        await atomicWriteJSON(storePath, document);
+      } catch (error: any) {
+        // A private UI cache must never make the actual Agent config fail.
+        console.warn(`[OpenCodeAdapter] desktop model visibility sync failed: ${error?.message || error}`);
+      }
+    }
+  }
+
   // Writes one provider entry (merged, other providers untouched).
   private async writeProviderEntry(data: Record<string, any>, provider: Provider): Promise<void> {
     if (typeof data.provider !== "object" || data.provider === null) data.provider = {};
@@ -96,6 +153,12 @@ export class OpenCodeAdapter extends BaseAdapter {
     providerEntry.models = modelsMap;
 
     (data.provider as Record<string, any>)[provider.id] = providerEntry;
+    if (Array.isArray(data.disabled_providers)) {
+      data.disabled_providers = data.disabled_providers.filter((id: unknown) => id !== provider.id);
+    }
+    if (Array.isArray(data.enabled_providers) && !data.enabled_providers.includes(provider.id)) {
+      data.enabled_providers = [...data.enabled_providers, provider.id];
+    }
   }
 
   async applyConfig(provider: Provider, modelId: string): Promise<void> {
@@ -109,6 +172,7 @@ export class OpenCodeAdapter extends BaseAdapter {
     // models are present.
 
     await this.saveConfig(data);
+    await this.syncDesktopModelVisibility(provider.id, provider.models.map(model => model.id));
     await updateUserConfig({
       agentProviders: {
         opencode: {
@@ -132,6 +196,10 @@ export class OpenCodeAdapter extends BaseAdapter {
       written.push(modelId);
     }
     await this.saveConfig(data);
+    const providers = new Map(entries.map(({ provider }) => [provider.id, provider]));
+    for (const provider of providers.values()) {
+      await this.syncDesktopModelVisibility(provider.id, provider.models.map(model => model.id));
+    }
     return { written, skipped: [] };
   }
 
@@ -146,10 +214,14 @@ export class OpenCodeAdapter extends BaseAdapter {
   // at that provider.
   async removeProvider(providerId: string): Promise<void> {
     const data = await this.loadConfig();
+    await this.syncDesktopModelVisibility(providerId, []);
     if (typeof data.provider !== "object" || data.provider === null) return;
     if (!(providerId in (data.provider as Record<string, any>))) return;
 
     delete (data.provider as Record<string, any>)[providerId];
+    if (Array.isArray(data.enabled_providers)) {
+      data.enabled_providers = data.enabled_providers.filter((id: unknown) => id !== providerId);
+    }
     if (typeof data.model === "string" && data.model.split("/")[0] === providerId) {
       delete data.model;
     }
