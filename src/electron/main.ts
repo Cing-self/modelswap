@@ -127,7 +127,13 @@ async function createWindow() {
     minHeight: 720,
     title: "OKIT",
     icon: path.join(__dirname, "..", "web", "public", "okit-icon.png"),
-    backgroundColor: "#07100b",
+    // On macOS the renderer owns a compact, draggable title surface. This
+    // prevents the system-coloured title bar from cutting across the app.
+    backgroundColor: "#f5ebe0",
+    ...(process.platform === "darwin" ? {
+      titleBarStyle: "hiddenInset" as const,
+      trafficLightPosition: { x: 16, y: 13 },
+    } : {}),
     show: false,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),

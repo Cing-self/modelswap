@@ -511,25 +511,127 @@
   font-weight: 500;
 }
 
-/* Claude Code tier mapping — three dropdowns (HAIKU/SONNET/OPUS) shown below
-   the model list for non-official providers. */
+/* Claude Code tier routing — make the three capability levels read as a
+   deliberate routing decision instead of a row of browser selects. */
 .provider-tier-maps {
-  display: flex; gap: 8px; flex-wrap: wrap;
-  padding: 0 20px 10px; border-top: 1px dashed var(--border, #d4cebe); padding-top: 10px;
+  margin: 0 16px 16px;
+  padding: 14px;
+  border: 1px solid var(--card-line);
+  border-radius: calc(var(--card-radius) - 2px);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--card-surface-soft) 90%, transparent), var(--card-surface));
+}
+.provider-tier-maps-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 2px 12px;
+}
+.provider-tier-maps-eyebrow {
+  display: block;
+  color: var(--ink-muted);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.13em;
+  line-height: 1;
+}
+.provider-tier-maps h4 {
+  margin: 4px 0 0;
+  color: var(--ink);
+  font-size: 13px;
+  letter-spacing: 0.01em;
+}
+.provider-tier-maps-heading p {
+  max-width: 300px;
+  color: var(--ink-muted);
+  font-size: 11px;
+  line-height: 1.45;
+  text-align: right;
+}
+.provider-tier-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
 }
 .provider-tier-row {
-  display: inline-flex; align-items: center; gap: 6px; font-size: 11px;
+  --tier-accent: var(--green);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--tier-accent) 24%, var(--card-line));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--tier-accent) 5%, var(--card-surface));
+  cursor: pointer;
+}
+.provider-tier-row--sonnet { --tier-accent: var(--blue); }
+.provider-tier-row--opus { --tier-accent: var(--red); }
+.provider-tier-meta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 6px;
+  align-items: baseline;
 }
 .provider-tier-label {
-  font-weight: 600; color: var(--ink-muted); letter-spacing: 0.5px;
+  min-width: 0;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 720;
+  letter-spacing: 0.01em;
+}
+.provider-tier-code {
+  color: var(--tier-accent);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+.provider-tier-detail {
+  grid-column: 1 / -1;
+  margin-top: 2px;
+  color: var(--ink-muted);
+  font-size: 10px;
+  line-height: 1.3;
+}
+.provider-tier-select-wrap {
+  position: relative;
+  display: block;
 }
 .provider-tier-select {
-  padding: 3px 8px; border: 1px solid var(--kraft-dark); border-radius: 4px;
-  background: var(--paper); color: var(--ink); font: inherit; font-size: 11px;
-  cursor: pointer; outline: none; max-width: 140px;
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  padding: 0 30px 0 9px;
+  border: 1px solid color-mix(in srgb, var(--tier-accent) 38%, var(--card-line));
+  border-radius: 6px;
+  appearance: none;
+  background: var(--card-surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 580;
+  cursor: pointer;
+  outline: none;
+  text-overflow: ellipsis;
 }
-.provider-tier-select:focus { border-color: var(--ink); }
-[data-theme="dark"] .provider-tier-select { background: var(--bg, #1a1815); }
+.provider-tier-select:hover { border-color: var(--tier-accent); }
+.provider-tier-select:focus { border-color: var(--tier-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--tier-accent) 15%, transparent); }
+.provider-tier-select-chevron {
+  position: absolute;
+  top: 50%;
+  right: 9px;
+  color: var(--tier-accent);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+[data-theme="dark"] .provider-tier-maps { background: color-mix(in srgb, var(--card-surface-soft) 88%, var(--paper)); }
+[data-theme="dark"] .provider-tier-row { background: color-mix(in srgb, var(--tier-accent) 8%, var(--card-surface)); }
+@media (max-width: 760px) {
+  .provider-tier-maps-heading { align-items: start; flex-direction: column; gap: 5px; }
+  .provider-tier-maps-heading p { max-width: none; text-align: left; }
+  .provider-tier-grid { grid-template-columns: 1fr; }
+}
 
 .provider-card-models-list {
   display: flex;

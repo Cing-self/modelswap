@@ -5,7 +5,7 @@ import { useApp } from '../Layout/AppContext';
 import { getAgentIcon, getAgentIconClass } from '../../assets/agents';
 import { getProviderIcon, getProviderIconClass } from '../../assets/providers';
 import JsonTreeView from '../shared/JsonTreeView';
-import { Eye, EyeOff, Copy, Save, RefreshCw, X, Plus, FileJson, Loader2, Check, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Copy, Save, RefreshCw, X, Plus, FileJson, Loader2, Check, ArrowLeft, ChevronDown } from 'lucide-react';
 import UsageSummary from './UsageSummary';
 import { useTransientFeedback } from '../../hooks/useTransientFeedback';
 import { useDataChanged } from '../../hooks/useDataChanged';
@@ -580,27 +580,48 @@ export default function HomePage() {
                     Lets the user route haiku/sonnet/opus to different models on
                     the gateway so Claude Code's tier-switching doesn't 404. */}
                 {isExpanded && activeAgentId === 'claude' && p.baseUrl !== 'https://api.anthropic.com' && p.models.length > 0 && (
-                  <div className="provider-tier-maps">
+                  <section className="provider-tier-maps" aria-label={t('home.tierRouting')}>
+                    <div className="provider-tier-maps-heading">
+                      <div>
+                        <span className="provider-tier-maps-eyebrow">CLAUDE ROUTING</span>
+                        <h4>{t('home.tierRouting')}</h4>
+                      </div>
+                      <p>{t('home.tierRoutingHint')}</p>
+                    </div>
+                    <div className="provider-tier-grid">
                     {(['haiku', 'sonnet', 'opus'] as const).map(tier => {
                       const tierMap = tierMaps[p.id] || {};
                       const current = tierMap[tier] || '';
+                      const tierInfo = {
+                        haiku: { label: t('home.tierHaiku'), detail: t('home.tierHaikuHint') },
+                        sonnet: { label: t('home.tierSonnet'), detail: t('home.tierSonnetHint') },
+                        opus: { label: t('home.tierOpus'), detail: t('home.tierOpusHint') },
+                      }[tier];
                       return (
-                        <label key={tier} className="provider-tier-row">
-                          <span className="provider-tier-label">{tier.toUpperCase()}</span>
-                          <select
-                            className="provider-tier-select"
-                            value={current}
-                            onChange={(e) => changeTier(p.id, tier, e.target.value)}
-                          >
-                            <option value="">{t('home.tierDefault')}</option>
-                            {visibleAfterExclude.map(m => (
-                              <option key={m.id} value={m.id}>{m.name || m.id}</option>
-                            ))}
-                          </select>
+                        <label key={tier} className={`provider-tier-row provider-tier-row--${tier}`}>
+                          <span className="provider-tier-meta">
+                            <span className="provider-tier-label">{tierInfo.label}</span>
+                            <span className="provider-tier-code">{tier.toUpperCase()}</span>
+                            <span className="provider-tier-detail">{tierInfo.detail}</span>
+                          </span>
+                          <span className="provider-tier-select-wrap">
+                            <select
+                              className="provider-tier-select"
+                              value={current}
+                              onChange={(e) => changeTier(p.id, tier, e.target.value)}
+                            >
+                              <option value="">{t('home.tierFollowPrimary')}</option>
+                              {visibleAfterExclude.map(m => (
+                                <option key={m.id} value={m.id}>{m.name || m.id}</option>
+                              ))}
+                            </select>
+                            <ChevronDown className="provider-tier-select-chevron" size={14} strokeWidth={2.25} aria-hidden="true" />
+                          </span>
                         </label>
                       );
                     })}
-                  </div>
+                    </div>
+                  </section>
                 )}
               </div>
             );

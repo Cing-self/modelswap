@@ -105,6 +105,27 @@ function DataChangeEvents() {
 }
 
 /**
+ * Electron's macOS window uses a hidden native title bar so its surface can
+ * share the same material as the app. This small renderer-owned strip keeps
+ * the window recognisable and supplies a safe drag area without affecting the
+ * browser version of OKIT.
+ */
+function DesktopWindowFrame({ children }: { children: React.ReactNode }) {
+  const isDesktop = typeof window !== 'undefined' && Boolean((window as any).okitDesktop);
+  if (!isDesktop) return <>{children}</>;
+  return (
+    <div className="desktop-window-frame">
+      <div className="desktop-titlebar" aria-label="OKIT desktop window">
+        <span className="desktop-titlebar-brand">OKIT</span>
+        <span className="desktop-titlebar-divider" aria-hidden="true" />
+        <span className="desktop-titlebar-context">AI 配置控制台</span>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/**
  * Keep the frequently revisited pages mounted after their first visit.
  * Switching between routes then changes visibility instead of throwing away
  * their fetched data, scroll position, and local UI state.
@@ -188,22 +209,22 @@ export default function App() {
   // by the wizard itself via onComplete.
 
   if (gate === 'checking') {
-    return <div className="app-boot-gate" aria-hidden="true" />;
+    return <DesktopWindowFrame><div className="app-boot-gate" aria-hidden="true" /></DesktopWindowFrame>;
   }
 
   if (gate === 'wizard') {
     return (
-      <>
+      <DesktopWindowFrame>
         <DocumentTitle />
         <Suspense fallback={<div className="app-boot-gate" aria-hidden="true" />}>
           <OnboardingPage onComplete={() => setGate('app')} />
         </Suspense>
-      </>
+      </DesktopWindowFrame>
     );
   }
 
   return (
-    <>
+    <DesktopWindowFrame>
       <DocumentTitle />
       <Routes>
         {/* Standalone model catalog — outside the app shell, own design. */}
@@ -221,6 +242,6 @@ export default function App() {
           </div>
         } />
       </Routes>
-    </>
+    </DesktopWindowFrame>
   );
 }
