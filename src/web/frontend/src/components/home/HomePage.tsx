@@ -580,33 +580,18 @@ export default function HomePage() {
                     Lets the user route haiku/sonnet/opus to different models on
                     the gateway so Claude Code's tier-switching doesn't 404. */}
                 {isExpanded && activeAgentId === 'claude' && p.baseUrl !== 'https://api.anthropic.com' && p.models.length > 0 && (
-                  <section className="provider-tier-maps" aria-label={t('home.tierRouting')}>
-                    <div className="provider-tier-maps-heading">
-                      <div>
-                        <span className="provider-tier-maps-eyebrow">CLAUDE ROUTING</span>
-                        <h4>{t('home.tierRouting')}</h4>
-                      </div>
-                      <p>{t('home.tierRoutingHint')}</p>
-                    </div>
-                    <div className="provider-tier-grid">
+                  <div className="provider-tier-maps" role="group" aria-label={t('home.tierRouting')}>
                     {(['haiku', 'sonnet', 'opus'] as const).map(tier => {
                       const tierMap = tierMaps[p.id] || {};
                       const current = tierMap[tier] || '';
-                      const tierInfo = {
-                        haiku: { label: t('home.tierHaiku'), detail: t('home.tierHaikuHint') },
-                        sonnet: { label: t('home.tierSonnet'), detail: t('home.tierSonnetHint') },
-                        opus: { label: t('home.tierOpus'), detail: t('home.tierOpusHint') },
-                      }[tier];
                       return (
                         <label key={tier} className={`provider-tier-row provider-tier-row--${tier}`}>
-                          <span className="provider-tier-meta">
-                            <span className="provider-tier-label">{tierInfo.label}</span>
-                            <span className="provider-tier-code">{tier.toUpperCase()}</span>
-                            <span className="provider-tier-detail">{tierInfo.detail}</span>
-                          </span>
+                          <span className="provider-tier-marker" aria-hidden="true">{tier[0].toUpperCase()}</span>
+                          <span className="provider-tier-label">{tier.toUpperCase()}</span>
                           <span className="provider-tier-select-wrap">
                             <select
                               className="provider-tier-select"
+                              aria-label={tier.toUpperCase()}
                               value={current}
                               onChange={(e) => changeTier(p.id, tier, e.target.value)}
                             >
@@ -620,8 +605,7 @@ export default function HomePage() {
                         </label>
                       );
                     })}
-                    </div>
-                  </section>
+                  </div>
                 )}
               </div>
             );
