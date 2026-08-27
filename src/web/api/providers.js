@@ -801,7 +801,8 @@ async function deleteProviderRoute(req, res) {
         const agentAdapter = _getAdapter(agentId);
         if (fallbackProvider && agentAdapter) {
           await snapBeforeWrite(agentId, 'deleteProvider');
-          const write = resolvedAgentWrite(fallbackProvider, agentId, fallback.modelId, [fallback.modelId], config);
+          const write = prepareAgentWrite(fallbackProvider, agentId, fallback.modelId, [fallback.modelId], config, { allowCataloglessModel: true });
+          await authorizeAgentWrite(fallbackProvider, providers, write);
           await agentAdapter.applyConfig(write.provider, write.route.remoteModelId, write.resolved, write.resolvedById);
           if (typeof agentAdapter.removeProvider === 'function') {
             await agentAdapter.removeProvider(id);
@@ -843,18 +844,6 @@ async function switchProvider(req, res) {
       return res.status(400).json({ error: `${adapter.name} does not support ${provider.type} providers` });
     }
 
-    let route;
-    try {
-      route = resolveModelRoute(provider, modelId, adapter);
-    } catch (routeError) {
-      return res.status(400).json({ error: routeError.message, code: 'MODEL_ROUTE_UNAVAILABLE' });
-    }
-
-    const auth = await ensureProviderAuth(provider, providers, route.endpointId);
-    if (!auth.ok) {
-      return res.status(401).json({ error: auth.message, code: auth.code });
-    }
-
     // Apply config to agent via the TS adapter registry (single source of truth,
     // shared with the CLI). The JS writer functions that used to live here were
     // deleted because they had drifted from the TS adapters and were untested.
@@ -874,6 +863,7 @@ async function switchProvider(req, res) {
     // later write fails. Adapters update it as part of applyConfig, so it must
     // participate in the same recovery path.
     const configBeforeSwitch = await loadUserConfig();
+    let appliedWrite;
     try {
       // Adapters receive only the models the user selected for this Agent
       // site. A switch may never turn a whole provider catalog back on.
@@ -882,8 +872,14 @@ async function switchProvider(req, res) {
       const availableIds = new Set((provider.models || []).map(model => model.id));
       const selectedIds = [...new Set([...(state.sites[providerId]?.modelIds || []), modelId])]
         .filter(id => availableIds.has(id));
-      const write = resolvedAgentWrite(provider, agentId, modelId, selectedIds, visibilityConfig);
-      await agentAdapter.applyConfig(write.provider, write.route.remoteModelId, write.resolved, write.resolvedById);
+      try {
+        appliedWrite = prepareAgentWrite(provider, agentId, modelId, selectedIds, visibilityConfig);
+        await authorizeAgentWrite(provider, providers, appliedWrite);
+      } catch (routeError) {
+        if (routeError.auth) return res.status(401).json({ error: routeError.auth.message, code: routeError.auth.code });
+        return res.status(400).json({ error: routeError.message, code: 'MODEL_ROUTE_UNAVAILABLE' });
+      }
+      await agentAdapter.applyConfig(appliedWrite.provider, appliedWrite.route.remoteModelId, appliedWrite.resolved, appliedWrite.resolvedById);
 
       // Persist the active selection in the same Agent/site record that drives
       // the home page. Legacy adapter writes are migrated by loadUserConfig().
@@ -935,7 +931,7 @@ async function switchProvider(req, res) {
       providerId,
       modelId,
       snapshotAvailable: Boolean(snapshotId),
-      route: { executionMode: route.executionMode, endpointId: route.endpointId, remoteModelId: route.remoteModelId },
+      route: { executionMode: appliedWrite.route.executionMode, endpointId: appliedWrite.route.endpointId, remoteModelId: appliedWrite.route.remoteModelId },
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -950,25 +946,23 @@ async function switchProvider(req, res) {
 // the Agent's native config *and* atomically replaces the selected model list
 // for that one site.  The home page then renders the same list verbatim.
 
-function providerForAgentWrite(provider, modelIds, resolvedById = {}) {
-  const ids = new Set(modelIds || []);
-  return { ...provider, models: (provider.models || []).filter(model => ids.has(model.id)).map(model => ({ ...model, ...(resolvedById[model.id] ? { resolved: resolvedById[model.id] } : {}) })) };
-}
-
-// Reapplying an existing exclusive-agent selection (tier-map changes and
-// fallback after deletion) must use the same canonical-facts → routed-ID
-// contract as the switch/configure paths. Keeping this in one helper avoids
-// silently dropping model overrides or metadata on a later rewrite.
-function resolvedAgentWrite(provider, agentId, modelId, selectedIds, config) {
+// Prepare every Agent config write from one canonical selection. The UI stores
+// canonical model IDs, while adapters must receive each endpoint's request ID
+// and still retain the canonical ResolvedModel facts for limits/capabilities.
+// This is shared by switch, multi-model configure, tier reapply, and fallback
+// paths so no caller can independently rewrite a subset of model IDs.
+function prepareAgentWrite(provider, agentId, modelId, selectedIds, config, { allowCataloglessModel = false } = {}) {
   const adapterMeta = ADAPTERS.find(adapter => adapter.id === agentId);
   if (!adapterMeta) throw new Error(`Agent not found: ${agentId}`);
   // A built-in fallback can be available through the native Agent even before
   // its model directory has been materialized locally. Preserve the old safe
   // reapply behavior in that case; model facts/overrides cannot exist to merge.
   if (!(provider.models || []).some(model => model.id === modelId)) {
+    if (!allowCataloglessModel) throw new Error(`Model not found: ${modelId}`);
     return {
       route: { remoteModelId: modelId },
-      provider: providerForAgentWrite(provider, [modelId]),
+      routes: [],
+      provider: { ...provider, models: [] },
       resolved: undefined,
       resolvedById: {},
     };
@@ -983,13 +977,53 @@ function resolvedAgentWrite(provider, agentId, modelId, selectedIds, config) {
     id,
     resolveModel(provider, id, {}, config?.modelOverrides?.[provider.id]?.[id] || {}),
   ]));
-  const route = resolveModelRoute(provider, modelId, adapterMeta);
+  const routes = ids.map(id => ({
+    canonicalId: id,
+    route: resolveModelRoute(provider, id, adapterMeta),
+    resolved: resolvedById[id],
+  }));
+  const active = routes.find(item => item.canonicalId === modelId);
+  if (!active) throw new Error(`Model not found: ${modelId}`);
+
+  // One native provider entry has one base URL/protocol. Combining models that
+  // route to different endpoints would make at least one model silently use
+  // the wrong endpoint, so reject it before any adapter writes a file.
+  const endpointIds = [...new Set(routes.map(item => item.route.endpointId || "agent_native"))];
+  if (endpointIds.length > 1) {
+    throw new Error(`${adapterMeta.name} 选中的模型路由到不同端点（${endpointIds.join("、")}）；请分别配置站点`);
+  }
+
+  // Start with the active route's endpoint-adjusted provider, then materialize
+  // every selected model under its own remote ID. `resolved.id` remains the
+  // canonical ID, which is how adapters preserve metadata without confusing
+  // it with the wire-facing request name.
+  const routedModels = routes.map(item => {
+    const canonical = provider.models.find(model => model.id === item.canonicalId);
+    return {
+      ...canonical,
+      id: item.route.remoteModelId,
+      canonicalId: item.canonicalId,
+      resolved: item.resolved,
+    };
+  });
   return {
-    route,
-    provider: providerForAgentWrite(provider, ids, resolvedById),
+    route: active.route,
+    routes,
+    provider: { ...active.route.provider, models: routedModels },
     resolved: resolvedById[modelId],
     resolvedById,
   };
+}
+
+async function authorizeAgentWrite(provider, providers, write) {
+  for (const item of write.routes || []) {
+    const auth = await ensureProviderAuth(provider, providers, item.route.endpointId);
+    if (!auth.ok) {
+      const error = new Error(auth.message);
+      error.auth = auth;
+      throw error;
+    }
+  }
 }
 
 function fallbackForAgent(agentId) {
@@ -1025,13 +1059,12 @@ async function configureAgentProvider(req, res) {
   const before = await loadUserConfig();
 
   try {
-    const routes = [];
-    for (const modelId of selectedIds) {
-      const route = resolveModelRoute(provider, modelId, adapterMeta);
-      const auth = await ensureProviderAuth(provider, providers, route.endpointId);
-      if (!auth.ok) return res.status(401).json({ error: auth.message, code: auth.code });
-      const override = before?.modelOverrides?.[providerId]?.[modelId] || {};
-      routes.push({ modelId, route, resolved: resolveModel(provider, modelId, {}, override) });
+    const write = prepareAgentWrite(provider, agentId, primaryId, selectedIds, before);
+    try {
+      await authorizeAgentWrite(provider, providers, write);
+    } catch (authError) {
+      if (authError.auth) return res.status(401).json({ error: authError.auth.message, code: authError.auth.code });
+      throw authError;
     }
 
     const agentAdapter = _getAdapter(agentId);
@@ -1042,8 +1075,6 @@ async function configureAgentProvider(req, res) {
     }
 
     try {
-      const resolvedById = Object.fromEntries(routes.map(item => [item.modelId, item.resolved]));
-      const writeProvider = providerForAgentWrite(provider, selectedIds, resolvedById);
       if (ADDITIVE_AGENTS.has(agentId)) {
         // The adapters write a complete provider entry. Remove the previous
         // OKIT-owned entry first so unchecking a model is a real deletion,
@@ -1055,25 +1086,14 @@ async function configureAgentProvider(req, res) {
         if (typeof agentAdapter.applyModels !== 'function') {
           throw new Error(`${adapterMeta.name} 不支持写入多个站点模型`);
         }
-        // Additive adapters receive their complete provider catalog instead of
-        // a single applyConfig modelId. Replace selected canonical IDs with
-        // their endpoint-native route IDs before that catalog is written.
-        const routedWriteProvider = {
-          ...writeProvider,
-          models: writeProvider.models.map(model => {
-            const route = routes.find(item => item.modelId === model.id)?.route;
-            return route ? { ...model, id: route.remoteModelId } : model;
-          }),
-        };
-        const result = await agentAdapter.applyModels(routes.map(({ route }) => ({
-          provider: routedWriteProvider,
+        const result = await agentAdapter.applyModels(write.routes.map(({ route }) => ({
+          provider: write.provider,
           modelId: route.remoteModelId,
         })));
         if (result?.skipped?.length) {
           throw new Error(`以下模型未写入 ${adapterMeta.name}: ${result.skipped.join('、')}`);
         }
       } else {
-        const write = resolvedAgentWrite(provider, agentId, primaryId, selectedIds, before);
         await agentAdapter.applyConfig(write.provider, write.route.remoteModelId, write.resolved, write.resolvedById);
       }
 
@@ -1147,7 +1167,8 @@ async function removeAgentProvider(req, res) {
         const providers = await loadProviders();
         const fallbackProvider = fallback && providers.find(item => item.id === fallback.providerId);
         if (fallback && fallbackProvider && agentAdapter) {
-          const write = resolvedAgentWrite(fallbackProvider, agentId, fallback.modelId, [fallback.modelId], config);
+          const write = prepareAgentWrite(fallbackProvider, agentId, fallback.modelId, [fallback.modelId], config, { allowCataloglessModel: true });
+          await authorizeAgentWrite(fallbackProvider, providers, write);
           await agentAdapter.applyConfig(write.provider, write.route.remoteModelId, write.resolved, write.resolvedById);
           const fallbackState = getAgentState(config, agentId);
           fallbackState.activeProviderId = fallback.providerId;
@@ -1230,7 +1251,7 @@ const AGENT_CONFIG_FILES = {
   // kernel's settings file where OKIT mirrors modelCatalog.overrides
   // (supportsImages gating for text-only models).
   'zcode': ['.zcode/v2/config.json', '.zcode/cli/config.json'],
-  'hermes': ['.hermes/config.json'],
+  'hermes': ['.hermes/config.yaml'],
   'kimi-code': ['.kimi-code/config.toml'],
   'grok': ['.grok/config.toml'],
   'mimo-code': ['.config/mimocode/mimocode.jsonc'],
@@ -1446,7 +1467,8 @@ async function setTierMap(req, res) {
       const adapter = _getAdapter('claude');
       if (!provider || !adapter) throw new Error('Claude Code 站点不可用');
       const selected = getAgentState(config, 'claude').sites[providerId]?.modelIds || [];
-      const write = resolvedAgentWrite(provider, 'claude', state.activeModelId, selected, config);
+      const write = prepareAgentWrite(provider, 'claude', state.activeModelId, selected, config, { allowCataloglessModel: true });
+      await authorizeAgentWrite(provider, await loadProviders(), write);
       await adapter.applyConfig(write.provider, write.route.remoteModelId, write.resolved, write.resolvedById);
     }
     res.json({ success: true, providerId, tierMap: map });

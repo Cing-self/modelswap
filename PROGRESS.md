@@ -1,5 +1,18 @@
 # OKIT data architecture progress
 
+## Independent acceptance (2026-08-27)
+
+1. Scope: test only the 10 registered adapters through real API/CLI routes, always with a temporary HOME.
+2. Order: baseline evidence → dynamically derived matrix → native-file assertions → CLI path → deliberate red/green mutation → full verification.
+3. Maximum risk: static fixtures or adapter mocks could conceal a canonical-ID / routed-ID / model-facts mix-up; derive candidate combinations from registry and provider data instead.
+4. Constraint recorded: baseline test runner is unavailable (`vitest: command not found`); do not install or modify dependencies.
+5. Matrix execution: 348 dynamic Agent×built-in-HTTP-site combinations / 696 model writes; 14 explicit exclusions; all 10 CLI `provider use` writes used the real adapters.
+6. Result: the initial 72 OpenCode switch failures (36 sites × A/B) are resolved; the rerun has zero routed-ID failures.
+7. Claude GLM Tier: HAIKU/OPUS route to GLM 5.3, SONNET to GLM 5.3 Flash, with individual name/description/capability assertions; mutation produced red remote-ID and description errors, restoration green.
+8. Fixed unified Agent write preparation: every selected canonical model resolves once to route/remote ID/facts; adapters receive a single endpoint-pinned provider whose models are all remote-ID keyed.
+9. OpenCode regression: two selected canonical models now persist only as their two remote keys while retaining distinct resolved context/output limits; mixed endpoint selections reject before a config write.
+10. Hermes Web file view now exposes `~/.hermes/config.yaml`; full temporary isolated run passed 68 files / 724 tests, skipped 0, after build.
+
 ## ResolvedModel adapter/CLI alignment (2026-08-27)
 
 1. Goal: Claude, OpenClaw, Hermes and the `provider switch`/`provider use` CLI paths pass the same resolved model facts to adapter writes.

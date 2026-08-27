@@ -200,6 +200,12 @@ export class ClaudeAdapter extends BaseAdapter {
       // request environment variables, so a gateway alias is never replaced
       // by its directory/canonical ID on a later tier-map save.
       const routedTierModel = (canonicalId: string) => {
+        // Shared Web preparation materializes model entries under route IDs;
+        // the attached ResolvedModel is the canonical-ID lookup key.
+        const prepared = provider.models.find(model =>
+          (model as any).canonicalId === canonicalId || model.resolved?.id === canonicalId,
+        );
+        if (prepared) return prepared.id;
         try {
           return resolveModelRoute(provider, canonicalId, this).remoteModelId;
         } catch {
@@ -213,7 +219,9 @@ export class ClaudeAdapter extends BaseAdapter {
       const factsForTier = (canonicalId?: string) => {
         if (!canonicalId || canonicalId === resolvedModel?.id) return resolvedModel;
         return resolvedModels[canonicalId]
-          || provider.models.find(model => model.id === canonicalId)?.resolved;
+          || provider.models.find(model =>
+            (model as any).canonicalId === canonicalId || model.resolved?.id === canonicalId,
+          )?.resolved;
       };
       const haikuId = tierMap?.haiku || resolvedModel?.id;
       const sonnetId = tierMap?.sonnet || resolvedModel?.id;
