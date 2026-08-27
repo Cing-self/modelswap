@@ -159,6 +159,23 @@ export default function UsagePage() {
     skipIds: [...manualOnlyIds],
   });
 
+  // The mount fetch often races the extension: if the page loads before the
+  // extension's WebSocket reconnects (~30s after app start), cookie-based
+  // queries (MiMo) fail with "插件未连接" and the notice just sits there until
+  // a manual refresh. When the extension comes online, silently re-query every
+  // provider whose last attempt produced no data — the silent read usually
+  // succeeds right away. Browser-driving providers stay manual-only.
+  const retryOnExtensionReady = useCallback(() => {
+    for (const id of supportedIds) {
+      if (manualOnlyIds.has(id)) continue;
+      const usage = usageMap[id];
+      if (usage === undefined || (!usage.windows?.length && (usage.error || usage.notice))) {
+        void fetchOne(id);
+      }
+    }
+  }, [supportedIds, manualOnlyIds, usageMap, fetchOne]);
+  useDataChanged(['extension'], retryOnExtensionReady);
+
   // Manual "refresh all" button — an explicit user action, so manual-only
   // providers (browser-driving queries) are included.
   const handleManualRefresh = useCallback(() => {
