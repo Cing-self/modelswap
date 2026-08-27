@@ -9,6 +9,75 @@ const { removeSite } = require('../../src/web/api/agent-providers.js');
 // Each it() boots a child node with ts-node/register to exercise the real
 // API surface; cold compilation alone can exceed the 5s default timeout.
 describe('provider flow source of truth', { timeout: 30000 }, () => {
+  it('writes each Claude tier from its own routed ID and resolved facts when a tier map reapplies the active site', () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-claude-tier-route-'));
+    const root = path.resolve(__dirname, '../..');
+    const script = `
+      const fs=require('fs'), path=require('path');
+      const api=require(path.join(process.argv[1], 'src/web/api/providers.js'));
+      const call=(handler, req)=>new Promise((resolve,reject)=>handler(req,{status(c){this.code=c;return this},json(v){(this.code||200)>=400?reject(new Error(v.error)):resolve(v)}}));
+      (async()=>{
+        const provider={id:'glm-like',name:'GLM-like',type:'anthropic',baseUrl:'https://glm-like.test/anthropic',authMode:'none',endpoints:[{id:'glm-anthropic',type:'anthropic',baseUrl:'https://glm-like.test/anthropic'}],models:[
+          {id:'canonical-model',name:'GLM 5.3',meta:{source:'modelsdev',description:'Gateway GLM model',context:1000000,output:131072,reasoning:true,reasoningOptions:[{type:'effort',values:['low','high','max']}],interleaved:{field:'reasoning_content'},modalities:{input:['text','image'],output:['text']}},availability:[{executionMode:'http_endpoint',endpointId:'glm-anthropic',remoteModelId:'remote-model-v2',status:'available',source:'remote'}]},
+          {id:'canonical-flash',name:'GLM 5.3 Flash',meta:{source:'modelsdev',description:'Gateway GLM flash model',context:256000,output:32768,reasoning:true,reasoningOptions:[{type:'effort',values:['low','high']}],modalities:{input:['text'],output:['text']}},availability:[{executionMode:'http_endpoint',endpointId:'glm-anthropic',remoteModelId:'remote-flash-v2',status:'available',source:'remote'}]}
+        ]};
+        await call(api.createProvider,{body:provider});
+        await call(api.configureAgentProvider,{params:{agentId:'claude',providerId:'glm-like'},body:{modelIds:['canonical-model','canonical-flash'],primaryModelId:'canonical-model'}});
+        await call(api.setTierMap,{params:{providerId:'glm-like'},body:{haiku:'canonical-model',sonnet:'canonical-flash',opus:'canonical-model'}});
+        const settings=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.claude','settings.json'),'utf8'));
+        console.log(JSON.stringify(settings));
+      })().catch(error=>{console.error(error.stack);process.exit(1)});
+    `;
+    const settings = JSON.parse(execFileSync(process.execPath, ['-r', 'ts-node/register', '-e', script, root], {
+      env: { ...process.env, HOME: home, USERPROFILE: home }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim());
+    const env = settings.env;
+    expect(env.ANTHROPIC_MODEL).toBe('remote-model-v2');
+    for (const tier of ['HAIKU', 'OPUS']) {
+      expect(env[`ANTHROPIC_DEFAULT_${tier}_MODEL`]).toBe('remote-model-v2');
+      expect(env[`ANTHROPIC_DEFAULT_${tier}_MODEL_NAME`]).toBe('GLM 5.3');
+      expect(env[`ANTHROPIC_DEFAULT_${tier}_MODEL_DESCRIPTION`]).toBe('Gateway GLM model');
+      expect(env[`ANTHROPIC_DEFAULT_${tier}_MODEL_SUPPORTED_CAPABILITIES`]).toContain('thinking');
+      expect(env[`ANTHROPIC_DEFAULT_${tier}_MODEL_SUPPORTED_CAPABILITIES`]).toContain('effort');
+      expect(env[`ANTHROPIC_DEFAULT_${tier}_MODEL_SUPPORTED_CAPABILITIES`]).toContain('max_effort');
+      expect(env[`ANTHROPIC_DEFAULT_${tier}_MODEL_SUPPORTED_CAPABILITIES`]).toContain('interleaved_thinking');
+    }
+    expect(env.ANTHROPIC_DEFAULT_SONNET_MODEL).toBe('remote-flash-v2');
+    expect(env.ANTHROPIC_DEFAULT_SONNET_MODEL_NAME).toBe('GLM 5.3 Flash');
+    expect(env.ANTHROPIC_DEFAULT_SONNET_MODEL_DESCRIPTION).toBe('Gateway GLM flash model');
+    expect(env.ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES).toBe('thinking,effort');
+  });
+
+  it('writes routed remote IDs through real Web switch and multi-model configuration paths', () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-provider-route-'));
+    const root = path.resolve(__dirname, '../..');
+    const script = `
+      const fs=require('fs'), path=require('path');
+      const api=require(path.join(process.argv[1], 'src/web/api/providers.js'));
+      const call=(handler, req)=>new Promise((resolve,reject)=>handler(req,{status(c){this.code=c;return this},json(v){(this.code||200)>=400?reject(new Error(v.error)):resolve(v)}}));
+      (async()=>{
+        const provider={id:'mapped-route',name:'Mapped Route',type:'openai',baseUrl:'https://mapped-route.test/v1',authMode:'none',endpoints:[{id:'mapped-openai',type:'openai',baseUrl:'https://mapped-route.test/v1'}],models:[
+          {id:'canonical-model',name:'Canonical Model',meta:{source:'modelsdev',context:200000,output:8192,reasoning:true,modalities:{input:['text','image'],output:['text']}},availability:[{executionMode:'http_endpoint',endpointId:'mapped-openai',remoteModelId:'remote-model-v2',status:'available',source:'remote'}]},
+          {id:'canonical-secondary',name:'Canonical Secondary',availability:[{executionMode:'http_endpoint',endpointId:'mapped-openai',remoteModelId:'remote-secondary-v2',status:'available',source:'remote'}]}
+        ]};
+        await call(api.createProvider,{body:provider});
+        await call(api.switchProvider,{body:{agentId:'codex',providerId:'mapped-route',modelId:'canonical-model'}});
+        await call(api.configureAgentProvider,{params:{agentId:'opencode',providerId:'mapped-route'},body:{modelIds:['canonical-model','canonical-secondary'],primaryModelId:'canonical-model'}});
+        const codex=fs.readFileSync(path.join(process.env.HOME,'.codex','config.toml'),'utf8');
+        const opencode=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.config','opencode','opencode.json'),'utf8'));
+        console.log(JSON.stringify({codex,opencode}));
+      })().catch(error=>{console.error(error.stack);process.exit(1)});
+    `;
+    const output = execFileSync(process.execPath, ['-r', 'ts-node/register', '-e', script, root], {
+      env: { ...process.env, HOME: home, USERPROFILE: home }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const result = JSON.parse(output.trim());
+    expect(result.codex).toContain('model = "remote-model-v2"');
+    expect(result.codex).not.toContain('model = "canonical-model"');
+    expect(Object.keys(result.opencode.provider['mapped-route'].models).sort()).toEqual(['remote-model-v2', 'remote-secondary-v2']);
+    expect(result.opencode.provider['mapped-route'].models['remote-model-v2']).toMatchObject({ name: 'Canonical Model' });
+  });
+
   it('runs API → store → Codex/Claude/OpenCode adapters in a temporary HOME', () => {
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-provider-flow-'));
     const root = path.resolve(__dirname, '../..');

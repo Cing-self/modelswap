@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import os from 'os';
 import path from 'path';
+import { resolveModel, resolveModelRoute } from '../../../src/providers/routing';
 
 const testRoot = vi.hoisted(() => {
   const p = require('path');
@@ -79,6 +80,45 @@ describe('OpenClawAdapter', () => {
 });
 
 describe('OpenClawAdapter.applyConfig (cc-switch schema)', () => {
+  it('writes the routed remote ID and attaches canonical resolved capabilities to that entry', async () => {
+    const provider: any = {
+      ...testProvider,
+      endpoints: [{ id: 'gateway:openai', type: 'openai', baseUrl: testProvider.baseUrl }],
+      models: [{
+        id: 'canonical-model', name: 'Canonical Model',
+        meta: { source: 'modelsdev', context: 200000, output: 8192, reasoning: true, modalities: { input: ['text', 'image'], output: ['text'] } },
+        availability: [{ executionMode: 'http_endpoint', endpointId: 'gateway:openai', remoteModelId: 'remote-model-v2', status: 'available', source: 'remote' }],
+      }],
+    };
+    const adapter = new OpenClawAdapter();
+    const route = resolveModelRoute(provider, 'canonical-model', adapter);
+    await adapter.applyConfig(route.provider, route.remoteModelId, resolveModel(provider, 'canonical-model'));
+
+    const written = JSON.parse(mocks.files.get(CONFIG_PATH)!);
+    expect(written.agents.defaults.model.primary).toBe('deepseek/remote-model-v2');
+    expect(written.models.providers.deepseek.models).toEqual([{
+      id: 'remote-model-v2', name: 'Canonical Model', reasoning: true,
+      input: ['text', 'image'], contextWindow: 200000, maxTokens: 8192,
+    }]);
+  });
+
+  it('maps resolved context, output, reasoning, and input modalities to documented model fields', async () => {
+    const adapter = new OpenClawAdapter();
+    await adapter.applyConfig(testProvider, 'deepseek-chat', {
+      id: 'deepseek-chat', name: 'Resolved DeepSeek', context: 200000, output: 8192,
+      modalities: { input: ['text', 'image'], output: ['text'] }, reasoning: true,
+      source: 'modelsdev', confidence: 'high',
+    });
+
+    const model = JSON.parse(mocks.files.get(CONFIG_PATH)!).models.providers.deepseek.models[0];
+    expect(model).toEqual({
+      id: 'deepseek-chat', name: 'Resolved DeepSeek', reasoning: true,
+      input: ['text', 'image'], contextWindow: 200000, maxTokens: 8192,
+    });
+    expect(model).not.toHaveProperty('modalities');
+    expect(model).not.toHaveProperty('output');
+  });
+
   it('writes provider into models.providers as an OBJECT keyed by id', async () => {
     const adapter = new OpenClawAdapter();
     await adapter.applyConfig(testProvider, 'deepseek-chat');
@@ -132,7 +172,7 @@ describe('OpenClawAdapter.applyConfig (cc-switch schema)', () => {
     expect(Object.keys(written.models.providers)).toEqual(['glm', 'deepseek']);
   });
 
-  it('models entry has id + name (no capabilities field)', async () => {
+  it('models entry has id + name (no unsupported capabilities field)', async () => {
     const adapter = new OpenClawAdapter();
     await adapter.applyConfig(testProvider, 'deepseek-chat');
 

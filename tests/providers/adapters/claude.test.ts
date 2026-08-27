@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import os from 'os';
 import path from 'path';
+import { resolveModel, resolveModelRoute } from '../../../src/providers/routing';
 
 const testRoot = vi.hoisted(() => {
   const p = require('path');
@@ -99,6 +100,44 @@ describe('ClaudeAdapter', () => {
 });
 
 describe('ClaudeAdapter.applyConfig', () => {
+  it('writes the routed remote ID while retaining canonical resolved capabilities', async () => {
+    const provider: any = {
+      ...testProvider,
+      endpoints: [{ id: 'gateway:anthropic', type: 'anthropic', baseUrl: testProvider.baseUrl }],
+      models: [{
+        id: 'canonical-model', name: 'Canonical Model',
+        meta: { source: 'modelsdev', context: 200000, output: 8192, reasoning: true, modalities: { input: ['text', 'image'], output: ['text'] } },
+        availability: [{ executionMode: 'http_endpoint', endpointId: 'gateway:anthropic', remoteModelId: 'remote-model-v2', status: 'available', source: 'remote' }],
+      }],
+    };
+    const adapter = new ClaudeAdapter();
+    const route = resolveModelRoute(provider, 'canonical-model', adapter);
+    await adapter.applyConfig(route.provider, route.remoteModelId, resolveModel(provider, 'canonical-model'));
+
+    const env = JSON.parse(mocks.files.get(SETTINGS_PATH)!).env;
+    expect(env.ANTHROPIC_MODEL).toBe('remote-model-v2');
+    expect(env.ANTHROPIC_DEFAULT_SONNET_MODEL).toBe('remote-model-v2');
+    expect(env.ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES).toBe('thinking');
+  });
+
+  it('maps resolved reasoning facts only to documented Claude capability fields', async () => {
+    const adapter = new ClaudeAdapter();
+    await adapter.applyConfig(testProvider, 'ignored-id', {
+      id: 'resolved-model', name: 'Resolved Model', description: 'Mapped through model facts',
+      context: 200000, output: 8192, modalities: { input: ['text', 'image'], output: ['text'] },
+      reasoning: true, reasoningOptions: [{ type: 'effort', values: ['low', 'xhigh', 'max'] }],
+      interleaved: { field: 'reasoning_content' }, source: 'remote', confidence: 'high',
+    });
+
+    const env = JSON.parse(mocks.files.get(SETTINGS_PATH)!).env;
+    expect(env.ANTHROPIC_MODEL).toBe('ignored-id');
+    expect(env.ANTHROPIC_DEFAULT_SONNET_MODEL_NAME).toBe('Resolved Model');
+    expect(env.ANTHROPIC_DEFAULT_SONNET_MODEL_DESCRIPTION).toBe('Mapped through model facts');
+    expect(env.ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES).toBe('thinking,effort,xhigh_effort,max_effort,interleaved_thinking');
+    expect(env).not.toHaveProperty('ANTHROPIC_CONTEXT_WINDOW');
+    expect(env).not.toHaveProperty('ANTHROPIC_MAX_TOKENS');
+  });
+
   it('writes ANTHROPIC_BASE_URL, MODEL, AUTH_TOKEN to settings.json', async () => {
     const adapter = new ClaudeAdapter();
     await adapter.applyConfig(testProvider, 'glm-4.7');

@@ -1,5 +1,45 @@
 # OKIT data architecture progress
 
+## Independent acceptance (2026-08-27)
+
+1. Scope: test only the 10 registered adapters through real API/CLI routes, always with a temporary HOME.
+2. Order: baseline evidence → dynamically derived matrix → native-file assertions → CLI path → deliberate red/green mutation → full verification.
+3. Maximum risk: static fixtures or adapter mocks could conceal a canonical-ID / routed-ID / model-facts mix-up; derive candidate combinations from registry and provider data instead.
+4. Constraint recorded: baseline test runner is unavailable (`vitest: command not found`); do not install or modify dependencies.
+5. Matrix execution: 348 dynamic Agent×built-in-HTTP-site combinations / 696 model writes; 14 explicit exclusions; all 10 CLI `provider use` writes used the real adapters.
+6. Result: the initial 72 OpenCode switch failures (36 sites × A/B) are resolved; the rerun has zero routed-ID failures.
+7. Claude GLM Tier: HAIKU/OPUS route to GLM 5.3, SONNET to GLM 5.3 Flash, with individual name/description/capability assertions; mutation produced red remote-ID and description errors, restoration green.
+8. Fixed unified Agent write preparation: every selected canonical model resolves once to route/remote ID/facts; adapters receive a single endpoint-pinned provider whose models are all remote-ID keyed.
+9. OpenCode regression: two selected canonical models now persist only as their two remote keys while retaining distinct resolved context/output limits; mixed endpoint selections reject before a config write.
+10. Hermes Web file view now exposes `~/.hermes/config.yaml`; full temporary isolated run passed 68 files / 724 tests, skipped 0, after build.
+
+## ResolvedModel adapter/CLI alignment (2026-08-27)
+
+1. Goal: Claude, OpenClaw, Hermes and the `provider switch`/`provider use` CLI paths pass the same resolved model facts to adapter writes.
+2. Order: establish baseline → verify official schemas → update adapters/CLI → add isolated regressions → reverse-check and build.
+3. Maximum risk: undocumented capability fields could create silently ignored Agent config; only documented fields will be emitted.
+
+### Verified configuration-field mapping
+
+| Agent | ResolvedModel → written field | Evidence / deliberately omitted |
+| --- | --- | --- |
+| Claude Code | `id` → `ANTHROPIC_MODEL` and `ANTHROPIC_DEFAULT_*_MODEL`; `name`/`description` and `reasoning`/effort/interleaving → documented `*_NAME`, `*_DESCRIPTION`, `*_SUPPORTED_CAPABILITIES` | Official Claude Code Model Configuration / Environment Variables docs (read 2026-08-27). No numeric context/output or modalities field is documented, so none is written. |
+| OpenClaw | `id`/`name`, `reasoning`, input modalities, `context`, `output` → model `id`/`name`, `reasoning`, `input`, `contextWindow`, `maxTokens` | Official Model providers docs (read 2026-08-27). Output modalities have no documented model-entry key, so are not written. |
+| Hermes | `id`, `context`, `output`, image input → `model.default`, `model.context_length`, `model.max_tokens`, `model.supports_vision` and named provider `default_model`, per-model `context_length`/`supports_vision` | Official Hermes Providers docs (read 2026-08-27). `reasoning` needs provider-specific `extra_body`; no generic field is written. |
+
+### Completion record
+
+- Correction in progress (2026-08-27): review established that `ResolvedModel.id` is canonical while `route.remoteModelId` is the provider-native request ID. Claude, OpenClaw, and Hermes now preserve the latter as their written model ID; resolved facts supply capabilities only.
+- Regression coverage: canonical `canonical-model` → `remote-model-v2` routing now exercises actual Claude/OpenClaw/Hermes configuration files, and real OpenClaw files written through CLI `switch`/`use`; synthetic context/reasoning/modality facts remain locked to documented fields.
+- Contract check: every adapter now preserves `applyConfig`'s second routed-ID parameter; the third `ResolvedModel` is primary canonical capability metadata, and the optional fourth map carries separately selected canonical facts when an Agent needs more than one model.
+- Web-path correction (2026-08-27): Codex/OpenCode now follow the same permanent second-argument contract as every other adapter, and the CLI-only compatibility branch was removed. Web additive writes transform each selected catalog entry to its route's remote ID before OpenCode persists it.
+- Web verification: a temporary-HOME real API regression calls Codex `switchProvider` and multi-model OpenCode `configureAgentProvider`; `canonical-model` writes `remote-model-v2` in both native configurations.
+- Claude tier-map correction (2026-08-27): `resolvedAgentWrite` is now the shared Web reapply path for tier-map and fallback writes. It resolves catalog facts with user overrides while preserving `resolveModelRoute(...).remoteModelId`; catalog-less built-in fallback entries retain their native model ID without inventing facts.
+- Claude tier-map verification: a temporary-HOME API regression configures GLM-like primary and flash canonical models with separate routed IDs, posts `setTierMap`, and reads `~/.claude/settings.json`. HAIKU/OPUS retain primary facts while SONNET writes the flash ID, name, description, and its own capabilities; switching to the official fallback clears all companion metadata variables.
+- Reverse check: removing both CLI third arguments made `tests/commands/provider.test.ts` fail 2/2 with missing third-argument diffs; restoration passed 2/2.
+- Correction verification: focused Web/adapter/CLI suite 9 files / 92 tests passed; full `npm test -- --run` 67 / 718 passed, skipped 0; `npm run build` and `git diff --check` passed.
+- Baseline recovery: initial `npx`/`npm ci` could not install local dependencies because of a corrupt npm cache; a verified existing workspace dependency tree enabled the final successful checks. No source dependency or lockfile changed.
+
 ## Return-work plan (2026-08-26)
 
 1. Goal: `providers.json` contains only sites; `models-cache.json` contains every rebuildable model fact.

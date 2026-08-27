@@ -167,7 +167,8 @@ export class OpenCodeAdapter extends BaseAdapter {
   }
 
   async applyConfig(provider: Provider, modelId: string, resolvedModel?: ResolvedModel): Promise<void> {
-    modelId = resolvedModel?.id || modelId;
+    // Preserve the routed endpoint-native ID; resolvedModel is capability
+    // metadata keyed by the user's canonical selection.
     const data = await this.loadConfig();
     await this.writeProviderEntry(data, provider);
 

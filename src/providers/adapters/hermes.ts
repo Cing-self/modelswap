@@ -4,7 +4,7 @@ import os from "os";
 import yaml from "js-yaml";
 import { BaseAdapter } from "./base";
 import { gatewayHeadersFor } from "./gateway";
-import { AgentSelection, AuthStatus, Provider, ProviderType } from "../types";
+import { AgentSelection, AuthStatus, Provider, ProviderType, ResolvedModel } from "../types";
 import { loadUserConfig, updateUserConfig } from "../../config/user";
 import { atomicWrite } from "../../utils/atomicWrite";
 
@@ -35,7 +35,9 @@ export class HermesAdapter extends BaseAdapter {
     return null;
   }
 
-  async applyConfig(provider: Provider, modelId: string): Promise<void> {
+  async applyConfig(provider: Provider, modelId: string, resolvedModel?: ResolvedModel): Promise<void> {
+    // `modelId` is the routed provider-native model ID. The resolved ID is
+    // canonical metadata and must never replace it in Hermes config.
     const apiKey = await this.resolveApiKey(provider);
 
     await fs.ensureDir(path.dirname(HERMES_CONFIG_PATH));
@@ -45,40 +47,43 @@ export class HermesAdapter extends BaseAdapter {
       if (content.trim()) data = (yaml.load(content) as Record<string, any>) || {};
     }
 
-    // custom_providers list keyed by display name; replace our entry in place
-    // and leave any others (user-entered or from Hermes itself) untouched.
-    if (!Array.isArray(data.custom_providers)) data.custom_providers = [];
+    // Hermes config v12 stores named custom endpoints in `providers`, keyed by
+    // a stable identifier. Its legacy `custom_providers` list is deliberately
+    // left untouched: Hermes reads it and upgrades it itself, while replacing
+    // it here could erase user-managed legacy entries.
+    if (typeof data.providers !== "object" || data.providers === null || Array.isArray(data.providers)) {
+      data.providers = {};
+    }
     const entry: Record<string, any> = {
-      name: provider.name,
-      base_url: provider.baseUrl,
+      api: provider.baseUrl,
+      default_model: modelId,
     };
     if (apiKey) entry.api_key = apiKey;
-    // api_mode is only meaningful for Anthropic-protocol endpoints; Hermes
-    // treats OpenAI-compatible URLs as the default transport.
-    if (provider.type === "anthropic") entry.api_mode = "anthropic_messages";
+    entry.transport = provider.type === "anthropic" ? "anthropic_messages" : "chat_completions";
     // The opencode.ai gateway rate-limits anonymous traffic separately from the
     // official opencode client (verified 429 without the UA). Hermes sends its
     // own UA, so pin the opencode client's one via extra_headers (see gateway.ts).
     const gatewayHeaders = gatewayHeadersFor(provider.baseUrl);
     if (gatewayHeaders) entry.extra_headers = gatewayHeaders;
-    const idx = data.custom_providers.findIndex(
-      (p: any) => p && typeof p === "object" && p.name === provider.name,
-    );
-    if (idx >= 0) data.custom_providers[idx] = entry;
-    else data.custom_providers.push(entry);
+    const modelFacts: Record<string, any> = {};
+    if (Number.isFinite(resolvedModel?.context)) modelFacts.context_length = resolvedModel!.context;
+    if (resolvedModel?.modalities.input?.includes("image")) modelFacts.supports_vision = true;
+    if (Object.keys(modelFacts).length) entry.models = { [modelId]: modelFacts };
+    data.providers[provider.id] = entry;
 
-    // Active model: "provider-name/model-id" string under model.default.
+    // Active model selects the named custom provider and its default model.
     if (typeof data.model !== "object" || data.model === null) data.model = {};
-    data.model.default = `${provider.name}/${modelId}`;
-    // Hermes routes requests via model.provider + model.base_url, NOT the
-    // custom_providers list (which only feeds the provider picker). Without
-    // these keys a stale built-in provider (e.g. `zai`) keeps winning and
-    // traffic never reaches the third-party endpoint. Docs: custom endpoints
-    // set model.provider = "custom" with an explicit base_url/api_key.
-    data.model.provider = "custom";
-    data.model.base_url = provider.baseUrl;
-    if (apiKey) data.model.api_key = apiKey;
-    if (provider.type === "anthropic") data.model.api_mode = "anthropic_messages";
+    data.model.default = modelId;
+    data.model.provider = `custom:${provider.id}`;
+    if (Number.isFinite(resolvedModel?.context)) data.model.context_length = resolvedModel!.context;
+    else delete data.model.context_length;
+    if (Number.isFinite(resolvedModel?.output)) data.model.max_tokens = resolvedModel!.output;
+    else delete data.model.max_tokens;
+    if (resolvedModel?.modalities.input?.includes("image")) data.model.supports_vision = true;
+    else delete data.model.supports_vision;
+    // `reasoning` has no provider-neutral Hermes setting. It is expressed via
+    // provider-specific `extra_body`, so emitting one from a boolean fact
+    // would be an unsupported guess.
 
     await atomicWrite(HERMES_CONFIG_PATH, yaml.dump(data, { lineWidth: 120, noRefs: true }));
     await updateUserConfig({

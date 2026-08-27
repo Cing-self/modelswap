@@ -21,7 +21,20 @@ export function modelFacts(provider: Provider, model: ProviderModel | string): R
       confidence: "low",
     };
   }
-  return entry.resolved || resolveModel(provider, entry.id);
+  return entry.resolved || resolveModelFacts(provider, entry.id);
+}
+
+/**
+ * Resolve the canonical model facts used by both adapter writes and CLI
+ * selection. Keeping overrides here prevents either caller from growing a
+ * second capability table or a subtly different merge order.
+ */
+export function resolveModelFacts(
+  provider: Provider,
+  modelId: string,
+  override: Partial<ResolvedModel> = {},
+): ResolvedModel {
+  return resolveModel(provider, modelId, {}, override);
 }
 
 export function modelTokenLimit(provider: Provider, model: ProviderModel | string): { context?: number; output?: number } {

@@ -2,7 +2,7 @@ import fs from "fs-extra";
 import path from "path";
 import os from "os";
 import { BaseAdapter } from "./base";
-import { AgentSelection, AuthStatus, Provider, ProviderType } from "../types";
+import { AgentSelection, AuthStatus, Provider, ProviderType, ResolvedModel } from "../types";
 import { loadUserConfig, updateUserConfig } from "../../config/user";
 import { atomicWrite, atomicWriteJSON } from "../../utils/atomicWrite";
 
@@ -36,7 +36,9 @@ export class OpenClawAdapter extends BaseAdapter {
     return null;
   }
 
-  async applyConfig(provider: Provider, modelId: string): Promise<void> {
+  async applyConfig(provider: Provider, modelId: string, resolvedModel?: ResolvedModel): Promise<void> {
+    // Keep the routed model ID: ResolvedModel.id is canonical and may differ
+    // from the actual ID this endpoint accepts.
     const apiKey = await this.resolveApiKey(provider);
 
     await fs.ensureDir(path.dirname(OPENCLAW_CONFIG_PATH));
@@ -57,10 +59,24 @@ export class OpenClawAdapter extends BaseAdapter {
     const providerEntry: Record<string, any> = {
       baseUrl: provider.baseUrl,
       api: apiProtocolFor(provider.type),
-      models: provider.models.map(m => ({
-        id: m.id,
-        name: m.name || m.id,
-      })),
+      models: provider.models.map(m => {
+        // The selected model facts come from the same ResolvedModel passed by
+        // Web and CLI.  Other selected entries can carry their own facts from
+        // the Web multi-model write.
+        const isSelected = m.id === modelId || Boolean(resolvedModel && m.resolved?.id === resolvedModel.id);
+        const facts = isSelected ? (resolvedModel || m.resolved) : m.resolved;
+        return {
+          // Web's selected provider list carries canonical IDs, while a
+          // routed provider already carries remote IDs. Both must materialize
+          // the selected entry under the route's native request ID.
+          id: isSelected ? modelId : m.id,
+          name: facts?.name || m.name || m.id,
+          ...(typeof facts?.reasoning === "boolean" ? { reasoning: facts.reasoning } : {}),
+          ...(facts?.modalities.input?.length ? { input: facts.modalities.input } : {}),
+          ...(Number.isFinite(facts?.context) ? { contextWindow: facts!.context } : {}),
+          ...(Number.isFinite(facts?.output) ? { maxTokens: facts!.output } : {}),
+        };
+      }),
     };
     if (apiKey) providerEntry.apiKey = apiKey;
     data.models.providers[provider.id] = providerEntry;
