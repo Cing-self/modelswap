@@ -13,7 +13,7 @@ type AuditResult = {
   cli: Array<{ agentId: string; providerId: string; route: string }>;
   failures: string[];
   openCodeRegression: { keys: string[]; canonicalIds: string[]; routes: string[]; limits: Array<{ context?: number; output?: number }> };
-  crossEndpointError: string;
+  crossEndpoint: { status: number; error: string };
   hermesConfigPath: string | null;
   claudeTier: Record<string, string>;
   reverse: { redErrors: string[]; greenErrors: string[] };
@@ -154,10 +154,12 @@ const auditScript = String.raw`
       { id: 'canonical-two', name: 'Two', meta: { source: 'remote', context: 2 }, availability: [{ executionMode: 'http_endpoint', endpointId: 'cross-two', remoteModelId: 'remote-two', status: 'available', source: 'remote' }] },
     ] };
     await call(api.createProvider, { body: crossProvider });
-    let crossEndpointError = '';
-    try { await call(api.configureAgentProvider, { params: { agentId: 'opencode', providerId: crossProvider.id }, body: { modelIds: ['canonical-one', 'canonical-two'], primaryModelId: 'canonical-one' } }); }
-    catch (error) { crossEndpointError = error.message; }
-    assert(crossEndpointError.includes('不同端点'), 'mixed-endpoint OpenCode selection was not rejected clearly');
+    const crossEndpoint = await new Promise(resolve => api.configureAgentProvider({ params: { agentId: 'opencode', providerId: crossProvider.id }, body: { modelIds: ['canonical-one', 'canonical-two'], primaryModelId: 'canonical-one' } }, {
+      status(code) { this.code = code; return this; },
+      json(body) { resolve({ status: this.code || 200, error: body.error || '' }); },
+    }));
+    assert(crossEndpoint.status === 400, 'mixed-endpoint OpenCode selection did not return HTTP 400');
+    assert(crossEndpoint.error.includes('不同端点'), 'mixed-endpoint OpenCode selection was not rejected clearly');
     const hermesView = await call(api.getAgentConfigFiles, { params: { agentId: 'hermes' }, query: { reveal: '1' } });
     const hermesFile = hermesView.files.find(file => file.exists);
     assert(hermesFile && hermesFile.path === '~/.hermes/config.yaml', 'Hermes Web config entry is not its actual YAML file');
@@ -210,7 +212,7 @@ const auditScript = String.raw`
       cli.push({ agentId: adapter.id, providerId: candidate.providerId, route: candidate.mainRoute });
     }
     console.log = originalLog;
-    console.log(JSON.stringify({ registeredAgents, generatedProviders: httpSites.length, combinations, verified, excluded, cli, failures: errors, openCodeRegression, crossEndpointError, hermesConfigPath: hermesFile && hermesFile.path, claudeTier: {
+    console.log(JSON.stringify({ registeredAgents, generatedProviders: httpSites.length, combinations, verified, excluded, cli, failures: errors, openCodeRegression, crossEndpoint, hermesConfigPath: hermesFile && hermesFile.path, claudeTier: {
       haiku: settings.ANTHROPIC_DEFAULT_HAIKU_MODEL, sonnet: settings.ANTHROPIC_DEFAULT_SONNET_MODEL, opus: settings.ANTHROPIC_DEFAULT_OPUS_MODEL,
       haikuName: settings.ANTHROPIC_DEFAULT_HAIKU_MODEL_NAME, sonnetName: settings.ANTHROPIC_DEFAULT_SONNET_MODEL_NAME, opusName: settings.ANTHROPIC_DEFAULT_OPUS_MODEL_NAME,
     }, reverse: { redErrors, greenErrors } }));
@@ -232,7 +234,7 @@ describe("all registered Agent native routed-model acceptance", { timeout: 300_0
       cliVerifiedAgents: result.cli.map(item => item.agentId),
       failures: result.failures,
       openCodeRegression: result.openCodeRegression,
-      crossEndpointError: result.crossEndpointError,
+      crossEndpoint: result.crossEndpoint,
       hermesConfigPath: result.hermesConfigPath,
       claudeTier: result.claudeTier,
       reverse: result.reverse,
@@ -258,7 +260,7 @@ describe("all registered Agent native routed-model acceptance", { timeout: 300_0
     expect(result.openCodeRegression.keys).not.toContain(result.openCodeRegression.canonicalIds[0]);
     expect(result.openCodeRegression.keys).not.toContain(result.openCodeRegression.canonicalIds[1]);
     expect(result.openCodeRegression.limits).toEqual([{ context: 1000000, output: 131072 }, { context: 256000, output: 32768 }]);
-    expect(result.crossEndpointError).toContain("不同端点");
+    expect(result.crossEndpoint).toMatchObject({ status: 400, error: expect.stringContaining("不同端点") });
     expect(result.hermesConfigPath).toBe("~/.hermes/config.yaml");
   });
 

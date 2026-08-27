@@ -1059,12 +1059,13 @@ async function configureAgentProvider(req, res) {
   const before = await loadUserConfig();
 
   try {
-    const write = prepareAgentWrite(provider, agentId, primaryId, selectedIds, before);
+    let write;
     try {
+      write = prepareAgentWrite(provider, agentId, primaryId, selectedIds, before);
       await authorizeAgentWrite(provider, providers, write);
     } catch (authError) {
       if (authError.auth) return res.status(401).json({ error: authError.auth.message, code: authError.auth.code });
-      throw authError;
+      return res.status(400).json({ error: authError.message, code: 'MODEL_ROUTE_UNAVAILABLE' });
     }
 
     const agentAdapter = _getAdapter(agentId);
