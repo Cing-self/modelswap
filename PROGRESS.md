@@ -159,3 +159,14 @@
 7. Verification: `tests/usage.test.ts` 14 tests, full `npm test -- --run` 74 files/736 tests, build and diff-check all passed.
 8. Sync stabilization: fake-timer timeout came from reconciling remote sites absent from local provider sites through full model-catalog hydration. `syncPull` now records those as retryable per-site `PROVIDER_NOT_FOUND` results before hydration; desired remote state is still persisted and real local sites still use Agent service reconciliation.
 9. Evidence: `tests/sync.test.js` passed 5 consecutive times (0.36–0.42s); full suite passed twice consecutively (74 files / 736 tests); Usage 14/14, build and diff-check passed.
+
+## ModelsPage split baseline (2026-08-27)
+
+1. HEAD `30a271f`, clean worktree; `ModelsPage.tsx` is 2225 lines.
+2. Existing page contains page state/API calls (lines 160–1086), detail/grid/action components, and a 500+ line provider editor.
+3. Split order: shared types/filter utilities → API/state hook → list/detail/editor components → ≤400-line orchestration page.
+4. Maximum risk: preserve editor connection/Vault/OAuth callbacks and the existing Paper Cutout design tokens exactly.
+5. Completed: `ModelsPage.tsx` is now a six-line composition root. API calls and page state live in `useModelsPageState`; the editor connection probe and model fetch lifecycle live in `useProviderConnectionTest`.
+6. Presentation is split by responsibility into workspace, platform cards, platform/model details, action menu, and provider form components. Existing CSS class names and callbacks were preserved.
+7. Removed the two state values which had no writer/reader path (`endpointResults` and the unused card authentication-method map). Cross-view authentication and endpoint normalization now share `modelsCatalog` rather than copying rules.
+8. Added pure catalog regression coverage for protocol filtering, endpoint normalization, and authentication readiness. Focused test: 4/4. Full suite: 75 files / 740 tests. Frontend and root builds plus `git diff --check` pass.
