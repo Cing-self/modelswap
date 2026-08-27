@@ -6,11 +6,31 @@ import { PRESET_PROVIDERS } from "../providers/presets";
 import { getAdapters, getAdapter } from "../providers/registry";
 import { checkAuthStatus } from "../providers/auth";
 import { loadUserConfig, updateUserConfig } from "../config/user";
-import { Provider, ProviderModel } from "../providers/types";
+import { Provider, ProviderModel, ResolvedModel } from "../providers/types";
 import { providerSupportsAdapter, resolveModelRoute } from "../providers/routing";
 import { resolveModelFacts } from "../providers/adapters/model-facts";
 import { capturePreSwitchSnapshot } from "../providers/snapshots";
 import { VaultStore } from "../vault/store";
+
+// Claude stores its tier map as canonical IDs in user config. Supply the
+// matching ResolvedModel facts for every configured tier so the adapter never
+// reuses the primary model's name/capabilities for a different backing model.
+function resolvedFactsForAdapterWrite(
+  provider: Provider,
+  agentId: string,
+  modelId: string,
+  config: Awaited<ReturnType<typeof loadUserConfig>>,
+): Record<string, ResolvedModel> {
+  const tierMap = agentId === "claude"
+    ? config.agentProviders?.claude?.sites?.[provider.id]?.tierMap
+    : undefined;
+  const ids = [...new Set([modelId, ...Object.values(tierMap || {})])]
+    .filter((id): id is string => typeof id === "string" && provider.models.some(model => model.id === id));
+  return Object.fromEntries(ids.map(id => [
+    id,
+    resolveModelFacts(provider, id, config.modelOverrides?.[provider.id]?.[id] || {}),
+  ]));
+}
 
 export async function providerList(options?: { json?: boolean }): Promise<void> {
   const providers = await loadProviders();
@@ -156,17 +176,14 @@ export async function providerSwitch(agentId?: string): Promise<void> {
 
   const route = resolveModelRoute(selectedProvider, modelResponse.model, adapter);
   const config = await loadUserConfig();
-  const resolvedModel = resolveModelFacts(
-    selectedProvider,
-    modelResponse.model,
-    config.modelOverrides?.[selectedProvider.id]?.[modelResponse.model] || {},
-  );
+  const resolvedModels = resolvedFactsForAdapterWrite(selectedProvider, adapter.id, modelResponse.model, config);
+  const resolvedModel = resolvedModels[modelResponse.model];
   try {
     await capturePreSwitchSnapshot(adapter.id);
   } catch (snapErr) {
     console.warn(`[providerSwitch] snapshot failed: ${snapErr instanceof Error ? snapErr.message : String(snapErr)}`);
   }
-  await adapter.applyConfig(route.provider, route.remoteModelId, resolvedModel);
+  await adapter.applyConfig(route.provider, route.remoteModelId, resolvedModel, resolvedModels);
   await updateUserConfig({ agentProviders: { [adapter.id]: {
     activeProviderId: selectedProvider.id,
     activeModelId: modelResponse.model,
@@ -207,17 +224,14 @@ export async function providerUse(
   for (const adapter of adapters) {
     const route = resolveModelRoute(provider, modelId, adapter!);
     const config = await loadUserConfig();
-    const resolvedModel = resolveModelFacts(
-      provider,
-      modelId,
-      config.modelOverrides?.[provider.id]?.[modelId] || {},
-    );
+    const resolvedModels = resolvedFactsForAdapterWrite(provider, adapter!.id, modelId, config);
+    const resolvedModel = resolvedModels[modelId];
     try {
       await capturePreSwitchSnapshot(adapter!.id);
     } catch (snapErr) {
       console.warn(`[providerUse] snapshot failed: ${snapErr instanceof Error ? snapErr.message : String(snapErr)}`);
     }
-    await adapter!.applyConfig(route.provider, route.remoteModelId, resolvedModel);
+    await adapter!.applyConfig(route.provider, route.remoteModelId, resolvedModel, resolvedModels);
     await updateUserConfig({ agentProviders: { [adapter!.id]: {
       activeProviderId: provider.id,
       activeModelId: modelId,

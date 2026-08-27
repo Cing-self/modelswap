@@ -284,7 +284,12 @@ export interface AgentAdapter {
   readonly supportedTypes: ProviderType[];
   detectOAuthStatus(): Promise<AuthStatus>;
   getCurrentConfig(): Promise<AgentSelection | null>;
-  applyConfig(provider: Provider, modelId: string, resolvedModel?: ResolvedModel): Promise<void>;
+  applyConfig(
+    provider: Provider,
+    modelId: string,
+    resolvedModel?: ResolvedModel,
+    resolvedModels?: Record<string, ResolvedModel>,
+  ): Promise<void>;
   resolveApiKey(provider: Provider): Promise<string | undefined>;
   // Additive agents only (workbuddy): batch-write routed models into the
   // agent config without changing the "current" selection. Models whose id

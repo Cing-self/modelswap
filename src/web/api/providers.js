@@ -802,7 +802,7 @@ async function deleteProviderRoute(req, res) {
         if (fallbackProvider && agentAdapter) {
           await snapBeforeWrite(agentId, 'deleteProvider');
           const write = resolvedAgentWrite(fallbackProvider, agentId, fallback.modelId, [fallback.modelId], config);
-          await agentAdapter.applyConfig(write.provider, write.route.remoteModelId, write.resolved);
+          await agentAdapter.applyConfig(write.provider, write.route.remoteModelId, write.resolved, write.resolvedById);
           if (typeof agentAdapter.removeProvider === 'function') {
             await agentAdapter.removeProvider(id);
           }
@@ -882,13 +882,8 @@ async function switchProvider(req, res) {
       const availableIds = new Set((provider.models || []).map(model => model.id));
       const selectedIds = [...new Set([...(state.sites[providerId]?.modelIds || []), modelId])]
         .filter(id => availableIds.has(id));
-      const resolvedById = {};
-      for (const selectedId of selectedIds) {
-        const override = visibilityConfig?.modelOverrides?.[providerId]?.[selectedId] || {};
-        resolvedById[selectedId] = resolveModel(provider, selectedId, {}, override);
-      }
-      const agentProvider = providerForAgentWrite(provider, selectedIds, resolvedById);
-      await agentAdapter.applyConfig(agentProvider, route.remoteModelId, resolvedById[modelId]);
+      const write = resolvedAgentWrite(provider, agentId, modelId, selectedIds, visibilityConfig);
+      await agentAdapter.applyConfig(write.provider, write.route.remoteModelId, write.resolved, write.resolvedById);
 
       // Persist the active selection in the same Agent/site record that drives
       // the home page. Legacy adapter writes are migrated by loadUserConfig().
@@ -975,9 +970,13 @@ function resolvedAgentWrite(provider, agentId, modelId, selectedIds, config) {
       route: { remoteModelId: modelId },
       provider: providerForAgentWrite(provider, [modelId]),
       resolved: undefined,
+      resolvedById: {},
     };
   }
-  const ids = [...new Set([...(selectedIds || []), modelId])]
+  const tierIds = agentId === "claude"
+    ? Object.values(getAgentState(config || {}, "claude").sites?.[provider.id]?.tierMap || {})
+    : [];
+  const ids = [...new Set([...(selectedIds || []), ...tierIds, modelId])]
     .filter(id => (provider.models || []).some(model => model.id === id));
   if (!ids.includes(modelId)) throw new Error(`Model not found: ${modelId}`);
   const resolvedById = Object.fromEntries(ids.map(id => [
@@ -989,6 +988,7 @@ function resolvedAgentWrite(provider, agentId, modelId, selectedIds, config) {
     route,
     provider: providerForAgentWrite(provider, ids, resolvedById),
     resolved: resolvedById[modelId],
+    resolvedById,
   };
 }
 
@@ -1073,9 +1073,8 @@ async function configureAgentProvider(req, res) {
           throw new Error(`以下模型未写入 ${adapterMeta.name}: ${result.skipped.join('、')}`);
         }
       } else {
-        const primaryRoute = routes.find(item => item.modelId === primaryId)?.route;
-        const primaryResolved = routes.find(item => item.modelId === primaryId)?.resolved;
-        await agentAdapter.applyConfig(writeProvider, primaryRoute.remoteModelId, primaryResolved);
+        const write = resolvedAgentWrite(provider, agentId, primaryId, selectedIds, before);
+        await agentAdapter.applyConfig(write.provider, write.route.remoteModelId, write.resolved, write.resolvedById);
       }
 
       // Some legacy adapters still update their own old selection field while
@@ -1149,7 +1148,7 @@ async function removeAgentProvider(req, res) {
         const fallbackProvider = fallback && providers.find(item => item.id === fallback.providerId);
         if (fallback && fallbackProvider && agentAdapter) {
           const write = resolvedAgentWrite(fallbackProvider, agentId, fallback.modelId, [fallback.modelId], config);
-          await agentAdapter.applyConfig(write.provider, write.route.remoteModelId, write.resolved);
+          await agentAdapter.applyConfig(write.provider, write.route.remoteModelId, write.resolved, write.resolvedById);
           const fallbackState = getAgentState(config, agentId);
           fallbackState.activeProviderId = fallback.providerId;
           fallbackState.activeModelId = fallback.modelId;
@@ -1448,7 +1447,7 @@ async function setTierMap(req, res) {
       if (!provider || !adapter) throw new Error('Claude Code 站点不可用');
       const selected = getAgentState(config, 'claude').sites[providerId]?.modelIds || [];
       const write = resolvedAgentWrite(provider, 'claude', state.activeModelId, selected, config);
-      await adapter.applyConfig(write.provider, write.route.remoteModelId, write.resolved);
+      await adapter.applyConfig(write.provider, write.route.remoteModelId, write.resolved, write.resolvedById);
     }
     res.json({ success: true, providerId, tierMap: map });
   } catch (err) {

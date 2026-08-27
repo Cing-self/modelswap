@@ -70,6 +70,9 @@ describe("provider CLI resolved-model propagation", () => {
         id: "canonical", name: "User override", context: 64000, output: 8192,
         reasoning: true, modalities: { input: ["text", "image"], output: ["text"] },
       }),
+      expect.objectContaining({
+        canonical: expect.objectContaining({ id: "canonical", name: "User override", context: 64000 }),
+      }),
     );
   });
 
@@ -80,6 +83,9 @@ describe("provider CLI resolved-model propagation", () => {
       fixture.routedProvider,
       "remote-canonical",
       expect.objectContaining({ id: "canonical", name: "User override", context: 64000 }),
+      expect.objectContaining({
+        canonical: expect.objectContaining({ id: "canonical", name: "User override", context: 64000 }),
+      }),
     );
   });
 });

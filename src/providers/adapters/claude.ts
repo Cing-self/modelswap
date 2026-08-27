@@ -70,7 +70,12 @@ export class ClaudeAdapter extends BaseAdapter {
     return null;
   }
 
-  async applyConfig(provider: Provider, modelId: string, resolvedModel?: ResolvedModel): Promise<void> {
+  async applyConfig(
+    provider: Provider,
+    modelId: string,
+    resolvedModel?: ResolvedModel,
+    resolvedModels: Record<string, ResolvedModel> = {},
+  ): Promise<void> {
     // `modelId` is the routed, provider-native request ID. ResolvedModel.id is
     // canonical metadata only and can differ for an availability mapping.
     const apiKey = await this.resolveApiKey(provider);
@@ -126,22 +131,22 @@ export class ClaudeAdapter extends BaseAdapter {
     // default model.  Only capabilities with an explicit ResolvedModel mapping
     // are written: reasoning is `thinking`, effort options enable their
     // matching effort controls, and interleaved thinking is opt-in.
-    const capabilities = new Set<string>();
-    if (resolvedModel?.reasoning) capabilities.add("thinking");
-    const effort = resolvedModel?.reasoningOptions?.find(option => option.type === "effort");
-    if (effort) {
-      capabilities.add("effort");
-      if (effort.values?.includes("xhigh")) capabilities.add("xhigh_effort");
-      if (effort.values?.includes("max")) capabilities.add("max_effort");
-    }
-    if (resolvedModel?.interleaved) capabilities.add("interleaved_thinking");
-    const writeModelMetadata = (prefix: string) => {
+    const writeModelMetadata = (prefix: string, facts?: ResolvedModel) => {
+      const capabilities = new Set<string>();
+      if (facts?.reasoning) capabilities.add("thinking");
+      const effort = facts?.reasoningOptions?.find(option => option.type === "effort");
+      if (effort) {
+        capabilities.add("effort");
+        if (effort.values?.includes("xhigh")) capabilities.add("xhigh_effort");
+        if (effort.values?.includes("max")) capabilities.add("max_effort");
+      }
+      if (facts?.interleaved) capabilities.add("interleaved_thinking");
       const nameKey = `${prefix}_NAME`;
       const descriptionKey = `${prefix}_DESCRIPTION`;
       const capabilitiesKey = `${prefix}_SUPPORTED_CAPABILITIES`;
-      if (resolvedModel?.name) env[nameKey] = resolvedModel.name;
+      if (facts?.name) env[nameKey] = facts.name;
       else delete env[nameKey];
-      if (resolvedModel?.description) env[descriptionKey] = resolvedModel.description;
+      if (facts?.description) env[descriptionKey] = facts.description;
       else delete env[descriptionKey];
       if (capabilities.size) env[capabilitiesKey] = [...capabilities].join(",");
       else delete env[capabilitiesKey];
@@ -201,13 +206,25 @@ export class ClaudeAdapter extends BaseAdapter {
           return canonicalId;
         }
       };
+      // A tier map contains canonical catalog IDs. The primary facts arrive as
+      // the third argument; any separately selected tier facts arrive by ID in
+      // the fourth. ProviderModel.resolved keeps direct adapter callers that
+      // prepared a routed provider compatible with the same contract.
+      const factsForTier = (canonicalId?: string) => {
+        if (!canonicalId || canonicalId === resolvedModel?.id) return resolvedModel;
+        return resolvedModels[canonicalId]
+          || provider.models.find(model => model.id === canonicalId)?.resolved;
+      };
+      const haikuId = tierMap?.haiku || resolvedModel?.id;
+      const sonnetId = tierMap?.sonnet || resolvedModel?.id;
+      const opusId = tierMap?.opus || resolvedModel?.id;
       env.ANTHROPIC_MODEL = modelId;
       env.ANTHROPIC_DEFAULT_HAIKU_MODEL = tierMap?.haiku ? routedTierModel(tierMap.haiku) : modelId;
       env.ANTHROPIC_DEFAULT_SONNET_MODEL = tierMap?.sonnet ? routedTierModel(tierMap.sonnet) : modelId;
       env.ANTHROPIC_DEFAULT_OPUS_MODEL = tierMap?.opus ? routedTierModel(tierMap.opus) : modelId;
-      writeModelMetadata("ANTHROPIC_DEFAULT_HAIKU_MODEL");
-      writeModelMetadata("ANTHROPIC_DEFAULT_SONNET_MODEL");
-      writeModelMetadata("ANTHROPIC_DEFAULT_OPUS_MODEL");
+      writeModelMetadata("ANTHROPIC_DEFAULT_HAIKU_MODEL", factsForTier(haikuId));
+      writeModelMetadata("ANTHROPIC_DEFAULT_SONNET_MODEL", factsForTier(sonnetId));
+      writeModelMetadata("ANTHROPIC_DEFAULT_OPUS_MODEL", factsForTier(opusId));
       // Deliver the credential using the header semantics required by this
       // endpoint. Bearer gateways use ANTHROPIC_AUTH_TOKEN; x-api-key gateways
       // use apiKeyHelper so an existing Claude OAuth session does not trigger
