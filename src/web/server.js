@@ -76,13 +76,23 @@ function createServer(port = 3780) {
   // extension origins get CORS headers, so an ordinary web page cannot read a
   // token even if it can reach this endpoint — and without a token the WS
   // channel at /ws/extension stays closed to it.
+  //
+  // A MISSING Origin header is also valid: since Chrome ~150, fetch() from an
+  // extension service worker with host_permissions for the target URL bypasses
+  // CORS entirely, and such requests carry no Origin header — rejecting them
+  // (as Chrome 151 was) leaves the extension unable to obtain a token at all.
+  // Web pages remain locked out: readable CORS fetches always attach a web
+  // Origin (rejected below), and no-cors fetches / sendBeacon / <img> / tab
+  // navigations that omit Origin cannot read the response body from script.
   app.get('/api/extension/token', (req, res) => {
-    const origin = req.headers.origin || '';
-    if (!isExtensionOrigin(origin)) {
+    const origin = req.headers.origin;
+    if (origin !== undefined && !isExtensionOrigin(origin)) {
       return res.status(403).json({ error: 'Forbidden: extension origins only' });
     }
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Vary', 'Origin');
+    if (origin !== undefined) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Vary', 'Origin');
+    }
     res.json({ token: issueExtensionToken(), ttlSeconds: 120 });
   });
 
