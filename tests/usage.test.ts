@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildBceAuthorization, parseOpenCodeGoUsage, parseOpenRouterCredits, parseQianfanTokenPlanUsage, parseXaiPrepaidBalance, parseXiaomiBalance, parseXiaomiTokenPlanUsage } from '../src/web/api/usage.js';
+import { buildBceAuthorization as buildPureBceAuthorization, parseOpenRouterCredits as parsePureOpenRouterCredits } from '../src/application/usage-parsers.js';
 
 describe('Baidu BCE V1 request signer', () => {
+  it('keeps the pure signing module deterministic', () => {
+    expect(buildPureBceAuthorization({ accessKey: 'ak', secretKey: 'sk', method: 'GET', pathName: '/', timestamp: '2026-01-01T00:00:00Z' }).signature)
+      .toBe(buildPureBceAuthorization({ accessKey: 'ak', secretKey: 'sk', method: 'GET', pathName: '/', timestamp: '2026-01-01T00:00:00Z' }).signature);
+  });
   it('matches the official BCE signing test vector', () => {
     const result = buildBceAuthorization({
       accessKey: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
@@ -35,6 +40,9 @@ describe('Baidu BCE V1 request signer', () => {
 });
 
 describe('OpenRouter account credits parser', () => {
+  it('is usable without the HTTP controller', () => {
+    expect(parsePureOpenRouterCredits({ data: { total_credits: 1, total_usage: 0 } })?.windows?.[0]?.remainingCredits).toBe(1);
+  });
   it('uses account totals returned by the Management Credits API', () => {
     expect(parseOpenRouterCredits({
       data: { total_credits: 100.5, total_usage: 25.75 },

@@ -147,3 +147,13 @@
 11. 通用 browser create 已实拆为 navigation 470 行、form 862 行、result 483 行；创建/恢复编排 289 行，浏览器状态 248 行，所有模块均低于 900 行。
 12. `auto-create.js` 现为 421 行，仅保留 HTTP 映射、依赖装配与兼容导出；Cloudflare REST 与 key parser 已移到 application。
 13. 复核：4 个 Auto-create 聚焦文件 / 115 测试通过，`npm run build` 与 `git diff --check` 通过；全量为 73 files/733 tests 通过，唯一 `sync.test.js` 既有 fake-timer 超时（按任务要求非本工作阻塞）。
+
+## Usage split baseline (2026-08-27)
+
+1. HEAD `5fc54e4`, clean worktree; `usage.js` is 2122 lines and exports HTTP routes plus parsers/signers/provider queries.
+2. Existing focused coverage is `tests/usage.test.ts`; preserve return shapes, provider endpoints, Vault keys and browser-session boundaries.
+3. Order: pure parsers/signers → Vault/session access → injected provider registry → thin HTTP controller.
+4. Maximum risk: Xiaomi browser session isolation and provider-specific fallback text; preserve current error paths exactly.
+5. Completed: `usage.js` is now a 2-line compatibility controller entry; `usage-controller.js` is 111 lines and is the only Express transport mapping.
+6. Strategies: API/local credentials 864 lines, browser/session 804, cloud control-plane 154, parsers/signers 366, provider registry 30, Vault service 31; each is below 900.
+7. Verification: `tests/usage.test.ts` 14 tests, full `npm test -- --run` 74 files/736 tests, build and diff-check all passed.
