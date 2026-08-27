@@ -198,13 +198,28 @@ export default function UsagePage() {
     }
   }
 
+  // Manual-only providers (browser-driving queries) never auto-fetch, so on
+  // the first visit their cards would render a bare "no data" state with no
+  // hint about what to do. Seed a notice + action until the user runs the
+  // first explicit refresh and a real result lands in usageMap.
+  const manualOnlyPlaceholder = useCallback((id: string): UsageResult | undefined => {
+    if (!manualOnlyIds.has(id) || usageMap[id] !== undefined) return undefined;
+    return {
+      supported: true,
+      windows: [],
+      source: 'console',
+      notice: t('usage.manualOnlyNotice'),
+      action: { label: t('usage.manualOnlyAction'), url: 'https://opencode.ai/' },
+    };
+  }, [manualOnlyIds, usageMap, t]);
+
   const allCards = supportedIds.map(id => ({
     id,
     name: providerName(id),
     type: providerType(id),
     // kind is stamped by the usage API response; fall back to PROVIDER_META.
     kind: usageMap[id]?.kind || PROVIDER_META[id]?.kind || 'subscription',
-    usage: usageMap[id],
+    usage: usageMap[id] ?? manualOnlyPlaceholder(id),
     fetching: fetchingIds.has(id),
   }));
 

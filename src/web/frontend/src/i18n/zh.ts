@@ -1040,6 +1040,8 @@ export default {
   'usage.refresh': '刷新',
   'usage.loading': '查询中…',
   'usage.empty': '暂无数据',
+  'usage.manualOnlyNotice': '该用量通过 OKIT 浏览器插件在 OpenCode Go 套餐页读取，不会自动查询。点击卡片右上角的刷新按钮开始查询；首次使用请先在浏览器中登录 OpenCode。',
+  'usage.manualOnlyAction': '打开 OpenCode Go 套餐页',
   'usage.noProviders': '暂无支持用量查询的 Provider',
   'usage.used': '已用',
   'usage.remaining': '剩余',

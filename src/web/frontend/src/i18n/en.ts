@@ -1040,6 +1040,8 @@ export default {
   'usage.refresh': 'Refresh',
   'usage.loading': 'Loading…',
   'usage.empty': 'No data',
+  'usage.manualOnlyNotice': 'This usage is read from the OpenCode Go plan page via the OKIT browser extension and is never auto-refreshed. Click the refresh button on the card to query; sign in to OpenCode in your browser first if you have not.',
+  'usage.manualOnlyAction': 'Open the OpenCode Go plan page',
   'usage.noProviders': 'No providers support usage query',
   'usage.used': 'Used',
   'usage.remaining': 'Remaining',
