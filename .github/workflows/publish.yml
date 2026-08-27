@@ -1,15 +1,20 @@
 name: Publish to NPM and GitHub Release
 
-# Push-to-main IS the release trigger: the workflow verifies, bumps the
-# version, tags, pushes the bump commit back, and publishes — no local tag
-# pushing required. Manual dispatch is the escape hatch for choosing a
+# Release runs ONLY after CI proves the pushed commit on all three OS
+# matrices (the in-workflow test steps below run on macos only — they can
+# never see ubuntu/windows failures, which is how v1.0.20–22 shipped while
+# CI was red). The workflow_run event fires when a CI run on main completes;
+# PR-triggered CI completions are excluded by the event == 'push' guard in
+# the job if-condition, so a fork branch named "main" can never gate a
+# release. Manual dispatch is the escape hatch for choosing a
 # patch/minor/major bump.
 #
 # The version-bump commit is pushed with GITHUB_TOKEN and carries [skip ci],
-# so it never re-triggers this workflow (GitHub skips workflows for pushes
-# made with GITHUB_TOKEN regardless).
+# so CI never runs for it, this workflow never re-fires, and no loop forms.
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
     inputs:
@@ -30,8 +35,14 @@ permissions:
 
 jobs:
   release:
-    # Belt and suspenders next to the GITHUB_TOKEN no-retrigger rule.
-    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
+    # workflow_dispatch bypasses the gate (explicit human intent); a
+    # workflow_run must be a push-triggered, successful CI completion.
+    # Failed CI runs land here as "skipped", not published.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.conclusion == 'success')
     runs-on: macos-latest
     permissions:
       contents: write   # push the bump commit + tag, create the GitHub Release
@@ -39,6 +50,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          # workflow_run events carry the triggering push's SHA; dispatch
+          # falls back to the branch tip.
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
           fetch-depth: 0   # auto-notes walks the full tag history
 
       # Node 24 ships npm 11.5+ — trusted publishing requires npm >= 11.5.1.

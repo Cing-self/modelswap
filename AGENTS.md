@@ -61,6 +61,17 @@ AES-256-GCM encrypted key storage in `src/vault/store.ts`. Machine-specific key 
 
 ## Development Conventions
 
+### CI & Cross-Platform Testing
+
+CI 在 ubuntu/macos/windows 三平台矩阵跑测试；Publish 发版由 CI 全绿门禁触发（workflow_run），CI 红时不会发版。**push 到 main 后必须等 CI 三平台全绿（`gh run watch`）再合入/推送下一批并行改动**——本地 macOS 全绿不代表远端全绿。
+
+跨平台测试规则（都是 2026-08-27 CI 三轮事故的教训，mac 上感知不到、只在 linux/windows 矩阵暴露）：
+
+- 子进程测试（`execFileSync` 起 node/ts-node）的 env 必须同时设 `HOME` **和** `USERPROFILE`——Windows 的 `os.homedir()` 读 `USERPROFILE`，只设 HOME 子进程会写错 home
+- 不要在测试里重算平台相关路径（`APPDATA`/`XDG_CONFIG_HOME`/`~/Library`）——CI runner 的这些环境变量指向真实 home，而测试 HOME 是隔离临时目录，两套推导必然错位。路径从 adapter 导出的解析函数取（如 opencode 的 `openCodeDesktopStorePaths()`），单一真源
+- ts-node 子进程型测试必须显式加 timeout（`describe('...', { timeout: 30000 })`）——冷编译就可能超过 vitest 默认 5s，慢 runner 上必超
+- 编译产物 `dist/providers/**` 会 require `dist/web/api/**`（store→models-dev、codex→log-writer）——CI 只跑 `npx tsc` 不跑完整构建，靠 ci.yml 里的 `npm run copy-web` 补齐；新增 src→dist 反向依赖时注意这条链
+
 ### Web Server Port
 
 固定使用 **3780** 端口。所有场景统一：
