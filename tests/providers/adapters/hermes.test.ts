@@ -86,20 +86,18 @@ describe('HermesAdapter', () => {
 });
 
 describe('HermesAdapter.applyConfig (config.yaml schema)', () => {
-  it('appends a custom_providers entry with base_url and api_key', async () => {
+  it('writes the current named-provider format with api, api_key, transport and default_model', async () => {
     const adapter = new HermesAdapter();
     await adapter.applyConfig(testProvider, 'deepseek-chat');
 
     const written = readWritten();
-    expect(Array.isArray(written.custom_providers)).toBe(true);
-    const entry = written.custom_providers.find((p: any) => p.name === 'DeepSeek');
+    const entry = written.providers.deepseek;
     expect(entry).toMatchObject({
-      name: 'DeepSeek',
-      base_url: 'https://api.deepseek.com',
+      api: 'https://api.deepseek.com',
       api_key: 'sk-test-123',
+      transport: 'chat_completions',
+      default_model: 'deepseek-chat',
     });
-    // OpenAI-compatible endpoints carry no api_mode (Hermes default transport).
-    expect(entry.api_mode).toBeUndefined();
   });
 
   it('maps anthropic type to api_mode anthropic_messages', async () => {
@@ -107,8 +105,8 @@ describe('HermesAdapter.applyConfig (config.yaml schema)', () => {
     const adapter = new HermesAdapter();
     await adapter.applyConfig(anthropicProvider, 'glm-4.7');
 
-    const entry = readWritten().custom_providers.find((p: any) => p.name === 'ZAI');
-    expect(entry.api_mode).toBe('anthropic_messages');
+    const entry = readWritten().providers.zai;
+    expect(entry.transport).toBe('anthropic_messages');
   });
 
   it('adds opencode UA via extra_headers for opencode.ai gateway endpoints', async () => {
@@ -116,7 +114,7 @@ describe('HermesAdapter.applyConfig (config.yaml schema)', () => {
     const adapter = new HermesAdapter();
     await adapter.applyConfig(zenProvider, 'deepseek-chat');
 
-    const entry = readWritten().custom_providers.find((p: any) => p.name === 'DeepSeek');
+    const entry = readWritten().providers.deepseek;
     expect(entry.extra_headers).toEqual({ 'User-Agent': 'opencode/1.18.15' });
   });
 
@@ -124,45 +122,63 @@ describe('HermesAdapter.applyConfig (config.yaml schema)', () => {
     const adapter = new HermesAdapter();
     await adapter.applyConfig(testProvider, 'deepseek-chat');
 
-    const entry = readWritten().custom_providers.find((p: any) => p.name === 'DeepSeek');
+    const entry = readWritten().providers.deepseek;
     expect(entry.extra_headers).toBeUndefined();
   });
 
-  it('sets model.default as provider-name/model-id string', async () => {
+  it('maps resolved context/output/vision only to Hermes-supported fields', async () => {
+    const adapter = new HermesAdapter();
+    await adapter.applyConfig(testProvider, 'ignored-id', {
+      id: 'resolved-model', name: 'Resolved Model', context: 131072, output: 4096,
+      modalities: { input: ['text', 'image'], output: ['text'] }, reasoning: true,
+      reasoningOptions: [{ type: 'effort', values: ['high'] }], source: 'remote', confidence: 'high',
+    });
+
+    const written = readWritten();
+    expect(written.providers.deepseek.models).toEqual({
+      'resolved-model': { context_length: 131072, supports_vision: true },
+    });
+    expect(written.model).toMatchObject({
+      default: 'resolved-model', provider: 'custom:deepseek', context_length: 131072,
+      max_tokens: 4096, supports_vision: true,
+    });
+    expect(written.model).not.toHaveProperty('reasoning');
+  });
+
+  it('sets model.default to the resolved model and selects its named provider', async () => {
     const adapter = new HermesAdapter();
     await adapter.applyConfig(testProvider, 'deepseek-chat');
 
-    expect(readWritten().model).toMatchObject({ default: 'DeepSeek/deepseek-chat' });
+    expect(readWritten().model).toMatchObject({ default: 'deepseek-chat', provider: 'custom:deepseek' });
   });
 
-  it('routes traffic to the custom endpoint via model.provider/base_url', async () => {
+  it('routes traffic through the named custom provider', async () => {
     const adapter = new HermesAdapter();
     await adapter.applyConfig(testProvider, 'deepseek-chat');
 
     expect(readWritten().model).toMatchObject({
-      provider: 'custom',
-      base_url: 'https://api.deepseek.com',
-      api_key: 'sk-test-123',
+      provider: 'custom:deepseek',
     });
+    expect(readWritten().providers.deepseek).toMatchObject({ api: 'https://api.deepseek.com', api_key: 'sk-test-123' });
   });
 
-  it('keeps api_mode off the model block for openai endpoints, on for anthropic', async () => {
+  it('keeps transport on the provider block, not on the model block', async () => {
     const adapter = new HermesAdapter();
     await adapter.applyConfig(testProvider, 'deepseek-chat');
-    expect(readWritten().model.api_mode).toBeUndefined();
+    expect(readWritten().model.transport).toBeUndefined();
 
     const anthropicProvider = { ...testProvider, id: 'zai', name: 'ZAI', type: 'anthropic' as const };
     await adapter.applyConfig(anthropicProvider, 'glm-4.7');
-    expect(readWritten().model).toMatchObject({ api_mode: 'anthropic_messages' });
+    expect(readWritten().providers.zai).toMatchObject({ transport: 'anthropic_messages' });
   });
 
-  it('replaces its own entry by name and preserves other providers + unrelated config', async () => {
+  it('replaces its own named entry and preserves other providers + unrelated config', async () => {
     mocks.files.set(CONFIG_PATH, yaml.dump({
-      custom_providers: [
-        { name: 'User Custom', base_url: 'https://user.example', api_key: 'sk-user' },
-        { name: 'DeepSeek', base_url: 'https://old.deepseek.com', api_key: 'sk-old' },
-      ],
-      model: { default: 'User Custom/foo' },
+      providers: {
+        user: { api: 'https://user.example', api_key: 'sk-user' },
+        deepseek: { api: 'https://old.deepseek.com', api_key: 'sk-old' },
+      },
+      model: { default: 'foo' },
       memory: { enabled: true },
     }));
 
@@ -170,11 +186,11 @@ describe('HermesAdapter.applyConfig (config.yaml schema)', () => {
     await adapter.applyConfig(testProvider, 'deepseek-chat');
 
     const written = readWritten();
-    expect(written.custom_providers).toHaveLength(2);
-    expect(written.custom_providers.find((p: any) => p.name === 'User Custom')).toMatchObject({ base_url: 'https://user.example' });
-    expect(written.custom_providers.find((p: any) => p.name === 'DeepSeek').base_url).toBe('https://api.deepseek.com');
+    expect(Object.keys(written.providers)).toEqual(['user', 'deepseek']);
+    expect(written.providers.user).toMatchObject({ api: 'https://user.example' });
+    expect(written.providers.deepseek.api).toBe('https://api.deepseek.com');
     expect(written.memory).toEqual({ enabled: true });
-    expect(written.model.default).toBe('DeepSeek/deepseek-chat');
+    expect(written.model.default).toBe('deepseek-chat');
   });
 
   it('records selection in user.json', async () => {

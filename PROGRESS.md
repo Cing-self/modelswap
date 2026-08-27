@@ -1,5 +1,27 @@
 # OKIT data architecture progress
 
+## ResolvedModel adapter/CLI alignment (2026-08-27)
+
+1. Goal: Claude, OpenClaw, Hermes and the `provider switch`/`provider use` CLI paths pass the same resolved model facts to adapter writes.
+2. Order: establish baseline → verify official schemas → update adapters/CLI → add isolated regressions → reverse-check and build.
+3. Maximum risk: undocumented capability fields could create silently ignored Agent config; only documented fields will be emitted.
+
+### Verified configuration-field mapping
+
+| Agent | ResolvedModel → written field | Evidence / deliberately omitted |
+| --- | --- | --- |
+| Claude Code | `id` → `ANTHROPIC_MODEL` and `ANTHROPIC_DEFAULT_*_MODEL`; `name`/`description` and `reasoning`/effort/interleaving → documented `*_NAME`, `*_DESCRIPTION`, `*_SUPPORTED_CAPABILITIES` | Official Claude Code Model Configuration / Environment Variables docs (read 2026-08-27). No numeric context/output or modalities field is documented, so none is written. |
+| OpenClaw | `id`/`name`, `reasoning`, input modalities, `context`, `output` → model `id`/`name`, `reasoning`, `input`, `contextWindow`, `maxTokens` | Official Model providers docs (read 2026-08-27). Output modalities have no documented model-entry key, so are not written. |
+| Hermes | `id`, `context`, `output`, image input → `model.default`, `model.context_length`, `model.max_tokens`, `model.supports_vision` and named provider `default_model`, per-model `context_length`/`supports_vision` | Official Hermes Providers docs (read 2026-08-27). `reasoning` needs provider-specific `extra_body`; no generic field is written. |
+
+### Completion record
+
+- Implemented: each target adapter accepts `resolvedModel` and uses its `id`; CLI `switch` and `use` resolve user overrides with `resolveModel` and pass that result beside the routed provider/model ID.
+- Regression coverage: synthetic context/reasoning/modality facts are locked to documented output fields for all three adapters; isolated CLI tests cover both commands without writing HOME.
+- Reverse check: removing both CLI third arguments made `tests/commands/provider.test.ts` fail 2/2 with missing third-argument diffs; restoration passed 2/2.
+- Verification: targeted 6 files / 60 tests passed; required five-file group 5 / 58 passed; full `npm test -- --run` 66 / 711 passed, skipped 0; `npm run build` and `git diff --check` passed.
+- Baseline recovery: initial `npx`/`npm ci` could not install local dependencies because of a corrupt npm cache; a verified existing workspace dependency tree enabled the final successful checks. No source dependency or lockfile changed.
+
 ## Return-work plan (2026-08-26)
 
 1. Goal: `providers.json` contains only sites; `models-cache.json` contains every rebuildable model fact.

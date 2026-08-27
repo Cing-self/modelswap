@@ -8,6 +8,7 @@ import { checkAuthStatus } from "../providers/auth";
 import { loadUserConfig, updateUserConfig } from "../config/user";
 import { Provider, ProviderModel } from "../providers/types";
 import { providerSupportsAdapter, resolveModelRoute } from "../providers/routing";
+import { resolveModelFacts } from "../providers/adapters/model-facts";
 import { capturePreSwitchSnapshot } from "../providers/snapshots";
 import { VaultStore } from "../vault/store";
 
@@ -154,12 +155,18 @@ export async function providerSwitch(agentId?: string): Promise<void> {
   if (!modelResponse.model) { console.log(kleur.gray(t("providerCancel"))); return; }
 
   const route = resolveModelRoute(selectedProvider, modelResponse.model, adapter);
+  const config = await loadUserConfig();
+  const resolvedModel = resolveModelFacts(
+    selectedProvider,
+    modelResponse.model,
+    config.modelOverrides?.[selectedProvider.id]?.[modelResponse.model] || {},
+  );
   try {
     await capturePreSwitchSnapshot(adapter.id);
   } catch (snapErr) {
     console.warn(`[providerSwitch] snapshot failed: ${snapErr instanceof Error ? snapErr.message : String(snapErr)}`);
   }
-  await adapter.applyConfig(route.provider, route.remoteModelId);
+  await adapter.applyConfig(route.provider, route.remoteModelId, resolvedModel);
   await updateUserConfig({ agentProviders: { [adapter.id]: {
     activeProviderId: selectedProvider.id,
     activeModelId: modelResponse.model,
@@ -199,12 +206,18 @@ export async function providerUse(
 
   for (const adapter of adapters) {
     const route = resolveModelRoute(provider, modelId, adapter!);
+    const config = await loadUserConfig();
+    const resolvedModel = resolveModelFacts(
+      provider,
+      modelId,
+      config.modelOverrides?.[provider.id]?.[modelId] || {},
+    );
     try {
       await capturePreSwitchSnapshot(adapter!.id);
     } catch (snapErr) {
       console.warn(`[providerUse] snapshot failed: ${snapErr instanceof Error ? snapErr.message : String(snapErr)}`);
     }
-    await adapter!.applyConfig(route.provider, route.remoteModelId);
+    await adapter!.applyConfig(route.provider, route.remoteModelId, resolvedModel);
     await updateUserConfig({ agentProviders: { [adapter!.id]: {
       activeProviderId: provider.id,
       activeModelId: modelId,

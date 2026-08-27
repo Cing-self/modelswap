@@ -2,7 +2,7 @@ import fs from "fs-extra";
 import path from "path";
 import os from "os";
 import { BaseAdapter } from "./base";
-import { AgentSelection, AuthStatus, Provider, ProviderType } from "../types";
+import { AgentSelection, AuthStatus, Provider, ProviderType, ResolvedModel } from "../types";
 import { loadUserConfig, updateUserConfig } from "../../config/user";
 import { atomicWrite, atomicWriteJSON } from "../../utils/atomicWrite";
 
@@ -36,7 +36,8 @@ export class OpenClawAdapter extends BaseAdapter {
     return null;
   }
 
-  async applyConfig(provider: Provider, modelId: string): Promise<void> {
+  async applyConfig(provider: Provider, modelId: string, resolvedModel?: ResolvedModel): Promise<void> {
+    modelId = resolvedModel?.id || modelId;
     const apiKey = await this.resolveApiKey(provider);
 
     await fs.ensureDir(path.dirname(OPENCLAW_CONFIG_PATH));
@@ -57,10 +58,20 @@ export class OpenClawAdapter extends BaseAdapter {
     const providerEntry: Record<string, any> = {
       baseUrl: provider.baseUrl,
       api: apiProtocolFor(provider.type),
-      models: provider.models.map(m => ({
-        id: m.id,
-        name: m.name || m.id,
-      })),
+      models: provider.models.map(m => {
+        // The selected model facts come from the same ResolvedModel passed by
+        // Web and CLI.  Other selected entries can carry their own facts from
+        // the Web multi-model write.
+        const facts = m.resolved?.id === m.id ? m.resolved : (m.id === modelId ? resolvedModel : undefined);
+        return {
+          id: m.id,
+          name: facts?.name || m.name || m.id,
+          ...(typeof facts?.reasoning === "boolean" ? { reasoning: facts.reasoning } : {}),
+          ...(facts?.modalities.input?.length ? { input: facts.modalities.input } : {}),
+          ...(Number.isFinite(facts?.context) ? { contextWindow: facts!.context } : {}),
+          ...(Number.isFinite(facts?.output) ? { maxTokens: facts!.output } : {}),
+        };
+      }),
     };
     if (apiKey) providerEntry.apiKey = apiKey;
     data.models.providers[provider.id] = providerEntry;

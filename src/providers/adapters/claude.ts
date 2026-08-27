@@ -120,6 +120,31 @@ export class ClaudeAdapter extends BaseAdapter {
 
     const env = (typeof data.env === "object" && data.env) ? { ...data.env } : {};
 
+    // Claude Code documents companion metadata variables for each pinned
+    // default model.  Only capabilities with an explicit ResolvedModel mapping
+    // are written: reasoning is `thinking`, effort options enable their
+    // matching effort controls, and interleaved thinking is opt-in.
+    const capabilities = new Set<string>();
+    if (resolvedModel?.reasoning) capabilities.add("thinking");
+    const effort = resolvedModel?.reasoningOptions?.find(option => option.type === "effort");
+    if (effort) {
+      capabilities.add("effort");
+      if (effort.values?.includes("xhigh")) capabilities.add("xhigh_effort");
+      if (effort.values?.includes("max")) capabilities.add("max_effort");
+    }
+    if (resolvedModel?.interleaved) capabilities.add("interleaved_thinking");
+    const writeModelMetadata = (prefix: string) => {
+      const nameKey = `${prefix}_NAME`;
+      const descriptionKey = `${prefix}_DESCRIPTION`;
+      const capabilitiesKey = `${prefix}_SUPPORTED_CAPABILITIES`;
+      if (resolvedModel?.name) env[nameKey] = resolvedModel.name;
+      else delete env[nameKey];
+      if (resolvedModel?.description) env[descriptionKey] = resolvedModel.description;
+      else delete env[descriptionKey];
+      if (capabilities.size) env[capabilitiesKey] = [...capabilities].join(",");
+      else delete env[capabilitiesKey];
+    };
+
     if (isOfficial) {
       // Clear all custom-routing fields so the CLI uses its native behavior.
       delete env.ANTHROPIC_BASE_URL;
@@ -162,6 +187,9 @@ export class ClaudeAdapter extends BaseAdapter {
       env.ANTHROPIC_DEFAULT_HAIKU_MODEL = tierMap?.haiku || modelId;
       env.ANTHROPIC_DEFAULT_SONNET_MODEL = tierMap?.sonnet || modelId;
       env.ANTHROPIC_DEFAULT_OPUS_MODEL = tierMap?.opus || modelId;
+      writeModelMetadata("ANTHROPIC_DEFAULT_HAIKU_MODEL");
+      writeModelMetadata("ANTHROPIC_DEFAULT_SONNET_MODEL");
+      writeModelMetadata("ANTHROPIC_DEFAULT_OPUS_MODEL");
       // Deliver the credential using the header semantics required by this
       // endpoint. Bearer gateways use ANTHROPIC_AUTH_TOKEN; x-api-key gateways
       // use apiKeyHelper so an existing Claude OAuth session does not trigger

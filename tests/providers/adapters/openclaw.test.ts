@@ -79,6 +79,23 @@ describe('OpenClawAdapter', () => {
 });
 
 describe('OpenClawAdapter.applyConfig (cc-switch schema)', () => {
+  it('maps resolved context, output, reasoning, and input modalities to documented model fields', async () => {
+    const adapter = new OpenClawAdapter();
+    await adapter.applyConfig(testProvider, 'ignored-id', {
+      id: 'deepseek-chat', name: 'Resolved DeepSeek', context: 200000, output: 8192,
+      modalities: { input: ['text', 'image'], output: ['text'] }, reasoning: true,
+      source: 'modelsdev', confidence: 'high',
+    });
+
+    const model = JSON.parse(mocks.files.get(CONFIG_PATH)!).models.providers.deepseek.models[0];
+    expect(model).toEqual({
+      id: 'deepseek-chat', name: 'Resolved DeepSeek', reasoning: true,
+      input: ['text', 'image'], contextWindow: 200000, maxTokens: 8192,
+    });
+    expect(model).not.toHaveProperty('modalities');
+    expect(model).not.toHaveProperty('output');
+  });
+
   it('writes provider into models.providers as an OBJECT keyed by id', async () => {
     const adapter = new OpenClawAdapter();
     await adapter.applyConfig(testProvider, 'deepseek-chat');
@@ -132,7 +149,7 @@ describe('OpenClawAdapter.applyConfig (cc-switch schema)', () => {
     expect(Object.keys(written.models.providers)).toEqual(['glm', 'deepseek']);
   });
 
-  it('models entry has id + name (no capabilities field)', async () => {
+  it('models entry has id + name (no unsupported capabilities field)', async () => {
     const adapter = new OpenClawAdapter();
     await adapter.applyConfig(testProvider, 'deepseek-chat');
 
