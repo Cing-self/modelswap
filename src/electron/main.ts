@@ -1,4 +1,5 @@
 import { app, BrowserWindow, Menu, ipcMain, type MenuItemConstructorOptions, shell } from "electron";
+import { spawn } from "child_process";
 import fs from "fs-extra";
 import os from "os";
 import path from "path";
@@ -33,6 +34,54 @@ async function revealExtensionInFinder(): Promise<string> {
   return dest;
 }
 
+/**
+ * Install a downloaded update and relaunch. macOS apps keep their code mapped
+ * while running, so the swap must happen after this process exits: write a
+ * small installer script, run it detached (it waits for the app to quit),
+ * then quit. The copy is staged (OKIT.app.new → rename) so a mid-copy failure
+ * can never leave /Applications without an app bundle.
+ */
+async function installUpdateAndRelaunch(dmgPath?: string): Promise<void> {
+  const downloadsDir = path.join(os.homedir(), "Downloads");
+  // Prefer the newest OKIT dmg in ~/Downloads when the renderer did not pass
+  // the exact path (e.g. the user cleared state mid-flow).
+  let dmg = dmgPath && path.isAbsolute(dmgPath) ? dmgPath : null;
+  if (!dmg || !(await fs.pathExists(dmg))) {
+    const candidates = (await fs.readdir(downloadsDir).catch(() => [] as string[]))
+      .filter((f) => /^OKIT-[\d.]+-.*\.dmg$/.test(f))
+      .map((f) => ({ f, mtime: fs.statSync(path.join(downloadsDir, f)).mtimeMs }))
+      .sort((a, b) => b.mtime - a.mtime);
+    dmg = candidates[0] ? path.join(downloadsDir, candidates[0].f) : null;
+  }
+  if (!dmg || !dmg.endsWith(".dmg") || !path.dirname(dmg).startsWith(downloadsDir) || !(await fs.pathExists(dmg))) {
+    throw new Error(`未找到下载好的安装包 (在 ${downloadsDir} 中查找 OKIT-*.dmg)`);
+  }
+
+  const mountPoint = path.join(os.tmpdir(), "okit-update-mount");
+  const scriptPath = path.join(os.tmpdir(), `okit-update-${Date.now()}.sh`);
+  const script = `#!/bin/bash
+set -e
+# Wait for the running app to release the old bundle before swapping it.
+sleep 1
+hdiutil attach "${dmg}" -nobrowse -readonly -mountpoint "${mountPoint}" >/dev/null
+rm -rf "/Applications/OKIT.app.new"
+cp -R "${mountPoint}/OKIT.app" "/Applications/OKIT.app.new"
+hdiutil detach "${mountPoint}" >/dev/null || true
+rm -rf "/Applications/OKIT.app"
+mv "/Applications/OKIT.app.new" "/Applications/OKIT.app"
+open -a "/Applications/OKIT.app"
+rm -f "${scriptPath}"
+`;
+  await fs.writeFile(scriptPath, script, { mode: 0o755 });
+  const child = spawn("/bin/bash", [scriptPath], { detached: true, stdio: "ignore" });
+  child.unref();
+  // Give the detached script a moment to start before quitting; it sleeps on
+  // its own, so quitting immediately is safe too — this just avoids a race
+  // where the OS reaps the detached process during teardown.
+  setTimeout(() => app.quit(), 150);
+  setTimeout(() => app.exit(0), 3000);
+}
+
 function createApplicationMenu() {
   const isMac = process.platform === "darwin";
 
@@ -42,6 +91,13 @@ function createApplicationMenu() {
           label: app.name,
           submenu: [
             { role: "about" },
+            { type: "separator" },
+            {
+              // The renderer owns the update flow (check + download UI); the
+              // menu item just pokes it so results surface in one place.
+              label: "检查更新…",
+              click: () => mainWindow?.webContents.send("okit:check-update"),
+            },
             { type: "separator" },
             { role: "hide" },
             { role: "hideOthers" },
@@ -164,6 +220,9 @@ async function createWindow() {
 app.setName("OKIT");
 Menu.setApplicationMenu(createApplicationMenu());
 ipcMain.handle("okit:reveal-extension", revealExtensionInFinder);
+ipcMain.handle("okit:install-update", async (_event, dmgPath?: string) => {
+  await installUpdateAndRelaunch(dmgPath);
+});
 
 app.whenReady().then(async () => {
   await createWindow();

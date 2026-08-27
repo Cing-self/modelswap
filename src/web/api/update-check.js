@@ -128,7 +128,7 @@ async function runDownload(job) {
     fs.renameSync(tempPath, job.dest);
 
     job.status = 'completed';
-    job.opened = process.platform === 'darwin';
+    job.opened = process.platform === 'darwin' && job.openInstaller !== false;
     if (job.opened) {
       exec(`open ${JSON.stringify(job.dest)}`, () => { /* opener failures don't change download success */ });
     }
@@ -170,9 +170,12 @@ async function getUpdateCheck(req, res) {
  */
 async function downloadUpdate(req, res) {
   try {
-    const { url } = req.body || {};
+    const { url, open = true } = req.body || {};
     const { fileName, dest } = downloadTarget(url);
-    const job = { id: randomUUID(), url, fileName, dest, status: 'queued', received: 0, total: null, error: null, opened: false };
+    // The desktop app installs silently (mount → swap → relaunch), so it asks
+    // us NOT to pop the DMG drag-window — that affordance is for browser
+    // consoles where no in-app installer exists.
+    const job = { id: randomUUID(), url, fileName, dest, status: 'queued', received: 0, total: null, error: null, opened: false, openInstaller: open !== false };
     downloadJobs.set(job.id, job);
     void runDownload(job);
     res.status(202).json(publicDownloadJob(job));

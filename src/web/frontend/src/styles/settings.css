@@ -4188,3 +4188,68 @@
     padding-left: 42px;
   }
 }
+
+/* ─── Browser extension section (settings → 浏览器插件) ─── */
+.settings-extension-status {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.settings-extension-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 13px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--ink) 16%, transparent);
+  font-size: 13px;
+}
+.settings-extension-pill.is-connected {
+  color: var(--ok, #2f6b3a);
+  border-color: color-mix(in srgb, var(--ok, #2f6b3a) 40%, transparent);
+  background: color-mix(in srgb, var(--ok, #2f6b3a) 8%, transparent);
+}
+.settings-extension-pill.is-disconnected {
+  color: #b3261e;
+  border-color: color-mix(in srgb, #b3261e 35%, transparent);
+  background: color-mix(in srgb, #b3261e 7%, transparent);
+}
+.settings-extension-pill.is-checking {
+  color: var(--ink-muted);
+}
+.settings-extension-facts {
+  display: flex;
+  gap: 18px;
+  margin: 0;
+}
+.settings-extension-facts dt {
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+.settings-extension-facts dd {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.settings-extension-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.settings-extension-hint {
+  margin: 10px 0 0;
+  padding-top: 10px;
+  border-top: 1px dashed color-mix(in srgb, var(--ink) 14%, transparent);
+  font-size: 12.5px;
+  color: var(--ink-muted);
+}
+.settings-extension-steps {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.55;
+}
