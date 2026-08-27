@@ -92,7 +92,9 @@ jobs:
           # `git tag` above creates a lightweight one (bit us on v1.0.17 —
           # npm published but the tag never reached the remote, so
           # publish-release.sh could not create the GitHub Release).
-          git push origin main
+          # HEAD:main — the workflow_run checkout is a detached HEAD at the
+          # CI-approved SHA; "push origin main" has no local branch to match.
+          git push origin HEAD:main
           git push origin "refs/tags/v${{ steps.bump.outputs.version }}"
 
       # ---- Everything below only runs on the bumped, tagged tree: a broken
