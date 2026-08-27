@@ -431,7 +431,7 @@
     min-width: 56px;
     overflow: hidden;
   }
-  .brand-text, .brand-hand, .nav-item span, .sidebar-bottom .status-text,
+  .brand-text, .brand-hand, .sidebar-brand-name, .nav-item span, .sidebar-bottom .status-text,
   .nav-new-btn, .nav-sub-list, .nav-section-label { display: none !important; }
   .sidebar-brand {
     display: flex !important;
