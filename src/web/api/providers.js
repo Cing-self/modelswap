@@ -180,9 +180,17 @@ async function loadProviders() {
   return providers;
 }
 
-async function saveProviders(providers) {
+async function saveProviders(providers, options) {
   // Store owns the versioned providers file and its independent model cache.
   // A web action must never reconstruct or downgrade either JSON document.
+  // A completed model discovery has already persisted only models-cache.json
+  // through the cache store. It is not a site/configuration
+  // change, so do not rewrite providers.json or schedule a cloud-sync push.
+  // We still notify the UI so keep-alive pages reload the fresh cache.
+  if (options?.persistModels === false) {
+    publishDataChanged(['providers']);
+    return;
+  }
   await _store.saveProviders(providers);
   publishDataChanged(['providers']);
   // Any providers.json write is a payload change for cloud sync (pull merges go
@@ -2131,7 +2139,8 @@ async function fetchModels(req, res) {
       const source = cached.length ? cached : (p.models || []);
       if (source.length) {
         p.models = withNativeAvailability(p, source, 'cli');
-        await saveProviders(providers);
+        await _store.saveDiscoveredModels(p.id, p.models);
+        await saveProviders(providers, { persistModels: false });
       }
       return res.json({
         success: source.length > 0,
@@ -2144,7 +2153,8 @@ async function fetchModels(req, res) {
       if (!(await detectOAuth(p.id))) throw new Error('请先完成 Grok 登录');
       const models = withNativeAvailability(p, await readGrokCliModels(), 'cli');
       p.models = models;
-      await saveProviders(providers);
+      await _store.saveDiscoveredModels(p.id, p.models);
+      await saveProviders(providers, { persistModels: false });
       return res.json({ success: true, models });
     }
 
@@ -2152,14 +2162,16 @@ async function fetchModels(req, res) {
       if (!(await detectOAuth(p.id))) throw new Error('请先完成 GitHub Copilot 登录');
       const models = withNativeAvailability(p, await readCopilotCliModels(), 'cli');
       p.models = models;
-      await saveProviders(providers);
+      await _store.saveDiscoveredModels(p.id, p.models);
+      await saveProviders(providers, { persistModels: false });
       return res.json({ success: true, models });
     }
 
     if (p && providerExecutionMode(p) === 'agent_native' && !previewConfig) {
       const models = withNativeAvailability(p, p.models || [], 'static');
       p.models = models;
-      await saveProviders(providers);
+      await _store.saveDiscoveredModels(p.id, p.models);
+      await saveProviders(providers, { persistModels: false });
       return res.json({ success: models.length > 0, models });
     }
 
@@ -2219,7 +2231,8 @@ async function fetchModels(req, res) {
       } catch (enrichErr) {
         console.warn(`[fetchModels] models.dev enrichment failed: ${enrichErr.message}`);
       }
-      await saveProviders(providers);
+      await _store.saveDiscoveredModels(p.id, p.models);
+      await saveProviders(providers, { persistModels: false });
     }
 
     res.json({

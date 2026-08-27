@@ -344,6 +344,23 @@ export async function saveProviders(providers: Provider[]): Promise<void> {
     await writeProviderFile({ ...unknown, version: PROVIDERS_VERSION, providers: providers.filter(isSite).map(stripModels) });
   });
 }
+/**
+ * Persist models learned from a provider API or an Agent CLI without rewriting
+ * the site directory. Model discovery is local cache state, not a cloud-sync
+ * configuration change.
+ */
+export async function saveDiscoveredModels(providerId: string, models: ProviderModel[]): Promise<void> {
+  await serializeStoreWrite(async () => {
+    const cache = await readCache();
+    cache.providers[providerId] = models
+      .filter(model => model?.id)
+      .map(model => toMetadata(
+        model,
+        model.origin === "user" ? "manual" : model.meta?.source === "remote" ? "remote" : "legacy",
+      ));
+    await writeCache(cache);
+  });
+}
 export async function mergeProviderSites(sites: ProviderSite[]): Promise<void> {
   return serializeStoreWrite(async () => {
   // Sync must not perform a preliminary provider-file migration write: an old
