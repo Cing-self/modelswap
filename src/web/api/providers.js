@@ -1022,8 +1022,18 @@ async function configureAgentProvider(req, res) {
         if (typeof agentAdapter.applyModels !== 'function') {
           throw new Error(`${adapterMeta.name} 不支持写入多个站点模型`);
         }
+        // Additive adapters receive their complete provider catalog instead of
+        // a single applyConfig modelId. Replace selected canonical IDs with
+        // their endpoint-native route IDs before that catalog is written.
+        const routedWriteProvider = {
+          ...writeProvider,
+          models: writeProvider.models.map(model => {
+            const route = routes.find(item => item.modelId === model.id)?.route;
+            return route ? { ...model, id: route.remoteModelId } : model;
+          }),
+        };
         const result = await agentAdapter.applyModels(routes.map(({ route }) => ({
-          provider: writeProvider,
+          provider: routedWriteProvider,
           modelId: route.remoteModelId,
         })));
         if (result?.skipped?.length) {

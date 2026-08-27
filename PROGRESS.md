@@ -18,9 +18,11 @@
 
 - Correction in progress (2026-08-27): review established that `ResolvedModel.id` is canonical while `route.remoteModelId` is the provider-native request ID. Claude, OpenClaw, and Hermes now preserve the latter as their written model ID; resolved facts supply capabilities only.
 - Regression coverage: canonical `canonical-model` → `remote-model-v2` routing now exercises actual Claude/OpenClaw/Hermes configuration files, and real OpenClaw files written through CLI `switch`/`use`; synthetic context/reasoning/modality facts remain locked to documented fields.
-- Compatibility check: Codex/OpenCode still consume the third argument's ID. CLI therefore gives only those legacy adapters a routed-ID copy of the same facts; target adapters retain the canonical `ResolvedModel` unchanged.
+- Contract check: every adapter now preserves `applyConfig`'s second routed-ID parameter; the third `ResolvedModel` remains canonical capability metadata across CLI and Web.
+- Web-path correction (2026-08-27): Codex/OpenCode now follow the same permanent second-argument contract as every other adapter, and the CLI-only compatibility branch was removed. Web additive writes transform each selected catalog entry to its route's remote ID before OpenCode persists it.
+- Web verification: a temporary-HOME real API regression calls Codex `switchProvider` and multi-model OpenCode `configureAgentProvider`; `canonical-model` writes `remote-model-v2` in both native configurations.
 - Reverse check: removing both CLI third arguments made `tests/commands/provider.test.ts` fail 2/2 with missing third-argument diffs; restoration passed 2/2.
-- Correction verification: focused route/config suite 8 files / 71 tests and compatibility suite 7 files / 76 tests passed; full `npm test -- --run` 67 / 716 passed, skipped 0; `npm run build` and `git diff --check` passed.
+- Correction verification: focused Web/adapter/CLI suite 8 files / 85 tests passed; full `npm test -- --run` 67 / 717 passed, skipped 0; `npm run build` and `git diff --check` passed.
 - Baseline recovery: initial `npx`/`npm ci` could not install local dependencies because of a corrupt npm cache; a verified existing workspace dependency tree enabled the final successful checks. No source dependency or lockfile changed.
 
 ## Return-work plan (2026-08-26)

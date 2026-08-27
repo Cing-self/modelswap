@@ -39,7 +39,8 @@ export class CodexAdapter extends BaseAdapter {
   }
 
   async applyConfig(provider: Provider, modelId: string, resolvedModel?: ResolvedModel): Promise<void> {
-    modelId = resolvedModel?.id || modelId;
+    // The routed second parameter is the endpoint's request ID. ResolvedModel
+    // keeps canonical metadata and must not replace it.
     await fs.ensureDir(CODEX_DIR);
     let toml = "";
     if (await fs.pathExists(CODEX_CONFIG_PATH)) {

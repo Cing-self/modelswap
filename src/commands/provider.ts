@@ -6,21 +6,11 @@ import { PRESET_PROVIDERS } from "../providers/presets";
 import { getAdapters, getAdapter } from "../providers/registry";
 import { checkAuthStatus } from "../providers/auth";
 import { loadUserConfig, updateUserConfig } from "../config/user";
-import { Provider, ProviderModel, ResolvedModel } from "../providers/types";
+import { Provider, ProviderModel } from "../providers/types";
 import { providerSupportsAdapter, resolveModelRoute } from "../providers/routing";
 import { resolveModelFacts } from "../providers/adapters/model-facts";
 import { capturePreSwitchSnapshot } from "../providers/snapshots";
 import { VaultStore } from "../vault/store";
-
-// Codex and OpenCode predate the routed-model contract and still use the
-// optional ResolvedModel.id as their write ID. Keep canonical facts for every
-// current adapter, but shield those legacy adapters when the endpoint maps a
-// canonical selection to a different provider-native request ID.
-function factsForAdapterWrite(adapterId: string, routeModelId: string, resolvedModel: ResolvedModel): ResolvedModel {
-  return adapterId === "codex" || adapterId === "opencode"
-    ? { ...resolvedModel, id: routeModelId }
-    : resolvedModel;
-}
 
 export async function providerList(options?: { json?: boolean }): Promise<void> {
   const providers = await loadProviders();
@@ -176,7 +166,7 @@ export async function providerSwitch(agentId?: string): Promise<void> {
   } catch (snapErr) {
     console.warn(`[providerSwitch] snapshot failed: ${snapErr instanceof Error ? snapErr.message : String(snapErr)}`);
   }
-  await adapter.applyConfig(route.provider, route.remoteModelId, factsForAdapterWrite(adapter.id, route.remoteModelId, resolvedModel));
+  await adapter.applyConfig(route.provider, route.remoteModelId, resolvedModel);
   await updateUserConfig({ agentProviders: { [adapter.id]: {
     activeProviderId: selectedProvider.id,
     activeModelId: modelResponse.model,
@@ -227,7 +217,7 @@ export async function providerUse(
     } catch (snapErr) {
       console.warn(`[providerUse] snapshot failed: ${snapErr instanceof Error ? snapErr.message : String(snapErr)}`);
     }
-    await adapter!.applyConfig(route.provider, route.remoteModelId, factsForAdapterWrite(adapter!.id, route.remoteModelId, resolvedModel));
+    await adapter!.applyConfig(route.provider, route.remoteModelId, resolvedModel);
     await updateUserConfig({ agentProviders: { [adapter!.id]: {
       activeProviderId: provider.id,
       activeModelId: modelId,

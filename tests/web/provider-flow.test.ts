@@ -6,7 +6,39 @@ import path from 'path';
 import { execFileSync } from 'child_process';
 const { removeSite } = require('../../src/web/api/agent-providers.js');
 
-describe('provider flow source of truth', () => {
+// Each it() boots a child node with ts-node/register to exercise the real
+// API surface; cold compilation alone can exceed the 5s default timeout.
+describe('provider flow source of truth', { timeout: 30000 }, () => {
+  it('writes routed remote IDs through real Web switch and multi-model configuration paths', () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-provider-route-'));
+    const root = path.resolve(__dirname, '../..');
+    const script = `
+      const fs=require('fs'), path=require('path');
+      const api=require(path.join(process.argv[1], 'src/web/api/providers.js'));
+      const call=(handler, req)=>new Promise((resolve,reject)=>handler(req,{status(c){this.code=c;return this},json(v){(this.code||200)>=400?reject(new Error(v.error)):resolve(v)}}));
+      (async()=>{
+        const provider={id:'mapped-route',name:'Mapped Route',type:'openai',baseUrl:'https://mapped-route.test/v1',authMode:'none',endpoints:[{id:'mapped-openai',type:'openai',baseUrl:'https://mapped-route.test/v1'}],models:[
+          {id:'canonical-model',name:'Canonical Model',meta:{source:'modelsdev',context:200000,output:8192,reasoning:true,modalities:{input:['text','image'],output:['text']}},availability:[{executionMode:'http_endpoint',endpointId:'mapped-openai',remoteModelId:'remote-model-v2',status:'available',source:'remote'}]},
+          {id:'canonical-secondary',name:'Canonical Secondary',availability:[{executionMode:'http_endpoint',endpointId:'mapped-openai',remoteModelId:'remote-secondary-v2',status:'available',source:'remote'}]}
+        ]};
+        await call(api.createProvider,{body:provider});
+        await call(api.switchProvider,{body:{agentId:'codex',providerId:'mapped-route',modelId:'canonical-model'}});
+        await call(api.configureAgentProvider,{params:{agentId:'opencode',providerId:'mapped-route'},body:{modelIds:['canonical-model','canonical-secondary'],primaryModelId:'canonical-model'}});
+        const codex=fs.readFileSync(path.join(process.env.HOME,'.codex','config.toml'),'utf8');
+        const opencode=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.config','opencode','opencode.json'),'utf8'));
+        console.log(JSON.stringify({codex,opencode}));
+      })().catch(error=>{console.error(error.stack);process.exit(1)});
+    `;
+    const output = execFileSync(process.execPath, ['-r', 'ts-node/register', '-e', script, root], {
+      env: { ...process.env, HOME: home, USERPROFILE: home }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const result = JSON.parse(output.trim());
+    expect(result.codex).toContain('model = "remote-model-v2"');
+    expect(result.codex).not.toContain('model = "canonical-model"');
+    expect(Object.keys(result.opencode.provider['mapped-route'].models).sort()).toEqual(['remote-model-v2', 'remote-secondary-v2']);
+    expect(result.opencode.provider['mapped-route'].models['remote-model-v2']).toMatchObject({ name: 'Canonical Model' });
+  });
+
   it('runs API → store → Codex/Claude/OpenCode adapters in a temporary HOME', () => {
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-provider-flow-'));
     const root = path.resolve(__dirname, '../..');
