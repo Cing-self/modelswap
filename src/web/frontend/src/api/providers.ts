@@ -402,6 +402,12 @@ export async function openUsageLogin(providerId: string): Promise<{ success: boo
   return api(`/api/usage/${encodeURIComponent(providerId)}/login`, { method: 'POST' });
 }
 
+// Close the automation console window opened by openUsageLogin — called by the
+// page once its session polling sees usable data.
+export async function closeUsageLoginWindow(providerId: string): Promise<{ success: boolean; error?: string }> {
+  return api(`/api/usage/${encodeURIComponent(providerId)}/close-window`, { method: 'POST' });
+}
+
 // ─── Deep Link: Provider export / import ───
 
 export async function exportProviderCode(id: string, password?: string): Promise<{ success: boolean; code: string }> {

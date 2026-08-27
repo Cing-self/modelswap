@@ -1458,7 +1458,7 @@ function xiaomiSessionNotice(loginUrl) {
     supported: true,
     windows: [],
     source: 'console',
-    notice: 'MiMo 的用量接口需要控制台会话 Cookie——即使浏览器已登录，也需打开一次控制台让小米账号完成 SSO 换发（已登录时无需再输密码，页面自动跳转完成）。会话会被加密缓存，过期前刷新不再需要打开。',
+    notice: 'MiMo 的用量接口需要控制台会话 Cookie——即使浏览器已登录，也需打开一次控制台让小米账号完成 SSO 换发（已登录时无需再输密码）。点击下方按钮后无需其他操作：OKIT 会自动检测会话、关闭控制台窗口并刷新用量；会话同时被加密缓存，过期前不再需要打开。',
     action: { label: '在插件中打开 MiMo 控制台', url: loginUrl || MIMO_CONSOLE_URL, mode: 'extension' },
   };
 }
@@ -1825,6 +1825,28 @@ async function openXiaomiLogin(req, res) {
   }
 }
 
+// Close the automation window opened by openXiaomiLogin once the session is
+// minted — the frontend polls usage and calls this on first success, so the
+// user never has to dismiss the console window or refresh manually.
+async function closeXiaomiLoginWindow(req, res) {
+  if (req.params.providerId !== 'xiaomi-coding') {
+    return res.status(400).json({ success: false, error: '该 Provider 不支持此操作' });
+  }
+  try {
+    const { sendCommand, isExtensionConnected } = require('./ws-extension');
+    if (!isExtensionConnected()) {
+      return res.status(503).json({ success: false, error: 'OKIT 浏览器插件未连接' });
+    }
+    const closed = await sendCommand('close-window', { workspace: 'okit' }, 10000);
+    if (!closed?.ok) {
+      return res.status(502).json({ success: false, error: closed?.error || '无法关闭控制台窗口' });
+    }
+    res.json({ success: true });
+  } catch (error) {
+    res.status(503).json({ success: false, error: error.message || String(error) });
+  }
+}
+
 // 火山引擎 Coding Plan / Agent Plan — requires AK/SK with ark:Read permission.
 // Uses Volcengine Signature V4 (a variant of AWS SigV4) on the control-plane
 // gateway open.volcengineapi.com. The inference API key cannot be used here.
@@ -2097,4 +2119,4 @@ function getSupportedUsageProviders(_req, res) {
   res.json({ providers: Array.from(SUPPORTED), manualOnly: MANUAL_ONLY_USAGE });
 }
 
-module.exports = { getUsage, getSupportedUsageProviders, queryUsage, parseOpenRouterCredits, parseXaiPrepaidBalance, parseXiaomiBalance, parseXiaomiTokenPlanUsage, parseOpenCodeGoUsage, parseQianfanTokenPlanUsage, buildBceAuthorization, openXiaomiLogin };
+module.exports = { getUsage, getSupportedUsageProviders, queryUsage, parseOpenRouterCredits, parseXaiPrepaidBalance, parseXiaomiBalance, parseXiaomiTokenPlanUsage, parseOpenCodeGoUsage, parseQianfanTokenPlanUsage, buildBceAuthorization, openXiaomiLogin, closeXiaomiLoginWindow };

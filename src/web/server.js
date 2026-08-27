@@ -10,7 +10,7 @@ const { getSettings, updateSettings, testPlatformConnection, getPresets, getOnbo
 const { checkWrangler, listStores, listStoreSecrets, syncToCloudflare } = require('./api/cloudflare-sync');
 const { handlePush, handlePull, handleStatus, handleExportCode, handleImportCode, handleLanStatus, handleLanEnable, handleLanDisable, handleLanRegenerate, handleLanPairingPeek, handleLanPairingCreate, handleLanPair, handleSyncOverview } = require('./api/sync');
 const { listProviders, getModelData, refreshModelData, refreshDemoProviderModels, getAdaptersList, createProvider, updateProvider, deleteProvider, switchProvider, configureAgentProvider, removeAgentProvider, setAgentProviderEnabled, getAgentConfigFiles, saveAgentConfigFile, getTierMaps, setTierMap, launchAgent, getAuthStatus, verifyProviderAuth, triggerOAuthLogin, fetchModels, exportProviderCode, importProviderCode } = require('./api/providers');
-const { getUsage, getSupportedUsageProviders, openXiaomiLogin } = require('./api/usage');
+const { getUsage, getSupportedUsageProviders, openXiaomiLogin, closeXiaomiLoginWindow } = require('./api/usage');
 const { createGrokProxyHandler } = require('./api/grok-proxy');
 const { listSnapshotsHandler, snapshotDetailHandler, restoreSnapshotHandler } = require('./api/snapshots');
 const { issueExtensionToken, isExtensionOrigin } = require('./api/ws-extension');
@@ -224,6 +224,7 @@ function createServer(port = 3780) {
   // Usage / quota routes
   app.get('/api/usage/supported', getSupportedUsageProviders);
   app.post('/api/usage/:providerId/login', openXiaomiLogin);
+  app.post('/api/usage/:providerId/close-window', closeXiaomiLoginWindow);
   app.get('/api/usage/:providerId', getUsage);
 
   // SPA fallback

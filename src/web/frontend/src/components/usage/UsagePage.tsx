@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback, useMemo, type FormEvent, type ReactNode } from 'react';
-import { getUsage, getSupportedUsageProviders, listProviders, openUsageLogin, UsageResult, UsageWindow, Provider } from '../../api/providers';
+import { useEffect, useState, useCallback, useMemo, useRef, type FormEvent, type ReactNode } from 'react';
+import { getUsage, getSupportedUsageProviders, listProviders, openUsageLogin, closeUsageLoginWindow, UsageResult, UsageWindow, Provider } from '../../api/providers';
 import { setVault } from '../../api/vault';
 import { useApp } from '../Layout/AppContext';
 import { useI18n } from '../../i18n';
@@ -100,13 +100,15 @@ export default function UsagePage() {
   useEffect(() => { void loadMetadata(); }, [loadMetadata]);
   useDataChanged(['providers', 'secrets'], loadMetadata);
 
-  const fetchOne = useCallback(async (id: string) => {
+  const fetchOne = useCallback(async (id: string): Promise<UsageResult | undefined> => {
     setFetchingIds(prev => new Set(prev).add(id));
     try {
       const res = await getUsage(id);
       enqueue(id, res);
+      return res;
     } catch (err: any) {
       enqueue(id, { supported: true, error: err.message });
+      return undefined;
     } finally {
       setFetchingIds(prev => { const n = new Set(prev); n.delete(id); return n; });
       setLastUpdatedAt(new Date());
@@ -189,30 +191,45 @@ export default function UsagePage() {
     return key ? t(key) : '';
   }
 
-  // "Open login in extension" POSTs can take up to 30s (the extension waits
-  // for the console page to load). Without a busy state the button looks dead
-  // and users click it over and over.
-  const [loginPendingIds, setLoginPendingIds] = useState<Set<string>>(new Set());
+  // "Open login in extension" has two slow phases: the open POST (extension
+  // waits for the console page to load) and the session wait (SSO mints the
+  // cookie once the page settles). The button shows which phase is running so
+  // it never looks dead, and clicks during a run are ignored.
+  const [loginPhases, setLoginPhases] = useState<Record<string, 'opening' | 'waiting' | undefined>>({});
+  const loginMountedRef = useRef(true);
+  useEffect(() => () => { loginMountedRef.current = false; }, []);
 
   async function handleUsageLogin(providerId: string) {
-    if (loginPendingIds.has(providerId)) return;
-    setLoginPendingIds(prev => new Set(prev).add(providerId));
+    if (loginPhases[providerId]) return;
+    setLoginPhases(prev => ({ ...prev, [providerId]: 'opening' }));
     try {
+      toast(t('usage.loginOpeningHint'));
       const result = await openUsageLogin(providerId);
       if (!result.success) {
         toast(result.error || t('usage.loginOpenFailed'), 'error');
-      } else {
-        toast(t('usage.loginOpenedHint'), 'success');
-        // The console visit mints the API session via Xiaomi SSO (instant when
-        // already signed in). Auto-retry shortly after so the user does not
-        // have to come back and click refresh manually; if a fresh interactive
-        // login is still in progress, the 5-min background polling catches it.
-        [4000, 10000, 20000].forEach(delay => window.setTimeout(() => { void fetchOne(providerId); }, delay));
+        return;
       }
+      // The console visit mints the API session via Xiaomi SSO — instant when
+      // already signed in, or whenever the user finishes an interactive login.
+      // Poll until the session yields data, then close the console window and
+      // update the card: the user never clicks refresh manually.
+      setLoginPhases(prev => ({ ...prev, [providerId]: 'waiting' }));
+      const MAX_ATTEMPTS = 36; // ~3 minutes at 5-second intervals
+      for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+        await new Promise(resolve => window.setTimeout(resolve, attempt === 0 ? 3000 : 5000));
+        if (!loginMountedRef.current) return;
+        const usage = await fetchOne(providerId);
+        if (usage?.windows?.length) {
+          await closeUsageLoginWindow(providerId).catch(() => {});
+          toast(t('usage.loginSessionReady'), 'success');
+          return;
+        }
+      }
+      if (loginMountedRef.current) toast(t('usage.loginWaitGiveUp'), 'info');
     } catch (error: any) {
       toast(error?.message || t('usage.loginOpenFailed'), 'error');
     } finally {
-      setLoginPendingIds(prev => { const n = new Set(prev); n.delete(providerId); return n; });
+      if (loginMountedRef.current) setLoginPhases(prev => ({ ...prev, [providerId]: undefined }));
     }
   }
 
@@ -409,7 +426,7 @@ export default function UsagePage() {
               fetching={card.fetching}
               onRefresh={() => fetchOne(card.id)}
               onLogin={() => handleUsageLogin(card.id)}
-              loginPending={loginPendingIds.has(card.id)}
+              loginPhase={loginPhases[card.id]}
               onOpenGuide={guide ? () => setCredentialGuide({ guide, providerId: card.id }) : undefined}
               t={t}
             />
@@ -443,7 +460,7 @@ export default function UsagePage() {
                     fetching={card.fetching}
                     onRefresh={() => fetchOne(card.id)}
                     onLogin={() => handleUsageLogin(card.id)}
-                    loginPending={loginPendingIds.has(card.id)}
+                    loginPhase={loginPhases[card.id]}
                     onOpenGuide={guide ? () => setCredentialGuide({ guide, providerId: card.id }) : undefined}
                     t={t}
                   />
@@ -507,13 +524,13 @@ function isGuidedConfigurationMessage(message?: string): boolean {
   return /(AK\/SK|SecretId|SecretKey|_[A-Z0-9_]*(?:CREDENTIALS|ACCESS_KEY|SECRET_KEY|TEAM_ID)|密钥管理|管理凭证|查询权限|手动添加|手动录入|授予)/i.test(message);
 }
 
-function UsageCard({ id, name, type, usage, fetching, loginPending, onRefresh, onLogin, onOpenGuide, t }: {
+function UsageCard({ id, name, type, usage, fetching, loginPhase, onRefresh, onLogin, onOpenGuide, t }: {
   id: string;
   name: string;
   type: string;
   usage?: UsageResult;
   fetching: boolean;
-  loginPending: boolean;
+  loginPhase?: 'opening' | 'waiting';
   onRefresh: () => void;
   onLogin: () => void;
   onOpenGuide?: () => void;
@@ -591,9 +608,9 @@ function UsageCard({ id, name, type, usage, fetching, loginPending, onRefresh, o
               <span>{compactGuideNotice ? t('usage.configurationRequired') : usage!.notice}</span>
               {!compactGuideNotice && usage!.action && (
                 usage!.action.mode === 'extension' ? (
-                  <button className="usage-card-action" type="button" onClick={onLogin} disabled={loginPending}>
-                    {loginPending ? (
-                      <><span className="provider-status-spinner" aria-hidden="true" /> {t('usage.loginPending')}</>
+                  <button className="usage-card-action" type="button" onClick={onLogin} disabled={!!loginPhase}>
+                    {loginPhase ? (
+                      <><span className="provider-status-spinner" aria-hidden="true" /> {t(loginPhase === 'waiting' ? 'usage.loginWaiting' : 'usage.loginPending')}</>
                     ) : (
                       <>{usage!.action.label}<span aria-hidden="true">→</span></>
                     )}
