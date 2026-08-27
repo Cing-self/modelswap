@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 
-export type DataSection = 'providers' | 'secrets' | 'agents' | 'config';
+// 'extension' fires when the browser extension (re)connects — not a data
+// section, but a signal for pages to retry extension-dependent queries.
+export type DataSection = 'providers' | 'secrets' | 'agents' | 'config' | 'extension';
 
 type DataChangedDetail = { type: 'data-changed'; sections: DataSection[] };
 

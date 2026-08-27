@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback, useMemo, type FormEvent, type ReactNode } from 'react';
-import { getUsage, getSupportedUsageProviders, listProviders, openUsageLogin, UsageResult, UsageWindow, Provider } from '../../api/providers';
+import { useEffect, useState, useCallback, useMemo, useRef, type FormEvent, type ReactNode } from 'react';
+import { getUsage, getSupportedUsageProviders, listProviders, openUsageLogin, closeUsageLoginWindow, UsageResult, UsageWindow, Provider } from '../../api/providers';
 import { setVault } from '../../api/vault';
 import { useApp } from '../Layout/AppContext';
 import { useI18n } from '../../i18n';
@@ -100,13 +100,15 @@ export default function UsagePage() {
   useEffect(() => { void loadMetadata(); }, [loadMetadata]);
   useDataChanged(['providers', 'secrets'], loadMetadata);
 
-  const fetchOne = useCallback(async (id: string) => {
+  const fetchOne = useCallback(async (id: string): Promise<UsageResult | undefined> => {
     setFetchingIds(prev => new Set(prev).add(id));
     try {
       const res = await getUsage(id);
       enqueue(id, res);
+      return res;
     } catch (err: any) {
       enqueue(id, { supported: true, error: err.message });
+      return undefined;
     } finally {
       setFetchingIds(prev => { const n = new Set(prev); n.delete(id); return n; });
       setLastUpdatedAt(new Date());
@@ -157,6 +159,23 @@ export default function UsagePage() {
     skipIds: [...manualOnlyIds],
   });
 
+  // The mount fetch often races the extension: if the page loads before the
+  // extension's WebSocket reconnects (~30s after app start), cookie-based
+  // queries (MiMo) fail with "插件未连接" and the notice just sits there until
+  // a manual refresh. When the extension comes online, silently re-query every
+  // provider whose last attempt produced no data — the silent read usually
+  // succeeds right away. Browser-driving providers stay manual-only.
+  const retryOnExtensionReady = useCallback(() => {
+    for (const id of supportedIds) {
+      if (manualOnlyIds.has(id)) continue;
+      const usage = usageMap[id];
+      if (usage === undefined || (!usage.windows?.length && (usage.error || usage.notice))) {
+        void fetchOne(id);
+      }
+    }
+  }, [supportedIds, manualOnlyIds, usageMap, fetchOne]);
+  useDataChanged(['extension'], retryOnExtensionReady);
+
   // Manual "refresh all" button — an explicit user action, so manual-only
   // providers (browser-driving queries) are included.
   const handleManualRefresh = useCallback(() => {
@@ -189,14 +208,62 @@ export default function UsagePage() {
     return key ? t(key) : '';
   }
 
+  // "Open login in extension" has two slow phases: the open POST (extension
+  // waits for the console page to load) and the session wait (SSO mints the
+  // cookie once the page settles). The button shows which phase is running so
+  // it never looks dead, and clicks during a run are ignored.
+  const [loginPhases, setLoginPhases] = useState<Record<string, 'opening' | 'waiting' | undefined>>({});
+  const loginMountedRef = useRef(true);
+  useEffect(() => () => { loginMountedRef.current = false; }, []);
+
   async function handleUsageLogin(providerId: string) {
+    if (loginPhases[providerId]) return;
+    setLoginPhases(prev => ({ ...prev, [providerId]: 'opening' }));
     try {
+      toast(t('usage.loginOpeningHint'));
       const result = await openUsageLogin(providerId);
-      if (!result.success) toast(result.error || t('usage.loginOpenFailed'), 'error');
+      if (!result.success) {
+        toast(result.error || t('usage.loginOpenFailed'), 'error');
+        return;
+      }
+      // The console visit mints the API session via Xiaomi SSO — instant when
+      // already signed in, or whenever the user finishes an interactive login.
+      // Poll until the session yields data, then close the console window and
+      // update the card: the user never clicks refresh manually.
+      setLoginPhases(prev => ({ ...prev, [providerId]: 'waiting' }));
+      const MAX_ATTEMPTS = 36; // ~3 minutes at 5-second intervals
+      for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+        await new Promise(resolve => window.setTimeout(resolve, attempt === 0 ? 3000 : 5000));
+        if (!loginMountedRef.current) return;
+        const usage = await fetchOne(providerId);
+        if (usage?.windows?.length) {
+          await closeUsageLoginWindow(providerId).catch(() => {});
+          toast(t('usage.loginSessionReady'), 'success');
+          return;
+        }
+      }
+      if (loginMountedRef.current) toast(t('usage.loginWaitGiveUp'), 'info');
     } catch (error: any) {
       toast(error?.message || t('usage.loginOpenFailed'), 'error');
+    } finally {
+      if (loginMountedRef.current) setLoginPhases(prev => ({ ...prev, [providerId]: undefined }));
     }
   }
+
+  // Manual-only providers (browser-driving queries) never auto-fetch, so on
+  // the first visit their cards would render a bare "no data" state with no
+  // hint about what to do. Seed a notice + action until the user runs the
+  // first explicit refresh and a real result lands in usageMap.
+  const manualOnlyPlaceholder = useCallback((id: string): UsageResult | undefined => {
+    if (!manualOnlyIds.has(id) || usageMap[id] !== undefined) return undefined;
+    return {
+      supported: true,
+      windows: [],
+      source: 'console',
+      notice: t('usage.manualOnlyNotice'),
+      action: { label: t('usage.manualOnlyAction'), url: 'https://opencode.ai/' },
+    };
+  }, [manualOnlyIds, usageMap, t]);
 
   const allCards = supportedIds.map(id => ({
     id,
@@ -204,7 +271,7 @@ export default function UsagePage() {
     type: providerType(id),
     // kind is stamped by the usage API response; fall back to PROVIDER_META.
     kind: usageMap[id]?.kind || PROVIDER_META[id]?.kind || 'subscription',
-    usage: usageMap[id],
+    usage: usageMap[id] ?? manualOnlyPlaceholder(id),
     fetching: fetchingIds.has(id),
   }));
 
@@ -376,6 +443,7 @@ export default function UsagePage() {
               fetching={card.fetching}
               onRefresh={() => fetchOne(card.id)}
               onLogin={() => handleUsageLogin(card.id)}
+              loginPhase={loginPhases[card.id]}
               onOpenGuide={guide ? () => setCredentialGuide({ guide, providerId: card.id }) : undefined}
               t={t}
             />
@@ -409,6 +477,7 @@ export default function UsagePage() {
                     fetching={card.fetching}
                     onRefresh={() => fetchOne(card.id)}
                     onLogin={() => handleUsageLogin(card.id)}
+                    loginPhase={loginPhases[card.id]}
                     onOpenGuide={guide ? () => setCredentialGuide({ guide, providerId: card.id }) : undefined}
                     t={t}
                   />
@@ -472,12 +541,13 @@ function isGuidedConfigurationMessage(message?: string): boolean {
   return /(AK\/SK|SecretId|SecretKey|_[A-Z0-9_]*(?:CREDENTIALS|ACCESS_KEY|SECRET_KEY|TEAM_ID)|密钥管理|管理凭证|查询权限|手动添加|手动录入|授予)/i.test(message);
 }
 
-function UsageCard({ id, name, type, usage, fetching, onRefresh, onLogin, onOpenGuide, t }: {
+function UsageCard({ id, name, type, usage, fetching, loginPhase, onRefresh, onLogin, onOpenGuide, t }: {
   id: string;
   name: string;
   type: string;
   usage?: UsageResult;
   fetching: boolean;
+  loginPhase?: 'opening' | 'waiting';
   onRefresh: () => void;
   onLogin: () => void;
   onOpenGuide?: () => void;
@@ -555,9 +625,12 @@ function UsageCard({ id, name, type, usage, fetching, onRefresh, onLogin, onOpen
               <span>{compactGuideNotice ? t('usage.configurationRequired') : usage!.notice}</span>
               {!compactGuideNotice && usage!.action && (
                 usage!.action.mode === 'extension' ? (
-                  <button className="usage-card-action" type="button" onClick={onLogin}>
-                    {usage!.action.label}
-                    <span aria-hidden="true">→</span>
+                  <button className="usage-card-action" type="button" onClick={onLogin} disabled={!!loginPhase}>
+                    {loginPhase ? (
+                      <><span className="provider-status-spinner" aria-hidden="true" /> {t(loginPhase === 'waiting' ? 'usage.loginWaiting' : 'usage.loginPending')}</>
+                    ) : (
+                      <>{usage!.action.label}<span aria-hidden="true">→</span></>
+                    )}
                   </button>
                 ) : (
                   <a className="usage-card-action" href={usage!.action.url} target="_blank" rel="noopener noreferrer">

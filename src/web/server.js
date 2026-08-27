@@ -10,7 +10,7 @@ const { getSettings, updateSettings, testPlatformConnection, getPresets, getOnbo
 const { checkWrangler, listStores, listStoreSecrets, syncToCloudflare } = require('./api/cloudflare-sync');
 const { handlePush, handlePull, handleStatus, handleExportCode, handleImportCode, handleLanStatus, handleLanEnable, handleLanDisable, handleLanRegenerate, handleLanPairingPeek, handleLanPairingCreate, handleLanPair, handleSyncOverview } = require('./api/sync');
 const { listProviders, getModelData, refreshModelData, refreshDemoProviderModels, getAdaptersList, createProvider, updateProvider, deleteProvider, switchProvider, configureAgentProvider, removeAgentProvider, setAgentProviderEnabled, getAgentConfigFiles, saveAgentConfigFile, getTierMaps, setTierMap, launchAgent, getAuthStatus, verifyProviderAuth, triggerOAuthLogin, fetchModels, exportProviderCode, importProviderCode } = require('./api/providers');
-const { getUsage, getSupportedUsageProviders, openXiaomiLogin } = require('./api/usage');
+const { getUsage, getSupportedUsageProviders, openXiaomiLogin, closeXiaomiLoginWindow } = require('./api/usage');
 const { createGrokProxyHandler } = require('./api/grok-proxy');
 const { listSnapshotsHandler, snapshotDetailHandler, restoreSnapshotHandler } = require('./api/snapshots');
 const { issueExtensionToken, isExtensionOrigin } = require('./api/ws-extension');
@@ -76,13 +76,23 @@ function createServer(port = 3780) {
   // extension origins get CORS headers, so an ordinary web page cannot read a
   // token even if it can reach this endpoint — and without a token the WS
   // channel at /ws/extension stays closed to it.
+  //
+  // A MISSING Origin header is also valid: since Chrome ~150, fetch() from an
+  // extension service worker with host_permissions for the target URL bypasses
+  // CORS entirely, and such requests carry no Origin header — rejecting them
+  // (as Chrome 151 was) leaves the extension unable to obtain a token at all.
+  // Web pages remain locked out: readable CORS fetches always attach a web
+  // Origin (rejected below), and no-cors fetches / sendBeacon / <img> / tab
+  // navigations that omit Origin cannot read the response body from script.
   app.get('/api/extension/token', (req, res) => {
-    const origin = req.headers.origin || '';
-    if (!isExtensionOrigin(origin)) {
+    const origin = req.headers.origin;
+    if (origin !== undefined && !isExtensionOrigin(origin)) {
       return res.status(403).json({ error: 'Forbidden: extension origins only' });
     }
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Vary', 'Origin');
+    if (origin !== undefined) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Vary', 'Origin');
+    }
     res.json({ token: issueExtensionToken(), ttlSeconds: 120 });
   });
 
@@ -214,6 +224,7 @@ function createServer(port = 3780) {
   // Usage / quota routes
   app.get('/api/usage/supported', getSupportedUsageProviders);
   app.post('/api/usage/:providerId/login', openXiaomiLogin);
+  app.post('/api/usage/:providerId/close-window', closeXiaomiLoginWindow);
   app.get('/api/usage/:providerId', getUsage);
 
   // SPA fallback

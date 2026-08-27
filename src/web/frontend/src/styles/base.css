@@ -226,6 +226,50 @@ body {
 .desktop-titlebar-sidebar-toggle:focus-visible {
   outline-offset: 1px;
 }
+/* Update indicator chip — appears next to the sidebar toggle only when a
+   newer release exists (available → downloading → restart-to-install). */
+.titlebar-update {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  margin-left: 10px;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, var(--ink) 16%, transparent);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--sidebar-active);
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.titlebar-update:hover {
+  border-color: color-mix(in srgb, var(--ink) 32%, transparent);
+}
+.titlebar-update.is-downloading {
+  cursor: default;
+  color: color-mix(in srgb, var(--ink) 70%, transparent);
+}
+.titlebar-update.is-available {
+  color: var(--accent, #2f6b3a);
+  border-color: color-mix(in srgb, var(--accent, #2f6b3a) 45%, transparent);
+}
+.titlebar-update.is-ready {
+  animation: titlebar-update-pulse 2.2s ease-in-out infinite;
+}
+.titlebar-update.is-failed {
+  color: #b3261e;
+}
+.titlebar-update .spin {
+  animation: okit-titlebar-spin 0.9s linear infinite;
+}
+@keyframes okit-titlebar-spin { to { transform: rotate(360deg); } }
+@keyframes titlebar-update-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent, #2f6b3a) 30%, transparent); }
+  50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent, #2f6b3a) 0%, transparent); }
+}
 /* ─── Sidebar ─── */
 .sidebar {
   width: var(--sidebar-w);

@@ -1,6 +1,6 @@
 import { NavLink, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useI18n } from '../../i18n';
-import { KeyRound, Boxes, ChartColumn, Settings, ArrowLeft, Rocket, Palette, RefreshCw, History, Activity } from 'lucide-react';
+import { KeyRound, Boxes, ChartColumn, Settings, ArrowLeft, Rocket, Palette, Puzzle, RefreshCw, History, Activity } from 'lucide-react';
 
 const ic = 1.5;
 
@@ -24,6 +24,7 @@ const SETTINGS_SECTIONS = [
   { id: 'appearance', labelKey: 'settings.appearance', icon: <Palette size={18} strokeWidth={ic} /> },
   { id: 'sync', labelKey: 'settings.sync2.title', icon: <RefreshCw size={18} strokeWidth={ic} /> },
   { id: 'snapshots', labelKey: 'settings.snapshots.title', icon: <History size={18} strokeWidth={ic} /> },
+  { id: 'extension', labelKey: 'settings.extensionTitle', icon: <Puzzle size={18} strokeWidth={ic} /> },
   { id: 'diagnostics', labelKey: 'settings.diagnostics', icon: <Activity size={18} strokeWidth={ic} /> },
 ];
 

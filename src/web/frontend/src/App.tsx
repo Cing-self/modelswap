@@ -1,11 +1,13 @@
 import { Routes, Route, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
-import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { ArrowDownToLine, CircleAlert, Loader2, PanelLeftClose, PanelLeftOpen, RotateCcw } from 'lucide-react';
 import { getOnboarding } from './api/settings';
 import { primeOnboardingFromSession, getOnboardingDoneCache, setOnboardingDone } from './lib/onboardingGate';
 import Sidebar from './components/Layout/Sidebar';
 import ProviderImportModal from './components/shared/ProviderImportModal';
 import { useI18n } from './i18n';
+import { useAppUpdate } from './hooks/useAppUpdate';
+import { useApp } from './components/Layout/AppContext';
 import { invalidateProvidersCache } from './api/providers';
 
 // Route-level code splitting: heavy pages are loaded on demand so the main
@@ -319,9 +321,73 @@ function DesktopWindowFrame({
             {sidebarCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
           </button>
         )}
+        <TitlebarUpdateIndicator />
       </div>
       {children}
     </div>
+  );
+}
+
+/**
+ * Compact update indicator in the desktop titlebar: silent auto-check on app
+ * open → "有新版本" download chip → spinning progress → "重启安装" once the
+ * installer lands. Hidden entirely when up to date; a no-op in the browser.
+ */
+function TitlebarUpdateIndicator() {
+  const isDesktop = typeof window !== 'undefined' && Boolean((window as any).okitDesktop);
+  const { t } = useI18n();
+  const { showToast } = useApp() as any;
+  const { update, download, downloading, downloadProgress, check, startDownload, restart, restarting } = useAppUpdate({ autoCheck: isDesktop });
+
+  // macOS app-menu "检查更新…" → explicit check with a spoken result.
+  useEffect(() => {
+    if (!isDesktop) return;
+    const desktop = (window as any).okitDesktop;
+    const off = desktop?.onCheckUpdate?.(async () => {
+      const result = await check(false);
+      if (result.status === 'upToDate') showToast(t('update.menuUpToDate'), 'success');
+      else if (result.status === 'available') showToast(t('update.menuFound', { version: result.latest ?? '' }), 'success');
+      else if (result.status === 'error') showToast(result.error || t('update.checkFailed'), 'error');
+    });
+    return () => off?.();
+  }, [isDesktop, check, showToast, t]);
+
+  if (!isDesktop || update.status !== 'available') return null;
+
+  if (downloading) {
+    return (
+      <span className="titlebar-update is-downloading" role="status">
+        <Loader2 size={14} className="spin" aria-hidden="true" />
+        <span>{downloadProgress === null ? t('update.downloading') : `${downloadProgress}%`}</span>
+      </span>
+    );
+  }
+  if (download?.status === 'completed') {
+    return (
+      <button type="button" className="titlebar-update is-ready" onClick={restart} disabled={restarting}>
+        <RotateCcw size={14} className={restarting ? 'spin' : undefined} aria-hidden="true" />
+        <span>{restarting ? t('update.restarting') : t('update.restartToInstall')}</span>
+      </button>
+    );
+  }
+  if (download?.status === 'failed') {
+    return (
+      <button type="button" className="titlebar-update is-failed" onClick={startDownload} title={download.error || t('update.failedTooltip')}>
+        <CircleAlert size={14} aria-hidden="true" />
+        <span>{t('update.retryDownload')}</span>
+      </button>
+    );
+  }
+  return (
+    <button
+      type="button"
+      className="titlebar-update is-available"
+      onClick={startDownload}
+      title={t('update.availableTooltip', { version: update.latest ?? '' })}
+    >
+      <ArrowDownToLine size={14} aria-hidden="true" />
+      <span>{t('update.found', { version: update.latest ?? '' })}</span>
+    </button>
   );
 }
 

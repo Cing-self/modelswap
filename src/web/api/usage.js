@@ -1437,6 +1437,32 @@ function parseOpenCodeGoUsage(data) {
 }
 
 // MiMo Token Plan usage is exposed by the console endpoint. It uses the Token
+// Shared dead-end notice for the MiMo usage query: the browser session is the
+// supported route (no vault key involved). Distinguish "extension not
+// connected" — which reads as "plugin problem", and fixing it needs no console
+// visit — from "connected but no platform session", where a one-time console
+// visit mints the API session cookie via Xiaomi SSO (instant when already
+// signed in; OKIT then caches the session until it expires).
+function xiaomiSessionNotice(loginUrl) {
+  let bridge = null;
+  try { bridge = require('./ws-extension'); } catch { /* fall through */ }
+  if (!bridge || !bridge.isExtensionConnected()) {
+    return {
+      supported: true,
+      windows: [],
+      source: 'console',
+      notice: 'OKIT 浏览器插件未连接，无法读取 Chrome 中的 MiMo 登录态。请先在 Chrome 扩展管理页启用或重新加载 OKIT 插件，然后回到这里点击刷新。',
+    };
+  }
+  return {
+    supported: true,
+    windows: [],
+    source: 'console',
+    notice: 'MiMo 的用量接口需要控制台会话 Cookie——即使浏览器已登录，也需打开一次控制台让小米账号完成 SSO 换发（已登录时无需再输密码）。点击下方按钮后无需其他操作：OKIT 会自动检测会话、关闭控制台窗口并刷新用量；会话同时被加密缓存，过期前不再需要打开。',
+    action: { label: '在插件中打开 MiMo 控制台', url: loginUrl || MIMO_CONSOLE_URL, mode: 'extension' },
+  };
+}
+
 // Plan key as a Cookie rather than an Authorization header. The endpoint is
 // not part of the inference API, so keep the request isolated and return a
 // clear console-login message for accounts that require a web session.
@@ -1456,7 +1482,10 @@ async function queryXiaomiCodingUsage(apiKey, baseUrl) {
   const browserUsage = await queryXiaomiUsageViaExtension();
   if (browserUsage) return browserUsage;
 
-  if (!apiKey) return { supported: true, windows: [], error: '无可用 MiMo Token Plan Key' };
+  // The browser-session route above needs no vault key — when it yielded
+  // nothing, the honest next step is the one-time console visit (it mints the
+  // platform session cookie via Xiaomi SSO), not "no key configured".
+  if (!apiKey) return xiaomiSessionNotice();
 
   const endpoints = ['https://platform.xiaomimimo.com/api/v1/tokenPlan/usage'];
   const providerOrigin = getOrigin(baseUrl);
@@ -1479,14 +1508,7 @@ async function queryXiaomiCodingUsage(apiKey, baseUrl) {
     });
     if (result.error) { lastError = result.error; continue; }
     if (result.status === 401) {
-      const loginUrl = getTrustedXiaomiLoginUrl(result.body);
-      return {
-        supported: true,
-        windows: [],
-        source: 'console',
-        notice: 'MiMo 用量接口需要登录态。点击下方按钮后，在 OKIT 浏览器插件打开的 MiMo 控制台中登录；完成后回到这里点击刷新。',
-        action: { label: '在 OKIT 插件中登录', url: loginUrl, mode: 'extension' },
-      };
+      return xiaomiSessionNotice(getTrustedXiaomiLoginUrl(result.body));
     }
     if (result.status === 404) { lastError = 'MiMo 用量接口暂不可用'; continue; }
     if (result.status !== 200) { lastError = `HTTP ${result.status}`; continue; }
@@ -1803,6 +1825,28 @@ async function openXiaomiLogin(req, res) {
   }
 }
 
+// Close the automation window opened by openXiaomiLogin once the session is
+// minted — the frontend polls usage and calls this on first success, so the
+// user never has to dismiss the console window or refresh manually.
+async function closeXiaomiLoginWindow(req, res) {
+  if (req.params.providerId !== 'xiaomi-coding') {
+    return res.status(400).json({ success: false, error: '该 Provider 不支持此操作' });
+  }
+  try {
+    const { sendCommand, isExtensionConnected } = require('./ws-extension');
+    if (!isExtensionConnected()) {
+      return res.status(503).json({ success: false, error: 'OKIT 浏览器插件未连接' });
+    }
+    const closed = await sendCommand('close-window', { workspace: 'okit' }, 10000);
+    if (!closed?.ok) {
+      return res.status(502).json({ success: false, error: closed?.error || '无法关闭控制台窗口' });
+    }
+    res.json({ success: true });
+  } catch (error) {
+    res.status(503).json({ success: false, error: error.message || String(error) });
+  }
+}
+
 // 火山引擎 Coding Plan / Agent Plan — requires AK/SK with ark:Read permission.
 // Uses Volcengine Signature V4 (a variant of AWS SigV4) on the control-plane
 // gateway open.volcengineapi.com. The inference API key cannot be used here.
@@ -2075,4 +2119,4 @@ function getSupportedUsageProviders(_req, res) {
   res.json({ providers: Array.from(SUPPORTED), manualOnly: MANUAL_ONLY_USAGE });
 }
 
-module.exports = { getUsage, getSupportedUsageProviders, queryUsage, parseOpenRouterCredits, parseXaiPrepaidBalance, parseXiaomiBalance, parseXiaomiTokenPlanUsage, parseOpenCodeGoUsage, parseQianfanTokenPlanUsage, buildBceAuthorization, openXiaomiLogin };
+module.exports = { getUsage, getSupportedUsageProviders, queryUsage, parseOpenRouterCredits, parseXaiPrepaidBalance, parseXiaomiBalance, parseXiaomiTokenPlanUsage, parseOpenCodeGoUsage, parseQianfanTokenPlanUsage, buildBceAuthorization, openXiaomiLogin, closeXiaomiLoginWindow };

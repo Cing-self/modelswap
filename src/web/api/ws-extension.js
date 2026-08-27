@@ -103,6 +103,15 @@ function setupWebSocket(httpServer) {
           extWs = ws;
           ws.send(JSON.stringify({ type: 'auth-ok' }));
           console.log('[WS] Extension authenticated');
+          // Tell the UI the extension just came online. The usage page listens
+          // for this and silently retries providers whose queries failed while
+          // the extension was offline (cookie-based queries like MiMo then
+          // succeed with no user action instead of waiting for a manual
+          // refresh). ui-events has no requires, so this cannot cycle.
+          try {
+            const { publishDataChanged } = require('./ui-events');
+            publishDataChanged(['extension']);
+          } catch { /* the UI event stream is optional */ }
         } else if (msg.type === 'auth') {
           console.warn('[WS] Extension auth failed: invalid or expired token');
           try { ws.send(JSON.stringify({ type: 'auth-failed', error: 'invalid or expired token' })); } catch { /* ignore */ }
