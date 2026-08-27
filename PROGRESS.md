@@ -109,3 +109,17 @@
 | model discovery, preview, cache merge | `provider-service` |
 | Agent selection/configuration | existing `agent-config-service` |
 - Baseline `126a7fa`: 72 files / 729 tests passed; controller delegation preserves the existing exported handler surface.
+
+## Provider API layering phase 2 (2026-08-27)
+
+| Module | Lines | Responsibility |
+| --- | ---: | --- |
+| `provider-service` | 819 | compatibility exports and HTTP entry mapping for provider flows |
+| `provider-lifecycle-service` | 100 | provider create/update/delete and Agent-site cleanup orchestration |
+| `provider-auth-service` | 535 | Vault binding repair, authentication and OAuth checks |
+| `model-discovery-service` | 497 | endpoint/CLI discovery, preview and model-cache merge |
+| `provider-status-service` | 432 | provider/Agent status projection and launch support |
+
+- Module handoff repair: status receives `sortProviders`; discovery receives `findCommand`; auth receives both `loadProviders` and `providerEndpointEntries` through explicit dependencies.
+- Lifecycle deletion still delegates native Agent cleanup exclusively to `agent-config-service`; it retains other providers and uses the existing response semantics.
+- Focused verification after the lifecycle extraction: 5 files / 108 tests passed.
