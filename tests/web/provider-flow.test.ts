@@ -158,7 +158,7 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
       })().catch(error=>{console.error(error.stack);process.exit(1)});
     `;
     const target = JSON.parse(execFileSync(process.execPath, ['-r', 'ts-node/register', '-e', targetScript, root], {
-      env: { ...process.env, HOME: targetHome }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, HOME: targetHome, USERPROFILE: targetHome }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
     }).trim());
     expect(target.backups).toHaveLength(1);
     expect(target.providerFile).toMatchObject({ version: 2, opaqueRoot: { keep: true } });
