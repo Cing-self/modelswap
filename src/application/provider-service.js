@@ -258,8 +258,7 @@ function adapterSupportsProvider(adapter, provider) {
   return providerSupportsAdapter(provider, adapter);
 }
 
-async function listProviders(req, res) {
-  try {
+async function listProviders() {
     const providers = await loadProviders();
     const config = await loadUserConfig();
 
@@ -278,10 +277,7 @@ async function listProviders(req, res) {
     });
 
     const sortedResult = sortProviders(result);
-    res.json({ providers: sortedResult, platforms: buildPlatforms(sortedResult) });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    return { providers: sortedResult, platforms: buildPlatforms(sortedResult) };
 }
 
 const providerStatusService = createProviderStatusService({
@@ -289,15 +285,15 @@ const providerStatusService = createProviderStatusService({
   adapterSupportsProvider, _getAdapter, providerExecutionMode, providerEndpointEntries,
   buildPlatforms, qianfanCodingModels, sortModels, sortProviders, tagRecentModels,
   enrichCodexOfficialModels, readCodexCachedModels: (...args) => modelDiscoveryService.readCodexCachedModels(...args),
-  getAgentState, findCommand: (...args) => findCommand(...args),
+  getAgentState, findCommand: (...args) => findCommand(...args), publishDataChanged,
 });
 const { getModelData, refreshModelData, refreshDemoProviderModels, getAdaptersList, launchAgent, normalizeRemoteModel } = providerStatusService;
 
-async function switchProvider(req, res) {
+async function switchProvider(input = {}) {
   try {
-    const { agentId, providerId, modelId } = req.body;
+    const { agentId, providerId, modelId } = input;
     if (!agentId || !providerId || !modelId) {
-      return res.status(400).json({ error: 'Missing required fields: agentId, providerId, modelId' });
+      throw Object.assign(new Error('Missing required fields: agentId, providerId, modelId'), { status: 400 });
     }
     const config = await loadUserConfig();
     const providers = await loadProviders();
@@ -307,15 +303,16 @@ async function switchProvider(req, res) {
       agentId, providerId, modelIds: selectedIds, primaryModelId: modelId,
       config, providers, source: 'provider-switch', activate: true,
     });
-    res.json({ ...result, modelId, route: { executionMode: result.route.executionMode, endpointId: result.route.endpointId, remoteModelId: result.route.remoteModelId } });
+    return { ...result, modelId, route: { executionMode: result.route.executionMode, endpointId: result.route.endpointId, remoteModelId: result.route.remoteModelId } };
   } catch (err) {
-    appendLog('provider-switch', `${req.body?.agentId || ''}:${req.body?.providerId || ''}`, false, err.message);
+    appendLog('provider-switch', `${input.agentId || ''}:${input.providerId || ''}`, false, err.message);
     const compatibilityMessage = {
-      PROVIDER_NOT_FOUND: `Provider not found: ${req.body?.providerId}`,
+      PROVIDER_NOT_FOUND: `Provider not found: ${input.providerId}`,
       UNSUPPORTED_PROVIDER: 'Adapter does not support this provider type',
-      MODEL_NOT_FOUND: `Model not found: ${req.body?.modelId}`,
+      MODEL_NOT_FOUND: `Model not found: ${input.modelId}`,
     }[err.code];
-    res.status(err.status || 500).json({ error: compatibilityMessage || err.message, ...(err.code ? { code: err.code } : {}) });
+    if (compatibilityMessage) err.message = compatibilityMessage;
+    throw err;
   }
 }
 
@@ -327,54 +324,46 @@ async function switchProvider(req, res) {
 // the Agent's native config *and* atomically replaces the selected model list
 // for that one site.  The home page then renders the same list verbatim.
 
-async function configureAgentProvider(req, res) {
-  const { agentId } = req.params;
-  const { modelIds, primaryModelId } = req.body || {};
-  const providerId = req.params.providerId || req.body?.providerId;
+async function configureAgentProvider({ agentId, providerId, modelIds, primaryModelId } = {}) {
   if (!agentId || !providerId || !Array.isArray(modelIds)) {
-    return res.status(400).json({ error: 'Missing agentId, providerId or modelIds' });
+    throw Object.assign(new Error('Missing agentId, providerId or modelIds'), { status: 400 });
   }
 
   try {
     const result = await agentConfigService.applySelection({
       agentId, providerId, modelIds, primaryModelId, source: 'agent-provider-save', activate: true,
     });
-    res.json(result);
+    return result;
   } catch (error) {
     appendLog('agent-provider-save', `${agentId}:${providerId}`, false, error.message);
-    res.status(error.status || 500).json({ error: error.message, ...(error.code ? { code: error.code } : {}) });
+    throw error;
   }
 }
 
-async function removeAgentProvider(req, res) {
-  const { agentId, providerId } = req.params;
-  if (!agentId || !providerId) return res.status(400).json({ error: 'Missing agentId or providerId' });
+async function removeAgentProvider({ agentId, providerId } = {}) {
+  if (!agentId || !providerId) throw Object.assign(new Error('Missing agentId or providerId'), { status: 400 });
   try {
-    res.json(await agentConfigService.removeConfiguredSite({ agentId, providerId }));
+    return await agentConfigService.removeConfiguredSite({ agentId, providerId });
   } catch (error) {
     appendLog('agent-provider-remove', `${agentId}:${providerId}`, false, error.message);
-    res.status(error.status || 500).json({ error: error.message, ...(error.code ? { code: error.code } : {}) });
+    throw error;
   }
 }
 
-async function setAgentProviderEnabled(req, res) {
-  const { agentId } = req.params;
-  const { enabled } = req.body || {};
-  const providerId = req.params.providerId || req.body?.providerId;
+async function setAgentProviderEnabled({ agentId, providerId, enabled } = {}) {
   if (!agentId || !providerId || typeof enabled !== 'boolean') {
-    return res.status(400).json({ error: 'Missing agentId, providerId or enabled' });
+    throw Object.assign(new Error('Missing agentId, providerId or enabled'), { status: 400 });
   }
   if (enabled) {
     const config = await loadUserConfig();
     const site = getAgentState(config, agentId).sites[providerId];
-    req.body = { ...req.body, modelIds: site?.modelIds || [] };
-    return configureAgentProvider(req, res);
+    return configureAgentProvider({ agentId, providerId, modelIds: site?.modelIds || [] });
   }
   try {
-    res.json(await agentConfigService.disableConfiguredSite({ agentId, providerId }));
+    return await agentConfigService.disableConfiguredSite({ agentId, providerId });
   } catch (error) {
     appendLog('agent-provider-disable', `${agentId}:${providerId}`, false, error.message);
-    res.status(error.status || 500).json({ error: error.message, ...(error.code ? { code: error.code } : {}) });
+    throw error;
   }
 }
 
@@ -482,14 +471,12 @@ function validateConfigContent(content, rel) {
   return null;
 }
 
-async function getAgentConfigFiles(req, res) {
+async function getAgentConfigFiles({ agentId, reveal = false } = {}) {
   try {
-    const { agentId } = req.params;
     const relPaths = AGENT_CONFIG_FILES[agentId];
     if (!relPaths) {
-      return res.status(404).json({ error: `No config files mapped for agent: ${agentId}` });
+      throw Object.assign(new Error(`No config files mapped for agent: ${agentId}`), { status: 404 });
     }
-    const reveal = req.query.reveal === '1';
     const home = os.homedir();
     const files = await Promise.all(relPaths.map(async (rel) => {
       const fullPath = path.join(home, rel);
@@ -516,9 +503,9 @@ async function getAgentConfigFiles(req, res) {
       }
       return { path: `~/${rel}`, exists, content, maskedCount };
     }));
-    res.json({ agentId, files, revealed: reveal });
+    return { agentId, files, revealed: reveal };
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 }
 
@@ -526,27 +513,25 @@ async function getAgentConfigFiles(req, res) {
 // for the given agent are writable — this prevents arbitrary file writes. The
 // client sends the `~`-prefixed path it got from GET; we strip the prefix and
 // match against the whitelist before touching disk.
-async function saveAgentConfigFile(req, res) {
+async function saveAgentConfigFile({ agentId, filePath, content } = {}) {
   try {
-    const { agentId } = req.params;
-    const { filePath, content } = req.body;
     const relPaths = AGENT_CONFIG_FILES[agentId];
     if (!relPaths) {
-      return res.status(404).json({ error: `No config files mapped for agent: ${agentId}` });
+      throw Object.assign(new Error(`No config files mapped for agent: ${agentId}`), { status: 404 });
     }
     if (!filePath || typeof content !== 'string') {
-      return res.status(400).json({ error: 'Missing filePath or content' });
+      throw Object.assign(new Error('Missing filePath or content'), { status: 400 });
     }
     // Normalize: strip leading ~/ then match exactly against the whitelist.
     const rel = filePath.startsWith('~/') ? filePath.slice(2) : filePath;
     if (!relPaths.includes(rel)) {
-      return res.status(403).json({ error: `Path not in writable whitelist: ${filePath}` });
+      throw Object.assign(new Error(`Path not in writable whitelist: ${filePath}`), { status: 403 });
     }
     // Reject masked-placeholder content and syntactically broken files before
     // they can corrupt the agent's config.
     const validationError = validateConfigContent(content, rel);
     if (validationError) {
-      return res.status(400).json({ error: validationError, code: 'CONFIG_INVALID' });
+      throw Object.assign(new Error(validationError), { status: 400, code: 'CONFIG_INVALID' });
     }
     const fullPath = path.join(os.homedir(), rel);
     // Snapshot before the manual edit lands, so viewer edits are revertible
@@ -556,10 +541,10 @@ async function saveAgentConfigFile(req, res) {
     await fs.ensureDir(path.dirname(fullPath));
     await fs.writeFile(fullPath, content, 'utf-8');
     appendLog('config-file-save', `${agentId}:${rel}`, true);
-    res.json({ success: true, path: `~/${rel}` });
+    return { success: true, path: `~/${rel}` };
   } catch (err) {
-    appendLog('config-file-save', `${agentId}:${req.body?.filePath || ''}`, false, err.message);
-    res.status(500).json({ error: err.message });
+    appendLog('config-file-save', `${agentId}:${filePath || ''}`, false, err.message);
+    throw err;
   }
 }
 
@@ -571,25 +556,23 @@ async function saveAgentConfigFile(req, res) {
 // right model on the gateway. We persist per-provider overrides; switching to
 // a provider without overrides defaults all tiers to the selected model.
 
-async function getTierMaps(_req, res) {
+async function getTierMaps() {
   try {
     const config = await loadUserConfig();
     const state = getAgentState(config, 'claude');
     const tierMaps = Object.fromEntries(Object.entries(state.sites)
       .filter(([, site]) => site?.tierMap)
       .map(([providerId, site]) => [providerId, site.tierMap]));
-    res.json({ tierMaps });
+    return { tierMaps };
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 }
 
-async function setTierMap(req, res) {
+async function setTierMap({ providerId, haiku, sonnet, opus } = {}) {
   try {
-    const { providerId } = req.params;
-    const { haiku, sonnet, opus } = req.body;
     if (!providerId) {
-      return res.status(400).json({ error: 'Missing providerId' });
+      throw Object.assign(new Error('Missing providerId'), { status: 400 });
     }
     // Empty string / null = clear that tier (fall back to ANTHROPIC_MODEL).
     const map = {};
@@ -597,9 +580,9 @@ async function setTierMap(req, res) {
     if (sonnet) map.sonnet = sonnet;
     if (opus) map.opus = opus;
     const result = await agentConfigService.setClaudeTierMap({ providerId, tierMap: map });
-    res.json({ success: true, providerId, tierMap: map, snapshotAvailable: result.snapshotAvailable });
+    return { success: true, providerId, tierMap: map, snapshotAvailable: result.snapshotAvailable };
   } catch (err) {
-    res.status(err.status || 500).json({ error: err.message, ...(err.code ? { code: err.code } : {}) });
+    throw err;
   }
 }
 
@@ -617,7 +600,7 @@ const {
 const providerLifecycleService = createProviderLifecycleService({
   loadProviders, saveProviders, loadUserConfig, saveUserConfig, agentConfigService,
 });
-const { createProvider, updateProvider, deleteProviderRoute } = providerLifecycleService;
+const { createProvider, updateProvider, deleteProvider } = providerLifecycleService;
 
 
 const modelDiscoveryService = createModelDiscoveryService({
@@ -688,13 +671,12 @@ function decryptProviderPayload(code, password) {
   }
 }
 
-async function exportProviderCode(req, res) {
+async function exportProviderCode({ id, password } = {}) {
   try {
-    const { id, password } = req.body || {};
-    if (!id) return res.status(400).json({ error: '请指定要导出的 provider id' });
+    if (!id) throw Object.assign(new Error('请指定要导出的 provider id'), { status: 400 });
     const providers = await loadProviders();
     const provider = providers.find(p => p.id === id);
-    if (!provider) return res.status(404).json({ error: `未找到 provider: ${id}` });
+    if (!provider) throw Object.assign(new Error(`未找到 provider: ${id}`), { status: 404 });
 
     // Strip vault-resolved secrets; keep vaultKey reference only
     const safe = {
@@ -708,19 +690,18 @@ async function exportProviderCode(req, res) {
       models: provider.models,
     };
     const code = encryptProviderPayload(safe, password);
-    res.json({ success: true, code });
+    return { success: true, code };
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 }
 
-async function importProviderCode(req, res) {
+async function importProviderCode({ code, password } = {}) {
   try {
-    const { code, password } = req.body || {};
-    if (!code) return res.status(400).json({ error: 'Provider 码不能为空' });
+    if (!code) throw Object.assign(new Error('Provider 码不能为空'), { status: 400 });
     const provider = decryptProviderPayload(code, password);
     if (!provider.id || !provider.name) {
-      return res.status(400).json({ error: 'Provider 码内容无效：缺少 id 或 name' });
+      throw Object.assign(new Error('Provider 码内容无效：缺少 id 或 name'), { status: 400 });
     }
     // Upsert into providers.json (same logic as createProvider)
     const providers = await loadProviders();
@@ -739,10 +720,10 @@ async function importProviderCode(req, res) {
     if (idx >= 0) providers[idx] = full;
     else providers.push(full);
     await saveProviders(providers);
-    res.json({ success: true, provider: full, created: !existed });
+    return { success: true, provider: full, created: !existed };
   } catch (err) {
-    const status = err.message?.includes('密码不正确') || err.message?.includes('格式不正确') || err.message?.includes('需要密码') ? 400 : 500;
-    res.status(status).json({ error: err.message });
+    if (!err.status && (err.message?.includes('密码不正确') || err.message?.includes('格式不正确') || err.message?.includes('需要密码'))) err.status = 400;
+    throw err;
   }
 }
 
@@ -789,7 +770,7 @@ module.exports = {
   getAdaptersList,
   createProvider,
   updateProvider,
-  deleteProvider: deleteProviderRoute,
+  deleteProvider,
   switchProvider,
   configureAgentProvider,
   removeAgentProvider,

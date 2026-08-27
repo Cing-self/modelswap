@@ -123,3 +123,11 @@
 - Module handoff repair: status receives `sortProviders`; discovery receives `findCommand`; auth receives both `loadProviders` and `providerEndpointEntries` through explicit dependencies.
 - Lifecycle deletion still delegates native Agent cleanup exclusively to `agent-config-service`; it retains other providers and uses the existing response semantics.
 - Focused verification after the lifecycle extraction: 5 files / 108 tests passed.
+
+## Provider HTTP boundary correction (2026-08-27)
+
+- `src/web/api/providers-controller.js` is now the sole Express transport adapter; `providers.js` only exposes that controller for the historical route module.
+- Lifecycle operations are pure `createProvider(input)`, `updateProvider(id, patch)`, and `deleteProvider(id)` calls that return result values or throw errors carrying the established status/code.
+- Discovery, authentication, status, launch, Agent selection and config-file operations now likewise return values/throw domain errors; no application Provider service reads Express `req`/`res` or calls `status/json`.
+- Added direct application lifecycle coverage for vault-key preservation and scoped Agent-site cleanup. Existing temporary-HOME `provider-flow` coverage verifies offline empty discovery preserves cache.
+- Boundary check: `rg` found no Express `req/res` or `status/json` usage under the Provider application services. Focused 5 files / 101 tests and full 73 files / 730 tests passed; build and diff-check passed.

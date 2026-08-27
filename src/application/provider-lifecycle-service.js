@@ -3,14 +3,15 @@
 function createProviderLifecycleService(deps) {
   const { loadProviders, saveProviders, loadUserConfig, saveUserConfig, agentConfigService } = deps;
 
-  async function createProvider(req, res) {
-    try {
+  const fail = (message, status = 400) => Object.assign(new Error(message), { status });
+
+  async function createProvider(input = {}) {
       const providers = await loadProviders();
-      const { id, name, type, baseUrl, endpoints, vaultKey, authMode, models, executionMode, nativeAgentIds } = req.body;
-      if (!id || !name) return res.status(400).json({ error: 'Missing required fields: id, name' });
+      const { id, name, type, baseUrl, endpoints, vaultKey, authMode, models, executionMode, nativeAgentIds } = input;
+      if (!id || !name) throw fail('Missing required fields: id, name');
       const idx = providers.findIndex(p => p.id === id);
       const existing = idx >= 0 ? providers[idx] : null;
-      const hasVaultKey = Object.prototype.hasOwnProperty.call(req.body, 'vaultKey');
+      const hasVaultKey = Object.prototype.hasOwnProperty.call(input, 'vaultKey');
       const provider = {
         ...(existing || {}), id, name,
         type: type || (endpoints && endpoints[0] ? endpoints[0].type : existing?.type || 'openai'),
@@ -27,24 +28,19 @@ function createProviderLifecycleService(deps) {
       if (idx >= 0) providers[idx] = provider;
       else providers.push(provider);
       await saveProviders(providers);
-      res.json({ success: true, provider });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
+      return { success: true, provider };
   }
 
-  async function updateProvider(req, res) {
-    try {
-      const { id } = req.params;
+  async function updateProvider(id, input = {}) {
       const providers = await loadProviders();
       const idx = providers.findIndex(p => p.id === id);
-      if (idx < 0) return res.status(404).json({ error: 'Provider not found' });
+      if (idx < 0) throw fail('Provider not found', 404);
       const current = providers[idx];
       const editableFields = ['name', 'type', 'baseUrl', 'endpoints', 'vaultKey', 'authMode', 'models', 'executionMode', 'nativeAgentIds'];
       const patch = {};
       for (const field of editableFields) {
-        if (Object.prototype.hasOwnProperty.call(req.body, field)) {
-          patch[field] = field === 'vaultKey' && !req.body[field] ? undefined : req.body[field];
+        if (Object.prototype.hasOwnProperty.call(input, field)) {
+          patch[field] = field === 'vaultKey' && !input[field] ? undefined : input[field];
         }
       }
       const routeOrCredentialChanged = ['type', 'baseUrl', 'endpoints', 'vaultKey', 'authMode', 'executionMode']
@@ -58,18 +54,13 @@ function createProviderLifecycleService(deps) {
         });
       }
       await saveProviders(providers);
-      res.json({ success: true, provider: providers[idx] });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
+      return { success: true, provider: providers[idx] };
   }
 
-  async function deleteProviderRoute(req, res) {
-    try {
-      const { id } = req.params;
+  async function deleteProvider(id) {
       const providers = await loadProviders();
       const idx = providers.findIndex(p => p.id === id);
-      if (idx < 0) return res.status(404).json({ error: 'Provider not found' });
+      if (idx < 0) throw fail('Provider not found', 404);
       providers.splice(idx, 1);
       await saveProviders(providers);
       const config = await loadUserConfig();
@@ -88,13 +79,10 @@ function createProviderLifecycleService(deps) {
         agentProvidersChanged = true;
       }
       if (agentProvidersChanged) await saveUserConfig(config, { deleteProviderId: id });
-      res.json({ success: true });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
+      return { success: true };
   }
 
-  return { createProvider, updateProvider, deleteProviderRoute };
+  return { createProvider, updateProvider, deleteProvider };
 }
 
 module.exports = { createProviderLifecycleService };

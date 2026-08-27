@@ -1,4 +1,4 @@
-function createProviderStatusService(deps) { const { _store, loadProviders, loadUserConfig, ADAPTERS, ADDITIVE_AGENTS, adapterSupportsProvider, _getAdapter, providerExecutionMode, providerEndpointEntries, buildPlatforms, qianfanCodingModels, sortModels, sortProviders, tagRecentModels, enrichCodexOfficialModels, readCodexCachedModels, getAgentState, findCommand } = deps;
+function createProviderStatusService(deps) { const { _store, loadProviders, loadUserConfig, ADAPTERS, ADDITIVE_AGENTS, adapterSupportsProvider, _getAdapter, providerExecutionMode, providerEndpointEntries, buildPlatforms, qianfanCodingModels, sortModels, sortProviders, tagRecentModels, enrichCodexOfficialModels, readCodexCachedModels, getAgentState, findCommand, publishDataChanged } = deps;
 function modelDataSelections(config) {
   const selectedByProvider = new Map();
   for (const [agentId, state] of Object.entries(config.agentProviders || {})) {
@@ -118,25 +118,25 @@ async function buildFreshModelDataSnapshot() {
   };
 }
 
-async function getModelData(req, res) {
+async function getModelData() {
   try {
     // Read the same normalized generation used by /api/providers and Agent
     // adapters. This route is a diagnostic view, not another cache.
     await _store.refreshModelsFromCatalog(await require('../web/api/models-dev').loadCatalog());
-    res.json(await buildFreshModelDataSnapshot());
+    return await buildFreshModelDataSnapshot();
   } catch (err) {
-    res.status(502).json({ error: `全新模型数据拉取失败：${err.message}` });
+    throw Object.assign(new Error(`全新模型数据拉取失败：${err.message}`), { status: 502 });
   }
 }
 
-async function refreshModelData(req, res) {
+async function refreshModelData() {
   try {
     const catalog = await require('../web/api/models-dev').loadFreshCatalog();
     await _store.refreshModelsFromCatalog(catalog);
     publishDataChanged(['providers']);
-    res.json(await buildFreshModelDataSnapshot());
+    return await buildFreshModelDataSnapshot();
   } catch (err) {
-    res.status(502).json({ error: `全新模型数据拉取失败：${err.message}` });
+    throw Object.assign(new Error(`全新模型数据拉取失败：${err.message}`), { status: 502 });
   }
 }
 
@@ -194,13 +194,13 @@ function normalizeRemoteModel(model) {
   };
 }
 
-async function refreshDemoProviderModels(req, res) {
+async function refreshDemoProviderModels(id) {
   try {
     const providers = await _store.loadProviderSites();
-    const provider = providers.find(item => item.id === req.params.id);
-    if (!provider) return res.status(404).json({ error: 'Provider 不存在' });
+    const provider = providers.find(item => item.id === id);
+    if (!provider) throw Object.assign(new Error('Provider 不存在'), { status: 404 });
     if (provider.executionMode === 'agent_native') {
-      return res.status(400).json({ error: '该平台没有可直接调用的模型列表接口' });
+      throw Object.assign(new Error('该平台没有可直接调用的模型列表接口'), { status: 400 });
     }
 
     const apiKey = provider.vaultKey ? await resolveVaultKey(provider.vaultKey) : undefined;
@@ -215,7 +215,7 @@ async function refreshDemoProviderModels(req, res) {
       }
     }
     if (!discoveries.length) {
-      return res.status(502).json({ error: '平台没有返回模型列表', errors });
+      throw Object.assign(new Error('平台没有返回模型列表'), { status: 502, errors });
     }
 
     const modelsDev = require('../web/api/models-dev');
@@ -225,7 +225,7 @@ async function refreshDemoProviderModels(req, res) {
     const enrichedById = new Map(enriched.map(model => [model.id, model]));
     const materialized = await loadProviders();
     const target = materialized.find(item => item.id === provider.id);
-    if (!target) return res.status(404).json({ error: 'Provider 不存在' });
+    if (!target) throw Object.assign(new Error('Provider 不存在'), { status: 404 });
     const userConfig = await loadUserConfig();
     const activeModelIds = new Set(
       Object.values(userConfig.agentProviders || {}).flatMap(state => state?.sites?.[provider.id]?.modelIds || []),
@@ -238,13 +238,14 @@ async function refreshDemoProviderModels(req, res) {
     await saveProviders(materialized);
     const snapshot = await buildFreshModelDataSnapshot();
     const row = snapshot.providers.find(item => item.id === provider.id);
-    res.json({ success: true, provider: row, errors: errors.length ? errors : undefined });
+    return { success: true, provider: row, errors: errors.length ? errors : undefined };
   } catch (err) {
-    res.status(502).json({ error: `平台模型拉取失败：${err.message}` });
+    if (err.status) throw err;
+    throw Object.assign(new Error(`平台模型拉取失败：${err.message}`), { status: 502 });
   }
 }
 
-async function getAdaptersList(req, res) {
+async function getAdaptersList() {
   try {
     const providers = await loadProviders();
     const config = await loadUserConfig();
@@ -323,9 +324,9 @@ async function getAdaptersList(req, res) {
       };
     }));
 
-    res.json({ adapters: result });
+    return { adapters: result };
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 }
 
@@ -333,13 +334,12 @@ async function getAdaptersList(req, res) {
 
 
 
-async function launchAgent(req, res) {
-  const { agentId, cwd } = req.body;
-  if (!agentId) return res.status(400).json({ error: 'agentId required' });
+async function launchAgent({ agentId, cwd } = {}) {
+  if (!agentId) throw Object.assign(new Error('agentId required'), { status: 400 });
 
   const adapter = ADAPTERS.find(a => a.id === agentId);
-  if (!adapter) return res.status(404).json({ error: `Agent not found: ${agentId}` });
-  if (!adapter.command) return res.status(400).json({ error: `${adapter.name} 不支持一键打开` });
+  if (!adapter) throw Object.assign(new Error(`Agent not found: ${agentId}`), { status: 404 });
+  if (!adapter.command) throw Object.assign(new Error(`${adapter.name} 不支持一键打开`), { status: 400 });
 
   try {
     if (adapter.launchType === 'app') {
@@ -352,22 +352,21 @@ async function launchAgent(req, res) {
       } else {
         spawn(adapter.command, [], { detached: true, stdio: 'ignore' }).unref();
       }
-      res.json({ success: true, agentId, launched: 'app', appName });
-      return;
+      return { success: true, agentId, launched: 'app', appName };
     }
 
     const commandPath = findCommand(adapter.command);
     if (!commandPath) {
-      return res.status(404).json({ error: `${adapter.name} CLI 未安装或不在 PATH 中` });
+      throw Object.assign(new Error(`${adapter.name} CLI 未安装或不在 PATH 中`), { status: 404 });
     }
 
     const launchDir = typeof cwd === 'string' && cwd.trim() ? cwd.trim() : process.cwd();
     const command = `cd ${shellQuote(launchDir)} && ${shellQuote(commandPath)}`;
 
     await openTerminal(command);
-    res.json({ success: true, agentId, command: adapter.command });
+    return { success: true, agentId, command: adapter.command };
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 }
 

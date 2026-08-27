@@ -265,8 +265,7 @@ async function ensureProviderAuth(p, allProviders, endpointId, dependencies = {}
   return { ok: false, code: 'AUTH_VERIFICATION_REQUIRED', message: 'API Key 尚未完成认证，请先连接一次' };
 }
 
-async function getAuthStatus(req, res) {
-  try {
+async function getAuthStatus() {
     const providers = await loadProviders();
     const repaired = await repairMissingVaultBindings(providers);
     if (repaired.changed) await saveProviders(providers);
@@ -276,42 +275,33 @@ async function getAuthStatus(req, res) {
     }
     const results = snapshots.map(({ revalidation, ...status }) => status);
 
-    res.json({ statuses: results });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    return { statuses: results };
 }
 
-async function verifyProviderAuth(req, res) {
-  try {
+async function verifyProviderAuth(id) {
     const providers = await loadProviders();
-    const provider = providers.find(item => item.id === req.params.id);
-    if (!provider) return res.status(404).json({ error: 'Provider not found' });
+    const provider = providers.find(item => item.id === id);
+    if (!provider) throw Object.assign(new Error('Provider not found'), { status: 404 });
     if (!supportsApiKey(provider)) {
-      return res.status(400).json({ error: '该 Offering 不使用 API Key 认证' });
+      throw Object.assign(new Error('该 Offering 不使用 API Key 认证'), { status: 400 });
     }
     if (!provider.vaultKey) {
-      return res.status(400).json({ error: '请先绑定 API Key' });
+      throw Object.assign(new Error('请先绑定 API Key'), { status: 400 });
     }
     const revalidation = await revalidateProviderAuth(provider, { force: true });
     if (revalidation.changed) await saveProviders(providers);
     const snapshot = await getProviderAuthSnapshot(provider);
     const { revalidation: _ignored, ...status } = snapshot;
-    res.json({
+    return {
       success: status.authVerified && status.authState !== 'invalid',
       status,
       results: revalidation.results || [],
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    };
 }
 
-async function triggerOAuthLogin(req, res) {
-  const { providerId } = req.body;
-  if (!providerId) return res.status(400).json({ error: 'providerId required' });
+async function triggerOAuthLogin(providerId) {
+  if (!providerId) throw Object.assign(new Error('providerId required'), { status: 400 });
 
-  const os = require('os');
   const platform = os.platform();
 
   // Platform-specific OAuth URLs and CLI commands
@@ -325,7 +315,7 @@ async function triggerOAuthLogin(req, res) {
 
   const entry = entries[providerId];
   if (!entry) {
-    return res.status(400).json({ error: `${providerId} 不支持 OAuth 登录` });
+    throw Object.assign(new Error(`${providerId} 不支持 OAuth 登录`), { status: 400 });
   }
 
   // Try CLI login first (if installed), fall back to opening URL.
@@ -334,27 +324,23 @@ async function triggerOAuthLogin(req, res) {
   const cliPath = findCommand(entry.cli);
   if (cliPath) {
     if (!Array.isArray(entry.cliArgs) || entry.cliArgs.some(a => typeof a !== 'string')) {
-      return res.status(500).json({ error: 'invalid cliArgs' });
+      throw Object.assign(new Error('invalid cliArgs'), { status: 500 });
     }
     const launched = launchInteractiveCli(platform, cliPath, entry.cliArgs);
     if (!launched) {
-      return res.status(500).json({
-        error: `无法打开交互式终端，请手动运行：${entry.cli} ${entry.cliArgs.join(' ')}`,
-      });
+      throw Object.assign(new Error(`无法打开交互式终端，请手动运行：${entry.cli} ${entry.cliArgs.join(' ')}`), { status: 500 });
     }
-    return res.json({
+    return {
       success: true,
       message: `已在终端打开 ${entry.name} OAuth 登录`,
-    });
+    };
   }
 
   // A normal web login cannot create local CLI credentials. Providers without
   // a browser-only fallback must tell the user which CLI login to run instead
   // of opening an unrelated account console.
   if (!entry.url) {
-    return res.status(400).json({
-      error: `未检测到 ${entry.name} CLI，请先安装 ${entry.cli}，再运行：${entry.cli} ${entry.cliArgs.join(' ')}`,
-    });
+    throw Object.assign(new Error(`未检测到 ${entry.name} CLI，请先安装 ${entry.cli}，再运行：${entry.cli} ${entry.cliArgs.join(' ')}`), { status: 400 });
   }
 
   // Browser-only fallback for providers whose login can complete without a
@@ -362,7 +348,7 @@ async function triggerOAuthLogin(req, res) {
   // Validate the URL scheme before spawning to prevent injection via crafted URLs.
   const url = entry.url;
   if (typeof url !== 'string' || !/^https?:\/\//.test(url)) {
-    return res.status(400).json({ error: 'invalid oauth url' });
+    throw Object.assign(new Error('invalid oauth url'), { status: 400 });
   }
   const openCmd = platform === 'darwin' ? 'open' : platform === 'win32' ? 'start' : 'xdg-open';
   // No shell: pass URL as a discrete argument to avoid shell interpolation.
@@ -373,7 +359,7 @@ async function triggerOAuthLogin(req, res) {
     spawn(openCmd, [url], { detached: true, stdio: 'ignore' }).unref();
   }
 
-  res.json({ success: true, message: `已打开 ${entry.name} 控制台，完成登录后刷新状态` });
+  return { success: true, message: `已打开 ${entry.name} 控制台，完成登录后刷新状态` };
 }
 
 function launchInteractiveCli(platform, cliPath, args) {

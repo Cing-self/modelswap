@@ -179,15 +179,15 @@ function replaceRemoteModels(provider, discoveries, activeModelIds) {
   return next;
 }
 
-async function fetchModels(req, res) {
-  const { providerId, endpoints: requestedEndpoints, vaultKey: requestedVaultKey } = req.body;
-  const previewConfig = Array.isArray(requestedEndpoints) || Object.prototype.hasOwnProperty.call(req.body, 'vaultKey');
-  if (!providerId && !previewConfig) return res.status(400).json({ error: 'providerId required' });
+async function fetchModels(input = {}) {
+  const { providerId, endpoints: requestedEndpoints, vaultKey: requestedVaultKey } = input;
+  const previewConfig = Array.isArray(requestedEndpoints) || Object.prototype.hasOwnProperty.call(input, 'vaultKey');
+  if (!providerId && !previewConfig) throw Object.assign(new Error('providerId required'), { status: 400 });
 
   try {
     const providers = await loadProviders();
     const p = providerId ? providers.find(x => x.id === providerId) : undefined;
-    if (!p && !previewConfig) return res.status(404).json({ error: 'Provider 不存在' });
+    if (!p && !previewConfig) throw Object.assign(new Error('Provider 不存在'), { status: 404 });
 
     if (p?.id === 'openai-codex' && !previewConfig) {
       // The ChatGPT subscription exposes no list-models API — Codex's own
@@ -204,11 +204,11 @@ async function fetchModels(req, res) {
         await _store.saveDiscoveredModels(p.id, p.models);
         await saveProviders(providers, { persistModels: false });
       }
-      return res.json({
+      return {
         success: source.length > 0,
         models: p.models || source,
         kept: source.length === 0 ? p.models : undefined,
-      });
+      };
     }
 
     if (p?.id === 'xai-grok-build' && !previewConfig) {
@@ -217,7 +217,7 @@ async function fetchModels(req, res) {
       p.models = models;
       await _store.saveDiscoveredModels(p.id, p.models);
       await saveProviders(providers, { persistModels: false });
-      return res.json({ success: true, models });
+      return { success: true, models };
     }
 
     if (p?.id === 'github-copilot' && !previewConfig) {
@@ -226,7 +226,7 @@ async function fetchModels(req, res) {
       p.models = models;
       await _store.saveDiscoveredModels(p.id, p.models);
       await saveProviders(providers, { persistModels: false });
-      return res.json({ success: true, models });
+      return { success: true, models };
     }
 
     if (p && providerExecutionMode(p) === 'agent_native' && !previewConfig) {
@@ -234,7 +234,7 @@ async function fetchModels(req, res) {
       p.models = models;
       await _store.saveDiscoveredModels(p.id, p.models);
       await saveProviders(providers, { persistModels: false });
-      return res.json({ success: models.length > 0, models });
+      return { success: models.length > 0, models };
     }
 
     const apiKey = previewConfig
@@ -243,7 +243,7 @@ async function fetchModels(req, res) {
     const endpointEntries = Array.isArray(requestedEndpoints) && requestedEndpoints.length
       ? requestedEndpoints.map((endpoint, index) => ({ id: endpoint.id || `${providerId || 'preview'}:endpoint:${index}`, endpoint }))
       : (p ? providerEndpointEntries(p) : []);
-    if (!endpointEntries.length) return res.status(400).json({ error: '至少需要一个有效端点' });
+    if (!endpointEntries.length) throw Object.assign(new Error('至少需要一个有效端点'), { status: 400 });
     const allModels = [];
     const discoveries = [];
     const successfulEndpointIds = new Set();
@@ -297,14 +297,14 @@ async function fetchModels(req, res) {
       await saveProviders(providers, { persistModels: false });
     }
 
-    res.json({
+    return {
       success: allModels.length > 0,
       models: p && !previewConfig && allModels.length > 0 ? p.models : allModels,
       errors: errors.length > 0 ? errors : undefined,
       kept: allModels.length === 0 && p ? p.models : undefined,
-    });
+    };
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 }
 
@@ -474,15 +474,15 @@ function httpReq(url, options) {
   return new Promise((resolve) => {
     const parsed = new (require('url').URL)(url);
     const mod = parsed.protocol === 'https:' ? require('https') : require('http');
-    const req = mod.request(url, options, (res) => {
+    const clientRequest = mod.request(url, options, (clientResponse) => {
       let body = '';
-      res.on('data', c => body += c);
-      res.on('end', () => resolve({ status: res.statusCode, body }));
+      clientResponse.on('data', c => body += c);
+      clientResponse.on('end', () => resolve({ status: clientResponse.statusCode, body }));
     });
-    req.on('error', err => resolve({ status: 0, error: err.message }));
-    if (options.body) req.write(options.body);
-    req.setTimeout(options.timeout || 10000, () => { req.destroy(); resolve({ status: 0, error: 'Timeout' }); });
-    req.end();
+    clientRequest.on('error', err => resolve({ status: 0, error: err.message }));
+    if (options.body) clientRequest.write(options.body);
+    clientRequest.setTimeout(options.timeout || 10000, () => { clientRequest.destroy(); resolve({ status: 0, error: 'Timeout' }); });
+    clientRequest.end();
   });
 }
 
