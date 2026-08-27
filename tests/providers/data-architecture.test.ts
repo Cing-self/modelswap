@@ -16,7 +16,9 @@ function runInTemporaryHome(script: string) {
   return JSON.parse(output.trim());
 }
 
-describe('provider data architecture', () => {
+// Several it()s boot a child node with ts-node/register against a legacy
+// fixture; the 40k-model migration alone can exceed the 5s default timeout.
+describe('provider data architecture', { timeout: 30000 }, () => {
   it('keeps built-in and models.dev site identities stable instead of adding duplicate names', () => {
     const data: any = migrateProvidersData({ providers: [
       { id: 'openai', name: 'OpenAI', type: 'openai', baseUrl: 'https://api.openai.com/v1', authMode: 'api_key', models: [] },

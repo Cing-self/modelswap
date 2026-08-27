@@ -29,8 +29,11 @@ jobs:
       - run: npm ci --ignore-scripts
 
       # Full compile (not --noEmit): tests import web/api modules that require
-      # compiled outputs under dist/.
+      # compiled outputs under dist/. copy-web is also required: compiled
+      # dist/providers modules (store, codex adapter) require dist/web/api
+      # files (models-dev, log-writer) that tsc alone does not emit.
       - run: npx tsc
+      - run: npm run copy-web
 
       - run: npx vitest run
 

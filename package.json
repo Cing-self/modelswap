@@ -18,6 +18,7 @@
     "dev": "ts-node src/main.ts",
     "dev:web": "cd src/web/frontend && npm run dev",
     "start": "node dist/main.js",
+    "pretest": "npm run copy-web",
     "test": "vitest run",
     "test:watch": "vitest"
   },

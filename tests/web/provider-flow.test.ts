@@ -6,7 +6,9 @@ import path from 'path';
 import { execFileSync } from 'child_process';
 const { removeSite } = require('../../src/web/api/agent-providers.js');
 
-describe('provider flow source of truth', () => {
+// Each it() boots a child node with ts-node/register to exercise the real
+// API surface; cold compilation alone can exceed the 5s default timeout.
+describe('provider flow source of truth', { timeout: 30000 }, () => {
   it('runs API → store → Codex/Claude/OpenCode adapters in a temporary HOME', () => {
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-provider-flow-'));
     const root = path.resolve(__dirname, '../..');
