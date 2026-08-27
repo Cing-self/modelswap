@@ -11,7 +11,9 @@ function runInTemporaryHome(script: string) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-data-architecture-'));
   const root = path.resolve(__dirname, '../..');
   const output = execFileSync(process.execPath, ['-r', 'ts-node/register', '-e', script, root], {
-    env: { ...process.env, HOME: home }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    // Windows resolves os.homedir() from USERPROFILE, not HOME; the parent
+    // suite's isolated USERPROFILE must not leak into the child.
+    env: { ...process.env, HOME: home, USERPROFILE: home }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
   });
   return JSON.parse(output.trim());
 }

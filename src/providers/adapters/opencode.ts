@@ -28,7 +28,12 @@ const OPENCODE_DESKTOP_APP_IDS = [
   "ai.opencode.desktop.dev",
 ];
 
-function openCodeDesktopStorePaths(): string[] {
+// Exported for tests: the per-OS resolution (APPDATA / XDG_CONFIG_HOME /
+// ~/Library) must be computed by ONE implementation. Tests that seed a
+// desktop store must use this list's first path, not a local re-derivation —
+// CI runners set XDG_CONFIG_HOME/APPDATA to real-home paths while the test
+// HOME is an isolated temp dir, and the two derivations then disagree.
+export function openCodeDesktopStorePaths(): string[] {
   const home = os.homedir();
   const appData = process.platform === "darwin"
     ? path.join(home, "Library", "Application Support")

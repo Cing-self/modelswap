@@ -45,21 +45,16 @@ vi.mock('../../../src/vault/store', () => ({
   }),
 }));
 
-const { OpenCodeAdapter } = await import('../../../src/providers/adapters/opencode');
+const { OpenCodeAdapter, openCodeDesktopStorePaths } = await import('../../../src/providers/adapters/opencode');
 const { updateUserConfig } = await import('../../../src/config/user');
 
 // OpenCode reads ~/.config/opencode/opencode.json (NOT ~/.opencode/config.json).
 const CONFIG_PATH = path.join(os.homedir(), '.config', 'opencode', 'opencode.json');
-const DESKTOP_STORE_PATH = path.join(
-  os.homedir(),
-  process.platform === 'darwin'
-    ? path.join('Library', 'Application Support')
-    : process.platform === 'win32'
-      ? path.join('AppData', 'Roaming')
-      : '.config',
-  'ai.opencode.desktop',
-  'opencode.global.dat',
-);
+// The adapter resolves the desktop store per OS (APPDATA on Windows,
+// XDG_CONFIG_HOME on Linux). CI runners point those at the real home while
+// this suite's HOME is an isolated temp dir, so derive the seed path from the
+// adapter itself instead of re-deriving it here.
+const DESKTOP_STORE_PATH = openCodeDesktopStorePaths()[0];
 
 const openaiProvider = {
   id: 'deepseek',

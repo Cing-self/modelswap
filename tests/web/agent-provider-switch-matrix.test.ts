@@ -95,7 +95,7 @@ describe('Agent × site × selected-model switch matrix', () => {
         console.log(JSON.stringify({outcomes,user,providers,cache,disabledConfigContainsModels:disabledContents.includes('api.deepseek.com'),reloadStable:beforeReload===JSON.stringify(reloaded.agentProviders),outsideHomeTouched:fs.existsSync('/Users/dolphin/.okit/.agent-switch-matrix-sentinel')||fs.existsSync('/Users/dolphin/.codex/.agent-switch-matrix-sentinel')}));
       })().catch(error=>{console.error(error&&error.stack||error);process.exit(1)});
     `;
-    const output = execFileSync(process.execPath, ['-r', 'ts-node/register', '-e', script, root], { env: { ...process.env, HOME: home, VITEST: 'true', OKIT_MATRIX_JSON: JSON.stringify(MATRIX), OKIT_DISABLED_JSON: JSON.stringify(DISABLED) }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    const output = execFileSync(process.execPath, ['-r', 'ts-node/register', '-e', script, root], { env: { ...process.env, HOME: home, USERPROFILE: home, VITEST: 'true', OKIT_MATRIX_JSON: JSON.stringify(MATRIX), OKIT_DISABLED_JSON: JSON.stringify(DISABLED) }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
     result = JSON.parse(output.trim());
   }, 120_000);
 

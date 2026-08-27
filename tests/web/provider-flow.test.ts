@@ -39,7 +39,9 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
       })().catch(error=>{console.error(error.stack);process.exit(1)});
     `;
     const output = execFileSync(process.execPath, ['-r', 'ts-node/register', '-e', script, root], {
-      env: { ...process.env, HOME: home }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+      // Windows resolves os.homedir() from USERPROFILE, not HOME; the parent
+      // suite's isolated USERPROFILE must not leak into the child.
+      env: { ...process.env, HOME: home, USERPROFILE: home }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
     });
     const result = JSON.parse(output.trim());
     expect(result.created).toMatchObject({ version: 2 });
@@ -111,7 +113,9 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
       })().catch(error=>{console.error(error.stack);process.exit(1)});
     `;
     const output = execFileSync(process.execPath, ['-r', 'ts-node/register', '-e', script, root], {
-      env: { ...process.env, HOME: home }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+      // Windows resolves os.homedir() from USERPROFILE, not HOME; the parent
+      // suite's isolated USERPROFILE must not leak into the child.
+      env: { ...process.env, HOME: home, USERPROFILE: home }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
     });
     const result = JSON.parse(output.trim());
     expect(result.afterPreview.agentProviders).toEqual(result.beforePreview.agentProviders);
