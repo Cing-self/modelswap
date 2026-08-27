@@ -170,3 +170,33 @@
 6. Presentation is split by responsibility into workspace, platform cards, platform/model details, action menu, and provider form components. Existing CSS class names and callbacks were preserved.
 7. Removed the two state values which had no writer/reader path (`endpointResults` and the unused card authentication-method map). Cross-view authentication and endpoint normalization now share `modelsCatalog` rather than copying rules.
 8. Added pure catalog regression coverage for protocol filtering, endpoint normalization, and authentication readiness. Focused test: 4/4. Full suite: 75 files / 740 tests. Frontend and root builds plus `git diff --check` pass.
+
+## Sync domain end-to-end split (2026-08-28)
+
+### Dependency and migration plan
+
+1. Existing transport modules depended on `cloud-sync-core` for encrypted cloud payloads, LAN pairing/listener state, config persistence, provider-site merges and direct post-pull Agent application. The risk was that a successful pull could persist UI desired state without applying the native Agent file.
+2. Preserve the public `cloud-sync-core` and `sync.js` exports for scheduler, settings, platform adapters and server route registration. Move application decisions behind injected boundaries; do not alter payload/encryption formats or user data schema.
+3. Pull order is explicit: merge portable provider sites → merge vault secrets → persist timestamp-accepted Agent selection/overrides → invoke only `agent-config-service` for native configuration → publish UI event and structured diagnostics.
+
+### Resulting responsibilities
+
+| Module | Responsibility |
+| --- | --- |
+| `src/web/api/cloud-sync-core.js` | Compatibility composition facade; no cloud merge business logic. |
+| `src/web/api/sync.js` | Cloud HTTP responses and scheduler locking only. |
+| `src/web/api/sync-lan.js` | LAN HTTP/pairing protocol validation and responses. |
+| `src/web/api/lan-sync-server.js` | Thin listener facade. |
+| `src/application/sync-service.js` | Push/pull/sync-code use cases, conflict ordering and observable result. |
+| `src/application/sync-agent-reconciliation.js` | Desired-state diagnostics and sole delegation to `agent-config-service`. |
+| `src/application/sync-config-state.js` | Pure nested user-state merge/removal and timestamp comparison. |
+| `src/infrastructure/sync-*.js` | Config atomic-write queue, encrypted wire codec, remote platform/Vault references, portable provider sites, LAN socket/blob/pairing state. |
+
+### Acceptance evidence to date
+
+1. Static boundaries: `cloud-sync-core.js` is 115 lines, `sync.js` 141, `lan-sync-server.js` 14. Application sync modules have no Express `req`/`res`/`status`/`json` calls.
+2. Temporary-HOME A→B integration starts B without local provider sites or Agent selection. B first accepts desired state but intentionally holds the provider partition back; it reports per-site `PROVIDER_NOT_FOUND` and writes no native configuration. When sites become eligible, B rebuilds model facts from its own models.dev snapshot, retries, and writes real Codex, Claude and OpenCode files. The remaining unresolvable site stays desired state with `MODEL_NOT_FOUND` diagnostic.
+3. Controlled red→green: temporarily replacing the reconciler's `agent-config-service.reconcile()` call with `return []` made the isolated A→B integration fail with absent `~/.codex/config.toml` (expected red). The line was restored and the same integration passed (green).
+4. Pure regressions cover nested selection/override merges, strict timestamp conflict policy, per-agent/per-site desired diagnostics, portable provider payload projection, and provider→vault→config→Agent pull ordering.
+5. Focused current result: `npx vitest run tests/sync.test.js tests/sync-domain.test.js tests/sync-scheduler.test.ts tests/web/lan-sync.test.ts tests/web/agent-config-sync-reconciliation.test.ts` — 5 files / 65 tests passed in five consecutive runs.
+6. Final verification: `npm test -- --run` passed twice consecutively — 77 files / 750 tests, skipped 0 both times. `npm run build` and `git diff --check` passed after the final test change.

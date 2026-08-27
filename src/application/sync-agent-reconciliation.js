@@ -1,0 +1,91 @@
+// Replays persisted desired Agent state through the sole application service.
+const { createAgentConfigurationService } = require('./agent-config-service');
+
+function desiredAgentSites(config) {
+  const desired = [];
+  for (const [agentId, raw] of Object.entries(config.agentProviders || {})) {
+    const state = raw || {};
+    if (state.activeProviderId) {
+      desired.push({ agentId, providerId: state.activeProviderId });
+    }
+    for (const providerId of Object.keys(state.sites || {})) {
+      if (
+        !desired.some(
+          (site) => site.agentId === agentId && site.providerId === providerId,
+        )
+      ) {
+        desired.push({ agentId, providerId });
+      }
+    }
+  }
+  return desired;
+}
+
+function createPulledAgentReconciler({
+  providerStore,
+  loadProviderRuntime,
+  loadConfig,
+  saveConfig,
+  appendLog,
+}) {
+  async function reconcilePulledAgentProviders(config) {
+    const desired = desiredAgentSites(config);
+    if (desired.length === 0) return [];
+
+    if (typeof providerStore.loadProviderSites === 'function') {
+      const localIds = new Set(
+        (await providerStore.loadProviderSites()).map((site) => site.id),
+      );
+      if (!desired.some((site) => localIds.has(site.providerId))) {
+        return desired.map(({ agentId, providerId }) => ({
+          agentId,
+          providerId,
+          success: false,
+          code: 'PROVIDER_NOT_FOUND',
+          error: `Provider 不存在: ${providerId}`,
+        }));
+      }
+    }
+
+    const routing = loadProviderRuntime('routing');
+    const registry = loadProviderRuntime('registry');
+    const agentsMeta = loadProviderRuntime('agentsMeta');
+    const snapshots = loadProviderRuntime('snapshots');
+    const auth = loadProviderRuntime('auth');
+    const service = createAgentConfigurationService({
+      adapters: agentsMeta.AGENTS_META,
+      getAdapter: registry.getAdapter,
+      loadProviders: providerStore.loadProviders,
+      loadUserConfig: loadConfig,
+      saveUserConfig: saveConfig,
+      persistReconciledDesired: (desiredState) =>
+        saveConfig(desiredState, {
+          applyAgentProviders: true,
+          applyModelOverrides: true,
+        }),
+      captureSnapshot: snapshots.capturePreSwitchSnapshot,
+      restoreSnapshot: snapshots.restoreSnapshot,
+      providerSupportsAdapter: routing.providerSupportsAdapter,
+      resolveModelRoute: routing.resolveModelRoute,
+      resolveModel: routing.resolveModel,
+      appendLog,
+      authorize: async (provider) => {
+        if (provider.authMode === 'none' || !provider.authMode) {
+          return { ok: true };
+        }
+        const status = await auth.checkAuthStatus(provider);
+        if (status.hasApiKey || status.oauthLoggedIn) return { ok: true };
+        return {
+          ok: false,
+          code: 'AUTH_REQUIRED',
+          message: '请先绑定 API Key',
+        };
+      },
+    });
+    return service.reconcile(config);
+  }
+
+  return { reconcilePulledAgentProviders };
+}
+
+module.exports = { createPulledAgentReconciler, desiredAgentSites };
