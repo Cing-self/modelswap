@@ -1897,7 +1897,11 @@ function ProviderForm({ provider, platform, onSelectOffering, onOAuthLogin, oaut
           });
           if (modelResult.success && modelResult.models?.length) {
             pulledCount = modelResult.models.length;
-            setModels(modelResult.models.map(m => ({ id: m.id, name: m.name || m.id })));
+            // Keep the discovery metadata (especially meta.source = "remote")
+            // when the form is saved.  Reducing these to id/name made a
+            // built-in provider's freshly fetched models look like obsolete
+            // legacy records; the next directory hydration then removed them.
+            setModels(modelResult.models.map(m => ({ ...m, id: m.id, name: m.name || m.id })));
             setEditorDirty(true);
           }
         } catch {
@@ -2151,7 +2155,11 @@ function ProviderForm({ provider, platform, onSelectOffering, onOAuthLogin, oaut
                                 )}
                               </div>
                             </div>
-                            <p className="provider-auth-hint">{provider?.id === 'qianfan-coding' ? t('models.qianfanCodingKeyHint') : connectionTitle}</p>
+                            <p className="provider-auth-hint">
+                              {provider?.id === 'qianfan-coding' && t('models.qianfanCodingKeyHint')}
+                              {provider?.id === 'qianfan-coding' && connectionState !== 'idle' && ' · '}
+                              {provider?.id === 'qianfan-coding' && connectionState === 'idle' ? null : connectionTitle}
+                            </p>
                           </div>
                         )}
                         {authMode === 'none' && (
