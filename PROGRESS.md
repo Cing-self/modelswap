@@ -157,3 +157,5 @@
 5. Completed: `usage.js` is now a 2-line compatibility controller entry; `usage-controller.js` is 111 lines and is the only Express transport mapping.
 6. Strategies: API/local credentials 864 lines, browser/session 804, cloud control-plane 154, parsers/signers 366, provider registry 30, Vault service 31; each is below 900.
 7. Verification: `tests/usage.test.ts` 14 tests, full `npm test -- --run` 74 files/736 tests, build and diff-check all passed.
+8. Sync stabilization: fake-timer timeout came from reconciling remote sites absent from local provider sites through full model-catalog hydration. `syncPull` now records those as retryable per-site `PROVIDER_NOT_FOUND` results before hydration; desired remote state is still persisted and real local sites still use Agent service reconciliation.
+9. Evidence: `tests/sync.test.js` passed 5 consecutive times (0.36–0.42s); full suite passed twice consecutively (74 files / 736 tests); Usage 14/14, build and diff-check passed.

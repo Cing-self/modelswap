@@ -21,6 +21,32 @@ function loadProviderRuntime(name) {
 // already write every native file. Persist it first, then attempt each site
 // independently through the same application service as web/CLI actions.
 async function reconcilePulledAgentProviders(config) {
+  // Avoid hydrating the provider model catalog when every desired remote site
+  // is absent on this host. That work can involve cache migration and, under
+  // fake timers, used to delay an otherwise successful pull until the test
+  // timeout. Missing sites are already a per-site, retryable reconciliation
+  // outcome; desired state remains persisted by syncPull below.
+  const desiredIds = new Set();
+  for (const raw of Object.values(config.agentProviders || {})) {
+    const state = raw || {};
+    if (state.activeProviderId) desiredIds.add(state.activeProviderId);
+    for (const providerId of Object.keys(state.sites || {})) desiredIds.add(providerId);
+  }
+  if (desiredIds.size && typeof providerStore.loadProviderSites === 'function') {
+    const localIds = new Set((await providerStore.loadProviderSites()).map(site => site.id));
+    if (![...desiredIds].some(id => localIds.has(id))) {
+      return [...desiredIds].map(providerId => ({
+        agentId: Object.keys(config.agentProviders || {}).find(agentId => {
+          const state = config.agentProviders[agentId] || {};
+          return state.activeProviderId === providerId || Object.prototype.hasOwnProperty.call(state.sites || {}, providerId);
+        }),
+        providerId,
+        success: false,
+        code: 'PROVIDER_NOT_FOUND',
+        error: `Provider 不存在: ${providerId}`,
+      }));
+    }
+  }
   const routing = loadProviderRuntime('routing');
   const registry = loadProviderRuntime('registry');
   const agentsMeta = loadProviderRuntime('agentsMeta');
