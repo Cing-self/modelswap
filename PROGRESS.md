@@ -99,3 +99,13 @@
 
 - Removed the stale API-layer service and duplicate TypeScript copy; `src/application/agent-config-service.js` is the sole CommonJS source.
 - Verified zero source/test references to the old API path; focused 18-test suite, full 72-file/729-test suite, build and diff check pass.
+
+## Provider API layering phase 1 (2026-08-27)
+
+| Old HTTP export/handler | Application owner |
+| --- | --- |
+| CRUD / provider deletion | `provider-service` |
+| auth, Vault binding, connection checks | `provider-service` |
+| model discovery, preview, cache merge | `provider-service` |
+| Agent selection/configuration | existing `agent-config-service` |
+- Baseline `126a7fa`: 72 files / 729 tests passed; controller delegation preserves the existing exported handler surface.
