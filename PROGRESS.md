@@ -94,3 +94,8 @@
 - Moved the service to `src/application`; API/CLI/sync now depend on this application boundary rather than another HTTP module.
 - Native remove, fallback and additive disable paths are service operations; catalog-less official fallback now completes instead of restoring the removed snapshot.
 - Added temporary-HOME tests for default/injected dependencies and precise Codex provider deletion; 72 files / 729 tests, build and diff check pass.
+
+## Migration cleanup (2026-08-27)
+
+- Removed the stale API-layer service and duplicate TypeScript copy; `src/application/agent-config-service.js` is the sole CommonJS source.
+- Verified zero source/test references to the old API path; focused 18-test suite, full 72-file/729-test suite, build and diff check pass.
