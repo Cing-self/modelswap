@@ -11,6 +11,9 @@ import { providerSupportsAdapter, resolveModelRoute } from "../providers/routing
 import { resolveModelFacts } from "../providers/adapters/model-facts";
 import { capturePreSwitchSnapshot } from "../providers/snapshots";
 import { VaultStore } from "../vault/store";
+// This CommonJS application service is also used by the dashboard and sync
+// pull. Keep the CLI as input/output glue only.
+const { createAgentConfigurationService } = require("../web/api/agent-config-service.js");
 
 // Claude stores its tier map as canonical IDs in user config. Supply the
 // matching ResolvedModel facts for every configured tier so the adapter never
@@ -30,6 +33,33 @@ function resolvedFactsForAdapterWrite(
     id,
     resolveModelFacts(provider, id, config.modelOverrides?.[provider.id]?.[id] || {}),
   ]));
+}
+
+function agentConfigService() {
+  return createAgentConfigurationService({
+    adapters: getAdapters(),
+    getAdapter,
+    loadProviders,
+    loadUserConfig,
+    saveUserConfig: async (config: Awaited<ReturnType<typeof loadUserConfig>>) => {
+      await updateUserConfig({ agentProviders: config.agentProviders });
+    },
+    captureSnapshot: capturePreSwitchSnapshot,
+    providerSupportsAdapter,
+    resolveModelRoute,
+    resolveModel: (provider: Provider, modelId: string, _base: unknown, override: Record<string, unknown>) =>
+      resolveModelFacts(provider, modelId, override),
+    // The CLI's existing auth status check is its vault boundary. Older test
+    // doubles return undefined, which means they intentionally do not model
+    // credentials and retain the historic command behaviour.
+    authorize: async (provider: Provider) => {
+      if (provider.authMode === "none" || !provider.authMode) return { ok: true };
+      const status = await checkAuthStatus(provider);
+      if (!status || status.hasApiKey || status.oauthLoggedIn) return { ok: true };
+      return { ok: false, code: "AUTH_REQUIRED", message: "请先绑定 API Key" };
+    },
+    appendLog: () => {},
+  });
 }
 
 export async function providerList(options?: { json?: boolean }): Promise<void> {
@@ -174,21 +204,18 @@ export async function providerSwitch(agentId?: string): Promise<void> {
   });
   if (!modelResponse.model) { console.log(kleur.gray(t("providerCancel"))); return; }
 
-  const route = resolveModelRoute(selectedProvider, modelResponse.model, adapter);
   const config = await loadUserConfig();
-  const resolvedModels = resolvedFactsForAdapterWrite(selectedProvider, adapter.id, modelResponse.model, config);
-  const resolvedModel = resolvedModels[modelResponse.model];
-  try {
-    await capturePreSwitchSnapshot(adapter.id);
-  } catch (snapErr) {
-    console.warn(`[providerSwitch] snapshot failed: ${snapErr instanceof Error ? snapErr.message : String(snapErr)}`);
-  }
-  await adapter.applyConfig(route.provider, route.remoteModelId, resolvedModel, resolvedModels);
-  await updateUserConfig({ agentProviders: { [adapter.id]: {
-    activeProviderId: selectedProvider.id,
-    activeModelId: modelResponse.model,
-    sites: { [selectedProvider.id]: { modelIds: [modelResponse.model] } },
-  } } });
+  await agentConfigService().applySelection({
+    agentId: adapter.id,
+    providerId: selectedProvider.id,
+    modelIds: [modelResponse.model],
+    primaryModelId: modelResponse.model,
+    config,
+    providers,
+    source: 'provider-cli-switch',
+    activate: true,
+    preserveProviderModels: true,
+  });
   console.log(kleur.green(`${t("providerSwitched")}: ${selectedProvider.name} / ${modelResponse.model}`));
 }
 
@@ -222,21 +249,18 @@ export async function providerUse(
   }
 
   for (const adapter of adapters) {
-    const route = resolveModelRoute(provider, modelId, adapter!);
     const config = await loadUserConfig();
-    const resolvedModels = resolvedFactsForAdapterWrite(provider, adapter!.id, modelId, config);
-    const resolvedModel = resolvedModels[modelId];
-    try {
-      await capturePreSwitchSnapshot(adapter!.id);
-    } catch (snapErr) {
-      console.warn(`[providerUse] snapshot failed: ${snapErr instanceof Error ? snapErr.message : String(snapErr)}`);
-    }
-    await adapter!.applyConfig(route.provider, route.remoteModelId, resolvedModel, resolvedModels);
-    await updateUserConfig({ agentProviders: { [adapter!.id]: {
-      activeProviderId: provider.id,
-      activeModelId: modelId,
-      sites: { [provider.id]: { modelIds: [modelId] } },
-    } } });
+    await agentConfigService().applySelection({
+      agentId: adapter!.id,
+      providerId: provider.id,
+      modelIds: [modelId],
+      primaryModelId: modelId,
+      config,
+      providers,
+      source: 'provider-cli-use',
+      activate: true,
+      preserveProviderModels: true,
+    });
     console.log(kleur.green(`${adapter!.name}: ${t("providerSwitched")} → ${provider.name} / ${modelId}`));
   }
 }

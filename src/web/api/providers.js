@@ -231,6 +231,25 @@ const ADAPTERS = _agentsMeta.AGENTS_META;
 // (claude/codex/...) keep single-active-switch semantics.
 const ADDITIVE_AGENTS = new Set(['workbuddy', 'zcode', 'kimi-code', 'grok', 'mimo-code', 'opencode']);
 
+// All entry points delegate Agent config work to this application service.
+// Keep the web-only auth probe here and inject it, rather than letting HTTP
+// handlers or cloud sync grow a second adapter-writing implementation.
+const { createAgentConfigurationService } = require('./agent-config-service');
+const agentConfigService = createAgentConfigurationService({
+  adapters: ADAPTERS,
+  getAdapter: _getAdapter,
+  loadProviders,
+  loadUserConfig,
+  saveUserConfig,
+  captureSnapshot: capturePreSwitchSnapshot,
+  restoreSnapshot,
+  providerSupportsAdapter,
+  resolveModelRoute,
+  resolveModel,
+  appendLog,
+  authorize: ensureProviderAuth,
+});
+
 function adapterSupportsProvider(adapter, provider) {
   return providerSupportsAdapter(provider, adapter);
 }
@@ -832,109 +851,23 @@ async function switchProvider(req, res) {
     if (!agentId || !providerId || !modelId) {
       return res.status(400).json({ error: 'Missing required fields: agentId, providerId, modelId' });
     }
-
-    const adapter = ADAPTERS.find(a => a.id === agentId);
-    if (!adapter) return res.status(404).json({ error: `Agent not found: ${agentId}` });
-
+    const config = await loadUserConfig();
     const providers = await loadProviders();
-    const provider = providers.find(p => p.id === providerId);
-    if (!provider) return res.status(404).json({ error: `Provider not found: ${providerId}` });
-
-    if (!adapterSupportsProvider(adapter, provider)) {
-      return res.status(400).json({ error: `${adapter.name} does not support ${provider.type} providers` });
-    }
-
-    // Apply config to agent via the TS adapter registry (single source of truth,
-    // shared with the CLI). The JS writer functions that used to live here were
-    // deleted because they had drifted from the TS adapters and were untested.
-    const agentAdapter = _getAdapter(agentId);
-    if (!agentAdapter) return res.status(404).json({ error: `Adapter not implemented: ${agentId}` });
-    // A snapshot failure must not block switching — the agent may still work
-    // normally — but a successful snapshot turns the whole operation below
-    // into a recovery boundary.
-    let snapshotId = null;
-    try {
-      snapshotId = await capturePreSwitchSnapshot(agentId);
-    } catch (snapErr) {
-      console.warn(`[switchProvider] snapshot failed: ${snapErr.message}`);
-    }
-
-    // Keep OKIT's own selection record aligned with the agent files if a
-    // later write fails. Adapters update it as part of applyConfig, so it must
-    // participate in the same recovery path.
-    const configBeforeSwitch = await loadUserConfig();
-    let appliedWrite;
-    try {
-      // Adapters receive only the models the user selected for this Agent
-      // site. A switch may never turn a whole provider catalog back on.
-      const visibilityConfig = await loadUserConfig();
-      const state = getAgentState(visibilityConfig, agentId);
-      const availableIds = new Set((provider.models || []).map(model => model.id));
-      const selectedIds = [...new Set([...(state.sites[providerId]?.modelIds || []), modelId])]
-        .filter(id => availableIds.has(id));
-      try {
-        appliedWrite = prepareAgentWrite(provider, agentId, modelId, selectedIds, visibilityConfig);
-        await authorizeAgentWrite(provider, providers, appliedWrite);
-      } catch (routeError) {
-        if (routeError.auth) return res.status(401).json({ error: routeError.auth.message, code: routeError.auth.code });
-        return res.status(400).json({ error: routeError.message, code: 'MODEL_ROUTE_UNAVAILABLE' });
-      }
-      await agentAdapter.applyConfig(appliedWrite.provider, appliedWrite.route.remoteModelId, appliedWrite.resolved, appliedWrite.resolvedById);
-
-      // Persist the active selection in the same Agent/site record that drives
-      // the home page. Legacy adapter writes are migrated by loadUserConfig().
-      const config = await loadUserConfig();
-      const next = getAgentState(config, agentId);
-      setSite(config, agentId, providerId, {
-        modelIds: selectedIds,
-        enabled: next.sites[providerId]?.enabled !== false,
-        tierMap: next.sites[providerId]?.tierMap,
-      });
-      next.activeProviderId = providerId;
-      next.activeModelId = modelId;
-      replaceAgentState(config, agentId, next);
-
-      // Switching/enabling a site updates its active selection; it must not
-      // carry the explicit deletion intent used by removeAgentProvider().
-      // Passing removeSite here made the freshly enabled site disappear from
-      // agentProviders immediately after a successful adapter write.
-      await saveUserConfig(config);
-    } catch (applyErr) {
-      appendLog('provider-switch', `${agentId}:${providerId}`, false, `applyConfig failed: ${applyErr.message}`);
-      const recoveryErrors = [];
-      if (snapshotId) {
-        try {
-          await restoreSnapshot(agentId, snapshotId);
-        } catch (restoreErr) {
-          recoveryErrors.push(`config restore failed: ${restoreErr.message}`);
-        }
-      }
-      try {
-        await saveUserConfig(configBeforeSwitch);
-      } catch (configRestoreErr) {
-        recoveryErrors.push(`selection restore failed: ${configRestoreErr.message}`);
-      }
-      if (recoveryErrors.length) {
-        appendLog('provider-switch-recovery', `${agentId}:${providerId}`, false, recoveryErrors.join('; '));
-      }
-      // Keep technical evidence in the log; the UI only needs a useful result.
-      throw new Error(recoveryErrors.length
-        ? '切换未完成，部分配置无法自动恢复，请在设置中恢复最近的配置版本'
-        : '切换未完成，已恢复到切换前的配置');
-    }
-
-    appendLog('provider-switch', `${agentId}:${providerId}`, true, `model=${modelId}`);
-
-    res.json({
-      success: true,
-      agentId,
-      providerId,
-      modelId,
-      snapshotAvailable: Boolean(snapshotId),
-      route: { executionMode: appliedWrite.route.executionMode, endpointId: appliedWrite.route.endpointId, remoteModelId: appliedWrite.route.remoteModelId },
+    const provider = providers.find(item => item.id === providerId);
+    const selectedIds = [...new Set([...(getAgentState(config, agentId).sites?.[providerId]?.modelIds || []), modelId])];
+    const result = await agentConfigService.applySelection({
+      agentId, providerId, modelIds: selectedIds, primaryModelId: modelId,
+      config, providers, source: 'provider-switch', activate: true,
     });
+    res.json({ ...result, modelId, route: { executionMode: result.route.executionMode, endpointId: result.route.endpointId, remoteModelId: result.route.remoteModelId } });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    appendLog('provider-switch', `${req.body?.agentId || ''}:${req.body?.providerId || ''}`, false, err.message);
+    const compatibilityMessage = {
+      PROVIDER_NOT_FOUND: `Provider not found: ${req.body?.providerId}`,
+      UNSUPPORTED_PROVIDER: 'Adapter does not support this provider type',
+      MODEL_NOT_FOUND: `Model not found: ${req.body?.modelId}`,
+    }[err.code];
+    res.status(err.status || 500).json({ error: compatibilityMessage || err.message, ...(err.code ? { code: err.code } : {}) });
   }
 }
 
@@ -1041,95 +974,14 @@ async function configureAgentProvider(req, res) {
     return res.status(400).json({ error: 'Missing agentId, providerId or modelIds' });
   }
 
-  const adapterMeta = ADAPTERS.find(adapter => adapter.id === agentId);
-  if (!adapterMeta) return res.status(404).json({ error: `Agent not found: ${agentId}` });
-  const providers = await loadProviders();
-  const provider = providers.find(item => item.id === providerId);
-  if (!provider) return res.status(404).json({ error: `Provider 不存在: ${providerId}` });
-  if (!adapterSupportsProvider(adapterMeta, provider)) {
-    return res.status(400).json({ error: `${adapterMeta.name} 不支持 ${provider.type} 协议的站点` });
-  }
-
-  const selectedIds = [...new Set(modelIds.filter(id => typeof id === 'string'))]
-    .filter(id => (provider.models || []).some(model => model.id === id));
-  if (selectedIds.length === 0) {
-    return res.status(400).json({ error: '请至少选择一个模型再保存' });
-  }
-  const primaryId = selectedIds.includes(primaryModelId) ? primaryModelId : selectedIds[0];
-  const before = await loadUserConfig();
-
   try {
-    let write;
-    try {
-      write = prepareAgentWrite(provider, agentId, primaryId, selectedIds, before);
-      await authorizeAgentWrite(provider, providers, write);
-    } catch (authError) {
-      if (authError.auth) return res.status(401).json({ error: authError.auth.message, code: authError.auth.code });
-      return res.status(400).json({ error: authError.message, code: 'MODEL_ROUTE_UNAVAILABLE' });
-    }
-
-    const agentAdapter = _getAdapter(agentId);
-    if (!agentAdapter) return res.status(404).json({ error: `Adapter not implemented: ${agentId}` });
-    let snapshotId = null;
-    try { snapshotId = await capturePreSwitchSnapshot(agentId); } catch (error) {
-      console.warn(`[configureAgentProvider] snapshot failed: ${error.message}`);
-    }
-
-    try {
-      if (ADDITIVE_AGENTS.has(agentId)) {
-        // The adapters write a complete provider entry. Remove the previous
-        // OKIT-owned entry first so unchecking a model is a real deletion,
-        // not merely a visual hide.
-        const previous = getAgentState(before, agentId).sites[providerId];
-        if (previous && typeof agentAdapter.removeProvider === 'function') {
-          await agentAdapter.removeProvider(providerId);
-        }
-        if (typeof agentAdapter.applyModels !== 'function') {
-          throw new Error(`${adapterMeta.name} 不支持写入多个站点模型`);
-        }
-        const result = await agentAdapter.applyModels(write.routes.map(({ route }) => ({
-          provider: write.provider,
-          modelId: route.remoteModelId,
-        })));
-        if (result?.skipped?.length) {
-          throw new Error(`以下模型未写入 ${adapterMeta.name}: ${result.skipped.join('、')}`);
-        }
-      } else {
-        await agentAdapter.applyConfig(write.provider, write.route.remoteModelId, write.resolved, write.resolvedById);
-      }
-
-      // Some legacy adapters still update their own old selection field while
-      // writing. Reloading migrates that transient write, then this exact site
-      // replacement becomes authoritative.
-      const config = await loadUserConfig();
-      const state = getAgentState(config, agentId);
-      setSite(config, agentId, providerId, { modelIds: selectedIds, enabled: true, tierMap: state.sites[providerId]?.tierMap });
-      const next = getAgentState(config, agentId);
-      if (!ADDITIVE_AGENTS.has(agentId)) {
-        next.activeProviderId = providerId;
-        next.activeModelId = primaryId;
-        replaceAgentState(config, agentId, next);
-      } else if (!next.activeProviderId || !next.activeModelId) {
-        next.activeProviderId = providerId;
-        next.activeModelId = primaryId;
-        replaceAgentState(config, agentId, next);
-      }
-      await saveUserConfig(config);
-    } catch (error) {
-      if (snapshotId) {
-        try { await restoreSnapshot(agentId, snapshotId); } catch (restoreError) {
-          console.warn(`[configureAgentProvider] restore failed: ${restoreError.message}`);
-        }
-      }
-      await saveUserConfig(before);
-      throw error;
-    }
-
-    appendLog('agent-provider-save', `${agentId}:${providerId}`, true, `models=${selectedIds.length}`);
-    res.json({ success: true, agentId, providerId, modelIds: selectedIds, primaryModelId: primaryId, snapshotAvailable: Boolean(snapshotId) });
+    const result = await agentConfigService.applySelection({
+      agentId, providerId, modelIds, primaryModelId, source: 'agent-provider-save', activate: true,
+    });
+    res.json(result);
   } catch (error) {
     appendLog('agent-provider-save', `${agentId}:${providerId}`, false, error.message);
-    res.status(500).json({ error: error.message });
+    res.status(error.status || 500).json({ error: error.message, ...(error.code ? { code: error.code } : {}) });
   }
 }
 
@@ -1445,36 +1297,15 @@ async function setTierMap(req, res) {
     if (!providerId) {
       return res.status(400).json({ error: 'Missing providerId' });
     }
-    const config = await loadUserConfig();
     // Empty string / null = clear that tier (fall back to ANTHROPIC_MODEL).
     const map = {};
     if (haiku) map.haiku = haiku;
     if (sonnet) map.sonnet = sonnet;
     if (opus) map.opus = opus;
-    const state = getAgentState(config, 'claude');
-    const site = state.sites[providerId];
-    if (!site) return res.status(404).json({ error: '请先添加该 Claude Code 站点' });
-    setSite(config, 'claude', providerId, {
-      ...site,
-      ...(Object.keys(map).length > 0 ? { tierMap: map } : { tierMap: undefined }),
-    });
-    await saveUserConfig(config);
-    // Persisting the mapping alone leaves Claude Code running with its old
-    // DEFAULT_* environment values until a later provider switch. Apply the
-    // current selected site immediately so the UI control and native config
-    // remain one operation.
-    if (state.activeProviderId === providerId && state.activeModelId) {
-      const provider = (await loadProviders()).find(item => item.id === providerId);
-      const adapter = _getAdapter('claude');
-      if (!provider || !adapter) throw new Error('Claude Code 站点不可用');
-      const selected = getAgentState(config, 'claude').sites[providerId]?.modelIds || [];
-      const write = prepareAgentWrite(provider, 'claude', state.activeModelId, selected, config, { allowCataloglessModel: true });
-      await authorizeAgentWrite(provider, await loadProviders(), write);
-      await adapter.applyConfig(write.provider, write.route.remoteModelId, write.resolved, write.resolvedById);
-    }
-    res.json({ success: true, providerId, tierMap: map });
+    const result = await agentConfigService.setClaudeTierMap({ providerId, tierMap: map });
+    res.json({ success: true, providerId, tierMap: map, snapshotAvailable: result.snapshotAvailable });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message, ...(err.code ? { code: err.code } : {}) });
   }
 }
 

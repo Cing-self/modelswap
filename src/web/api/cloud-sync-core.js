@@ -6,11 +6,48 @@ const { backupImportantData } = require('./backup');
 const { appendLog } = require('./log-writer');
 const { publishDataChanged } = require('./ui-events');
 const { migrateAgentProviders } = require('./agent-providers');
+const { createAgentConfigurationService } = require('./agent-config-service');
 
 const CONFIG_PATH = path.join(os.homedir(), '.okit', 'user.json');
 const PROVIDERS_PATH = path.join(os.homedir(), '.okit', 'providers.json');
 let providerStore;
 try { providerStore = require('../../providers/store'); } catch { providerStore = require('../../../dist/providers/store'); }
+
+function loadProviderRuntime(name) {
+  try { return require(`../../providers/${name}`); } catch { return require(`../../../dist/providers/${name}`); }
+}
+
+// A remote selection is desired state, not evidence that this machine can
+// already write every native file. Persist it first, then attempt each site
+// independently through the same application service as web/CLI actions.
+async function reconcilePulledAgentProviders(config) {
+  const routing = loadProviderRuntime('routing');
+  const registry = loadProviderRuntime('registry');
+  const agentsMeta = loadProviderRuntime('agentsMeta');
+  const snapshots = loadProviderRuntime('snapshots');
+  const auth = loadProviderRuntime('auth');
+  const service = createAgentConfigurationService({
+    adapters: agentsMeta.AGENTS_META,
+    getAdapter: registry.getAdapter,
+    loadProviders: providerStore.loadProviders,
+    loadUserConfig: loadConfig,
+    saveUserConfig: saveConfig,
+    persistReconciledDesired: desired => saveConfig(desired, { applyAgentProviders: true, applyModelOverrides: true }),
+    captureSnapshot: snapshots.capturePreSwitchSnapshot,
+    restoreSnapshot: snapshots.restoreSnapshot,
+    providerSupportsAdapter: routing.providerSupportsAdapter,
+    resolveModelRoute: routing.resolveModelRoute,
+    resolveModel: routing.resolveModel,
+    appendLog,
+    authorize: async provider => {
+      if (provider.authMode === 'none' || !provider.authMode) return { ok: true };
+      const status = await auth.checkAuthStatus(provider);
+      if (status.hasApiKey || status.oauthLoggedIn) return { ok: true };
+      return { ok: false, code: 'AUTH_REQUIRED', message: '请先绑定 API Key' };
+    },
+  });
+  return service.reconcile(config);
+}
 
 const SECRET_FIELD_PATTERNS = /ecret|oken|Key|Id$/;
 const SKIP_FIELDS = /databaseId|bucketName|region/i;
@@ -555,14 +592,23 @@ async function syncPull() {
     applyModelOverrides: remoteData.settings?.modelOverrides && remoteUpdated > (localChangedAt.modelOverrides || ''),
   });
 
+  // Do not let a missing local key, model cache or Agent installation turn a
+  // successful pull into a failed sync. The accepted desired state above is
+  // intentionally retained; this result is both diagnostic evidence and the
+  // next-pull retry boundary.
+  const agentReconciliation = agentProvidersApplied
+    ? await reconcilePulledAgentProviders(config)
+    : [];
+
   const changedSections = [];
   if (added > 0 || updated > 0) changedSections.push('secrets');
   if (agentProvidersApplied) changedSections.push('agents');
   if (providersApplied) changedSections.push('providers');
   if (changedSections.length > 0) publishDataChanged(changedSections);
 
-  appendLog('sync-pull', remoteFrom, true, `+${added} ~${updated} providers:${providers}${agentProvidersApplied ? '' : ' agents:kept-local'}${providersApplied ? '' : ' providers:kept-local'}`);
-  return { added, updated, providers, total: (remoteData.secrets || []).length, agentProvidersApplied, providersApplied };
+  const agentFailures = agentReconciliation.filter(result => !result.success);
+  appendLog('sync-pull', remoteFrom, true, `+${added} ~${updated} providers:${providers}${agentProvidersApplied ? ` agents:${agentReconciliation.length}/${agentFailures.length} failed` : ' agents:kept-local'}${providersApplied ? '' : ' providers:kept-local'}`);
+  return { added, updated, providers, total: (remoteData.secrets || []).length, agentProvidersApplied, providersApplied, agentReconciliation, agentFailures };
 }
 
 async function exportSyncCode(passwordOverride) {

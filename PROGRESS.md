@@ -77,3 +77,14 @@
 21. Independent upgrade-loss regression repaired: syncing into a legacy receiver now backs up its v1 file, merges embedded models into (without replacing) local models-cache facts, then performs one v2 sites write. Temporary-HOME regression verifies legacy-only and pre-existing cached models both survive alongside the remote site; fixed/full/build/diff verification remains green.
 22. Sync compatibility regression repaired: an empty legacy receiver has no model facts to preserve, so it is converted directly to the merged v2 sites document without creating a competing legacy backup write. This retains the established fs.writeFile sync compatibility path and its vaultKey assertion. `sync.test.js` passed 5 consecutive runs; fixed suite passed; full suite passed twice; build and diff-check passed.
 23. Codex switch regression repaired in the shared c12a worktree: `switchProvider()` now saves its updated Agent state normally rather than passing the deletion intent. The temporary-HOME provider-flow regression switches Codex from one of two selected models to the other and asserts the site plus both models remain while activeModel changes. Reported verification: targeted 2 files/13 tests, full 62 files/622 tests, build, and diff-check passed; real Codex→DeepSeek four-model state survived the auto-sync window in disk/API/UI.
+
+
+## Agent configuration orchestration (2026-08-27)
+
+- Baseline matched `f49edca`; dependency absence was resolved using an isolated npm cache.
+- Added one CommonJS service for model routing, vault authorization, snapshots, Adapter writes, desired-state persistence and operation logs.
+- Web save/switch/tier, CLI switch/use, and sync-pull reconciliation delegate to it.
+- Sync commits accepted remote desired state first; each site reconciles independently and failures remain local diagnostics/retryable.
+- A→B temporary-HOME test verifies Codex, Claude, OpenCode remote IDs plus an unavailable-site retention failure and repeat pull.
+- Reverse test: temporarily removing reconciliation made the A→B test fail because native Codex config was absent; restoring made it pass.
+- Full verification: 70 files / 726 tests, skipped 0; build and diff check passed.
