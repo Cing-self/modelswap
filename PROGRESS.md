@@ -131,3 +131,19 @@
 - Discovery, authentication, status, launch, Agent selection and config-file operations now likewise return values/throw domain errors; no application Provider service reads Express `req`/`res` or calls `status/json`.
 - Added direct application lifecycle coverage for vault-key preservation and scoped Agent-site cleanup. Existing temporary-HOME `provider-flow` coverage verifies offline empty discovery preserves cache.
 - Boundary check: `rg` found no Express `req/res` or `status/json` usage under the Provider application services. Focused 5 files / 101 tests and full 73 files / 730 tests passed; build and diff-check passed.
+
+## Auto-create split baseline (2026-08-27)
+
+1. HEAD `199d382`, worktree clean; `auto-create.js` is 5734 lines.
+2. Existing scope: credential resolver, form state and platform directory tests.
+3. Sequence: pure extractors/scoring/catalogue → run state machine → browser runtime/flows → thin controller.
+4. Maximum risk: browser capture/verification flow is timing-sensitive; preserve URLs, protocol calls and response shapes exactly.
+5. No baseline mismatch observed; begin with dependency-free modules and focused tests.
+6. In progress: added pure extraction/action/directory modules, DI run lifecycle and browser runtime; route status/resume/interactive execution now use the lifecycle service.
+7. Focused auto-create suite: 4 files / 115 tests passed; full suite: 74 files / 734 tests passed; build and diff-check passed.
+8. Not ready to commit: `auto-create.js` is still above the controller line target while remaining browser platform flows are being separated.
+9. Further split in progress: Zhipu (540 lines), Volcengine/MiniMax (451), specialized delete (294), generic delete (751), capture extraction (355), and static platform catalogue (191) are now separate modules; `auto-create.js` is 3277 lines.
+10. `sync.test.js` 的超时已在干净当前树和独立子集复现，落在远端 Agent 选择 reconciliation 与 fake timers 的交界；不是 Auto-create 异步句柄，不作为本阶段 BLOCKED。
+11. 通用 browser create 已实拆为 navigation 470 行、form 862 行、result 483 行；创建/恢复编排 289 行，浏览器状态 248 行，所有模块均低于 900 行。
+12. `auto-create.js` 现为 421 行，仅保留 HTTP 映射、依赖装配与兼容导出；Cloudflare REST 与 key parser 已移到 application。
+13. 复核：4 个 Auto-create 聚焦文件 / 115 测试通过，`npm run build` 与 `git diff --check` 通过；全量为 73 files/733 tests 通过，唯一 `sync.test.js` 既有 fake-timer 超时（按任务要求非本工作阻塞）。
