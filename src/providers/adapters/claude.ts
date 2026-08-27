@@ -70,7 +70,8 @@ export class ClaudeAdapter extends BaseAdapter {
   }
 
   async applyConfig(provider: Provider, modelId: string, resolvedModel?: ResolvedModel): Promise<void> {
-    modelId = resolvedModel?.id || modelId;
+    // `modelId` is the routed, provider-native request ID. ResolvedModel.id is
+    // canonical metadata only and can differ for an availability mapping.
     const apiKey = await this.resolveApiKey(provider);
     // Claude Code speaks the Anthropic Messages API protocol, so we MUST use an
     // anthropic-type endpoint. A single base URL can't serve both protocols

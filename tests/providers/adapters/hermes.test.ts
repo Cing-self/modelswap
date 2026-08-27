@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import os from 'os';
 import path from 'path';
 import yaml from 'js-yaml';
+import { resolveModel, resolveModelRoute } from '../../../src/providers/routing';
 
 const testRoot = vi.hoisted(() => {
   const p = require('path');
@@ -86,6 +87,30 @@ describe('HermesAdapter', () => {
 });
 
 describe('HermesAdapter.applyConfig (config.yaml schema)', () => {
+  it('writes the routed remote ID while retaining canonical context/output/vision facts', async () => {
+    const provider: any = {
+      ...testProvider,
+      endpoints: [{ id: 'gateway:openai', type: 'openai', baseUrl: testProvider.baseUrl }],
+      models: [{
+        id: 'canonical-model', name: 'Canonical Model',
+        meta: { source: 'modelsdev', context: 131072, output: 4096, modalities: { input: ['text', 'image'], output: ['text'] } },
+        availability: [{ executionMode: 'http_endpoint', endpointId: 'gateway:openai', remoteModelId: 'remote-model-v2', status: 'available', source: 'remote' }],
+      }],
+    };
+    const adapter = new HermesAdapter();
+    const route = resolveModelRoute(provider, 'canonical-model', adapter);
+    await adapter.applyConfig(route.provider, route.remoteModelId, resolveModel(provider, 'canonical-model'));
+
+    const written = readWritten();
+    expect(written.providers.deepseek).toMatchObject({ default_model: 'remote-model-v2' });
+    expect(written.providers.deepseek.models).toEqual({
+      'remote-model-v2': { context_length: 131072, supports_vision: true },
+    });
+    expect(written.model).toMatchObject({
+      default: 'remote-model-v2', context_length: 131072, max_tokens: 4096, supports_vision: true,
+    });
+  });
+
   it('writes the current named-provider format with api, api_key, transport and default_model', async () => {
     const adapter = new HermesAdapter();
     await adapter.applyConfig(testProvider, 'deepseek-chat');
@@ -136,10 +161,10 @@ describe('HermesAdapter.applyConfig (config.yaml schema)', () => {
 
     const written = readWritten();
     expect(written.providers.deepseek.models).toEqual({
-      'resolved-model': { context_length: 131072, supports_vision: true },
+      'ignored-id': { context_length: 131072, supports_vision: true },
     });
     expect(written.model).toMatchObject({
-      default: 'resolved-model', provider: 'custom:deepseek', context_length: 131072,
+      default: 'ignored-id', provider: 'custom:deepseek', context_length: 131072,
       max_tokens: 4096, supports_vision: true,
     });
     expect(written.model).not.toHaveProperty('reasoning');

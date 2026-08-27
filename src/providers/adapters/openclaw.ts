@@ -37,7 +37,8 @@ export class OpenClawAdapter extends BaseAdapter {
   }
 
   async applyConfig(provider: Provider, modelId: string, resolvedModel?: ResolvedModel): Promise<void> {
-    modelId = resolvedModel?.id || modelId;
+    // Keep the routed model ID: ResolvedModel.id is canonical and may differ
+    // from the actual ID this endpoint accepts.
     const apiKey = await this.resolveApiKey(provider);
 
     await fs.ensureDir(path.dirname(OPENCLAW_CONFIG_PATH));
@@ -62,9 +63,13 @@ export class OpenClawAdapter extends BaseAdapter {
         // The selected model facts come from the same ResolvedModel passed by
         // Web and CLI.  Other selected entries can carry their own facts from
         // the Web multi-model write.
-        const facts = m.resolved?.id === m.id ? m.resolved : (m.id === modelId ? resolvedModel : undefined);
+        const isSelected = m.id === modelId || Boolean(resolvedModel && m.resolved?.id === resolvedModel.id);
+        const facts = isSelected ? (resolvedModel || m.resolved) : m.resolved;
         return {
-          id: m.id,
+          // Web's selected provider list carries canonical IDs, while a
+          // routed provider already carries remote IDs. Both must materialize
+          // the selected entry under the route's native request ID.
+          id: isSelected ? modelId : m.id,
           name: facts?.name || m.name || m.id,
           ...(typeof facts?.reasoning === "boolean" ? { reasoning: facts.reasoning } : {}),
           ...(facts?.modalities.input?.length ? { input: facts.modalities.input } : {}),

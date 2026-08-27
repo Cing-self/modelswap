@@ -36,7 +36,8 @@ export class HermesAdapter extends BaseAdapter {
   }
 
   async applyConfig(provider: Provider, modelId: string, resolvedModel?: ResolvedModel): Promise<void> {
-    modelId = resolvedModel?.id || modelId;
+    // `modelId` is the routed provider-native model ID. The resolved ID is
+    // canonical metadata and must never replace it in Hermes config.
     const apiKey = await this.resolveApiKey(provider);
 
     await fs.ensureDir(path.dirname(HERMES_CONFIG_PATH));
