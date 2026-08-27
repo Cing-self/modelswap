@@ -21,8 +21,10 @@
 - Contract check: every adapter now preserves `applyConfig`'s second routed-ID parameter; the third `ResolvedModel` remains canonical capability metadata across CLI and Web.
 - Web-path correction (2026-08-27): Codex/OpenCode now follow the same permanent second-argument contract as every other adapter, and the CLI-only compatibility branch was removed. Web additive writes transform each selected catalog entry to its route's remote ID before OpenCode persists it.
 - Web verification: a temporary-HOME real API regression calls Codex `switchProvider` and multi-model OpenCode `configureAgentProvider`; `canonical-model` writes `remote-model-v2` in both native configurations.
+- Claude tier-map correction (2026-08-27): `resolvedAgentWrite` is now the shared Web reapply path for tier-map and fallback writes. It resolves catalog facts with user overrides while preserving `resolveModelRoute(...).remoteModelId`; catalog-less built-in fallback entries retain their native model ID without inventing facts.
+- Claude tier-map verification: a temporary-HOME API regression configures a GLM-like `canonical-model` → `remote-model-v2`, posts `setTierMap`, and reads `~/.claude/settings.json`. All primary/default tier IDs remain routed, with name, description, and `thinking`, `effort`, `max_effort`, and `interleaved_thinking` metadata retained. Switching to the official fallback also clears all companion metadata variables.
 - Reverse check: removing both CLI third arguments made `tests/commands/provider.test.ts` fail 2/2 with missing third-argument diffs; restoration passed 2/2.
-- Correction verification: focused Web/adapter/CLI suite 8 files / 85 tests passed; full `npm test -- --run` 67 / 717 passed, skipped 0; `npm run build` and `git diff --check` passed.
+- Correction verification: focused Web/adapter/CLI suite 9 files / 92 tests passed; full `npm test -- --run` 67 / 718 passed, skipped 0; `npm run build` and `git diff --check` passed.
 - Baseline recovery: initial `npx`/`npm ci` could not install local dependencies because of a corrupt npm cache; a verified existing workspace dependency tree enabled the final successful checks. No source dependency or lockfile changed.
 
 ## Return-work plan (2026-08-26)

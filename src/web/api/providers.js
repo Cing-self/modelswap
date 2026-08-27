@@ -801,7 +801,8 @@ async function deleteProviderRoute(req, res) {
         const agentAdapter = _getAdapter(agentId);
         if (fallbackProvider && agentAdapter) {
           await snapBeforeWrite(agentId, 'deleteProvider');
-          await agentAdapter.applyConfig(providerForAgentWrite(fallbackProvider, [fallback.modelId]), fallback.modelId);
+          const write = resolvedAgentWrite(fallbackProvider, agentId, fallback.modelId, [fallback.modelId], config);
+          await agentAdapter.applyConfig(write.provider, write.route.remoteModelId, write.resolved);
           if (typeof agentAdapter.removeProvider === 'function') {
             await agentAdapter.removeProvider(id);
           }
@@ -957,6 +958,38 @@ async function switchProvider(req, res) {
 function providerForAgentWrite(provider, modelIds, resolvedById = {}) {
   const ids = new Set(modelIds || []);
   return { ...provider, models: (provider.models || []).filter(model => ids.has(model.id)).map(model => ({ ...model, ...(resolvedById[model.id] ? { resolved: resolvedById[model.id] } : {}) })) };
+}
+
+// Reapplying an existing exclusive-agent selection (tier-map changes and
+// fallback after deletion) must use the same canonical-facts → routed-ID
+// contract as the switch/configure paths. Keeping this in one helper avoids
+// silently dropping model overrides or metadata on a later rewrite.
+function resolvedAgentWrite(provider, agentId, modelId, selectedIds, config) {
+  const adapterMeta = ADAPTERS.find(adapter => adapter.id === agentId);
+  if (!adapterMeta) throw new Error(`Agent not found: ${agentId}`);
+  // A built-in fallback can be available through the native Agent even before
+  // its model directory has been materialized locally. Preserve the old safe
+  // reapply behavior in that case; model facts/overrides cannot exist to merge.
+  if (!(provider.models || []).some(model => model.id === modelId)) {
+    return {
+      route: { remoteModelId: modelId },
+      provider: providerForAgentWrite(provider, [modelId]),
+      resolved: undefined,
+    };
+  }
+  const ids = [...new Set([...(selectedIds || []), modelId])]
+    .filter(id => (provider.models || []).some(model => model.id === id));
+  if (!ids.includes(modelId)) throw new Error(`Model not found: ${modelId}`);
+  const resolvedById = Object.fromEntries(ids.map(id => [
+    id,
+    resolveModel(provider, id, {}, config?.modelOverrides?.[provider.id]?.[id] || {}),
+  ]));
+  const route = resolveModelRoute(provider, modelId, adapterMeta);
+  return {
+    route,
+    provider: providerForAgentWrite(provider, ids, resolvedById),
+    resolved: resolvedById[modelId],
+  };
 }
 
 function fallbackForAgent(agentId) {
@@ -1115,7 +1148,8 @@ async function removeAgentProvider(req, res) {
         const providers = await loadProviders();
         const fallbackProvider = fallback && providers.find(item => item.id === fallback.providerId);
         if (fallback && fallbackProvider && agentAdapter) {
-          await agentAdapter.applyConfig(providerForAgentWrite(fallbackProvider, [fallback.modelId]), fallback.modelId);
+          const write = resolvedAgentWrite(fallbackProvider, agentId, fallback.modelId, [fallback.modelId], config);
+          await agentAdapter.applyConfig(write.provider, write.route.remoteModelId, write.resolved);
           const fallbackState = getAgentState(config, agentId);
           fallbackState.activeProviderId = fallback.providerId;
           fallbackState.activeModelId = fallback.modelId;
@@ -1413,7 +1447,8 @@ async function setTierMap(req, res) {
       const adapter = _getAdapter('claude');
       if (!provider || !adapter) throw new Error('Claude Code 站点不可用');
       const selected = getAgentState(config, 'claude').sites[providerId]?.modelIds || [];
-      await adapter.applyConfig(providerForAgentWrite(provider, selected), state.activeModelId);
+      const write = resolvedAgentWrite(provider, 'claude', state.activeModelId, selected, config);
+      await adapter.applyConfig(write.provider, write.route.remoteModelId, write.resolved);
     }
     res.json({ success: true, providerId, tierMap: map });
   } catch (err) {

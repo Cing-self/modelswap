@@ -4,6 +4,7 @@ import os from "os";
 import { execFileSync } from "child_process";
 import { BaseAdapter } from "./base";
 import { AgentSelection, AuthStatus, Provider, ProviderType, ResolvedModel } from "../types";
+import { resolveModelRoute } from "../routing";
 import { loadUserConfig, updateUserConfig } from "../../config/user";
 import { checkClaudeOAuth } from "../auth";
 import { atomicWrite, atomicWriteJSON } from "../../utils/atomicWrite";
@@ -154,6 +155,11 @@ export class ClaudeAdapter extends BaseAdapter {
       delete env.ANTHROPIC_DEFAULT_HAIKU_MODEL;
       delete env.ANTHROPIC_DEFAULT_SONNET_MODEL;
       delete env.ANTHROPIC_DEFAULT_OPUS_MODEL;
+      for (const tier of ["HAIKU", "SONNET", "OPUS"]) {
+        delete env[`ANTHROPIC_DEFAULT_${tier}_MODEL_NAME`];
+        delete env[`ANTHROPIC_DEFAULT_${tier}_MODEL_DESCRIPTION`];
+        delete env[`ANTHROPIC_DEFAULT_${tier}_MODEL_SUPPORTED_CAPABILITIES`];
+      }
       delete data.apiKeyHelper;
       if (isSubscription) {
         // Subscription = pure OAuth. No API key in env.
@@ -184,10 +190,21 @@ export class ClaudeAdapter extends BaseAdapter {
       // (saved on this Claude site), use them; otherwise default every tier
       // to the selected model (same behavior as cc-switch).
       const tierMap = (await loadUserConfig()).agentProviders?.claude?.sites?.[provider.id]?.tierMap;
+      // Tier-map selections are stored as canonical model IDs for the UI.
+      // Resolve each one against this endpoint before writing Claude's actual
+      // request environment variables, so a gateway alias is never replaced
+      // by its directory/canonical ID on a later tier-map save.
+      const routedTierModel = (canonicalId: string) => {
+        try {
+          return resolveModelRoute(provider, canonicalId, this).remoteModelId;
+        } catch {
+          return canonicalId;
+        }
+      };
       env.ANTHROPIC_MODEL = modelId;
-      env.ANTHROPIC_DEFAULT_HAIKU_MODEL = tierMap?.haiku || modelId;
-      env.ANTHROPIC_DEFAULT_SONNET_MODEL = tierMap?.sonnet || modelId;
-      env.ANTHROPIC_DEFAULT_OPUS_MODEL = tierMap?.opus || modelId;
+      env.ANTHROPIC_DEFAULT_HAIKU_MODEL = tierMap?.haiku ? routedTierModel(tierMap.haiku) : modelId;
+      env.ANTHROPIC_DEFAULT_SONNET_MODEL = tierMap?.sonnet ? routedTierModel(tierMap.sonnet) : modelId;
+      env.ANTHROPIC_DEFAULT_OPUS_MODEL = tierMap?.opus ? routedTierModel(tierMap.opus) : modelId;
       writeModelMetadata("ANTHROPIC_DEFAULT_HAIKU_MODEL");
       writeModelMetadata("ANTHROPIC_DEFAULT_SONNET_MODEL");
       writeModelMetadata("ANTHROPIC_DEFAULT_OPUS_MODEL");
