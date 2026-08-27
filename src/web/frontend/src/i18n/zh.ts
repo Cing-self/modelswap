@@ -1017,6 +1017,8 @@ export default {
   'usage.windowBalance': '余额',
   'usage.resetTomorrow': '明天 {time}',
   'usage.loginOpenFailed': '无法打开登录页面',
+  'usage.loginPending': '正在打开…',
+  'usage.loginOpenedHint': '已在插件窗口打开 MiMo 控制台。已登录时会自动完成会话换发，用量稍后会自动刷新；若提示登录，请先完成登录。',
   'usage.readable': '已读取',
   'usage.ofProviders': '共 {total} 项',
   'usage.needsAttention': '需关注',

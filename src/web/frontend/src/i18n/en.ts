@@ -1017,6 +1017,8 @@ export default {
   'usage.windowBalance': 'Balance',
   'usage.resetTomorrow': 'Tomorrow {time}',
   'usage.loginOpenFailed': 'Could not open the login page',
+  'usage.loginPending': 'Opening…',
+  'usage.loginOpenedHint': 'The MiMo console is open in the extension window. If you are already signed in, the session is minted automatically and usage will refresh on its own; if prompted, sign in first.',
   'usage.readable': 'Available now',
   'usage.ofProviders': '{total} total',
   'usage.needsAttention': 'Attention',

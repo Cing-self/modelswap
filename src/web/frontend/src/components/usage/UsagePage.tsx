@@ -189,12 +189,30 @@ export default function UsagePage() {
     return key ? t(key) : '';
   }
 
+  // "Open login in extension" POSTs can take up to 30s (the extension waits
+  // for the console page to load). Without a busy state the button looks dead
+  // and users click it over and over.
+  const [loginPendingIds, setLoginPendingIds] = useState<Set<string>>(new Set());
+
   async function handleUsageLogin(providerId: string) {
+    if (loginPendingIds.has(providerId)) return;
+    setLoginPendingIds(prev => new Set(prev).add(providerId));
     try {
       const result = await openUsageLogin(providerId);
-      if (!result.success) toast(result.error || t('usage.loginOpenFailed'), 'error');
+      if (!result.success) {
+        toast(result.error || t('usage.loginOpenFailed'), 'error');
+      } else {
+        toast(t('usage.loginOpenedHint'), 'success');
+        // The console visit mints the API session via Xiaomi SSO (instant when
+        // already signed in). Auto-retry shortly after so the user does not
+        // have to come back and click refresh manually; if a fresh interactive
+        // login is still in progress, the 5-min background polling catches it.
+        [4000, 10000, 20000].forEach(delay => window.setTimeout(() => { void fetchOne(providerId); }, delay));
+      }
     } catch (error: any) {
       toast(error?.message || t('usage.loginOpenFailed'), 'error');
+    } finally {
+      setLoginPendingIds(prev => { const n = new Set(prev); n.delete(providerId); return n; });
     }
   }
 
@@ -391,6 +409,7 @@ export default function UsagePage() {
               fetching={card.fetching}
               onRefresh={() => fetchOne(card.id)}
               onLogin={() => handleUsageLogin(card.id)}
+              loginPending={loginPendingIds.has(card.id)}
               onOpenGuide={guide ? () => setCredentialGuide({ guide, providerId: card.id }) : undefined}
               t={t}
             />
@@ -424,6 +443,7 @@ export default function UsagePage() {
                     fetching={card.fetching}
                     onRefresh={() => fetchOne(card.id)}
                     onLogin={() => handleUsageLogin(card.id)}
+                    loginPending={loginPendingIds.has(card.id)}
                     onOpenGuide={guide ? () => setCredentialGuide({ guide, providerId: card.id }) : undefined}
                     t={t}
                   />
@@ -487,12 +507,13 @@ function isGuidedConfigurationMessage(message?: string): boolean {
   return /(AK\/SK|SecretId|SecretKey|_[A-Z0-9_]*(?:CREDENTIALS|ACCESS_KEY|SECRET_KEY|TEAM_ID)|密钥管理|管理凭证|查询权限|手动添加|手动录入|授予)/i.test(message);
 }
 
-function UsageCard({ id, name, type, usage, fetching, onRefresh, onLogin, onOpenGuide, t }: {
+function UsageCard({ id, name, type, usage, fetching, loginPending, onRefresh, onLogin, onOpenGuide, t }: {
   id: string;
   name: string;
   type: string;
   usage?: UsageResult;
   fetching: boolean;
+  loginPending: boolean;
   onRefresh: () => void;
   onLogin: () => void;
   onOpenGuide?: () => void;
@@ -570,9 +591,12 @@ function UsageCard({ id, name, type, usage, fetching, onRefresh, onLogin, onOpen
               <span>{compactGuideNotice ? t('usage.configurationRequired') : usage!.notice}</span>
               {!compactGuideNotice && usage!.action && (
                 usage!.action.mode === 'extension' ? (
-                  <button className="usage-card-action" type="button" onClick={onLogin}>
-                    {usage!.action.label}
-                    <span aria-hidden="true">→</span>
+                  <button className="usage-card-action" type="button" onClick={onLogin} disabled={loginPending}>
+                    {loginPending ? (
+                      <><span className="provider-status-spinner" aria-hidden="true" /> {t('usage.loginPending')}</>
+                    ) : (
+                      <>{usage!.action.label}<span aria-hidden="true">→</span></>
+                    )}
                   </button>
                 ) : (
                   <a className="usage-card-action" href={usage!.action.url} target="_blank" rel="noopener noreferrer">
