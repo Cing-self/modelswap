@@ -31,8 +31,8 @@ describe('syncPull Agent configuration reconciliation', { timeout: 30000 }, () =
       const api=require(path.join(root,'src/web/api/providers.js'));
       const sync=require(path.join(root,'src/web/api/cloud-sync-core.js'));
       const call=(handler,req)=>new Promise((resolve,reject)=>handler(req,{status(c){this.code=c;return this},json(v){(this.code||200)>=400?reject(new Error(v.error)):resolve(v)}}));
-      const open={id:'sync-open',name:'Sync Open',type:'openai',baseUrl:'https://sync-open.test/v1',authMode:'none',endpoints:[{id:'open-endpoint',type:'openai',baseUrl:'https://sync-open.test/v1'}],models:[{id:'open-canonical',name:'Open Canonical',meta:{source:'modelsdev',context:123456},availability:[{executionMode:'http_endpoint',endpointId:'open-endpoint',remoteModelId:'open-remote-v9',status:'available',source:'remote'}]}]};
-      const claude={id:'sync-claude',name:'Sync Claude',type:'anthropic',baseUrl:'https://sync-claude.test',authMode:'none',endpoints:[{id:'claude-endpoint',type:'anthropic',baseUrl:'https://sync-claude.test'}],models:[{id:'claude-canonical',name:'Claude Canonical',meta:{source:'modelsdev',context:654321},availability:[{executionMode:'http_endpoint',endpointId:'claude-endpoint',remoteModelId:'claude-remote-v8',status:'available',source:'remote'}]}]};
+      const open={id:'sync-open',name:'Sync Open',type:'openai',baseUrl:'https://sync-open.test/v1',authMode:'none',endpoints:[{id:'open-endpoint',type:'openai',baseUrl:'https://sync-open.test/v1'}],models:[{id:'open-canonical',name:'Open Canonical',meta:{source:'modelsdev',context:123456,output:7890,reasoning:true,reasoningOptions:[{type:'effort',values:['high']}],modalities:{input:['text','image']}},availability:[{executionMode:'http_endpoint',endpointId:'open-endpoint',remoteModelId:'open-remote-v9',status:'available',source:'remote'}]}]};
+      const claude={id:'sync-claude',name:'Sync Claude',type:'anthropic',baseUrl:'https://sync-claude.test',authMode:'none',endpoints:[{id:'claude-endpoint',type:'anthropic',baseUrl:'https://sync-claude.test'}],models:[{id:'claude-canonical',name:'Claude Canonical',meta:{source:'modelsdev',context:654321,reasoning:true,reasoningOptions:[{type:'effort',values:['high']}],modalities:{input:['text','image']}},availability:[{executionMode:'http_endpoint',endpointId:'claude-endpoint',remoteModelId:'claude-remote-v8',status:'available',source:'remote'}]}]};
       const unavailable={id:'sync-unavailable',name:'Sync Unavailable',type:'openai',baseUrl:'https://unavailable.test/v1',authMode:'none',models:[{id:'unavailable-canonical'}]};
       const userPath=path.join(process.env.HOME,'.okit','user.json');
     `;
@@ -41,6 +41,7 @@ describe('syncPull Agent configuration reconciliation', { timeout: 30000 }, () =
         for (const provider of [open,claude,unavailable]) await call(api.createProvider,{body:provider});
         await call(api.configureAgentProvider,{params:{agentId:'codex',providerId:'sync-open'},body:{modelIds:['open-canonical'],primaryModelId:'open-canonical'}});
         await call(api.configureAgentProvider,{params:{agentId:'claude',providerId:'sync-claude'},body:{modelIds:['claude-canonical'],primaryModelId:'claude-canonical'}});
+        await call(api.setTierMap,{params:{providerId:'sync-claude'},body:{haiku:'claude-canonical',sonnet:'claude-canonical',opus:'claude-canonical'}});
         await call(api.configureAgentProvider,{params:{agentId:'opencode',providerId:'sync-open'},body:{modelIds:['open-canonical'],primaryModelId:'open-canonical'}});
         const user=JSON.parse(fs.readFileSync(userPath,'utf8'));
         user.agentProviders.openclaw={activeProviderId:'sync-unavailable',activeModelId:'unavailable-canonical',sites:{'sync-unavailable':{modelIds:['unavailable-canonical']}}};
@@ -75,8 +76,12 @@ describe('syncPull Agent configuration reconciliation', { timeout: 30000 }, () =
     expect(result.user.agentProviders.claude).toMatchObject({ activeProviderId: 'sync-claude', activeModelId: 'claude-canonical' });
     expect(result.user.agentProviders.opencode.sites['sync-open'].modelIds).toEqual(['open-canonical']);
     expect(result.codex).toContain('model = "open-remote-v9"');
+    expect(result.codex).toContain('model_context_window = 123456');
+    expect(result.codex).toContain('model_supports_reasoning_summaries = true');
     expect(result.claudeSettings.env.ANTHROPIC_MODEL).toBe('claude-remote-v8');
+    expect(result.claudeSettings.env.ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES).toContain('thinking');
     expect(result.opencode.provider['sync-open'].models['open-remote-v9']).toBeDefined();
+    expect(result.opencode.provider['sync-open'].models['open-remote-v9'].limit).toMatchObject({ context: 123456, output: 7890 });
     expect(result.first.agentFailures).toEqual(expect.arrayContaining([
       expect.objectContaining({ agentId: 'openclaw', providerId: 'sync-unavailable', code: 'MODEL_NOT_FOUND' }),
     ]));

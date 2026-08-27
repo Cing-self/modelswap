@@ -6,7 +6,7 @@ const { backupImportantData } = require('./backup');
 const { appendLog } = require('./log-writer');
 const { publishDataChanged } = require('./ui-events');
 const { migrateAgentProviders } = require('./agent-providers');
-const { createAgentConfigurationService } = require('./agent-config-service');
+const { createAgentConfigurationService } = require('../../application/agent-config-service');
 
 const CONFIG_PATH = path.join(os.homedir(), '.okit', 'user.json');
 const PROVIDERS_PATH = path.join(os.homedir(), '.okit', 'providers.json');

@@ -13,7 +13,7 @@ import { capturePreSwitchSnapshot } from "../providers/snapshots";
 import { VaultStore } from "../vault/store";
 // This CommonJS application service is also used by the dashboard and sync
 // pull. Keep the CLI as input/output glue only.
-const { createAgentConfigurationService } = require("../web/api/agent-config-service.js");
+const { createAgentConfigurationService } = require("../application/agent-config-service");
 
 // Claude stores its tier map as canonical IDs in user config. Supply the
 // matching ResolvedModel facts for every configured tier so the adapter never

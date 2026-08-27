@@ -88,3 +88,9 @@
 - A→B temporary-HOME test verifies Codex, Claude, OpenCode remote IDs plus an unavailable-site retention failure and repeat pull.
 - Reverse test: temporarily removing reconciliation made the A→B test fail because native Codex config was absent; restoring made it pass.
 - Full verification: 70 files / 726 tests, skipped 0; build and diff check passed.
+
+## Review follow-up (2026-08-27)
+
+- Moved the service to `src/application`; API/CLI/sync now depend on this application boundary rather than another HTTP module.
+- Native remove, fallback and additive disable paths are service operations; catalog-less official fallback now completes instead of restoring the removed snapshot.
+- Added temporary-HOME tests for default/injected dependencies and precise Codex provider deletion; 72 files / 729 tests, build and diff check pass.

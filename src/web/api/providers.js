@@ -234,7 +234,7 @@ const ADDITIVE_AGENTS = new Set(['workbuddy', 'zcode', 'kimi-code', 'grok', 'mim
 // All entry points delegate Agent config work to this application service.
 // Keep the web-only auth probe here and inject it, rather than letting HTTP
 // handlers or cloud sync grow a second adapter-writing implementation.
-const { createAgentConfigurationService } = require('./agent-config-service');
+const { createAgentConfigurationService } = require('../../application/agent-config-service');
 const agentConfigService = createAgentConfigurationService({
   adapters: ADAPTERS,
   getAdapter: _getAdapter,
@@ -802,37 +802,11 @@ async function deleteProviderRoute(req, res) {
     let agentProvidersChanged = false;
     for (const [agentId, state] of Object.entries(config.agentProviders || {})) {
       if (!state?.sites?.[id]) continue;
-      if (ADDITIVE_AGENTS.has(agentId)) {
-        try {
-          const agentAdapter = _getAdapter(agentId);
-          if (agentAdapter && typeof agentAdapter.removeProvider === 'function') {
-            await snapBeforeWrite(agentId, 'deleteProvider');
-            await agentAdapter.removeProvider(id);
-          }
-        } catch (e) {
-          console.warn(`[deleteProvider] removeProvider(${agentId}) failed: ${e.message}`);
-        }
-      } else if (state.activeProviderId === id) {
-        // Exclusive agents cannot retain a deleted custom provider table.
-        // Route them through their official fallback before removing state.
-        const fallback = fallbackForAgent(agentId);
-        const fallbackProvider = fallback && providers.find(provider => provider.id === fallback.providerId);
-        const agentAdapter = _getAdapter(agentId);
-        if (fallbackProvider && agentAdapter) {
-          await snapBeforeWrite(agentId, 'deleteProvider');
-          const write = prepareAgentWrite(fallbackProvider, agentId, fallback.modelId, [fallback.modelId], config, { allowCataloglessModel: true });
-          await authorizeAgentWrite(fallbackProvider, providers, write);
-          await agentAdapter.applyConfig(write.provider, write.route.remoteModelId, write.resolved, write.resolvedById);
-          if (typeof agentAdapter.removeProvider === 'function') {
-            await agentAdapter.removeProvider(id);
-          }
-          const nextState = getAgentState(config, agentId);
-          nextState.activeProviderId = fallback.providerId;
-          nextState.activeModelId = fallback.modelId;
-          replaceAgentState(config, agentId, nextState);
-        }
+      try {
+        await agentConfigService.removeConfiguredSite({ agentId, providerId: id, config, providers, persist: false, source: 'delete-provider', allowActiveWithoutFallback: true });
+      } catch (e) {
+        console.warn(`[deleteProvider] removeProvider(${agentId}) failed: ${e.message}`);
       }
-      removeSite(config, agentId, id);
       agentProvidersChanged = true;
     }
     if (agentProvidersChanged) {
@@ -879,93 +853,6 @@ async function switchProvider(req, res) {
 // the Agent's native config *and* atomically replaces the selected model list
 // for that one site.  The home page then renders the same list verbatim.
 
-// Prepare every Agent config write from one canonical selection. The UI stores
-// canonical model IDs, while adapters must receive each endpoint's request ID
-// and still retain the canonical ResolvedModel facts for limits/capabilities.
-// This is shared by switch, multi-model configure, tier reapply, and fallback
-// paths so no caller can independently rewrite a subset of model IDs.
-function prepareAgentWrite(provider, agentId, modelId, selectedIds, config, { allowCataloglessModel = false } = {}) {
-  const adapterMeta = ADAPTERS.find(adapter => adapter.id === agentId);
-  if (!adapterMeta) throw new Error(`Agent not found: ${agentId}`);
-  // A built-in fallback can be available through the native Agent even before
-  // its model directory has been materialized locally. Preserve the old safe
-  // reapply behavior in that case; model facts/overrides cannot exist to merge.
-  if (!(provider.models || []).some(model => model.id === modelId)) {
-    if (!allowCataloglessModel) throw new Error(`Model not found: ${modelId}`);
-    return {
-      route: { remoteModelId: modelId },
-      routes: [],
-      provider: { ...provider, models: [] },
-      resolved: undefined,
-      resolvedById: {},
-    };
-  }
-  const tierIds = agentId === "claude"
-    ? Object.values(getAgentState(config || {}, "claude").sites?.[provider.id]?.tierMap || {})
-    : [];
-  const ids = [...new Set([...(selectedIds || []), ...tierIds, modelId])]
-    .filter(id => (provider.models || []).some(model => model.id === id));
-  if (!ids.includes(modelId)) throw new Error(`Model not found: ${modelId}`);
-  const resolvedById = Object.fromEntries(ids.map(id => [
-    id,
-    resolveModel(provider, id, {}, config?.modelOverrides?.[provider.id]?.[id] || {}),
-  ]));
-  const routes = ids.map(id => ({
-    canonicalId: id,
-    route: resolveModelRoute(provider, id, adapterMeta),
-    resolved: resolvedById[id],
-  }));
-  const active = routes.find(item => item.canonicalId === modelId);
-  if (!active) throw new Error(`Model not found: ${modelId}`);
-
-  // One native provider entry has one base URL/protocol. Combining models that
-  // route to different endpoints would make at least one model silently use
-  // the wrong endpoint, so reject it before any adapter writes a file.
-  const endpointIds = [...new Set(routes.map(item => item.route.endpointId || "agent_native"))];
-  if (endpointIds.length > 1) {
-    throw new Error(`${adapterMeta.name} 选中的模型路由到不同端点（${endpointIds.join("、")}）；请分别配置站点`);
-  }
-
-  // Start with the active route's endpoint-adjusted provider, then materialize
-  // every selected model under its own remote ID. `resolved.id` remains the
-  // canonical ID, which is how adapters preserve metadata without confusing
-  // it with the wire-facing request name.
-  const routedModels = routes.map(item => {
-    const canonical = provider.models.find(model => model.id === item.canonicalId);
-    return {
-      ...canonical,
-      id: item.route.remoteModelId,
-      canonicalId: item.canonicalId,
-      resolved: item.resolved,
-    };
-  });
-  return {
-    route: active.route,
-    routes,
-    provider: { ...active.route.provider, models: routedModels },
-    resolved: resolvedById[modelId],
-    resolvedById,
-  };
-}
-
-async function authorizeAgentWrite(provider, providers, write) {
-  for (const item of write.routes || []) {
-    const auth = await ensureProviderAuth(provider, providers, item.route.endpointId);
-    if (!auth.ok) {
-      const error = new Error(auth.message);
-      error.auth = auth;
-      throw error;
-    }
-  }
-}
-
-function fallbackForAgent(agentId) {
-  return {
-    claude: { providerId: 'anthropic-agent', modelId: 'claude-sonnet-4-6' },
-    codex: { providerId: 'openai-codex', modelId: 'gpt-5.6-sol' },
-  }[agentId] || null;
-}
-
 async function configureAgentProvider(req, res) {
   const { agentId } = req.params;
   const { modelIds, primaryModelId } = req.body || {};
@@ -988,60 +875,11 @@ async function configureAgentProvider(req, res) {
 async function removeAgentProvider(req, res) {
   const { agentId, providerId } = req.params;
   if (!agentId || !providerId) return res.status(400).json({ error: 'Missing agentId or providerId' });
-  const adapterMeta = ADAPTERS.find(adapter => adapter.id === agentId);
-  if (!adapterMeta) return res.status(404).json({ error: `Agent not found: ${agentId}` });
-
   try {
-    const before = await loadUserConfig();
-    const state = getAgentState(before, agentId);
-    if (!state.sites[providerId]) return res.json({ success: true, agentId, providerId });
-    if (!ADDITIVE_AGENTS.has(agentId) && state.activeProviderId === providerId && !fallbackForAgent(agentId)) {
-      return res.status(400).json({ error: '当前站点正在使用，请先切换到其他站点后再移除' });
-    }
-    const agentAdapter = _getAdapter(agentId);
-    let snapshotId = null;
-    try { snapshotId = await capturePreSwitchSnapshot(agentId); } catch {}
-    try {
-      // Codex is exclusive for the active selection, but its config keeps
-      // registrations for every previously added site so old conversations
-      // remain resumable. Remove a registration only when the user explicitly
-      // removes that site; additive adapters use the same hook for their data.
-      if (agentAdapter?.removeProvider) {
-        await agentAdapter.removeProvider(providerId);
-      }
-
-      const config = await loadUserConfig();
-      const next = getAgentState(config, agentId);
-      const removedWasCurrent = next.activeProviderId === providerId;
-      removeSite(config, agentId, providerId);
-
-      if (!ADDITIVE_AGENTS.has(agentId) && removedWasCurrent) {
-        const fallback = fallbackForAgent(agentId);
-        const providers = await loadProviders();
-        const fallbackProvider = fallback && providers.find(item => item.id === fallback.providerId);
-        if (fallback && fallbackProvider && agentAdapter) {
-          const write = prepareAgentWrite(fallbackProvider, agentId, fallback.modelId, [fallback.modelId], config, { allowCataloglessModel: true });
-          await authorizeAgentWrite(fallbackProvider, providers, write);
-          await agentAdapter.applyConfig(write.provider, write.route.remoteModelId, write.resolved, write.resolvedById);
-          const fallbackState = getAgentState(config, agentId);
-          fallbackState.activeProviderId = fallback.providerId;
-          fallbackState.activeModelId = fallback.modelId;
-          replaceAgentState(config, agentId, fallbackState);
-        }
-      }
-      await saveUserConfig(config, { removeSite: { agentId, providerId } });
-    } catch (error) {
-      if (snapshotId) {
-        try { await restoreSnapshot(agentId, snapshotId); } catch {}
-      }
-      await saveUserConfig(before);
-      throw error;
-    }
-    appendLog('agent-provider-remove', `${agentId}:${providerId}`, true);
-    res.json({ success: true, agentId, providerId });
+    res.json(await agentConfigService.removeConfiguredSite({ agentId, providerId }));
   } catch (error) {
     appendLog('agent-provider-remove', `${agentId}:${providerId}`, false, error.message);
-    res.status(500).json({ error: error.message });
+    res.status(error.status || 500).json({ error: error.message, ...(error.code ? { code: error.code } : {}) });
   }
 }
 
@@ -1052,9 +890,6 @@ async function setAgentProviderEnabled(req, res) {
   if (!agentId || !providerId || typeof enabled !== 'boolean') {
     return res.status(400).json({ error: 'Missing agentId, providerId or enabled' });
   }
-  if (!ADDITIVE_AGENTS.has(agentId)) {
-    return res.status(400).json({ error: `${agentId} 不支持按站点启停` });
-  }
   if (enabled) {
     const config = await loadUserConfig();
     const site = getAgentState(config, agentId).sites[providerId];
@@ -1062,25 +897,10 @@ async function setAgentProviderEnabled(req, res) {
     return configureAgentProvider(req, res);
   }
   try {
-    const config = await loadUserConfig();
-    const site = getAgentState(config, agentId).sites[providerId];
-    if (!site) return res.status(404).json({ error: '站点未配置' });
-    const agentAdapter = _getAdapter(agentId);
-    await snapBeforeWrite(agentId, 'setAgentProviderEnabled');
-    if (typeof agentAdapter?.setProviderEnabled === 'function') {
-      await agentAdapter.setProviderEnabled(providerId, false);
-    } else if (typeof agentAdapter?.removeProvider === 'function') {
-      await agentAdapter.removeProvider(providerId);
-    } else {
-      return res.status(400).json({ error: `${agentId} adapter 不支持停用站点` });
-    }
-    setSite(config, agentId, providerId, { ...site, enabled: false });
-    await saveUserConfig(config);
-    appendLog('agent-provider-disable', `${agentId}:${providerId}`, true);
-    res.json({ success: true, agentId, providerId, enabled: false });
+    res.json(await agentConfigService.disableConfiguredSite({ agentId, providerId }));
   } catch (error) {
     appendLog('agent-provider-disable', `${agentId}:${providerId}`, false, error.message);
-    res.status(500).json({ error: error.message });
+    res.status(error.status || 500).json({ error: error.message, ...(error.code ? { code: error.code } : {}) });
   }
 }
 
