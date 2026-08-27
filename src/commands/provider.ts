@@ -61,21 +61,21 @@ export async function providerCurrent(options?: { json?: boolean }): Promise<voi
   const providers = await loadProviders();
   const adapters = getAdapters();
   const config = await loadUserConfig();
-  const providersConfig = (config as any).providers || {};
+  const providersConfig = config.agentProviders || {};
 
   if (options?.json) {
     const result = adapters.map(adapter => {
       const selection = providersConfig[adapter.id];
-      const provider = selection?.providerId
-        ? providers.find(item => item.id === selection.providerId)
+      const provider = selection?.activeProviderId
+        ? providers.find(item => item.id === selection.activeProviderId)
         : undefined;
       return {
         agentId: adapter.id,
         agentName: adapter.name,
-        configured: Boolean(selection?.providerId && selection?.modelId),
-        providerId: selection?.providerId || null,
-        providerName: provider?.name || selection?.providerId || null,
-        modelId: selection?.modelId || null,
+        configured: Boolean(selection?.activeProviderId && selection?.activeModelId),
+        providerId: selection?.activeProviderId || null,
+        providerName: provider?.name || selection?.activeProviderId || null,
+        modelId: selection?.activeModelId || null,
       };
     });
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
@@ -85,10 +85,10 @@ export async function providerCurrent(options?: { json?: boolean }): Promise<voi
   console.log(kleur.bold(`\n${t("providerCurrentTitle")}:\n`));
   for (const adapter of adapters) {
     const sel = providersConfig[adapter.id];
-    if (sel?.providerId && sel?.modelId) {
-      const provider = providers.find(p => p.id === sel.providerId);
-      const name = provider ? provider.name : sel.providerId;
-      console.log(`  ${kleur.bold(adapter.name)}: ${kleur.green(name)} / ${kleur.cyan(sel.modelId)}`);
+    if (sel?.activeProviderId && sel?.activeModelId) {
+      const provider = providers.find(p => p.id === sel.activeProviderId);
+      const name = provider ? provider.name : sel.activeProviderId;
+      console.log(`  ${kleur.bold(adapter.name)}: ${kleur.green(name)} / ${kleur.cyan(sel.activeModelId)}`);
     } else {
       console.log(`  ${kleur.bold(adapter.name)}: ${kleur.gray(t("providerAgentNotConfigured"))}`);
     }
@@ -160,7 +160,11 @@ export async function providerSwitch(agentId?: string): Promise<void> {
     console.warn(`[providerSwitch] snapshot failed: ${snapErr instanceof Error ? snapErr.message : String(snapErr)}`);
   }
   await adapter.applyConfig(route.provider, route.remoteModelId);
-  await updateUserConfig({ providers: { [adapter.id]: { providerId: selectedProvider.id, modelId: modelResponse.model } } } as any);
+  await updateUserConfig({ agentProviders: { [adapter.id]: {
+    activeProviderId: selectedProvider.id,
+    activeModelId: modelResponse.model,
+    sites: { [selectedProvider.id]: { modelIds: [modelResponse.model] } },
+  } } });
   console.log(kleur.green(`${t("providerSwitched")}: ${selectedProvider.name} / ${modelResponse.model}`));
 }
 
@@ -201,7 +205,11 @@ export async function providerUse(
       console.warn(`[providerUse] snapshot failed: ${snapErr instanceof Error ? snapErr.message : String(snapErr)}`);
     }
     await adapter!.applyConfig(route.provider, route.remoteModelId);
-    await updateUserConfig({ providers: { [adapter!.id]: { providerId: provider.id, modelId } } } as any);
+    await updateUserConfig({ agentProviders: { [adapter!.id]: {
+      activeProviderId: provider.id,
+      activeModelId: modelId,
+      sites: { [provider.id]: { modelIds: [modelId] } },
+    } } });
     console.log(kleur.green(`${adapter!.name}: ${t("providerSwitched")} → ${provider.name} / ${modelId}`));
   }
 }
@@ -255,7 +263,7 @@ export async function providerAdd(): Promise<void> {
     if (!response.name || !response.baseUrl) { console.log(kleur.gray(t("providerCancel"))); return; }
 
     const models: ProviderModel[] = response.models
-      ? String(response.models).split(",").map((s: string) => ({ id: s.trim() })).filter((m: ProviderModel) => m.id)
+      ? String(response.models).split(",").map((s: string) => ({ id: s.trim(), origin: "user" as const })).filter((m: ProviderModel) => m.id)
       : [];
 
     provider = {

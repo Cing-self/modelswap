@@ -80,6 +80,16 @@ const customProvider = {
   models: [{ id: 'my-model' }],
 };
 
+const resolvedModel = (id: string, context: number, output: number) => ({
+  id,
+  name: id,
+  context,
+  output,
+  modalities: { input: ['text'], output: ['text'] },
+  source: 'modelsdev' as const,
+  confidence: 'high' as const,
+});
+
 beforeEach(() => {
   mocks.files.clear();
   vi.mocked(updateUserConfig).mockClear();
@@ -214,13 +224,13 @@ describe('CodexAdapter.applyConfig', () => {
     expect(toml).not.toContain('http_headers');
   });
 
-  it('writes gateway context windows into the model catalog', async () => {
+  it('writes resolved context windows into the model catalog', async () => {
     const CATALOG_PATH = path.join(os.homedir(), '.codex', 'model-catalogs', 'model-catalogs.json');
     const zenProvider = {
       ...customProvider,
       baseUrl: 'https://opencode.ai/zen/v1',
       models: [
-        { id: 'deepseek-v4-flash-free', name: 'Flash' },
+        { id: 'deepseek-v4-flash-free', name: 'Flash', resolved: resolvedModel('deepseek-v4-flash-free', 200000, 128000) },
         { id: 'plain-model', name: 'Plain' },
       ],
     };

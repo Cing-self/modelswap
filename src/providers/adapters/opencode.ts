@@ -2,7 +2,8 @@ import fs from "fs-extra";
 import path from "path";
 import os from "os";
 import { BaseAdapter } from "./base";
-import { gatewayHeadersFor, modelLimitFor } from "./gateway";
+import { gatewayHeadersFor } from "./gateway";
+import { modelTokenLimit } from "./model-facts";
 import { AgentSelection, AuthStatus, Provider, ProviderType, ResolvedModel } from "../types";
 import { loadUserConfig, updateUserConfig } from "../../config/user";
 import { atomicWrite, atomicWriteJSON } from "../../utils/atomicWrite";
@@ -142,13 +143,12 @@ export class OpenCodeAdapter extends BaseAdapter {
     // Models: object keyed by model id. Surface the full list so OpenCode can
     // offer all of them; the active one is chosen via the `model` top-level key.
     // Free-tier models get explicit `limit` so max_tokens never exceeds the
-    // gateway cap (see gateway.ts).
+    // resolved model facts (live API → directory → user override).
     const modelsMap: Record<string, any> = {};
     for (const m of provider.models) {
-      const limit = m.resolved?.context ? { context: m.resolved.context, ...(m.resolved.output ? { output: m.resolved.output } : {}) } : modelLimitFor(provider.baseUrl, m.id);
+      const limit = modelTokenLimit(provider, m);
       modelsMap[m.id] = limit
-        ? { name: m.name || m.id, limit }
-        : { name: m.name || m.id };
+        && Object.keys(limit).length ? { name: m.name || m.id, limit } : { name: m.name || m.id };
     }
     providerEntry.models = modelsMap;
 

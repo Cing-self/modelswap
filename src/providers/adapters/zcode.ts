@@ -2,7 +2,8 @@ import fs from "fs-extra";
 import path from "path";
 import os from "os";
 import { BaseAdapter } from "./base";
-import { gatewayHeadersFor, modelLimitFor } from "./gateway";
+import { gatewayHeadersFor } from "./gateway";
+import { modelFacts, modelTokenLimit } from "./model-facts";
 import { AgentSelection, AuthStatus, ManagedModels, Provider, ProviderType } from "../types";
 import { loadUserConfig, updateUserConfig } from "../../config/user";
 import { atomicWriteJSON } from "../../utils/atomicWrite";
@@ -36,7 +37,7 @@ import { atomicWriteJSON } from "../../utils/atomicWrite";
 // endpoint + "public" key returns 200 with the UA and 429 without.
 // Free-tier models also get explicit limit.{context,output} — ZCode's
 // deepseek default of 384000 output exceeds the gateway's 131072 cap and gets
-// rejected with 400 (see OPENCODE_FREE_MODEL_LIMITS).
+// rejected with 400, so write the resolved directory/live limit when known.
 //
 // ZCode is an ADDITIVE agent: entries from every source coexist and the user
 // switches between them inside ZCode's own model picker. OKIT must therefore
@@ -103,8 +104,8 @@ function buildProviderEntry(
 ): Record<string, any> {
   const models: Record<string, any> = {};
   for (const [modelId, name] of modelNames) {
-    const limit = modelLimitFor(format.baseURL, modelId);
-    models[modelId] = limit
+    const limit = modelTokenLimit(provider, modelId);
+    models[modelId] = Object.keys(limit).length
       ? { name: name || modelId, limit }
       : { name: name || modelId };
   }
@@ -171,13 +172,14 @@ async function writeCliConfig(data: Record<string, any>): Promise<void> {
   await atomicWriteJSON(ZCODE_CLI_CONFIG_PATH, data);
 }
 
-// A model is declared text-only when OKIT has positive capability data for it
-// (capabilities present, no "vision"). Models without capability data stay
-// untouched — blocking image input for a model that actually supports it
-// would silently downgrade it to OCR.
+// A model is declared text-only only when the shared resolved facts explicitly
+// list input modalities and none is image/video. Unknown stays untouched.
 function textOnlyModelIds(provider: Provider): string[] {
   return provider.models
-    .filter(m => Array.isArray(m.capabilities) && m.capabilities.length > 0 && !m.capabilities.includes("vision"))
+    .filter(model => {
+      const input = modelFacts(provider, model).modalities.input;
+      return input.length > 0 && !input.some(value => /image|video/i.test(value));
+    })
     .map(m => m.id);
 }
 

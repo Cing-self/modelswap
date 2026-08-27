@@ -133,6 +133,36 @@ async function snapBeforeWrite(agentId, label) {
 
 const buildPlatforms = _platforms.buildPlatforms;
 const { providerEndpointEntries, providerExecutionMode, providerSupportsAdapter, resolveModelRoute, resolveModel } = _routing;
+let _codexMap;
+try {
+  _codexMap = require('../../providers/mappings/codex.json');
+} catch {
+  _codexMap = require('../../../dist/providers/mappings/codex.json');
+}
+
+function enrichCodexOfficialModels(models) {
+  const profiles = new Map(
+    (_codexMap?.officialModelSupport?.runtimeCatalog?.observedOfficialModels || [])
+      .map(profile => [profile.id, profile]),
+  );
+  return models.map(model => {
+    const profile = profiles.get(model.id);
+    if (!profile) return model;
+    return {
+      ...model,
+      meta: {
+        source: 'remote',
+        ...(Number.isFinite(profile.contextWindow) ? { context: profile.contextWindow } : {}),
+        reasoning: Array.isArray(profile.reasoning) && profile.reasoning.length > 0,
+        ...(Array.isArray(profile.reasoning) ? { reasoningOptions: [{ type: 'effort', values: profile.reasoning }] } : {}),
+        ...(Array.isArray(profile.inputModalities) ? {
+          modalities: { input: profile.inputModalities },
+          attachment: profile.inputModalities.some(value => /image|video/i.test(value)),
+        } : {}),
+      },
+    };
+  });
+}
 
 async function loadProviders() {
   const providers = await _store.loadProviders();
@@ -140,7 +170,9 @@ async function loadProviders() {
   if (codexProvider) {
     try {
       const cachedModels = await readCodexCachedModels();
-      if (cachedModels.length > 0) codexProvider.models = cachedModels;
+      if (cachedModels.length > 0) {
+        codexProvider.models = withNativeAvailability(codexProvider, enrichCodexOfficialModels(cachedModels), 'cli');
+      }
     } catch {
       // Keep the persisted list until Codex has produced a local model cache.
     }
@@ -221,9 +253,6 @@ async function listProviders(req, res) {
   }
 }
 
-let _demoModelSnapshot = null;
-let _demoFreshCatalog = null;
-
 function modelDataSelections(config) {
   const selectedByProvider = new Map();
   for (const [agentId, state] of Object.entries(config.agentProviders || {})) {
@@ -277,38 +306,78 @@ function modelDataProviderRow(provider, models, selectedByProvider, catalog = nu
   };
 }
 
+function runtimeModelDataRecord(model) {
+  const meta = model.meta || {};
+  return {
+    id: model.id,
+    ...(model.name ? { name: model.name } : {}),
+    ...(meta.description ? { description: meta.description } : {}),
+    ...(meta.family ? { family: meta.family } : {}),
+    ...(Number.isFinite(meta.context) ? { context: meta.context } : {}),
+    ...(Number.isFinite(meta.input) ? { input: meta.input } : {}),
+    ...(Number.isFinite(meta.output) ? { output: meta.output } : {}),
+    ...(meta.modalities ? { modalities: meta.modalities } : {}),
+    ...(meta.toolCall === undefined ? {} : { tool: meta.toolCall }),
+    ...(meta.reasoning === undefined ? {} : { reasoning: meta.reasoning }),
+    ...(meta.reasoningOptions ? { reasoningOptions: meta.reasoningOptions } : {}),
+    ...(meta.structuredOutput === undefined ? {} : { structuredOutput: meta.structuredOutput }),
+    ...(meta.temperature === undefined ? {} : { temperature: meta.temperature }),
+    ...(meta.interleaved ? { interleaved: meta.interleaved } : {}),
+    ...(meta.knowledge ? { knowledge: meta.knowledge } : {}),
+    ...(meta.releaseDate ? { releaseDate: meta.releaseDate } : {}),
+    ...(meta.lastUpdated ? { lastUpdated: meta.lastUpdated } : {}),
+    ...(meta.openWeights === undefined ? {} : { openWeights: meta.openWeights }),
+    ...(meta.status ? { status: meta.status } : {}),
+    ...(meta.cost ? { cost: meta.cost } : {}),
+    ...(meta.providerConfig ? { providerConfig: meta.providerConfig } : {}),
+    ...(meta.experimental ? { experimental: meta.experimental } : {}),
+    ...(model.availability ? { availability: model.availability } : {}),
+    source: meta.source === 'remote' || model.availability?.some(item => item.source === 'cli')
+      ? 'remote'
+      : model.origin === 'user' ? 'manual' : 'modelsdev',
+    confidence: meta.source === 'modelsdev' ? 'high' : 'medium',
+  };
+}
+
 async function buildFreshModelDataSnapshot() {
   const modelsDev = require('./models-dev');
   const [providers, config, catalog] = await Promise.all([
-    _store.loadProviderSites(),
+    loadProviders(),
     loadUserConfig(),
-    modelsDev.loadFreshCatalog(),
+    modelsDev.loadCatalog(),
   ]);
-  _demoFreshCatalog = catalog;
-  const fetchedAt = new Date().toISOString();
+  const state = modelsDev.getCatalogState();
   const selectedByProvider = modelDataSelections(config);
   const rows = providers.map(provider => modelDataProviderRow(
     provider,
-    modelsDev.listFreshProviderModels(catalog, provider, fetchedAt),
+    (provider.models || []).map(runtimeModelDataRecord),
     selectedByProvider,
-    modelsDev.getFreshProviderMetadata(catalog, provider),
+    catalog ? modelsDev.getFreshProviderMetadata(catalog, provider) : null,
   ));
-  _demoModelSnapshot = {
+  return {
     cache: {
-      version: 1,
-      source: 'models.dev-live',
-      fetchedAt,
-      file: '本次联网采集 · 仅保存在内存',
+      version: state.version,
+      source: state.source,
+      generation: state.generation,
+      sourceFetchedAt: state.sourceFetchedAt,
+      cachedAt: state.cachedAt,
+      fetchedAt: state.sourceFetchedAt,
+      sourceHash: state.sourceHash,
+      status: state.status,
+      lastError: state.lastError,
+      file: state.file,
     },
     summary: modelDataSummary(rows),
     providers: rows,
   };
-  return _demoModelSnapshot;
 }
 
 async function getModelData(req, res) {
   try {
-    res.json(_demoModelSnapshot || await buildFreshModelDataSnapshot());
+    // Read the same normalized generation used by /api/providers and Agent
+    // adapters. This route is a diagnostic view, not another cache.
+    await _store.refreshModelsFromCatalog(await require('./models-dev').loadCatalog());
+    res.json(await buildFreshModelDataSnapshot());
   } catch (err) {
     res.status(502).json({ error: `全新模型数据拉取失败：${err.message}` });
   }
@@ -316,6 +385,9 @@ async function getModelData(req, res) {
 
 async function refreshModelData(req, res) {
   try {
+    const catalog = await require('./models-dev').loadFreshCatalog();
+    await _store.refreshModelsFromCatalog(catalog);
+    publishDataChanged(['providers']);
     res.json(await buildFreshModelDataSnapshot());
   } catch (err) {
     res.status(502).json({ error: `全新模型数据拉取失败：${err.message}` });
@@ -331,7 +403,7 @@ async function fetchFreshEndpointModels(endpoint, apiKey) {
     if (result.status !== 200) throw new Error(`HTTP ${result.status}`);
     const data = JSON.parse(result.body);
     const list = Array.isArray(data) ? data : data.data;
-    return (Array.isArray(list) ? list : []).map(model => ({ id: model.id, name: model.name || model.display_name || model.id })).filter(model => model.id);
+    return (Array.isArray(list) ? list : []).map(model => normalizeRemoteModel(model)).filter(model => model.id);
   }
 
   const headers = { 'anthropic-version': '2023-06-01' };
@@ -346,7 +418,34 @@ async function fetchFreshEndpointModels(endpoint, apiKey) {
   if (result.error) throw new Error(result.error);
   if (result.status !== 200) throw new Error(`HTTP ${result.status}`);
   const data = JSON.parse(result.body);
-  return (Array.isArray(data.data) ? data.data : []).map(model => ({ id: model.id, name: model.display_name || model.name || model.id })).filter(model => model.id);
+  return (Array.isArray(data.data) ? data.data : []).map(model => normalizeRemoteModel(model)).filter(model => model.id);
+}
+
+function normalizeRemoteModel(model) {
+  const context = Number.isFinite(model?.context_length) ? model.context_length
+    : Number.isFinite(model?.limit?.context) ? model.limit.context
+      : undefined;
+  const output = Number.isFinite(model?.top_provider?.max_completion_tokens) ? model.top_provider.max_completion_tokens
+    : Number.isFinite(model?.limit?.output) ? model.limit.output
+      : undefined;
+  const input = model?.architecture?.input_modalities || model?.modalities?.input;
+  const outputModalities = model?.architecture?.output_modalities || model?.modalities?.output;
+  return {
+    id: model?.id,
+    name: model?.name || model?.display_name || model?.id,
+    ...(context !== undefined || output !== undefined || Array.isArray(input) || Array.isArray(outputModalities) ? {
+      remote: {
+        ...(context !== undefined ? { context } : {}),
+        ...(output !== undefined ? { output } : {}),
+        ...(Array.isArray(input) || Array.isArray(outputModalities) ? {
+          modalities: {
+            ...(Array.isArray(input) ? { input } : {}),
+            ...(Array.isArray(outputModalities) ? { output: outputModalities } : {}),
+          },
+        } : {}),
+      },
+    } : {}),
+  };
 }
 
 async function refreshDemoProviderModels(req, res) {
@@ -358,37 +457,41 @@ async function refreshDemoProviderModels(req, res) {
       return res.status(400).json({ error: '该平台没有可直接调用的模型列表接口' });
     }
 
-    if (!_demoModelSnapshot || !_demoFreshCatalog) await buildFreshModelDataSnapshot();
     const apiKey = provider.vaultKey ? await resolveVaultKey(provider.vaultKey) : undefined;
-    const models = [];
+    const discoveries = [];
     const errors = [];
-    for (const { endpoint } of providerEndpointEntries(provider)) {
+    for (const { id: endpointId, endpoint } of providerEndpointEntries(provider)) {
       try {
         const pulled = await fetchFreshEndpointModels(endpoint, apiKey);
-        for (const model of pulled) if (!models.some(item => item.id === model.id)) models.push(model);
+        for (const model of pulled) discoveries.push({ endpointId, model });
       } catch (error) {
         errors.push({ endpoint: endpoint.baseUrl, error: error.message });
       }
     }
-    if (!models.length) {
+    if (!discoveries.length) {
       return res.status(502).json({ error: '平台没有返回模型列表', errors });
     }
 
-    const fetchedAt = new Date().toISOString();
     const modelsDev = require('./models-dev');
-    const config = await loadUserConfig();
-    const freshModels = modelsDev.enrichFreshRemoteModels(_demoFreshCatalog, provider, models, fetchedAt);
-    const row = modelDataProviderRow(
-      provider,
-      freshModels,
-      modelDataSelections(config),
-      modelsDev.getFreshProviderMetadata(_demoFreshCatalog, provider),
+    const catalog = await modelsDev.loadCatalog();
+    const uniqueModels = [...new Map(discoveries.map(item => [item.model.id, item.model])).values()];
+    const enriched = catalog ? await modelsDev.enrichModels(provider, uniqueModels) : uniqueModels;
+    const enrichedById = new Map(enriched.map(model => [model.id, model]));
+    const materialized = await loadProviders();
+    const target = materialized.find(item => item.id === provider.id);
+    if (!target) return res.status(404).json({ error: 'Provider 不存在' });
+    const userConfig = await loadUserConfig();
+    const activeModelIds = new Set(
+      Object.values(userConfig.agentProviders || {}).flatMap(state => state?.sites?.[provider.id]?.modelIds || []),
     );
-    const index = _demoModelSnapshot.providers.findIndex(item => item.id === provider.id);
-    if (index >= 0) _demoModelSnapshot.providers[index] = row;
-    else _demoModelSnapshot.providers.push(row);
-    _demoModelSnapshot.cache.fetchedAt = fetchedAt;
-    _demoModelSnapshot.summary = modelDataSummary(_demoModelSnapshot.providers);
+    const routedDiscoveries = discoveries.map(item => ({
+      endpointId: item.endpointId,
+      model: enrichedById.get(item.model.id) || item.model,
+    }));
+    target.models = replaceRemoteModels(target, routedDiscoveries, activeModelIds);
+    await saveProviders(materialized);
+    const snapshot = await buildFreshModelDataSnapshot();
+    const row = snapshot.providers.find(item => item.id === provider.id);
     res.json({ success: true, provider: row, errors: errors.length ? errors : undefined });
   } catch (err) {
     res.status(502).json({ error: `平台模型拉取失败：${err.message}` });
@@ -767,9 +870,16 @@ async function switchProvider(req, res) {
       // site. A switch may never turn a whole provider catalog back on.
       const visibilityConfig = await loadUserConfig();
       const state = getAgentState(visibilityConfig, agentId);
-      const selectedIds = [...new Set([...(state.sites[providerId]?.modelIds || []), modelId])];
-      const agentProvider = providerForAgentWrite(provider, selectedIds);
-      await agentAdapter.applyConfig(agentProvider, route.remoteModelId);
+      const availableIds = new Set((provider.models || []).map(model => model.id));
+      const selectedIds = [...new Set([...(state.sites[providerId]?.modelIds || []), modelId])]
+        .filter(id => availableIds.has(id));
+      const resolvedById = {};
+      for (const selectedId of selectedIds) {
+        const override = visibilityConfig?.modelOverrides?.[providerId]?.[selectedId] || {};
+        resolvedById[selectedId] = resolveModel(provider, selectedId, {}, override);
+      }
+      const agentProvider = providerForAgentWrite(provider, selectedIds, resolvedById);
+      await agentAdapter.applyConfig(agentProvider, route.remoteModelId, resolvedById[modelId]);
 
       // Persist the active selection in the same Agent/site record that drives
       // the home page. Legacy adapter writes are migrated by loadUserConfig().
@@ -1947,6 +2057,8 @@ function replaceRemoteModels(provider, discoveries, activeModelIds) {
     if (fresh) {
       entry.origin = 'remote';
       entry.name = model.name || fresh[0].model.name || model.id;
+      if (fresh[0].model.meta) entry.meta = fresh[0].model.meta;
+      if (fresh[0].model.remote) entry.remote = fresh[0].model.remote;
       entry.availability = fresh.map(d => ({
         executionMode: 'http_endpoint',
         endpointId: d.endpointId,
@@ -1981,6 +2093,8 @@ function replaceRemoteModels(provider, discoveries, activeModelIds) {
       id,
       name: list[0].model.name || id,
       origin: 'remote',
+      ...(list[0].model.meta ? { meta: list[0].model.meta } : {}),
+      ...(list[0].model.remote ? { remote: list[0].model.remote } : {}),
       availability: list.map(d => ({
         executionMode: 'http_endpoint',
         endpointId: d.endpointId,
@@ -2073,6 +2187,11 @@ async function fetchModels(req, res) {
             ? await fetchQianfanCodingAnthropicModels(ep.baseUrl, apiKey)
             : await fetchAnthropicModels(ep.baseUrl, apiKey);
         }
+        try {
+          models = await require('./models-dev').enrichModels(p || { id: providerId, baseUrl: ep.baseUrl, endpoints: [ep] }, models);
+        } catch (enrichErr) {
+          console.warn(`[fetchModels] endpoint metadata enrichment failed: ${enrichErr.message}`);
+        }
         successfulEndpointIds.add(endpointId);
         for (const m of models) {
           if (!allModels.find(x => x.id === m.id)) allModels.push(m);
@@ -2122,7 +2241,7 @@ async function fetchOpenAIModels(baseUrl, apiKey) {
   if (result.error) throw new Error(result.error);
   if (result.status === 200) {
     const d = JSON.parse(result.body);
-    const models = (d.data || []).map(m => ({ id: m.id, name: m.id }));
+    const models = (d.data || []).map(normalizeRemoteModel);
     if (models.length) return models;
   }
   // Some deployments return 200 with an empty list, or 404/403/405 when the
@@ -2171,7 +2290,7 @@ async function fetchQianfanCodingModels(baseUrl, apiKey) {
   if (listMessage) throw new Error(listMessage);
   if (listResult.status === 200) {
     const data = JSON.parse(listResult.body);
-    const models = (data.data || []).map(m => ({ id: m.id, name: m.id }));
+    const models = (data.data || []).map(normalizeRemoteModel);
     if (models.length) return models;
   }
 
@@ -2245,7 +2364,7 @@ async function fetchAnthropicModels(baseUrl, apiKey) {
   if (result.status === 401) throw new Error('API Key 无效');
   if (result.status === 200) {
     const d = JSON.parse(result.body);
-    const models = (d.data || []).map(m => ({ id: m.id, name: m.display_name || m.id }));
+    const models = (d.data || []).map(normalizeRemoteModel);
     if (models.length) return models;
   }
 

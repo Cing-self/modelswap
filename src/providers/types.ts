@@ -96,6 +96,8 @@ export interface Provider {
   name: string;            // display name (e.g. "火山引擎")
   type: ProviderType;      // primary API protocol
   baseUrl: string;         // primary API endpoint
+  /** Explicit models.dev provider key when multiple products share a host. */
+  modelCatalogId?: string;
   endpoints?: ProviderEndpoint[]; // multi-protocol endpoints
   vaultKey?: string;       // reference to Vault key for API key
   /** Whether the current endpoint/key combination passed an explicit test. */
@@ -155,6 +157,10 @@ export type ModelMetadata = {
   source: "preset" | "modelsdev" | "remote" | "legacy" | "manual";
   confidence: "high" | "medium" | "low";
   fetchedAt?: string;
+  origin?: "remote" | "user";
+  capabilities?: string[];
+  remote?: ProviderModel["remote"];
+  availability?: ProviderModelAvailability[];
   raw?: unknown;
 };
 
@@ -206,7 +212,7 @@ export interface ProviderModel {
   // fetched; see web/api/models-dev.js). Heuristic fields stay separate so
   // consumers can prefer catalog data when present.
   meta?: {
-    source: 'modelsdev';
+    source: 'modelsdev' | 'remote';
     description?: string;
     family?: string;
     context?: number;      // context window (tokens)
@@ -229,6 +235,12 @@ export interface ProviderModel {
     attachment?: boolean;  // accepts image/video inputs
     modalities?: { input?: string[]; output?: string[] };
     deprecated?: boolean;
+  };
+  /** Explicit facts returned by the provider's live /models endpoint. */
+  remote?: {
+    context?: number;
+    output?: number;
+    modalities?: { input?: string[]; output?: string[] };
   };
   availability?: ProviderModelAvailability[];
   /** Resolved immediately before an adapter writes this selected model. */
@@ -307,8 +319,15 @@ export interface ProvidersData {
   /** Rebuildable local discovery/directory cache. Never included in sync. */
   modelCache?: {
     source: "okit";
-    version: 1;
-    fetchedAt: string;
+    version: 1 | 2;
+    /** Legacy v1 alias. New code uses sourceFetchedAt/cachedAt. */
+    fetchedAt?: string;
+    generation?: number;
+    sourceFetchedAt?: string | null;
+    cachedAt?: string;
+    sourceHash?: string | null;
+    status?: "fresh" | "stale" | "error" | "empty";
+    lastError?: string | null;
     providers: Record<string, ModelMetadata[]>;
   };
   /** Legacy files may contain this; it is discarded on v2 writes. */

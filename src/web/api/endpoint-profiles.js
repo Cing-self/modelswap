@@ -1,12 +1,10 @@
 // Endpoint profiles for provider routes that cannot be tested with one global
-// model. Centralises probe-model selection and known model fallbacks so that
-// connection tests (vault.testApiKey) and model discovery
-// (providers.fetchModels) stay in sync.
+// model. Centralises probe-model selection so connection tests and live model
+// discovery use the same transport rules without owning a model catalog.
 //
 // Each profile maps a baseUrl pattern to:
 //   - probeModel: the model name to send in a 1-token chat/completions probe
 //     when /models is unavailable. Must be a model the plan accepts.
-//   - models: known model list to fall back to after a successful probe.
 //   - verifyInference: optionally require a real minimal inference probe even
 //     when /models succeeds, because a list call does not prove billing access.
 //
@@ -29,43 +27,18 @@ const PROFILES = [
     // models documented for that protocol. Grok is OpenAI-compatible only.
     match: /^https?:\/\/opencode\.ai\/zen\/go\/?$/i,
     probeModel: 'minimax-m3',
-    models: [
-      { id: 'minimax-m3', name: 'MiniMax M3' },
-      { id: 'minimax-m2.7', name: 'MiniMax M2.7' },
-      { id: 'minimax-m2.5', name: 'MiniMax M2.5' },
-      { id: 'qwen3.7-max', name: 'Qwen3.7 Max' },
-      { id: 'qwen3.7-plus', name: 'Qwen3.7 Plus' },
-      { id: 'qwen3.6-plus', name: 'Qwen3.6 Plus' },
-    ],
   },
   {
     id: 'opencode-go-openai',
     // OpenCode-compatible /v1 endpoint. Grok is available on chat/completions.
     match: /^https?:\/\/opencode\.ai\/zen\/go\/v1\/?$/i,
     probeModel: 'grok-4.5',
-    models: [
-      { id: 'grok-4.5', name: 'Grok 4.5' },
-      { id: 'glm-5.2', name: 'GLM-5.2' },
-      { id: 'glm-5.1', name: 'GLM-5.1' },
-      { id: 'kimi-k3', name: 'Kimi K3' },
-      { id: 'kimi-k2.7-code', name: 'Kimi K2.7 Code' },
-      { id: 'kimi-k2.6', name: 'Kimi K2.6' },
-      { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro' },
-      { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash' },
-      { id: 'mimo-v2.5', name: 'MiMo V2.5' },
-      { id: 'mimo-v2.5-pro', name: 'MiMo V2.5 Pro' },
-    ],
   },
   {
     id: 'zai-global-coding',
     // Z.AI international GLM Coding Plan.
     match: /^https?:\/\/api\.z\.ai\/api\/coding\//i,
     probeModel: 'glm-5.1',
-    models: [
-      { id: 'glm-5.1', name: 'GLM-5.1' },
-      { id: 'glm-5', name: 'GLM-5' },
-      { id: 'glm-4.7', name: 'GLM-4.7' },
-    ],
   },
   {
     id: 'zai-global-anthropic',
@@ -74,22 +47,12 @@ const PROFILES = [
     match: /^https?:\/\/api\.z\.ai\/api\/anthropic\/?$/i,
     probeModel: 'glm-4.7',
     anthropicAuth: 'bearer',
-    models: [
-      { id: 'glm-5.1', name: 'GLM-5.1' },
-      { id: 'glm-5', name: 'GLM-5' },
-      { id: 'glm-4.7', name: 'GLM-4.7' },
-    ],
   },
   {
     id: 'glm-coding',
     // GLM Coding Plan — open.bigmodel.cn/api/coding/...
     match: /^https?:\/\/open\.bigmodel\.cn\/api\/coding\//i,
     probeModel: 'glm-4.7',
-    models: [
-      { id: 'glm-5.2', name: 'GLM-5.2' },
-      { id: 'glm-5-turbo', name: 'GLM-5 Turbo' },
-      { id: 'glm-4.7', name: 'GLM-4.7' },
-    ],
   },
   {
     id: 'glm-anthropic',
@@ -97,23 +60,12 @@ const PROFILES = [
     match: /^https?:\/\/open\.bigmodel\.cn\/api\/anthropic\/?$/i,
     probeModel: 'glm-4.7',
     anthropicAuth: 'bearer',
-    models: [
-      { id: 'glm-5.2', name: 'GLM-5.2' },
-      { id: 'glm-5-turbo', name: 'GLM-5 Turbo' },
-      { id: 'glm-4.7', name: 'GLM-4.7' },
-    ],
   },
   {
     id: 'minimax-coding',
     // MiniMax Token Plan — mainland China and international endpoints.
     match: /^https?:\/\/api\.minimax(?:i\.com|\.io)\/(?:v1|anthropic)/i,
     probeModel: 'MiniMax-M2.7',
-    models: [
-      { id: 'MiniMax-M3', name: 'MiniMax M3' },
-      { id: 'MiniMax-M2.7', name: 'MiniMax M2.7' },
-      { id: 'MiniMax-M2.7-highspeed', name: 'MiniMax M2.7 Highspeed' },
-      { id: 'MiniMax-M2.5', name: 'MiniMax M2.5' },
-    ],
   },
   {
     id: 'moonshot-anthropic',
@@ -121,13 +73,6 @@ const PROFILES = [
     // OpenAI probe model. Use a Kimi model that is supported by this route.
     match: /^https?:\/\/api\.moonshot\.(?:cn|ai)\/anthropic\/?$/i,
     probeModel: 'kimi-k2.5',
-    models: [
-      { id: 'kimi-k2.5', name: 'Kimi K2.5' },
-      { id: 'kimi-k2.6', name: 'Kimi K2.6' },
-      { id: 'moonshot-v1-128k', name: 'Moonshot V1 128K' },
-      { id: 'moonshot-v1-32k', name: 'Moonshot V1 32K' },
-      { id: 'moonshot-v1-8k', name: 'Moonshot V1 8K' },
-    ],
   },
   {
     id: 'qwen-coding',
@@ -136,18 +81,6 @@ const PROFILES = [
     match: /^https?:\/\/coding(?:-intl)?\.dashscope\.aliyuncs\.com\/(?:v1|apps\/anthropic)\/?$/i,
     probeModel: 'qwen3.7-plus',
     anthropicAuth: 'bearer',
-    models: [
-      { id: 'qwen3.7-plus', name: 'Qwen3.7 Plus' },
-      { id: 'qwen3.6-plus', name: 'Qwen3.6 Plus' },
-      { id: 'qwen3.5-plus', name: 'Qwen3.5 Plus' },
-      { id: 'kimi-k2.5', name: 'Kimi K2.5' },
-      { id: 'glm-5', name: 'GLM-5' },
-      { id: 'MiniMax-M2.5', name: 'MiniMax M2.5' },
-      { id: 'qwen3-max-2026-01-23', name: 'Qwen3 Max' },
-      { id: 'qwen3-coder-next', name: 'Qwen3 Coder Next' },
-      { id: 'qwen3-coder-plus', name: 'Qwen3 Coder Plus' },
-      { id: 'glm-4.7', name: 'GLM-4.7' },
-    ],
   },
   {
     id: 'qwen-token-plan',
@@ -156,23 +89,6 @@ const PROFILES = [
     match: /^https?:\/\/token-plan\.cn-beijing\.maas\.aliyuncs\.com\/(?:compatible-mode\/v1|apps\/anthropic)\/?$/i,
     probeModel: 'qwen3.7-plus',
     anthropicAuth: 'bearer',
-    models: [
-      { id: 'qwen3.8-max-preview', name: 'Qwen3.8 Max Preview' },
-      { id: 'qwen3.7-max', name: 'Qwen3.7 Max' },
-      { id: 'qwen3.7-plus', name: 'Qwen3.7 Plus' },
-      { id: 'qwen3.6-plus', name: 'Qwen3.6 Plus' },
-      { id: 'qwen3.6-flash', name: 'Qwen3.6 Flash' },
-      { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro' },
-      { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash' },
-      { id: 'deepseek-v3.2', name: 'DeepSeek V3.2' },
-      { id: 'kimi-k2.7-code', name: 'Kimi K2.7 Code' },
-      { id: 'kimi-k2.6', name: 'Kimi K2.6' },
-      { id: 'kimi-k2.5', name: 'Kimi K2.5' },
-      { id: 'glm-5.2', name: 'GLM-5.2' },
-      { id: 'glm-5.1', name: 'GLM-5.1' },
-      { id: 'glm-5', name: 'GLM-5' },
-      { id: 'MiniMax-M2.5', name: 'MiniMax M2.5' },
-    ],
   },
   {
     id: 'qianfan-openai',
@@ -182,10 +98,6 @@ const PROFILES = [
     match: /^https?:\/\/qianfan\.baidubce\.com\/v2\/?$/i,
     probeModel: 'deepseek-v3.2',
     verifyInference: true,
-    models: [
-      { id: 'deepseek-v3.2', name: 'DeepSeek V3.2' },
-      { id: 'ernie-4.5-turbo-20260402', name: 'ERNIE 4.5 Turbo' },
-    ],
   },
   {
     id: 'qianfan-anthropic',
@@ -195,10 +107,6 @@ const PROFILES = [
     match: /^https?:\/\/qianfan\.baidubce\.com\/anthropic\/?$/i,
     probeModel: 'deepseek-v3.2',
     verifyInference: true,
-    models: [
-      { id: 'deepseek-v3.2', name: 'DeepSeek V3.2' },
-      { id: 'ernie-4.5-turbo-20260402', name: 'ERNIE 4.5 Turbo' },
-    ],
   },
   {
     id: 'qianfan-token-plan',
@@ -206,13 +114,6 @@ const PROFILES = [
     // profile so every bundled plan endpoint is covered by the same audit.
     match: /^https?:\/\/qianfan\.baidubce\.com\/(?:v2\/tokenplan\/personal|anthropic\/tokenplan\/personal)\/?$/i,
     probeModel: 'qianfan-code-latest',
-    models: [
-      { id: 'qianfan-code-latest', name: 'Qianfan Code' },
-      { id: 'kimi-k2.5', name: 'Kimi K2.5' },
-      { id: 'deepseek-v3.2', name: 'DeepSeek V3.2' },
-      { id: 'glm-5', name: 'GLM-5' },
-      { id: 'minimax-m2.5', name: 'MiniMax M2.5' },
-    ],
   },
   {
     id: 'volcengine-coding',
@@ -220,13 +121,6 @@ const PROFILES = [
     match: /^https?:\/\/ark\.cn-beijing\.volces\.com\/api\/coding(?:\/|$)/i,
     probeModel: 'doubao-seed-code-preview-251028',
     anthropicAuth: 'bearer',
-    models: [
-      { id: 'doubao-seed-code-preview-251028', name: 'Doubao Seed Code' },
-      { id: 'doubao-seed-2.0-pro', name: 'Doubao Seed 2.0 Pro' },
-      { id: 'kimi-k2.5', name: 'Kimi K2.5' },
-      { id: 'deepseek-v3.2', name: 'DeepSeek V3.2' },
-      { id: 'glm-5', name: 'GLM-5' },
-    ],
   },
   {
     id: 'volcengine-agent',
@@ -234,22 +128,12 @@ const PROFILES = [
     match: /^https?:\/\/ark\.cn-beijing\.volces\.com\/api\/plan(?:\/|$)/i,
     probeModel: 'doubao-seed-2.0-pro',
     anthropicAuth: 'bearer',
-    models: [
-      { id: 'doubao-seed-2.0-pro', name: 'Doubao Seed 2.0 Pro' },
-      { id: 'doubao-seed-evolving', name: 'Doubao Seed Evolving' },
-    ],
   },
   {
     id: 'tencent-coding',
     // 腾讯云 Coding Plan — api.lkeap.cloud.tencent.com/coding/...
     match: /^https?:\/\/api\.lkeap\.cloud\.tencent\.com\/coding\//i,
     probeModel: 'tc-code-latest',
-    models: [
-      { id: 'tc-code-latest', name: 'Tencent Code' },
-      { id: 'kimi-k2.5', name: 'Kimi K2.5' },
-      { id: 'glm-5', name: 'GLM-5' },
-      { id: 'minimax-m2.5', name: 'MiniMax M2.5' },
-    ],
   },
   {
     id: 'tencent-token-plan',
@@ -258,38 +142,18 @@ const PROFILES = [
     match: /^https?:\/\/api\.lkeap\.cloud\.tencent\.com\/plan\/(?:v3|anthropic)\/?$/i,
     probeModel: 'tc-code-latest',
     probeModels: ['tc-code-latest', 'hy3'],
-    models: [
-      { id: 'tc-code-latest', name: 'Auto' },
-      { id: 'deepseek-v4-flash-202605', name: 'DeepSeek V4 Flash' },
-      { id: 'deepseek-v4-pro-202606', name: 'DeepSeek V4 Pro' },
-      { id: 'minimax-m2.7', name: 'MiniMax M2.7' },
-      { id: 'glm-5.1', name: 'GLM-5.1' },
-      { id: 'glm-5', name: 'GLM-5' },
-      { id: 'hy3', name: 'Hy3' },
-      { id: 'hy3-preview', name: 'Hy3 Preview' },
-    ],
   },
   {
     id: 'kimi-coding-plan',
     // Kimi Coding Plan — api.kimi.com/coding/...
     match: /^https?:\/\/api\.kimi\.com\/coding(?:\/|$)/i,
     probeModel: 'kimi-for-coding',
-    models: [
-      { id: 'k3', name: 'Kimi K3' },
-      { id: 'k3-256k', name: 'Kimi K3 256K' },
-      { id: 'kimi-for-coding', name: 'Kimi for Coding' },
-      { id: 'kimi-for-coding-highspeed', name: 'Kimi for Coding Highspeed' },
-    ],
   },
   {
     id: 'xiaomi-coding',
     // 小米 MiMo Token Plan — token-plan-*.xiaomimimo.com
     match: /^https?:\/\/token-plan-[^/]*\.xiaomimimo\.com\//i,
     probeModel: 'mimo-v2.5',
-    models: [
-      { id: 'mimo-v2.5', name: 'MiMo V2.5' },
-      { id: 'mimo-v2.5-pro', name: 'MiMo V2.5 Pro' },
-    ],
   },
 ];
 
@@ -368,12 +232,13 @@ function getAuthenticatedResourceFailureMessage(status, body) {
 }
 
 /**
- * Returns the known model fallback list for a Coding Plan endpoint, or null
- * if the endpoint is not a recognised Coding Plan.
+ * Kept as a compatibility seam for older callers. Probe profiles no longer
+ * provide model catalogs, so this always returns null.
  */
 function getFallbackModels(baseUrl) {
-  const profile = getEndpointProfile(baseUrl);
-  return profile ? profile.models.slice() : null;
+  // Profiles describe transport probes, not a product model catalog.
+  // Canonical models come from models.dev, live discovery, or user input.
+  return null;
 }
 
 module.exports = {

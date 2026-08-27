@@ -2,29 +2,16 @@ import fs from "fs-extra";
 import path from "path";
 import os from "os";
 import { BaseAdapter } from "./base";
-import { gatewayHeadersFor, modelLimitFor } from "./gateway";
-import { AgentSelection, AuthStatus, Provider, ProviderType } from "../types";
+import { gatewayHeadersFor } from "./gateway";
+import { modelFacts } from "./model-facts";
+import { AgentSelection, AuthStatus, Provider, ProviderType, ResolvedModel } from "../types";
 import { loadUserConfig, updateUserConfig } from "../../config/user";
 import { atomicWrite } from "../../utils/atomicWrite";
-import { ModelCapabilities, resolveModelCapabilities } from "../capabilities";
 import { loadProviders } from "../store";
 import { tomlInlineTable } from "./toml-utils";
 
 const KIMI_CODE_DIR = path.join(os.homedir(), ".kimi-code");
 const KIMI_CODE_CONFIG_PATH = path.join(KIMI_CODE_DIR, "config.toml");
-
-// Fallback context size when the model has no known limit.
-const DEFAULT_CONTEXT_SIZE = 262144;
-
-// Per-model wire output caps (max_output_size). Baidu Qianfan Token Plan
-// rejects max_completion_tokens above 65536 with "400 parameter check failed,
-// max_completion_tokens range is [1, 65536]". kimi's built-in model catalog
-// knows some of these models (e.g. ernie-5.1) and would otherwise send their
-// catalog output limit, which the platform rejects. Pinning the cap keeps
-// requests within the platform's range.
-const MODEL_OUTPUT_CAPS: Record<string, number> = {
-  "qianfan-coding:ernie-5.1": 65536,
-};
 
 export class KimiCodeAdapter extends BaseAdapter {
   readonly id = "kimi-code";
@@ -284,26 +271,15 @@ function upsertProviderHeaders(toml: string, providerId: string, headers: Record
 }
 
 function buildModelTable(provider: Provider, providerId: string, providerType: string, modelId: string): string[] {
-  const caps = resolveModelCapabilities(modelId);
-  // Gateway free-tier models (opencode.ai / openrouter.ai) get explicit token
-  // windows so max_tokens never exceeds what the endpoint accepts (see
-  // gateway.ts). Without this, max_context_size would come from capability
-  // metadata and max_output_size would be unset — letting kimi send the
-  // platform-rejected defaults.
-  const gatewayLimit = modelLimitFor(provider.baseUrl, modelId);
-  // Catalog metadata (models.dev) wins over capability heuristics — real
-  // context/output limits instead of name-based guesses.
-  const meta = (provider.models || []).find(x => x.id === modelId)?.meta;
-  const maxContext = gatewayLimit?.context ?? meta?.context ?? caps.maxInputTokens ?? DEFAULT_CONTEXT_SIZE;
+  const resolved = modelFacts(provider, modelId);
   const table = [
     `provider = ${tomlString(providerId)}`,
     `model = ${tomlString(modelId)}`,
     `protocol = ${tomlString(getWireProtocol(providerType))}`,
-    `max_context_size = ${maxContext}`,
   ];
-  const outputCap = gatewayLimit?.output ?? meta?.output ?? MODEL_OUTPUT_CAPS[`${provider.id}:${modelId}`];
-  if (outputCap) table.push(`max_output_size = ${outputCap}`);
-  const capabilities = getCapabilities(modelId, caps);
+  if (resolved.context !== undefined) table.push(`max_context_size = ${resolved.context}`);
+  if (resolved.output !== undefined) table.push(`max_output_size = ${resolved.output}`);
+  const capabilities = getCapabilities(resolved);
   if (capabilities.length) {
     table.push(`capabilities = [${capabilities.map(tomlString).join(", ")}]`);
   }
@@ -349,11 +325,10 @@ function getModelAlias(providerId: string, modelId: string): string {
   return `okit-${sanitizeTomlKey(providerId)}-${sanitizeTomlKey(modelId)}`;
 }
 
-function getCapabilities(modelId: string, caps: ModelCapabilities): string[] {
+function getCapabilities(resolved: ResolvedModel): string[] {
   const out: string[] = [];
-  if (modelId.toLowerCase().includes("thinking")) out.push("always_thinking");
-  else if (caps.supportsReasoning) out.push("thinking");
-  if (caps.supportsImages) out.push("image_in");
+  if (resolved.reasoning) out.push("thinking");
+  if (resolved.modalities.input.some(value => /image|video/i.test(value))) out.push("image_in");
   return out;
 }
 

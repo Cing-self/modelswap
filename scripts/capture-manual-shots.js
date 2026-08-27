@@ -25,7 +25,7 @@ const SHOTS = [
   // /agents redirects to the home page (agents live in its tabs) — shoot the
   // agent config section scrolled into view instead of a duplicate hero shot.
   { name: 'agents', path: '/?tab=agents', scrollToText: 'AGENT' },
-  { name: 'catalog', path: '/catalog' },
+  { name: 'model-data', path: '/model-data' },
   { name: 'settings', path: '/settings?section=sync' },
   { name: 'snapshots', path: '/settings?section=snapshots' },
 ];

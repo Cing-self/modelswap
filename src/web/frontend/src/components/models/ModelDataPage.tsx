@@ -297,7 +297,7 @@ export default function ModelDataPage() {
         <div>
           <span className="model-data-eyebrow"><Database size={13} /> LIVE MODEL DATA</span>
           <h1>模型与平台</h1>
-          <p>本次联网采集；不读取旧模型缓存，没有的数据保持为空。</p>
+          <p>与首页、模型管控和 Agent 配置共用同一代模型数据。</p>
         </div>
         <div className="model-data-header-actions">
           <div className="model-data-summary">
@@ -316,7 +316,10 @@ export default function ModelDataPage() {
         <code>{snapshot.cache.file}</code>
         <span>v{snapshot.cache.version}</span>
         <span>{snapshot.cache.source}</span>
-        <span>{new Date(snapshot.cache.fetchedAt).toLocaleString()}</span>
+        {snapshot.cache.generation !== undefined && <span>generation {snapshot.cache.generation}</span>}
+        {snapshot.cache.status && <span>{snapshot.cache.status}</span>}
+        <span>{snapshot.cache.sourceFetchedAt ? new Date(snapshot.cache.sourceFetchedAt).toLocaleString() : '尚未联网采集'}</span>
+        {snapshot.cache.lastError && <span title={snapshot.cache.lastError}>上次刷新失败</span>}
       </div>
 
       <div className="model-data-shell">

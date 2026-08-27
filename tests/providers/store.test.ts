@@ -69,7 +69,7 @@ describe('loadProviders', () => {
     expect(result[0].models.length).toBe(2);
   });
 
-  it('updates only an unchanged stale Token Plan model snapshot', async () => {
+  it('does not replace a legacy Token Plan cache from another handwritten preset', async () => {
     mocks.files.set(PROVIDERS_PATH, JSON.stringify({
       providers: [{
         id: 'qwen-token-plan',
@@ -89,8 +89,8 @@ describe('loadProviders', () => {
 
     const result = await loadProviders();
     const tokenPlan = result.find(provider => provider.id === 'qwen-token-plan')!;
-    expect(tokenPlan.models.map(model => model.id)).toContain('qwen3.8-max-preview');
-    expect(tokenPlan.models.map(model => model.id)).not.toContain('qwen3.8-max');
+    expect(tokenPlan.models.map(model => model.id)).toContain('qwen3.8-max');
+    expect(tokenPlan.models.map(model => model.id)).not.toContain('qwen3.8-max-preview');
   });
 
   it('preserves a user-curated Token Plan model list', async () => {
@@ -227,7 +227,8 @@ describe('loadProviders', () => {
       { type: 'openai', protocol: 'chat', baseUrl: 'https://token-plan-sgp.xiaomimimo.com/v1', plan: 'token' },
       { type: 'anthropic', baseUrl: 'https://token-plan-sgp.xiaomimimo.com/anthropic', plan: 'token' },
     ]);
-    expect(xiaomi?.models.map(model => model.id)).toContain('mimo-v2.5-tts-voiceclone');
+    expect(xiaomi?.models.map(model => model.id)).toContain('mimo-v2.5-tts');
+    expect(xiaomi?.models.map(model => model.id)).not.toContain('mimo-v2.5-tts-voiceclone');
   });
 
   it('migrates only the stale Bailian defaults to protocol-specific Base URLs', async () => {

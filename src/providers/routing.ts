@@ -178,12 +178,12 @@ export function resolveModel(
     name: model.name || model.id,
     ...(catalog?.description ? { description: catalog.description } : {}),
     ...(catalog?.family ? { family: catalog.family } : {}),
-    ...(catalog?.context ? { context: catalog.context } : {}),
-    ...(catalog?.input ? { input: catalog.input } : {}),
-    ...(catalog?.output ? { output: catalog.output } : {}),
+    ...(Number.isFinite(catalog?.context) ? { context: catalog!.context } : {}),
+    ...(Number.isFinite(catalog?.input) ? { input: catalog!.input } : {}),
+    ...(Number.isFinite(catalog?.output) ? { output: catalog!.output } : {}),
     modalities: {
-      input: catalog?.modalities?.input || (catalog?.attachment ? ["text", "image"] : ["text"]),
-      output: catalog?.modalities?.output || ["text"],
+      input: catalog?.modalities?.input || (catalog?.attachment ? ["text", "image"] : []),
+      output: catalog?.modalities?.output || [],
     },
     ...(catalog?.toolCall === undefined ? {} : { tool: catalog.toolCall }),
     ...(catalog?.reasoning === undefined ? {} : { reasoning: catalog.reasoning }),
@@ -199,8 +199,8 @@ export function resolveModel(
     ...(catalog?.cost ? { cost: catalog.cost } : {}),
     ...(catalog?.providerConfig ? { providerConfig: catalog.providerConfig } : {}),
     ...(catalog?.experimental ? { experimental: catalog.experimental } : {}),
-    source: catalog?.source === "modelsdev" ? "modelsdev" : "default",
-    confidence: catalog?.source === "modelsdev" ? "high" : "low",
+    source: catalog?.source === "modelsdev" || catalog?.source === "remote" ? catalog.source : "default",
+    confidence: catalog?.source === "modelsdev" ? "high" : catalog?.source === "remote" ? "medium" : "low",
   };
   return {
     ...base,

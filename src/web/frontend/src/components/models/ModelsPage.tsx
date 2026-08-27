@@ -6,9 +6,9 @@ import VaultPickerModal from '../shared/VaultPickerModal';
 import CustomSelect from '../shared/CustomSelect';
 import { getProviderIcon, getProviderIconClass } from '../../assets/providers';
 import { getProviderDocs, ProviderDocsKind } from '../../data/providerDocs';
-import crossDataRaw from '../../data/cross_platform_models.json';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const crossData: Record<string, any[]> = crossDataRaw as any;
+// The retired hand-maintained comparison catalog is deliberately not loaded
+// into the product. /model-data uses the canonical runtime catalog instead.
+const crossData: Record<string, any[]> = {};
 // Provider metadata (groups, families) — generated from src/providers/metadata.ts by scripts/gen-presets.js
 import providersGenerated from '../../data/providers-generated.json';
 import { api } from '../../api/client';

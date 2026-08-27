@@ -2,11 +2,11 @@ import fs from "fs-extra";
 import path from "path";
 import os from "os";
 import { BaseAdapter } from "./base";
-import { gatewayHeadersFor, modelLimitFor } from "./gateway";
+import { gatewayHeadersFor } from "./gateway";
+import { modelFacts } from "./model-facts";
 import { AgentSelection, AuthStatus, Provider, ProviderType } from "../types";
 import { loadUserConfig, updateUserConfig } from "../../config/user";
 import { atomicWrite } from "../../utils/atomicWrite";
-import { ModelCapabilities, resolveModelCapabilities } from "../capabilities";
 import { loadProviders } from "../store";
 import {
   escapeRegex,
@@ -29,8 +29,6 @@ import {
 // coexist and only `[models] default` selects which one is active.
 const GROK_DIR = path.join(os.homedir(), ".grok");
 const GROK_CONFIG_PATH = path.join(GROK_DIR, "config.toml");
-
-const DEFAULT_CONTEXT_SIZE = 1000000;
 
 function getModelAlias(providerId: string, modelId: string): string {
   return `okit-${sanitizeTomlKey(providerId)}-${sanitizeTomlKey(modelId)}`;
@@ -66,19 +64,14 @@ function effectiveBaseUrl(provider: Provider, modelId: string): string {
 }
 
 function buildModelTable(provider: Provider, apiKey: string | undefined, modelId: string): string[] {
-  const caps = resolveModelCapabilities(modelId);
-  // Gateway free-tier models (opencode.ai / openrouter.ai) get their real
-  // context window from gateway.ts so grok doesn't overfill the context (see
-  // gateway.ts). grok's model tables have no output-limit field, so only
-  // context is applied here.
-  const gatewayLimit = modelLimitFor(provider.baseUrl, modelId);
+  const resolved = modelFacts(provider, modelId);
   const table = [
     `model = ${tomlString(modelId)}`,
     `base_url = ${tomlString(effectiveBaseUrl(provider, modelId))}`,
     `name = ${tomlString(`${provider.name} ${modelId}`)}`,
     `api_backend = ${tomlString(getApiBackend(provider))}`,
-    `context_window = ${gatewayLimit?.context ?? caps.maxInputTokens ?? DEFAULT_CONTEXT_SIZE}`,
   ];
+  if (resolved.context !== undefined) table.push(`context_window = ${resolved.context}`);
   if (apiKey) table.push(`api_key = ${tomlString(apiKey)}`);
   // The opencode.ai gateway rate-limits anonymous traffic separately from the
   // official opencode client (verified 429 without the UA). grok sends its own

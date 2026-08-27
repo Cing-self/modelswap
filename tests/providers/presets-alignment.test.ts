@@ -68,11 +68,9 @@ describe('PRESET_PROVIDERS alignment', () => {
     }
   });
 
-  it('non-local providers have at least 1 model', () => {
-    const localProviders = ['ollama', 'litellm'];
+  it('keeps runtime presets site-only', () => {
     for (const p of PRESET_PROVIDERS) {
-      if (localProviders.includes(p.id)) continue;
-      expect(p.models.length, `${p.id} should have models`).toBeGreaterThan(0);
+      expect(p.models, `${p.id} must not bundle a model directory`).toEqual([]);
     }
   });
 
@@ -83,9 +81,9 @@ describe('PRESET_PROVIDERS alignment', () => {
     }
   });
 
-  it('openai has 5 models', () => {
+  it('does not bundle OpenAI models', () => {
     const p = PRESET_PROVIDERS.find(p => p.id === 'openai')!;
-    expect(p.models.length).toBe(5);
+    expect(p.models).toEqual([]);
   });
 
   it('marks Coding and Token Plan endpoints explicitly', () => {
@@ -102,17 +100,14 @@ describe('PRESET_PROVIDERS alignment', () => {
     expect(openCodeGo.endpoints?.every(endpoint => endpoint.plan === 'coding')).toBe(true);
   });
 
-  it('matches the signed-in MiMo Token Plan Base URLs and model list', () => {
+  it('matches the signed-in MiMo Token Plan Base URLs without bundling models', () => {
     const provider = PRESET_PROVIDERS.find(p => p.id === 'xiaomi-coding')!;
     expect(provider.baseUrl).toBe('https://token-plan-sgp.xiaomimimo.com/v1');
     expect(provider.endpoints).toEqual([
       { type: 'openai', protocol: 'chat', baseUrl: 'https://token-plan-sgp.xiaomimimo.com/v1', plan: 'token' },
       { type: 'anthropic', baseUrl: 'https://token-plan-sgp.xiaomimimo.com/anthropic', plan: 'token' },
     ]);
-    expect(provider.models.map(model => model.id)).toEqual([
-      'mimo-v2.5', 'mimo-v2.5-pro', 'mimo-v2.5-asr', 'mimo-v2.5-tts',
-      'mimo-v2.5-tts-voiceclone', 'mimo-v2.5-tts-voicedesign',
-    ]);
+    expect(provider.models).toEqual([]);
   });
 
   it('keeps Bailian API and Coding Plan protocols on their official distinct Base URLs', () => {
@@ -128,25 +123,15 @@ describe('PRESET_PROVIDERS alignment', () => {
       { type: 'openai', protocol: 'chat', baseUrl: 'https://coding.dashscope.aliyuncs.com/v1', plan: 'coding' },
       { type: 'anthropic', baseUrl: 'https://coding.dashscope.aliyuncs.com/apps/anthropic', plan: 'coding' },
     ]);
-    expect(coding.models.map(model => model.id)).toContain('qwen3.7-plus');
+    expect(coding.models).toEqual([]);
 
     const tokenPlan = PRESET_PROVIDERS.find(provider => provider.id === 'qwen-token-plan')!;
-    expect(tokenPlan.models.map(model => model.id)).toContain('qwen3.8-max-preview');
-    expect(tokenPlan.models.map(model => model.id)).not.toContain('qwen3.8-max');
+    expect(tokenPlan.models).toEqual([]);
   });
 
-  it('uses current Tencent Token Plan model IDs', () => {
+  it('keeps Tencent Token Plan model data out of the site preset', () => {
     const provider = PRESET_PROVIDERS.find(item => item.id === 'tencent-token-plan')!;
-    expect(provider.models.map(model => model.id)).toEqual([
-      'tc-code-latest',
-      'deepseek-v4-flash-202605',
-      'deepseek-v4-pro-202606',
-      'minimax-m2.7',
-      'glm-5.1',
-      'glm-5',
-      'hy3',
-      'hy3-preview',
-    ]);
+    expect(provider.models).toEqual([]);
   });
 
   it('authMode is valid for all providers', () => {

@@ -12,7 +12,6 @@
 @import './dashboard-command.css';
 @import './themes.css';
 @import './usage.css';
-@import './catalog.css';
 @import './snapshots.css';
 
 /* Keep scrolling available but remove native scrollbar chrome. */

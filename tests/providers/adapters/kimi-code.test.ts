@@ -63,6 +63,16 @@ const customProvider = {
   models: [{ id: 'my-model' }],
 };
 
+const resolvedModel = (id: string, context: number, output: number) => ({
+  id,
+  name: id,
+  context,
+  output,
+  modalities: { input: ['text'], output: ['text'] },
+  source: 'modelsdev' as const,
+  confidence: 'high' as const,
+});
+
 // The official Kimi/Moonshot provider — should resolve to providerId "kimi".
 const moonshotProvider = {
   id: 'moonshot',
@@ -103,7 +113,8 @@ describe('KimiCodeAdapter.applyConfig (v2 config format)', () => {
     expect(toml).toContain('provider = "okit-custom-openai"');
     expect(toml).toContain('model = "my-model"');
     expect(toml).toContain('protocol = "openai"');
-    expect(toml).toContain('max_context_size = 262144');
+    // Unknown model facts stay unknown; the adapter must not invent a window.
+    expect(toml).not.toContain('max_context_size =');
   });
 
   it('writes [providers.X] table with type/base_url/inline api_key', async () => {
@@ -117,8 +128,12 @@ describe('KimiCodeAdapter.applyConfig (v2 config format)', () => {
     expect(toml).toContain('api_key = "sk-test-123"');
   });
 
-  it('writes gateway token windows for opencode.ai / openrouter.ai free models', async () => {
-    const zenProvider = { ...customProvider, baseUrl: 'https://opencode.ai/zen/v1', models: [{ id: 'deepseek-v4-flash-free' }] };
+  it('writes resolved token windows for gateway models', async () => {
+    const zenProvider = {
+      ...customProvider,
+      baseUrl: 'https://opencode.ai/zen/v1',
+      models: [{ id: 'deepseek-v4-flash-free', resolved: resolvedModel('deepseek-v4-flash-free', 200000, 128000) }],
+    };
     const adapter = new KimiCodeAdapter();
     await adapter.applyConfig(zenProvider, 'deepseek-v4-flash-free');
 
@@ -132,14 +147,18 @@ describe('KimiCodeAdapter.applyConfig (v2 config format)', () => {
     expect(toml).not.toContain('custom_headers = {');
   });
 
-  it('writes openrouter :free output cap of 8192', async () => {
-    const orProvider = { ...customProvider, baseUrl: 'https://openrouter.ai/api/v1', models: [{ id: 'poolside/laguna-s-2.1:free' }] };
+  it('writes the current OpenRouter output limit from model metadata', async () => {
+    const orProvider = {
+      ...customProvider,
+      baseUrl: 'https://openrouter.ai/api/v1',
+      models: [{ id: 'poolside/laguna-s-2.1:free', resolved: resolvedModel('poolside/laguna-s-2.1:free', 262144, 32768) }],
+    };
     const adapter = new KimiCodeAdapter();
     await adapter.applyConfig(orProvider, 'poolside/laguna-s-2.1:free');
 
     const toml = mocks.files.get(CONFIG_PATH)!;
     expect(toml).toContain('max_context_size = 262144');
-    expect(toml).toContain('max_output_size = 8192');
+    expect(toml).toContain('max_output_size = 32768');
     expect(toml).not.toContain('custom_headers');
   });
 
@@ -276,7 +295,7 @@ describe('KimiCodeAdapter.applyConfig (v2 config format)', () => {
   it('adds capabilities from model metadata', async () => {
     const reasoningProvider = {
       ...customProvider,
-      models: [{ id: 'glm-5.2' }],
+      models: [{ id: 'glm-5.2', resolved: { ...resolvedModel('glm-5.2', 1000000, 65536), reasoning: true } }],
     };
     const adapter = new KimiCodeAdapter();
     await adapter.applyConfig(reasoningProvider, 'glm-5.2');
@@ -287,7 +306,7 @@ describe('KimiCodeAdapter.applyConfig (v2 config format)', () => {
 
     const visionProvider = {
       ...customProvider,
-      models: [{ id: 'glm-4.6v' }],
+      models: [{ id: 'glm-4.6v', resolved: { ...resolvedModel('glm-4.6v', 128000, 16000), modalities: { input: ['text', 'image'], output: ['text'] } } }],
     };
     mocks.files.clear();
     await adapter.applyConfig(visionProvider, 'glm-4.6v');
@@ -302,7 +321,7 @@ describe('KimiCodeAdapter.applyConfig (v2 config format)', () => {
       baseUrl: 'https://qianfan.baidubce.com/v2/tokenplan/personal',
       vaultKey: 'TEST_API_KEY',
       authMode: 'api_key' as const,
-      models: [{ id: 'ernie-5.1' }, { id: 'glm-5.2' }],
+      models: [{ id: 'ernie-5.1', resolved: resolvedModel('ernie-5.1', 128000, 65536) }, { id: 'glm-5.2' }],
     };
     const adapter = new KimiCodeAdapter();
     await adapter.applyConfig(qianfanProvider, 'ernie-5.1');
@@ -314,13 +333,16 @@ describe('KimiCodeAdapter.applyConfig (v2 config format)', () => {
     expect((toml.match(/max_output_size = 65536/g) || []).length).toBe(1);
   });
 
-  it('maps thinking-named models to always_thinking', async () => {
-    const provider = { ...customProvider, models: [{ id: 'kimi-k2-thinking-turbo' }] };
+  it('writes explicit thinking capability without guessing from the name', async () => {
+    const provider = { ...customProvider, models: [{ id: 'kimi-k2-thinking-turbo', resolved: {
+      ...resolvedModel('kimi-k2-thinking-turbo', 262144, 32768),
+      reasoning: true,
+    } }] };
     const adapter = new KimiCodeAdapter();
     await adapter.applyConfig(provider, 'kimi-k2-thinking-turbo');
 
     const toml = mocks.files.get(CONFIG_PATH)!;
-    expect(toml).toContain('"always_thinking"');
+    expect(toml).toContain('capabilities = ["thinking"]');
   });
 
   it('strips legacy v1 keys that the v2 engine ignores', async () => {

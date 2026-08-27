@@ -2,7 +2,8 @@ import fs from "fs-extra";
 import path from "path";
 import os from "os";
 import { BaseAdapter } from "./base";
-import { gatewayHeadersFor, modelLimitFor } from "./gateway";
+import { gatewayHeadersFor } from "./gateway";
+import { modelFacts } from "./model-facts";
 import { AgentSelection, AuthStatus, Provider, ProviderType, ResolvedModel } from "../types";
 import { loadUserConfig, updateUserConfig } from "../../config/user";
 import { checkCodexOAuth } from "../auth";
@@ -189,27 +190,14 @@ async function writeModelCatalog(provider: Provider): Promise<void> {
   // Build the catalog from the visible models. Each entry carries the fields
   // Codex requires; unknown capabilities default to safe values. Gateway
   // models (opencode.ai / openrouter.ai free tiers) get their real context
-  // window from gateway.ts so Codex doesn't overshoot.
+  // window from the shared resolved model facts so Codex doesn't overshoot.
   const included = provider.models.filter(m => visibleIds.has(m.id));
   const entries = included.map((m, i) => {
-    const limit = modelLimitFor(provider.baseUrl, m.id);
-    const modelFacts = m.resolved || {
-      id: m.id,
-      name: m.name || m.id,
-      ...(m.meta?.description ? { description: m.meta.description } : {}),
-      ...(m.meta?.context ? { context: m.meta.context } : {}),
-      modalities: {
-        input: m.meta?.modalities?.input || (m.meta?.attachment ? ["text", "image"] : ["text"]),
-        output: m.meta?.modalities?.output || ["text"],
-      },
-      ...(m.meta?.reasoning === undefined ? {} : { reasoning: m.meta.reasoning }),
-      ...(m.meta?.reasoningOptions ? { reasoningOptions: m.meta.reasoningOptions } : {}),
-    };
+    const resolvedFacts = modelFacts(provider, m);
     return mapModelToCodexCatalog({
-      model: modelFacts,
+      model: resolvedFacts,
       providerName: provider.name,
       priority: i,
-      contextOverride: limit?.context,
     });
   });
 

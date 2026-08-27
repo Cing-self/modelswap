@@ -6,6 +6,7 @@ import { primeOnboardingFromSession, getOnboardingDoneCache, setOnboardingDone }
 import Sidebar from './components/Layout/Sidebar';
 import ProviderImportModal from './components/shared/ProviderImportModal';
 import { useI18n } from './i18n';
+import { invalidateProvidersCache } from './api/providers';
 
 // Route-level code splitting: heavy pages are loaded on demand so the main
 // entry chunk stays small. A lightweight, layout-stable placeholder is shown
@@ -18,7 +19,6 @@ const VaultPage = lazy(() => import('./components/vault/VaultPage'));
 const SettingsPage = lazy(() => import('./components/settings/SettingsPage'));
 const OnboardingPage = lazy(() => import('./components/onboarding/OnboardingPage'));
 const AgentsPage = lazy(() => import('./components/agents/AgentsPage'));
-const ModelCatalogPage = lazy(() => import('./components/catalog/ModelCatalogPage'));
 
 function SkeletonProviderRows({ count = 4 }: { count?: number }) {
   return (
@@ -206,7 +206,6 @@ function PageLoading() {
   if (pathname === '/usage') return <UsageRouteSkeleton />;
   if (pathname.startsWith('/settings')) return <SettingsRouteSkeleton />;
   if (pathname === '/agents') return <CompactRouteSkeleton label="正在加载 Agent" />;
-  if (pathname === '/catalog') return <CompactRouteSkeleton label="正在加载模型目录" />;
 
   return <CompactRouteSkeleton label="正在加载页面" />;
 }
@@ -232,7 +231,6 @@ function DocumentTitle() {
       '/usage': t('nav.usage'),
       '/agents': t('nav.agents'),
       '/settings': t('nav.settings'),
-      '/catalog': t('catalog.title'),
     };
     const section = titles[pathname] ?? (pathname.startsWith('/settings') ? t('nav.settings') : null);
     document.title = section ? `${section} · OKIT` : 'OKIT';
@@ -275,6 +273,7 @@ function DataChangeEvents() {
       try {
         const detail = JSON.parse(event.data);
         if (detail?.type === 'data-changed' && Array.isArray(detail.sections)) {
+          if (detail.sections.includes('providers')) invalidateProvidersCache();
           window.dispatchEvent(new CustomEvent('okit:data-changed', { detail }));
         }
       } catch { /* Ignore malformed local events and stay connected. */ }
@@ -441,8 +440,6 @@ export default function App() {
     >
       <DocumentTitle />
       <Routes>
-        {/* Standalone model catalog — outside the app shell, own design. */}
-        <Route path="/catalog" element={<LazyRoute><ModelCatalogPage /></LazyRoute>} />
         {/* Standalone model/platform data demo — intentionally not part of the product shell. */}
         <Route path="/model-data" element={<LazyRoute><ModelDataPage /></LazyRoute>} />
         <Route path="*" element={

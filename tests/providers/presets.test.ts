@@ -12,7 +12,7 @@ describe('PRESET_PROVIDERS', () => {
     expect(p!.name).toBe('Anthropic');
     expect(p!.type).toBe('anthropic');
     expect(p!.baseUrl).toBe('https://api.anthropic.com');
-    expect(p!.models.length).toBeGreaterThan(0);
+    expect(p!.models).toEqual([]);
   });
 
   it('includes openai preset', () => {
@@ -28,9 +28,7 @@ describe('PRESET_PROVIDERS', () => {
       expect(p.type).toMatch(/^(anthropic|openai)$/);
       expect(p.baseUrl).toBeTruthy();
       expect(Array.isArray(p.models)).toBe(true);
-      for (const m of p.models) {
-        expect(m.id).toBeTruthy();
-      }
+      expect(p.models).toEqual([]);
     }
   });
 });

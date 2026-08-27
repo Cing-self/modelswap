@@ -2,10 +2,9 @@ import fs from "fs-extra";
 import path from "path";
 import os from "os";
 import { BaseAdapter } from "./base";
-import { modelLimitFor } from "./gateway";
+import { modelFacts } from "./model-facts";
 import { AgentSelection, AuthStatus, ManagedModels, Provider, ProviderType } from "../types";
 import { loadUserConfig, updateUserConfig } from "../../config/user";
-import { resolveModelCapabilities } from "../capabilities";
 import { atomicWrite, atomicWriteJSON } from "../../utils/atomicWrite";
 
 const WORKBUDDY_DIR = path.join(os.homedir(), ".workbuddy");
@@ -25,11 +24,9 @@ const WORKBUDDY_MODELS_PATH = path.join(WORKBUDDY_DIR, "models.json");
 // the same endpoint base URL are adopted as OKIT's own so configs written by
 // older OKIT versions (before tracking existed) keep working.
 //
-// Entries carry explicit capability flags (supportsToolCall / supportsImages /
-// supportsReasoning / reasoning / maxInputTokens / maxOutputTokens) resolved
-// from src/providers/capabilities.ts — WorkBuddy's template UI writes the same
-// fields, and supportsToolCall===false makes WorkBuddy strip tools from
-// requests, so leaving them unset risks degraded agent behavior.
+// Entries carry capability flags only when the shared resolved model has an
+// explicit fact. Unknown is intentionally omitted; adapters must not turn a
+// model-name guess into a persisted runtime capability.
 
 function chatUrlFor(provider: Provider): string {
   const baseUrl = provider.baseUrl.replace(/\/$/, "");
@@ -134,15 +131,7 @@ export class WorkBuddyAdapter extends BaseAdapter {
   ): WorkBuddyModelEntry {
     const chatUrl = chatUrlFor(provider);
     const model = provider.models.find(m => m.id === modelId);
-    const caps = resolveModelCapabilities(modelId);
-    // Gateway free-tier models (opencode.ai / openrouter.ai) get explicit
-    // token windows so max_tokens never exceeds what the endpoint accepts
-    // (see gateway.ts). Capabilities metadata would otherwise decide.
-    const gatewayLimit = modelLimitFor(provider.baseUrl, modelId);
-    if (gatewayLimit) {
-      caps.maxInputTokens = gatewayLimit.context;
-      caps.maxOutputTokens = gatewayLimit.output;
-    }
+    const resolved = modelFacts(provider, modelId);
 
     let entry = models.find(m => m.id === modelId);
     if (!entry) {
@@ -156,17 +145,21 @@ export class WorkBuddyAdapter extends BaseAdapter {
       entry.apiKey = apiKey;
     }
 
-    entry.supportsToolCall = caps.supportsToolCall;
-    entry.supportsImages = caps.supportsImages;
-    entry.supportsReasoning = caps.supportsReasoning;
-    if (caps.maxInputTokens) entry.maxInputTokens = caps.maxInputTokens;
+    if (resolved.tool !== undefined) entry.supportsToolCall = resolved.tool;
+    else delete entry.supportsToolCall;
+    if (resolved.modalities.input.length > 0) entry.supportsImages = resolved.modalities.input.some(value => /image|video/i.test(value));
+    else delete entry.supportsImages;
+    if (resolved.reasoning !== undefined) entry.supportsReasoning = resolved.reasoning;
+    else delete entry.supportsReasoning;
+    if (resolved.context !== undefined) entry.maxInputTokens = resolved.context;
     else delete entry.maxInputTokens;
-    if (caps.maxOutputTokens) entry.maxOutputTokens = caps.maxOutputTokens;
+    if (resolved.output !== undefined) entry.maxOutputTokens = resolved.output;
     else delete entry.maxOutputTokens;
-    if (caps.supportsReasoning && caps.reasoningEfforts) {
+    const effort = resolved.reasoningOptions?.find(option => option.type === "effort" && Array.isArray(option.values));
+    if (resolved.reasoning && effort?.values?.length) {
       entry.reasoning = {
-        defaultEffort: caps.defaultReasoningEffort || "high",
-        supportedEfforts: caps.reasoningEfforts,
+        defaultEffort: effort.values.includes("high") ? "high" : effort.values[0],
+        supportedEfforts: effort.values,
       };
     } else {
       delete entry.reasoning;

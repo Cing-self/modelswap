@@ -71,7 +71,6 @@ vi.mock('../../../src/vault/store', () => ({
 }));
 
 const { WorkBuddyAdapter } = await import('../../../src/providers/adapters/workbuddy');
-const { resolveModelCapabilities } = await import('../../../src/providers/capabilities');
 
 const MODELS_PATH = path.join(os.homedir(), '.workbuddy', 'models.json');
 
@@ -82,7 +81,10 @@ const testProvider = {
   baseUrl: 'https://open.bigmodel.cn/api/coding',
   vaultKey: 'TEST_API_KEY',
   authMode: 'api_key' as const,
-  models: [{ id: 'glm-4.7', name: 'GLM-4.7' }, { id: 'glm-4.6', name: 'GLM-4.6' }],
+  models: [
+    { id: 'glm-4.7', name: 'GLM-4.7', resolved: { id: 'glm-4.7', name: 'GLM-4.7', tool: true, reasoning: true, modalities: { input: ['text'], output: ['text'] }, source: 'modelsdev' as const, confidence: 'high' as const } },
+    { id: 'glm-4.6', name: 'GLM-4.6', resolved: { id: 'glm-4.6', name: 'GLM-4.6', tool: true, reasoning: false, modalities: { input: ['text', 'image'], output: ['text'] }, source: 'modelsdev' as const, confidence: 'high' as const } },
+  ],
 };
 
 const deepseekProvider = {
@@ -90,8 +92,22 @@ const deepseekProvider = {
   id: 'deepseek',
   name: 'DeepSeek',
   baseUrl: 'https://api.deepseek.com',
-  models: [{ id: 'deepseek-v4-pro', name: 'DeepSeek-V4 Pro' }],
+  models: [{ id: 'deepseek-v4-pro', name: 'DeepSeek-V4 Pro', resolved: {
+    id: 'deepseek-v4-pro', name: 'DeepSeek-V4 Pro', context: 1_000_000,
+    reasoning: true, reasoningOptions: [{ type: 'effort' as const, values: ['high', 'max'] }],
+    modalities: { input: ['text'], output: ['text'] }, source: 'modelsdev' as const, confidence: 'high' as const,
+  } }],
 };
+
+const resolvedModel = (id: string, context: number, output: number) => ({
+  id,
+  name: id,
+  context,
+  output,
+  modalities: { input: ['text'], output: ['text'] },
+  source: 'modelsdev' as const,
+  confidence: 'high' as const,
+});
 
 const otherProvider = {
   ...testProvider,
@@ -108,30 +124,6 @@ beforeEach(() => {
   mocks.files.clear();
   mocks.userConfig.providers = {};
   mocks.userConfig.agentProviders = {};
-});
-
-describe('resolveModelCapabilities', () => {
-  it('returns template-verified data for deepseek-v4-pro', () => {
-    const caps = resolveModelCapabilities('deepseek-v4-pro');
-    expect(caps).toEqual({
-      supportsToolCall: true,
-      supportsImages: false,
-      supportsReasoning: true,
-      reasoningEfforts: ['high', 'max'],
-      defaultReasoningEffort: 'high',
-      maxInputTokens: 1_000_000,
-    });
-  });
-
-  it('applies family prefixes and conservative defaults', () => {
-    expect(resolveModelCapabilities('glm-4.7').supportsReasoning).toBe(true);
-    expect(resolveModelCapabilities('qwen-turbo').supportsReasoning).toBe(false);
-    expect(resolveModelCapabilities('totally-unknown-model')).toEqual({
-      supportsToolCall: true,
-      supportsImages: false,
-      supportsReasoning: false,
-    });
-  });
 });
 
 describe('WorkBuddyAdapter', () => {
@@ -178,33 +170,33 @@ describe('WorkBuddyAdapter.applyConfig', () => {
     expect(written[0].maxInputTokens).toBe(1_000_000);
   });
 
-  it('overrides token windows with gateway limits for opencode.ai free models', async () => {
+  it('uses resolved token windows for opencode.ai models', async () => {
     const zenProvider = {
       ...testProvider,
       baseUrl: 'https://opencode.ai/zen/v1',
-      models: [{ id: 'deepseek-v4-flash-free', name: 'DeepSeek V4 Flash' }],
+      models: [{ id: 'deepseek-v4-flash-free', name: 'DeepSeek V4 Flash', resolved: resolvedModel('deepseek-v4-flash-free', 200000, 128000) }],
     };
     const adapter = new WorkBuddyAdapter();
     await adapter.applyConfig(zenProvider, 'deepseek-v4-flash-free');
 
     const written = readModelsFile();
-    // deepseek-v4 family caps would otherwise claim 1M input — gateway wins.
+    // Shared model facts override the adapter's family-level fallback.
     expect(written[0].maxInputTokens).toBe(200000);
     expect(written[0].maxOutputTokens).toBe(128000);
   });
 
-  it('writes openrouter :free output cap of 8192', async () => {
+  it('writes current OpenRouter token limits from model metadata', async () => {
     const orProvider = {
       ...testProvider,
       baseUrl: 'https://openrouter.ai/api/v1',
-      models: [{ id: 'cohere/north-mini-code:free' }],
+      models: [{ id: 'cohere/north-mini-code:free', resolved: resolvedModel('cohere/north-mini-code:free', 256000, 64000) }],
     };
     const adapter = new WorkBuddyAdapter();
     await adapter.applyConfig(orProvider, 'cohere/north-mini-code:free');
 
     const written = readModelsFile();
     expect(written[0].maxInputTokens).toBe(256000);
-    expect(written[0].maxOutputTokens).toBe(8192);
+    expect(written[0].maxOutputTokens).toBe(64000);
   });
 
   it('NEVER writes an availableModels field (whitelist semantics)', async () => {

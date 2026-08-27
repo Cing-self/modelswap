@@ -1,5 +1,7 @@
 import { Provider } from "./types";
 
+// Built-in data describes sites only. Model facts come from the shared model
+// directory and the rebuildable models-cache.json, never from presets.
 export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
   {
     id: "anthropic",
@@ -7,11 +9,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
     type: "anthropic",
     baseUrl: "https://api.anthropic.com",
     authMode: "api_key",
-    models: [
-      { id: "claude-opus-4-7", name: "Claude Opus 4.7" },
-      { id: "claude-sonnet-4-6", name: "Claude Sonnet 4.6" },
-      { id: "claude-haiku-4-5", name: "Claude Haiku 4.5" },
-    ],
+    models: [],
   },
   {
     id: "anthropic-agent",
@@ -21,11 +19,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
     authMode: "oauth",
     executionMode: "agent_native",
     nativeAgentIds: ["claude"],
-    models: [
-      { id: "claude-opus-4-7", name: "Claude Opus 4.7" },
-      { id: "claude-sonnet-4-6", name: "Claude Sonnet 4.6" },
-      { id: "claude-haiku-4-5", name: "Claude Haiku 4.5" },
-    ],
+    models: [],
   },
   {
     id: "openai",
@@ -33,13 +27,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
     type: "openai",
     baseUrl: "https://api.openai.com/v1",
     authMode: "api_key",
-    models: [
-      { id: "gpt-5.5", name: "GPT-5.5" },
-      { id: "gpt-5.4-mini", name: "GPT-5.4 Mini" },
-      { id: "o3", name: "O3" },
-      { id: "o4-mini", name: "O4 Mini" },
-      { id: "gpt-4.1", name: "GPT-4.1" },
-    ],
+    models: [],
   },
   {
     id: "openai-codex",
@@ -49,9 +37,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
     authMode: "oauth",
     executionMode: "agent_native",
     nativeAgentIds: ["codex"],
-    models: [
-      { id: "codex-1", name: "Codex 1" },
-    ],
+    models: [],
   },
   {
     id: "volcengine",
@@ -63,16 +49,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
       { type: "anthropic", baseUrl: "https://ark.cn-beijing.volces.com/api/v3" },
     ],
     authMode: "api_key",
-    models: [
-      { id: "doubao-seed-2.0-pro", name: "Doubao Seed 2.0 Pro" },
-      { id: "doubao-seed-1-8-251228", name: "Doubao Seed 1.8" },
-      { id: "doubao-seed-code-preview-251028", name: "Doubao Seed Code" },
-      { id: "doubao-1-5-pro-32k-250115", name: "Doubao 1.5 Pro 32K" },
-      { id: "deepseek-v3.2", name: "DeepSeek V3.2" },
-      { id: "glm-4.7", name: "GLM-4.7" },
-      { id: "glm-5", name: "GLM-5" },
-      { id: "kimi-k2.5", name: "Kimi K2.5" },
-    ],
+    models: [],
   },
   {
     id: "zai",
@@ -84,16 +61,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
       { type: "anthropic", baseUrl: "https://open.bigmodel.cn/api/anthropic" },
     ],
     authMode: "api_key",
-    models: [
-      { id: "glm-5.1", name: "GLM-5.1" },
-      { id: "glm-5", name: "GLM-5" },
-      { id: "glm-5-turbo", name: "GLM-5 Turbo" },
-      { id: "glm-5v-turbo", name: "GLM-5V Turbo" },
-      { id: "glm-4.7", name: "GLM-4.7" },
-      { id: "glm-4.7-flash", name: "GLM-4.7 Flash" },
-      { id: "glm-4.6", name: "GLM-4.6" },
-      { id: "glm-ocr", name: "GLM OCR" },
-    ],
+    models: [],
   },
   {
     id: "zai-global",
@@ -105,16 +73,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
       { type: "anthropic", baseUrl: "https://api.z.ai/api/anthropic" },
     ],
     authMode: "api_key",
-    models: [
-      { id: "glm-5.1", name: "GLM-5.1" },
-      { id: "glm-5", name: "GLM-5" },
-      { id: "glm-5-turbo", name: "GLM-5 Turbo" },
-      { id: "glm-5v-turbo", name: "GLM-5V Turbo" },
-      { id: "glm-4.7", name: "GLM-4.7" },
-      { id: "glm-4.7-flash", name: "GLM-4.7 Flash" },
-      { id: "glm-4.6", name: "GLM-4.6" },
-      { id: "glm-ocr", name: "GLM OCR" },
-    ],
+    models: [],
   },
   {
     id: "zai-global-coding",
@@ -126,11 +85,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
       { type: "anthropic", baseUrl: "https://api.z.ai/api/anthropic", plan: "coding" },
     ],
     authMode: "api_key",
-    models: [
-      { id: "glm-5.1", name: "GLM-5.1" },
-      { id: "glm-5", name: "GLM-5" },
-      { id: "glm-4.7", name: "GLM-4.7" },
-    ],
+    models: [],
   },
   {
     id: "minimax",
@@ -142,12 +97,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
       { type: "anthropic", baseUrl: "https://api.minimaxi.com/anthropic" },
     ],
     authMode: "api_key",
-    models: [
-      { id: "MiniMax-M2.7", name: "MiniMax M2.7" },
-      { id: "MiniMax-M2.5", name: "MiniMax M2.5" },
-      { id: "MiniMax-M2", name: "MiniMax M2" },
-      { id: "MiniMax-Text-01", name: "MiniMax Text 01" },
-    ],
+    models: [],
   },
   {
     id: "minimax-global",
@@ -159,12 +109,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
       { type: "anthropic", baseUrl: "https://api.minimax.io/anthropic" },
     ],
     authMode: "api_key",
-    models: [
-      { id: "MiniMax-M2.7", name: "MiniMax M2.7" },
-      { id: "MiniMax-M2.5", name: "MiniMax M2.5" },
-      { id: "MiniMax-M2", name: "MiniMax M2" },
-      { id: "MiniMax-Text-01", name: "MiniMax Text 01" },
-    ],
+    models: [],
   },
   {
     id: "minimax-global-coding",
@@ -176,12 +121,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
       { type: "anthropic", baseUrl: "https://api.minimax.io/anthropic", plan: "token" },
     ],
     authMode: "api_key",
-    models: [
-      { id: "MiniMax-M3", name: "MiniMax M3" },
-      { id: "MiniMax-M2.7", name: "MiniMax M2.7" },
-      { id: "MiniMax-M2.7-highspeed", name: "MiniMax M2.7 Highspeed" },
-      { id: "MiniMax-M2.5", name: "MiniMax M2.5" },
-    ],
+    models: [],
   },
   {
     id: "deepseek",
@@ -193,11 +133,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
       { type: "anthropic", baseUrl: "https://api.deepseek.com/anthropic" },
     ],
     authMode: "api_key",
-    models: [
-      { id: "deepseek-v4-flash", name: "DeepSeek V4 Flash" },
-      { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro" },
-      { id: "deepseek-v4-flash-vision-exp", name: "DeepSeek V4 Flash Vision (Experimental)" },
-    ],
+    models: [],
   },
   {
     id: "moonshot",
@@ -209,12 +145,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
       { type: "anthropic", baseUrl: "https://api.moonshot.ai/anthropic" },
     ],
     authMode: "api_key",
-    models: [
-      { id: "kimi-latest", name: "Kimi Latest" },
-      { id: "moonshot-v1-128k", name: "Moonshot V1 128K" },
-      { id: "moonshot-v1-32k", name: "Moonshot V1 32K" },
-      { id: "moonshot-v1-8k", name: "Moonshot V1 8K" },
-    ],
+    models: [],
   },
   {
     id: "kimi-coding",
@@ -227,11 +158,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
       { type: "anthropic", baseUrl: "https://api.moonshot.cn/anthropic" },
     ],
     authMode: "api_key",
-    models: [
-      { id: "kimi-k2.5", name: "Kimi K2.5" },
-      { id: "kimi-k2-thinking", name: "Kimi K2 Thinking" },
-      { id: "kimi-code", name: "Kimi Code" },
-    ],
+    models: [],
   },
   {
     id: "kimi-coding-plan",
@@ -243,12 +170,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
       { type: "anthropic", baseUrl: "https://api.kimi.com/coding", plan: "coding" },
     ],
     authMode: "api_key",
-    models: [
-      { id: "k3", name: "Kimi K3" },
-      { id: "k3-256k", name: "Kimi K3 256K" },
-      { id: "kimi-for-coding", name: "Kimi for Coding" },
-      { id: "kimi-for-coding-highspeed", name: "Kimi for Coding Highspeed" },
-    ],
+    models: [],
   },
   {
     id: "qwen",
@@ -260,14 +182,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
       { type: "anthropic", baseUrl: "https://dashscope.aliyuncs.com/apps/anthropic" },
     ],
     authMode: "api_key",
-    models: [
-      { id: "qwen3.6-max-preview", name: "Qwen3.6 Max Preview" },
-      { id: "qwen-max", name: "Qwen Max" },
-      { id: "qwen-plus", name: "Qwen Plus" },
-      { id: "qwen-turbo", name: "Qwen Turbo" },
-      { id: "qwen3-235b", name: "Qwen3 235B" },
-      { id: "qwen3-32b", name: "Qwen3 32B" },
-    ],
+    models: [],
   },
   {
     id: "qwen-coding",
@@ -279,18 +194,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
       { type: "anthropic", baseUrl: "https://coding.dashscope.aliyuncs.com/apps/anthropic", plan: "coding" },
     ],
     authMode: "api_key",
-    models: [
-      { id: "qwen3.7-plus", name: "Qwen3.7 Plus" },
-      { id: "qwen3.6-plus", name: "Qwen3.6 Plus" },
-      { id: "qwen3.5-plus", name: "Qwen3.5 Plus" },
-      { id: "kimi-k2.5", name: "Kimi K2.5" },
-      { id: "glm-5", name: "GLM-5" },
-      { id: "MiniMax-M2.5", name: "MiniMax M2.5" },
-      { id: "qwen3-max-2026-01-23", name: "Qwen3 Max" },
-      { id: "qwen3-coder-next", name: "Qwen3 Coder Next" },
-      { id: "qwen3-coder-plus", name: "Qwen3 Coder Plus" },
-      { id: "glm-4.7", name: "GLM-4.7" },
-    ],
+    models: [],
   },
   {
     id: "qwen-token-plan",
@@ -302,23 +206,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
       { type: "anthropic", baseUrl: "https://token-plan.cn-beijing.maas.aliyuncs.com/apps/anthropic", plan: "token" },
     ],
     authMode: "api_key",
-    models: [
-      { id: "qwen3.8-max-preview", name: "Qwen3.8 Max Preview" },
-      { id: "qwen3.7-max", name: "Qwen3.7 Max" },
-      { id: "qwen3.7-plus", name: "Qwen3.7 Plus" },
-      { id: "qwen3.6-plus", name: "Qwen3.6 Plus" },
-      { id: "qwen3.6-flash", name: "Qwen3.6 Flash" },
-      { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro" },
-      { id: "deepseek-v4-flash", name: "DeepSeek V4 Flash" },
-      { id: "deepseek-v3.2", name: "DeepSeek V3.2" },
-      { id: "kimi-k2.7-code", name: "Kimi K2.7 Code" },
-      { id: "kimi-k2.6", name: "Kimi K2.6" },
-      { id: "kimi-k2.5", name: "Kimi K2.5" },
-      { id: "glm-5.2", name: "GLM-5.2" },
-      { id: "glm-5.1", name: "GLM-5.1" },
-      { id: "glm-5", name: "GLM-5" },
-      { id: "MiniMax-M2.5", name: "MiniMax M2.5" },
-    ],
+    models: [],
   },
   {
     id: "qianfan",
@@ -330,11 +218,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
       { type: "anthropic", baseUrl: "https://qianfan.baidubce.com/anthropic" },
     ],
     authMode: "api_key",
-    models: [
-      { id: "ernie-4.5-8k-preview", name: "ERNIE 4.5" },
-      { id: "ernie-4.0-8k", name: "ERNIE 4.0" },
-      { id: "deepseek-v3.2", name: "DeepSeek V3.2" },
-    ],
+    models: [],
   },
   {
     id: "qianfan-coding",
@@ -346,16 +230,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
       { type: "anthropic", baseUrl: "https://qianfan.baidubce.com/anthropic/tokenplan/personal", plan: "token" },
     ],
     authMode: "api_key",
-    models: [
-      { id: "qianfan-code-latest", name: "Qianfan Code" },
-      { id: "kimi-k2.5", name: "Kimi K2.5" },
-      { id: "deepseek-v3.2", name: "DeepSeek V3.2" },
-      { id: "glm-5", name: "GLM-5" },
-      { id: "minimax-m2.5", name: "MiniMax M2.5" },
-      { id: "ernie-4.5-turbo-20260402", name: "ERNIE 4.5 Turbo" },
-      { id: "deepseek-v4-flash", name: "DeepSeek V4 Flash" },
-      { id: "glm-5.1", name: "GLM-5.1" },
-    ],
+    models: [],
   },
   {
     id: "glm-coding",
@@ -367,11 +242,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
       { type: "anthropic", baseUrl: "https://open.bigmodel.cn/api/anthropic", plan: "coding" },
     ],
     authMode: "api_key",
-    models: [
-      { id: "glm-5.2", name: "GLM-5.2" },
-      { id: "glm-5-turbo", name: "GLM-5 Turbo" },
-      { id: "glm-4.7", name: "GLM-4.7" },
-    ],
+    models: [],
   },
   {
     id: "minimax-coding",
@@ -383,11 +254,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
       { type: "anthropic", baseUrl: "https://api.minimaxi.com/anthropic", plan: "token" },
     ],
     authMode: "api_key",
-    models: [
-      { id: "MiniMax-M2.7", name: "MiniMax M2.7" },
-      { id: "MiniMax-M2.7-highspeed", name: "MiniMax M2.7 Highspeed" },
-      { id: "MiniMax-M2.5", name: "MiniMax M2.5" },
-    ],
+    models: [],
   },
   {
     id: "volcengine-coding",
@@ -399,13 +266,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
       { type: "anthropic", baseUrl: "https://ark.cn-beijing.volces.com/api/coding", plan: "coding" },
     ],
     authMode: "api_key",
-    models: [
-      { id: "doubao-seed-code-preview-251028", name: "Doubao Seed Code" },
-      { id: "doubao-seed-2.0-pro", name: "Doubao Seed 2.0 Pro" },
-      { id: "kimi-k2.5", name: "Kimi K2.5" },
-      { id: "deepseek-v3.2", name: "DeepSeek V3.2" },
-      { id: "glm-5", name: "GLM-5" },
-    ],
+    models: [],
   },
   {
     id: "volcengine-agent",
@@ -417,10 +278,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
       { type: "anthropic", baseUrl: "https://ark.cn-beijing.volces.com/api/plan", plan: "agent" },
     ],
     authMode: "api_key",
-    models: [
-      { id: "doubao-seed-2.0-pro", name: "Doubao Seed 2.0 Pro" },
-      { id: "doubao-seed-evolving", name: "Doubao Seed Evolving" },
-    ],
+    models: [],
   },
   {
     id: "tencent",
@@ -432,16 +290,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
       { type: "anthropic", baseUrl: "https://tokenhub.tencentmaas.com" },
     ],
     authMode: "api_key",
-    models: [
-      { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro" },
-      { id: "deepseek-v3", name: "DeepSeek V3" },
-      { id: "deepseek-r1", name: "DeepSeek R1" },
-      { id: "hy3", name: "Hy3" },
-      { id: "glm-5.2", name: "GLM-5.2" },
-      { id: "kimi-k3", name: "Kimi K3" },
-      { id: "minimax-m3", name: "MiniMax M3" },
-      { id: "hunyuan-turbos", name: "Hunyuan Turbo S" },
-    ],
+    models: [],
   },
   {
     id: "tencent-token-plan",
@@ -453,16 +302,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
       { type: "anthropic", baseUrl: "https://api.lkeap.cloud.tencent.com/plan/anthropic", plan: "token" },
     ],
     authMode: "api_key",
-    models: [
-      { id: "tc-code-latest", name: "Auto" },
-      { id: "deepseek-v4-flash-202605", name: "DeepSeek V4 Flash" },
-      { id: "deepseek-v4-pro-202606", name: "DeepSeek V4 Pro" },
-      { id: "minimax-m2.7", name: "MiniMax M2.7" },
-      { id: "glm-5.1", name: "GLM-5.1" },
-      { id: "glm-5", name: "GLM-5" },
-      { id: "hy3", name: "Hy3" },
-      { id: "hy3-preview", name: "Hy3 Preview" },
-    ],
+    models: [],
   },
   {
     id: "siliconflow",
@@ -473,10 +313,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
       { type: "openai", protocol: "chat", baseUrl: "https://api.siliconflow.cn/v1" },
     ],
     authMode: "api_key",
-    models: [
-      { id: "deepseek-ai/DeepSeek-V3", name: "DeepSeek V3" },
-      { id: "Qwen/Qwen2.5-72B-Instruct", name: "Qwen 2.5 72B Instruct" },
-    ],
+    models: [],
   },
   {
     id: "xai",
@@ -484,13 +321,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
     type: "openai",
     baseUrl: "https://api.x.ai/v1",
     authMode: "api_key",
-    models: [
-      { id: "grok-4.5", name: "Grok 4.5" },
-      { id: "grok-4.20-0309-reasoning", name: "Grok 4.20 Reasoning" },
-      { id: "grok-4.20-0309-non-reasoning", name: "Grok 4.20" },
-      { id: "grok-4-1-fast-reasoning", name: "Grok 4.1 Fast Reasoning" },
-      { id: "grok-4-1-fast-non-reasoning", name: "Grok 4.1 Fast" },
-    ],
+    models: [],
   },
   {
     id: "xai-grok-build",
@@ -501,9 +332,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
     executionMode: "agent_native",
     nativeAgentIds: [],
     cliOnly: true,
-    models: [
-      { id: "grok-4.5", name: "Grok 4.5" },
-    ],
+    models: [],
   },
   {
     id: "github-copilot",
@@ -514,16 +343,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
     executionMode: "agent_native",
     nativeAgentIds: [],
     cliOnly: true,
-    models: [
-      { id: "claude-sonnet-4.6", name: "Claude Sonnet 4.6" },
-      { id: "gpt-5.4", name: "GPT-5.4" },
-      { id: "claude-haiku-4.5", name: "Claude Haiku 4.5" },
-      { id: "gpt-5.3-codex", name: "GPT-5.3 Codex" },
-      { id: "gemini-3.1-pro-preview", name: "Gemini 3.1 Pro Preview" },
-      { id: "gemini-3.5-flash", name: "Gemini 3.5 Flash" },
-      { id: "gemini-3.6-flash", name: "Gemini 3.6 Flash" },
-      { id: "mai-code-1-flash", name: "MAI Code 1 Flash" },
-    ],
+    models: [],
   },
   {
     id: "mistral",
@@ -531,13 +351,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
     type: "openai",
     baseUrl: "https://api.mistral.ai/v1",
     authMode: "api_key",
-    models: [
-      { id: "mistral-large-latest", name: "Mistral Large 3" },
-      { id: "devstral-medium-latest", name: "Devstral Medium" },
-      { id: "devstral-small-latest", name: "Devstral Small" },
-      { id: "mistral-medium-latest", name: "Mistral Medium 3" },
-      { id: "mistral-small-latest", name: "Mistral Small 3" },
-    ],
+    models: [],
   },
   {
     id: "stepfun",
@@ -545,11 +359,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
     type: "openai",
     baseUrl: "https://api.stepfun.com/v1",
     authMode: "api_key",
-    models: [
-      { id: "step-3.5-flash", name: "Step 3.5 Flash" },
-      { id: "step-2", name: "Step 2" },
-      { id: "step-1-flash", name: "Step 1 Flash" },
-    ],
+    models: [],
   },
   {
     id: "stepfun-global",
@@ -557,11 +367,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
     type: "openai",
     baseUrl: "https://api.stepfun.ai/v1",
     authMode: "api_key",
-    models: [
-      { id: "step-3.7-flash", name: "Step 3.7 Flash" },
-      { id: "step-3.5-flash", name: "Step 3.5 Flash" },
-      { id: "step-image-edit-2", name: "Step Image Edit 2" },
-    ],
+    models: [],
   },
   {
     id: "xiaomi",
@@ -573,10 +379,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
       { type: "anthropic", baseUrl: "https://api.xiaomimimo.com/anthropic" },
     ],
     authMode: "api_key",
-    models: [
-      { id: "MiMo-V2-Pro", name: "MiMo V2 Pro" },
-      { id: "MiMo-V2-Flash", name: "MiMo V2 Flash" },
-    ],
+    models: [],
   },
   {
     id: "xiaomi-coding",
@@ -588,14 +391,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
       { type: "anthropic", baseUrl: "https://token-plan-sgp.xiaomimimo.com/anthropic", plan: "token" },
     ],
     authMode: "api_key",
-    models: [
-      { id: "mimo-v2.5", name: "MiMo V2.5" },
-      { id: "mimo-v2.5-pro", name: "MiMo V2.5 Pro" },
-      { id: "mimo-v2.5-asr", name: "MiMo V2.5 ASR" },
-      { id: "mimo-v2.5-tts", name: "MiMo V2.5 TTS" },
-      { id: "mimo-v2.5-tts-voiceclone", name: "MiMo V2.5 TTS Voice Clone" },
-      { id: "mimo-v2.5-tts-voicedesign", name: "MiMo V2.5 TTS Voice Design" },
-    ],
+    models: [],
   },
   {
     id: "openrouter",
@@ -603,36 +399,12 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
     type: "openai",
     baseUrl: "https://openrouter.ai/api/v1",
     authMode: "api_key",
-    models: [
-      { id: "anthropic/claude-opus-4-7", name: "Claude Opus 4.7" },
-      { id: "openai/gpt-5.5", name: "GPT-5.5" },
-      { id: "google/gemini-2.5-pro", name: "Gemini 2.5 Pro" },
-      { id: "deepseek/deepseek-v4-flash", name: "DeepSeek V4 Flash" },
-      // OpenRouter :free 免费模型(定价 $0,需 OpenRouter 免费 API key,
-      // 无需充值)。列表与 pi agent 内置目录一致,随 OpenRouter 更新。
-      { id: "openrouter/free", name: "Free Models Router" },
-      { id: "cohere/north-mini-code:free", name: "Cohere North Mini Code (Free)" },
-      { id: "dots-studio/dots-3-note-preview:free", name: "Dots Studio 3 Note Preview (Free)" },
-      { id: "google/gemma-4-26b-a4b-it:free", name: "Gemma 4 26B A4B (Free)" },
-      { id: "google/gemma-4-31b-it:free", name: "Gemma 4 31B (Free)" },
-      { id: "liquid/lfm-2.5-2.6b:free", name: "LFM 2.5 2.6B (Free)" },
-      { id: "nvidia/nemotron-3.5-content-safety:free", name: "Nemotron 3.5 Content Safety (Free)" },
-      { id: "nvidia/nemotron-3.5-lightning:free", name: "Nemotron 3.5 Lightning (Free)" },
-      { id: "nvidia/nemotron-3-nano-30b-a3b:free", name: "Nemotron 3 Nano 30B (Free)" },
-      { id: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", name: "Nemotron 3 Nano Omni 30B (Free)" },
-      { id: "nvidia/nemotron-3-super-120b-a12b:free", name: "Nemotron 3 Super 120B (Free)" },
-      { id: "nvidia/nemotron-3-ultra-550b-a55b:free", name: "Nemotron 3 Ultra 550B (Free)" },
-      { id: "nvidia/nemotron-nano-12b-v2-vl:free", name: "Nemotron Nano 12B V2 VL (Free)" },
-      { id: "nvidia/nemotron-nano-9b-v2:free", name: "Nemotron Nano 9B V2 (Free)" },
-      { id: "openai/gpt-oss-20b:free", name: "GPT-OSS 20B (Free)" },
-      { id: "poolside/laguna-s-2.1:free", name: "Laguna S 2.1 (Free)" },
-      { id: "poolside/laguna-xs-2.1:free", name: "Laguna XS 2.1 (Free)" },
-      { id: "z-ai/glm-5.2:free", name: "GLM 5.2 (Free)" },
-    ],
+    models: [],
   },
   {
     id: "opencode-go",
     name: "OpenCode Go",
+    modelCatalogId: "opencode-go",
     type: "openai",
     baseUrl: "https://opencode.ai/zen/go/v1",
     endpoints: [
@@ -641,30 +413,12 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
       { type: "anthropic", baseUrl: "https://opencode.ai/zen/go", plan: "coding" },
     ],
     authMode: "api_key",
-    models: [
-      { id: "grok-4.5", name: "Grok 4.5" },
-      { id: "gpt-5.6-luna", name: "GPT-5.6 Luna" },
-      { id: "glm-5.2", name: "GLM-5.2" },
-      { id: "glm-5.1", name: "GLM-5.1" },
-      { id: "kimi-k3", name: "Kimi K3" },
-      { id: "kimi-k2.7-code", name: "Kimi K2.7 Code" },
-      { id: "kimi-k2.6", name: "Kimi K2.6" },
-      { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro" },
-      { id: "deepseek-v4-flash", name: "DeepSeek V4 Flash" },
-      { id: "mimo-v2.5", name: "MiMo V2.5" },
-      { id: "mimo-v2.5-pro", name: "MiMo V2.5 Pro" },
-      { id: "minimax-m3", name: "MiniMax M3" },
-      { id: "minimax-m2.7", name: "MiniMax M2.7" },
-      { id: "qwen3.8-max", name: "Qwen3.8 Max" },
-      { id: "qwen3.7-max", name: "Qwen3.7 Max" },
-      { id: "qwen3.7-plus", name: "Qwen3.7 Plus" },
-      { id: "qwen3.6-plus", name: "Qwen3.6 Plus" },
-      { id: "hy3", name: "Hy3" },
-    ],
+    models: [],
   },
   {
     id: "opencode-zen",
     name: "OpenCode Zen",
+    modelCatalogId: "opencode",
     type: "openai",
     baseUrl: "https://opencode.ai/zen/v1",
     endpoints: [
@@ -681,37 +435,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
       { type: "anthropic", baseUrl: "https://opencode.ai/zen" },
     ],
     authMode: "api_key",
-    models: [
-      // Free tier (input/output/cache all free; data may be used for training)
-      // capabilities live-verified against the gateway (2026-08-20): image_url
-      // requests 200 on mimo-v2.5-free / hy3-free, are rejected on the other
-      // four; muse-spark is region-blocked here so it stays unknown.
-      { id: "deepseek-v4-flash-free", name: "DeepSeek V4 Flash Free", capabilities: ["chat"] },
-      { id: "nemotron-3-ultra-free", name: "Nemotron 3 Ultra Free", capabilities: ["chat"] },
-      { id: "nemotron-3.5-lightning-free", name: "Nemotron 3.5 Lightning Free", capabilities: ["chat"] },
-      { id: "mimo-v2.5-free", name: "MiMo V2.5 Free", capabilities: ["chat", "vision"] },
-      { id: "hy3-free", name: "Hy3 Free", capabilities: ["chat", "vision"] },
-      { id: "laguna-s-2.1-free", name: "Laguna S 2.1 Free", capabilities: ["chat"] },
-      { id: "muse-spark-1.2-contributor-free", name: "Muse Spark 1.2 Free" },
-      // Paid (pay-as-you-go, curated by the OpenCode team)
-      { id: "claude-opus-5", name: "Claude Opus 5" },
-      { id: "claude-sonnet-5", name: "Claude Sonnet 5" },
-      { id: "claude-opus-4-8", name: "Claude Opus 4.8" },
-      { id: "claude-sonnet-4-6", name: "Claude Sonnet 4.6" },
-      { id: "gpt-5.6-luna", name: "GPT-5.6 Luna" },
-      { id: "gpt-5.5-pro", name: "GPT-5.5 Pro" },
-      { id: "gpt-5.5", name: "GPT-5.5" },
-      { id: "grok-4.6", name: "Grok 4.6" },
-      { id: "grok-4.5", name: "Grok 4.5" },
-      { id: "gemini-3.7-flash", name: "Gemini 3.7 Flash" },
-      { id: "gemini-3.1-pro", name: "Gemini 3.1 Pro" },
-      { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro" },
-      { id: "glm-5.2", name: "GLM-5.2" },
-      { id: "kimi-k3", name: "Kimi K3" },
-      { id: "minimax-m3", name: "MiniMax M3" },
-      { id: "qwen3.6-plus", name: "Qwen3.6 Plus" },
-      { id: "big-pickle", name: "Big Pickle" },
-    ],
+    models: [],
   },
   {
     id: "ollama",

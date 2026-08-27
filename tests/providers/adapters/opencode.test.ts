@@ -81,6 +81,16 @@ const anthropicProvider = {
   models: [{ id: 'glm-4.7' }],
 };
 
+const resolvedModel = (id: string, context: number, output: number) => ({
+  id,
+  name: id,
+  context,
+  output,
+  modalities: { input: ['text'], output: ['text'] },
+  source: 'modelsdev' as const,
+  confidence: 'high' as const,
+});
+
 beforeEach(() => {
   mocks.files.clear();
   vi.mocked(updateUserConfig).mockClear();
@@ -155,11 +165,11 @@ describe('OpenCodeAdapter.applyConfig (cc-switch schema)', () => {
     expect(written.provider.deepseek.options.headers).toEqual({ 'User-Agent': 'opencode/1.18.15' });
   });
 
-  it('writes explicit model limit for opencode.ai free models', async () => {
+  it('writes model-directory limits for opencode.ai models', async () => {
     const zenProvider = {
       ...openaiProvider,
       baseUrl: 'https://opencode.ai/zen/v1',
-      models: [{ id: 'deepseek-v4-flash-free', name: 'DeepSeek V4 Flash' }],
+      models: [{ id: 'deepseek-v4-flash-free', name: 'DeepSeek V4 Flash', resolved: resolvedModel('deepseek-v4-flash-free', 200000, 128000) }],
     };
     const adapter = new OpenCodeAdapter();
     await adapter.applyConfig(zenProvider, 'deepseek-v4-flash-free');
@@ -171,11 +181,14 @@ describe('OpenCodeAdapter.applyConfig (cc-switch schema)', () => {
     });
   });
 
-  it('writes openrouter :free model limits with no UA header', async () => {
+  it('writes OpenRouter model-directory limits with no UA header', async () => {
     const orProvider = {
       ...openaiProvider,
       baseUrl: 'https://openrouter.ai/api/v1',
-      models: [{ id: 'gpt-oss-20b:free' }, { id: 'cohere/north-mini-code:free' }],
+      models: [
+        { id: 'gpt-oss-20b:free', resolved: resolvedModel('gpt-oss-20b:free', 131072, 131072) },
+        { id: 'cohere/north-mini-code:free', resolved: resolvedModel('cohere/north-mini-code:free', 256000, 64000) },
+      ],
     };
     const adapter = new OpenCodeAdapter();
     await adapter.applyConfig(orProvider, 'gpt-oss-20b:free');
@@ -184,7 +197,7 @@ describe('OpenCodeAdapter.applyConfig (cc-switch schema)', () => {
     expect(written.provider.deepseek.options.headers).toBeUndefined();
     expect(written.provider.deepseek.models['cohere/north-mini-code:free']).toEqual({
       name: 'cohere/north-mini-code:free',
-      limit: { context: 256000, output: 8192 },
+      limit: { context: 256000, output: 64000 },
     });
   });
 

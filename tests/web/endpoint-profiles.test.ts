@@ -41,7 +41,7 @@ describe('endpoint probe profiles', () => {
     expect(profiles.isModelAccessFailure(401, '{"error":"invalid api-key"}')).toBe(false);
   });
 
-  it('maps every bundled Coding, Token, Agent, and Go endpoint to a non-generic probe', () => {
+  it('maps every bundled Coding, Token, Agent, and Go endpoint to a non-generic probe without preset model rows', () => {
     for (const provider of PRESET_PROVIDERS) {
       for (const endpoint of provider.endpoints || []) {
         if (!endpoint.plan) continue;
@@ -49,8 +49,9 @@ describe('endpoint probe profiles', () => {
         expect(profile, `${provider.id} ${endpoint.type} ${endpoint.baseUrl}`).not.toBeNull();
         expect(profiles.pickProbeModel(endpoint.baseUrl), `${provider.id} ${endpoint.type}`)
           .not.toBe(profiles.DEFAULT_PROBE_MODEL);
-        expect(provider.models.some(model => model.id === profile?.probeModel), `${provider.id} probe ${profile?.probeModel}`)
-          .toBe(true);
+        // Probe models are endpoint transport configuration. They must not
+        // force the site-only provider preset to persist a model catalog.
+        expect(provider.models, `${provider.id} remains site-only`).toEqual([]);
       }
     }
   });

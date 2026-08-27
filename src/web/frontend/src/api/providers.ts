@@ -159,7 +159,18 @@ export interface ModelDataProvider {
 }
 
 export interface ModelDataSnapshot {
-  cache: { version: number; source: string; fetchedAt: string; file: string };
+  cache: {
+    version: number;
+    source: string;
+    generation?: number;
+    sourceFetchedAt?: string | null;
+    cachedAt?: string | null;
+    fetchedAt: string | null;
+    sourceHash?: string | null;
+    status?: 'fresh' | 'stale' | 'error' | 'empty';
+    lastError?: string | null;
+    file: string;
+  };
   summary: {
     providers: number;
     models: number;
@@ -197,12 +208,12 @@ export interface AgentInfo {
 let providersCache: { data: { providers: Provider[]; platforms: Platform[] }; at: number } | null = null;
 const PROVIDERS_CACHE_TTL_MS = 30_000;
 
-function invalidateProvidersCache() {
+export function invalidateProvidersCache() {
   providersCache = null;
 }
 
-export async function listProviders(): Promise<{ providers: Provider[]; platforms: Platform[] }> {
-  if (providersCache && Date.now() - providersCache.at < PROVIDERS_CACHE_TTL_MS) {
+export async function listProviders(options?: { force?: boolean }): Promise<{ providers: Provider[]; platforms: Platform[] }> {
+  if (!options?.force && providersCache && Date.now() - providersCache.at < PROVIDERS_CACHE_TTL_MS) {
     return providersCache.data;
   }
   const data = await api('/api/providers') as { providers: Provider[]; platforms: Platform[] };

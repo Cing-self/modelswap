@@ -45,9 +45,7 @@ describe('Qianfan Coding Plan endpoint helpers', () => {
     expect(qianfanCodingErrorMessage('unknown-code')).toBe('');
   });
 
-  it('keeps the documented Coding Plan model fallback list stable', () => {
-    const models = qianfanCodingModels();
-    expect(models.map(model => model.id)).toContain('qianfan-code-latest');
-    expect(models.every(model => model.name === model.id)).toBe(true);
+  it('does not expose a handwritten model catalog as discovery data', () => {
+    expect(qianfanCodingModels()).toEqual([]);
   });
 });

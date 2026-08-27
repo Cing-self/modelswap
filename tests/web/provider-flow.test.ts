@@ -21,16 +21,19 @@ describe('provider flow source of truth', () => {
         const created=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.okit','providers.json'),'utf8'));
         await call(api.updateProvider,{params:{id:'flow-open'},body:{name:'Flow Open Renamed',baseUrl:'https://flow-renamed.test/v1'}});
         await call(api.createProvider,{body:claude});
+        const userPath=path.join(process.env.HOME,'.okit','user.json');
+        fs.writeFileSync(userPath,JSON.stringify({modelOverrides:{'flow-open':{one:{context:777,output:333}}}}));
         await call(api.configureAgentProvider,{params:{agentId:'codex',providerId:'flow-open'},body:{modelIds:['one','two'],primaryModelId:'one'}});
         await call(api.switchProvider,{body:{agentId:'codex',providerId:'flow-open',modelId:'two'}});
         await call(api.configureAgentProvider,{params:{agentId:'claude',providerId:'flow-claude'},body:{modelIds:['one','two'],primaryModelId:'one'}});
         await call(api.configureAgentProvider,{params:{agentId:'opencode',providerId:'flow-open'},body:{modelIds:['one','two'],primaryModelId:'one'}});
         const user=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.okit','user.json'),'utf8'));
         const providers=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.okit','providers.json'),'utf8'));
+        const cache=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.okit','models-cache.json'),'utf8'));
         const codex=fs.readFileSync(path.join(process.env.HOME,'.codex','model-catalogs','model-catalogs.json'),'utf8');
         const claudeSettings=fs.readFileSync(path.join(process.env.HOME,'.claude','settings.json'),'utf8');
         const opencode=fs.readFileSync(path.join(process.env.HOME,'.config','opencode','opencode.json'),'utf8');
-        console.log(JSON.stringify({created,user,providers,codex:JSON.parse(codex),claude:JSON.parse(claudeSettings),opencode:JSON.parse(opencode)}));
+        console.log(JSON.stringify({created,user,providers,cache,codex:JSON.parse(codex),claude:JSON.parse(claudeSettings),opencode:JSON.parse(opencode)}));
       })().catch(error=>{console.error(error.stack);process.exit(1)});
     `;
     const output = execFileSync(process.execPath, ['-r', 'ts-node/register', '-e', script, root], {
@@ -48,7 +51,13 @@ describe('provider flow source of truth', () => {
     expect(result.user.agentProviders.codex.sites['flow-open'].modelIds).toEqual(['one', 'two']);
     expect(result.user.agentProviders.codex.activeProviderId).toBe('flow-open');
     expect(result.user.agentProviders.codex.activeModelId).toBe('two');
+    expect(result.user.modelOverrides['flow-open'].one).toEqual({ context: 777, output: 333 });
+    expect(result.cache.providers['flow-open'].map((model: any) => model.id)).toEqual(['one', 'two']);
     expect(result.codex.models).toHaveLength(2);
+    expect(result.codex.models.find((model: any) => model.slug === 'one')).toMatchObject({
+      context_window: 777,
+      max_context_window: 777,
+    });
     expect(result.claude.env.ANTHROPIC_MODEL).toBe('one');
     expect(Object.keys(result.opencode.provider['flow-open'].models)).toEqual(['one', 'two']);
   });

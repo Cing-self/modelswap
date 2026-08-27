@@ -4,21 +4,40 @@ import { OKIT_DIR } from "../config/registry";
 import { backupImportantData } from "../config/backup";
 import { Provider, ProviderModel, ProviderSite, ProvidersData, ModelMetadata } from "./types";
 import { PRESET_PROVIDERS } from "./presets";
-import { PRESET_AUTH_MODE_MIGRATIONS, PRESET_BASE_URL_MIGRATIONS, PRESET_ENDPOINT_BASE_URL_MIGRATIONS, PRESET_MODEL_ID_MIGRATIONS, RETIRED_PRESET_PROVIDER_IDS } from "./metadata";
+import { PRESET_AUTH_MODE_MIGRATIONS, PRESET_BASE_URL_MIGRATIONS, PRESET_ENDPOINT_BASE_URL_MIGRATIONS, RETIRED_PRESET_PROVIDER_IDS } from "./metadata";
 import { atomicWriteJSON } from "../utils/atomicWrite";
 
 const PROVIDERS_PATH = path.join(OKIT_DIR, "providers.json");
 const MODELS_CACHE_PATH = path.join(OKIT_DIR, "models-cache.json");
 const PROVIDERS_VERSION = 2 as const;
-const CACHE_VERSION = 1 as const;
-const LEGACY_DEEPSEEK_DEFAULT_MODEL_IDS = new Set([
-  "deepseek-v4-flash",
-  "deepseek-v4-pro",
-  "deepseek-chat",
-  "deepseek-reasoner",
-]);
+const CACHE_VERSION = 2 as const;
+const modelsDev: {
+  loadCatalog(options?: { force?: boolean }): Promise<any>;
+  getCatalogState(): { generation: number; sourceFetchedAt: string | null; cachedAt: string | null; sourceHash: string | null; status: "fresh" | "stale" | "error" | "empty"; lastError: string | null };
+  listFreshProviderModels(catalog: any, provider: ProviderSite, fetchedAt?: string): ModelMetadata[];
+  CACHE_PATH: string;
+} = require("../web/api/models-dev");
+const PRESET_PROVIDER_IDS = new Set(PRESET_PROVIDERS.map(provider => provider.id));
+let storeWriteQueue: Promise<void> = Promise.resolve();
 
-export type ModelsCacheData = { version: 1; source: "okit"; fetchedAt: string; providers: Record<string, ModelMetadata[]>; [field: string]: unknown };
+function serializeStoreWrite<T>(task: () => Promise<T>): Promise<T> {
+  const run = storeWriteQueue.then(task, task);
+  storeWriteQueue = run.then(() => undefined, () => undefined);
+  return run;
+}
+
+export type ModelsCacheData = {
+  version: 2;
+  source: "okit";
+  generation: number;
+  sourceFetchedAt: string | null;
+  cachedAt: string;
+  sourceHash: string | null;
+  status: "fresh" | "stale" | "error" | "empty";
+  lastError: string | null;
+  providers: Record<string, ModelMetadata[]>;
+  [field: string]: unknown;
+};
 type ProviderFile = { version: 2; providers: ProviderSite[]; [field: string]: unknown };
 
 function clone<T>(value: T): T { return JSON.parse(JSON.stringify(value)); }
@@ -26,15 +45,15 @@ function isSite(value: any): value is ProviderSite { return value && typeof valu
 function stripModels(provider: Provider | ProviderSite): ProviderSite { const { models: _models, modelCache: _cache, platforms: _platforms, ...site } = provider as any; return clone(site); }
 function toMetadata(model: ProviderModel, source: ModelMetadata["source"] = "legacy"): ModelMetadata {
   const meta = model.meta;
-  const effectiveSource = meta?.source === "modelsdev" ? "modelsdev" : source;
+  const effectiveSource = meta?.source === "modelsdev" ? "modelsdev" : meta?.source === "remote" ? "remote" : source;
   return {
     id: model.id,
     ...(model.name ? { name: model.name } : {}),
     ...(meta?.description ? { description: meta.description } : {}),
     ...(meta?.family ? { family: meta.family } : {}),
-    ...(meta?.context ? { context: meta.context } : {}),
-    ...(meta?.input ? { input: meta.input } : {}),
-    ...(meta?.output ? { output: meta.output } : {}),
+    ...(Number.isFinite(meta?.context) ? { context: meta!.context } : {}),
+    ...(Number.isFinite(meta?.input) ? { input: meta!.input } : {}),
+    ...(Number.isFinite(meta?.output) ? { output: meta!.output } : {}),
     ...(meta?.modalities ? { modalities: clone(meta.modalities) } : {}),
     ...(meta?.toolCall === undefined ? {} : { tool: meta.toolCall }),
     ...(meta?.reasoning === undefined ? {} : { reasoning: meta.reasoning }),
@@ -50,22 +69,30 @@ function toMetadata(model: ProviderModel, source: ModelMetadata["source"] = "leg
     ...(meta?.cost ? { cost: clone(meta.cost) } : {}),
     ...(meta?.providerConfig ? { providerConfig: clone(meta.providerConfig) } : {}),
     ...(meta?.experimental ? { experimental: clone(meta.experimental) } : {}),
+    ...(model.origin ? { origin: model.origin } : {}),
+    ...(model.capabilities ? { capabilities: clone(model.capabilities) } : {}),
+    ...(model.remote ? { remote: clone(model.remote) } : {}),
+    ...(model.availability ? { availability: clone(model.availability) } : {}),
     source: effectiveSource,
     confidence: effectiveSource === "modelsdev" ? "high" : effectiveSource === "remote" || effectiveSource === "manual" ? "medium" : "low",
-    raw: clone(model),
+    // Preserve unknown legacy/user fields only inside the rebuildable cache.
+    // They are deliberately not spread back onto the runtime model, where
+    // they previously became accidental product behaviour.
+    ...((model as any).raw !== undefined
+      ? { raw: clone((model as any).raw) }
+      : effectiveSource !== "modelsdev" ? { raw: clone(model) } : {}),
   };
 }
 
 function toModel(metadata: ModelMetadata): ProviderModel {
-  const raw = metadata.raw && typeof metadata.raw === "object" ? clone(metadata.raw as any) : {};
   const hasMeta = Object.keys(metadata).some(key => !["id", "name", "source", "confidence", "fetchedAt", "raw"].includes(key));
   const meta = hasMeta ? {
-    source: "modelsdev" as const,
+    source: metadata.source === "remote" ? "remote" as const : "modelsdev" as const,
     ...(metadata.description ? { description: metadata.description } : {}),
     ...(metadata.family ? { family: metadata.family } : {}),
-    ...(metadata.context ? { context: metadata.context } : {}),
-    ...(metadata.input ? { input: metadata.input } : {}),
-    ...(metadata.output ? { output: metadata.output } : {}),
+    ...(Number.isFinite(metadata.context) ? { context: metadata.context } : {}),
+    ...(Number.isFinite(metadata.input) ? { input: metadata.input } : {}),
+    ...(Number.isFinite(metadata.output) ? { output: metadata.output } : {}),
     ...(metadata.modalities ? { modalities: clone(metadata.modalities) } : {}),
     ...(metadata.tool === undefined ? {} : { toolCall: metadata.tool }),
     ...(metadata.reasoning === undefined ? {} : { reasoning: metadata.reasoning }),
@@ -83,7 +110,15 @@ function toModel(metadata: ModelMetadata): ProviderModel {
     ...(metadata.experimental ? { experimental: clone(metadata.experimental) } : {}),
     ...(metadata.modalities?.input ? { attachment: metadata.modalities.input.some(value => /image|video/i.test(value)) } : {}),
   } : undefined;
-  return { ...raw, id: metadata.id, ...(metadata.name ? { name: metadata.name } : {}), ...(meta ? { meta } : {}) };
+  return {
+    id: metadata.id,
+    ...(metadata.name ? { name: metadata.name } : {}),
+    ...(metadata.capabilities ? { capabilities: clone(metadata.capabilities) } : {}),
+    ...(metadata.origin ? { origin: metadata.origin } : {}),
+    ...(metadata.remote ? { remote: clone(metadata.remote) } : {}),
+    ...(metadata.availability ? { availability: clone(metadata.availability) } : {}),
+    ...(meta ? { meta } : {}),
+  };
 }
 function uniqueModels(models: ProviderModel[]): ProviderModel[] { const map = new Map<string, ProviderModel>(); for (const model of models) if (model?.id) map.set(model.id, { ...(map.get(model.id) || {}), ...model }); return [...map.values()]; }
 function mergeCachedModels(existing: ModelMetadata[], incoming: ModelMetadata[]): ModelMetadata[] {
@@ -95,20 +130,20 @@ function mergeCachedModels(existing: ModelMetadata[], incoming: ModelMetadata[])
   for (const model of incoming) if (model?.id && !merged.has(model.id)) merged.set(model.id, clone(model));
   return [...merged.values()];
 }
-function presetModels(id: string): ProviderModel[] { return clone((PRESET_PROVIDERS as Provider[]).find(provider => provider.id === id)?.models || []); }
-function defaultCache(): ModelsCacheData { return { version: CACHE_VERSION, source: "okit", fetchedAt: new Date().toISOString(), providers: {} }; }
-function defaultProviderFile(): ProviderFile { return { version: PROVIDERS_VERSION, providers: (PRESET_PROVIDERS as Provider[]).map(stripModels) }; }
-
-// DeepSeek's former four-item preset contained the deprecated compatibility
-// aliases deepseek-chat and deepseek-reasoner. Replace only that exact legacy
-// default snapshot. User-added models and a live /models result are untouched.
-function migrateLegacyDeepSeekDefaultCache(cache: ModelsCacheData): boolean {
-  const models = cache.providers.deepseek;
-  if (!Array.isArray(models) || models.length !== LEGACY_DEEPSEEK_DEFAULT_MODEL_IDS.size) return false;
-  if (!models.every(model => model?.source === "legacy" && LEGACY_DEEPSEEK_DEFAULT_MODEL_IDS.has(model.id))) return false;
-  cache.providers.deepseek = presetModels("deepseek").map(model => toMetadata(model));
-  return true;
+function defaultCache(): ModelsCacheData {
+  return {
+    version: CACHE_VERSION,
+    source: "okit",
+    generation: 0,
+    sourceFetchedAt: null,
+    cachedAt: new Date().toISOString(),
+    sourceHash: null,
+    status: "empty",
+    lastError: null,
+    providers: {},
+  };
 }
+function defaultProviderFile(): ProviderFile { return { version: PROVIDERS_VERSION, providers: (PRESET_PROVIDERS as Provider[]).map(stripModels) }; }
 
 // These are the original narrowly-scoped v1 repairs. They run before a legacy
 // record is split, and the same preset merge runs for every v2 load.
@@ -128,12 +163,11 @@ function applyPresetMigrations(input: Provider[]): Provider[] {
     }
     const auth = PRESET_AUTH_MODE_MIGRATIONS.get(preset.id); if (auth && current.authMode === auth.from) current.authMode = auth.to as any;
     if (preset.executionMode) current.executionMode = preset.executionMode;
+    if (preset.modelCatalogId) current.modelCatalogId = preset.modelCatalogId;
     if (preset.executionMode === "agent_native") delete current.endpoints;
     if (preset.nativeAgentIds) current.nativeAgentIds = [...preset.nativeAgentIds];
     if (preset.cliOnly) current.cliOnly = true;
     if (preset.authMode === "none" && !current.vaultKey) current.authMode = "none";
-    const ids = (current.models || []).map(model => model.id); const snapshots = PRESET_MODEL_ID_MIGRATIONS.get(preset.id) || [];
-    if (snapshots.some(snapshot => JSON.stringify(snapshot) === JSON.stringify(ids)) || (preset.id === "qianfan-coding" && ids.some(id => ["kimi-k2.5", "deepseek-v3.2", "minimax-m2.5", "ernie-4.5-turbo-20260402"].includes(id))) || (preset.id === "xiaomi-coding" && ids.length === 4 && ids.every(id => ["mimo-v2.5", "mimo-v2.5-pro", "mimo-v2.5-asr", "mimo-v2.5-tts"].includes(id)))) current.models = clone(preset.models);
     current.name = preset.name;
   }
   const qianfan = providers.find(provider => provider.id === "qianfan");
@@ -141,8 +175,48 @@ function applyPresetMigrations(input: Provider[]): Provider[] {
   return providers;
 }
 
-async function readCache(): Promise<ModelsCacheData> { if (!(await fs.pathExists(MODELS_CACHE_PATH))) return defaultCache(); try { const data = JSON.parse(await fs.readFile(MODELS_CACHE_PATH, "utf8")); if (data?.version === CACHE_VERSION && data.providers && typeof data.providers === "object") return { ...data, version: CACHE_VERSION, source: "okit", fetchedAt: typeof data.fetchedAt === "string" ? data.fetchedAt : new Date().toISOString() }; } catch (error) { throw new Error(`无法读取 models-cache.json：${error instanceof Error ? error.message : String(error)}`); } return defaultCache(); }
-async function writeCache(cache: ModelsCacheData): Promise<void> { await fs.ensureDir(OKIT_DIR); await atomicWriteJSON(MODELS_CACHE_PATH, { ...cache, version: CACHE_VERSION, source: "okit", fetchedAt: new Date().toISOString() }); }
+async function readCache(): Promise<ModelsCacheData> {
+  if (!(await fs.pathExists(MODELS_CACHE_PATH))) return defaultCache();
+  try {
+    const data = JSON.parse(await fs.readFile(MODELS_CACHE_PATH, "utf8"));
+    if (!data?.providers || typeof data.providers !== "object") return defaultCache();
+    if (data.version === CACHE_VERSION) {
+      return {
+        ...defaultCache(),
+        ...data,
+        version: CACHE_VERSION,
+        source: "okit",
+        generation: Number.isInteger(data.generation) ? data.generation : 0,
+        sourceFetchedAt: typeof data.sourceFetchedAt === "string" ? data.sourceFetchedAt : null,
+        cachedAt: typeof data.cachedAt === "string" ? data.cachedAt : new Date().toISOString(),
+      };
+    }
+    // v1 called every local write "fetchedAt". Preserve it only as a legacy
+    // lower-bound; the canonical catalog service will replace it with a real
+    // source timestamp on the next successful hydration.
+    return {
+      ...defaultCache(),
+      providers: data.providers,
+      sourceFetchedAt: typeof data.fetchedAt === "string" ? data.fetchedAt : null,
+      status: "stale",
+    };
+  } catch (error) {
+    const corruptPath = `${MODELS_CACHE_PATH}.corrupt-${Date.now()}`;
+    try { await fs.move(MODELS_CACHE_PATH, corruptPath, { overwrite: false }); } catch { /* rebuild below */ }
+    console.warn(`[providers] rebuilt corrupt models cache: ${error instanceof Error ? error.message : String(error)}`);
+    return defaultCache();
+  }
+}
+async function writeCache(cache: ModelsCacheData): Promise<void> {
+  await fs.ensureDir(OKIT_DIR);
+  await atomicWriteJSON(MODELS_CACHE_PATH, {
+    ...cache,
+    version: CACHE_VERSION,
+    source: "okit",
+    // This is the local persistence time, not the upstream freshness time.
+    cachedAt: new Date().toISOString(),
+  });
+}
 async function writeProviderFile(file: ProviderFile, backup = true): Promise<void> { await fs.ensureDir(OKIT_DIR); if (backup) await backupImportantData("providers"); const { models: _models, modelCache: _cache, platforms: _platforms, ...clean } = file as any; await atomicWriteJSON(PROVIDERS_PATH, clean); }
 async function backupLegacy(content: string): Promise<void> { await fs.writeFile(`${PROVIDERS_PATH}.pre-model-cache-${Date.now()}.json`, content, "utf8"); }
 
@@ -163,15 +237,115 @@ async function readProviderFile(): Promise<ProviderFile> {
   await backupLegacy(content); await writeCache(cache); await writeProviderFile(next, false);
   return next;
 }
-function materialize(file: ProviderFile, cache: ModelsCacheData): Provider[] { return file.providers.map(site => { const cached = cache.providers[site.id] || []; return { ...clone(site), models: uniqueModels(cached.length ? cached.map(toModel) : presetModels(site.id)) } as Provider; }); }
+function mergeDirectoryMetadata(existing: ModelMetadata[], directory: ModelMetadata[], dropUnknownLegacy = false): ModelMetadata[] {
+  const merged = new Map<string, ModelMetadata>();
+  for (const model of directory) if (model?.id) merged.set(model.id, clone(model));
+  for (const model of existing) {
+    if (!model?.id) continue;
+    const catalog = merged.get(model.id);
+    if (!catalog) {
+      if (dropUnknownLegacy && model.source === "legacy") continue;
+      merged.set(model.id, clone(model));
+      continue;
+    }
+    const keepLocalSource = model.source === "manual" || model.source === "remote";
+    merged.set(model.id, {
+      ...catalog,
+      ...(keepLocalSource ? clone(model) : {}),
+      ...(!keepLocalSource && model.name ? { name: model.name } : {}),
+    });
+  }
+  return [...merged.values()];
+}
 
-export async function loadProviders(): Promise<Provider[]> { const file = await readProviderFile(); const cache = await readCache(); if (migrateLegacyDeepSeekDefaultCache(cache)) await writeCache(cache); if (!(await fs.pathExists(PROVIDERS_PATH))) await writeProviderFile(file); return materialize(file, cache); }
+async function hydrateCacheFromDirectory(file: ProviderFile, cache: ModelsCacheData, suppliedCatalog?: any): Promise<boolean> {
+  // Unit tests without an explicit catalog fixture must remain deterministic
+  // and offline. Integration tests can opt in by creating the same cache file
+  // production uses.
+  if (process.env.VITEST && !(await fs.pathExists(modelsDev.CACHE_PATH))) return false;
+  const catalog = suppliedCatalog || await modelsDev.loadCatalog();
+  if (!catalog) return false;
+  const state = modelsDev.getCatalogState();
+  let changed = cache.generation !== state.generation
+    || cache.sourceFetchedAt !== state.sourceFetchedAt
+    || cache.sourceHash !== state.sourceHash
+    || cache.status !== state.status
+    || cache.lastError !== state.lastError;
+  const fetchedAt = state.sourceFetchedAt || new Date().toISOString();
+  for (const site of file.providers) {
+    const directory = modelsDev.listFreshProviderModels(catalog, site, fetchedAt);
+    const existing = cache.providers[site.id] || [];
+    // Built-in sites own no model rows. If models.dev has no matching entry,
+    // remove only historical preset rows; user/manual and live-discovered
+    // rows remain authoritative local data.
+    const merged = directory.length
+      ? mergeDirectoryMetadata(existing, directory, PRESET_PROVIDER_IDS.has(site.id))
+      : PRESET_PROVIDER_IDS.has(site.id)
+        ? existing.filter(model => model.source !== "legacy")
+        : existing;
+    if (JSON.stringify(existing) !== JSON.stringify(merged)) {
+      cache.providers[site.id] = merged;
+      changed = true;
+    }
+  }
+  cache.generation = state.generation;
+  cache.sourceFetchedAt = state.sourceFetchedAt;
+  cache.sourceHash = state.sourceHash;
+  cache.status = state.status;
+  cache.lastError = state.lastError;
+  return changed;
+}
+
+function materialize(file: ProviderFile, cache: ModelsCacheData): Provider[] {
+  return file.providers.map(site => ({
+    ...clone(site),
+    models: uniqueModels((cache.providers[site.id] || []).map(toModel)),
+  } as Provider));
+}
+
+export async function loadProviders(): Promise<Provider[]> {
+  const file = await readProviderFile();
+  const cache = await serializeStoreWrite(async () => {
+    const current = await readCache();
+    const changed = await hydrateCacheFromDirectory(file, current);
+    if (changed) await writeCache(current);
+    return current;
+  });
+  if (!(await fs.pathExists(PROVIDERS_PATH))) await writeProviderFile(file);
+  return materialize(file, cache);
+}
+/** Promote the canonical catalog generation into the normalized runtime view. */
+export async function refreshModelsFromCatalog(catalog?: any): Promise<Provider[]> {
+  const file = await readProviderFile();
+  const cache = await serializeStoreWrite(async () => {
+    const current = await readCache();
+    const changed = await hydrateCacheFromDirectory(file, current, catalog);
+    if (changed) await writeCache(current);
+    return current;
+  });
+  return materialize(file, cache);
+}
 /** Site-only read for diagnostics/demos that must not touch model cache. */
 export async function loadProviderSites(): Promise<ProviderSite[]> {
   return clone((await readProviderFile()).providers);
 }
-export async function saveProviders(providers: Provider[]): Promise<void> { const current = await readProviderFile(); const cache = await readCache(); for (const provider of providers) if (isSite(provider) && Array.isArray(provider.models)) cache.providers[provider.id] = provider.models.filter(model => model?.id).map(model => toMetadata(model, model.origin === "user" ? "manual" : "legacy")); const { providers: _old, ...unknown } = current; await writeCache(cache); await writeProviderFile({ ...unknown, version: PROVIDERS_VERSION, providers: providers.filter(isSite).map(stripModels) }); }
+export async function saveProviders(providers: Provider[]): Promise<void> {
+  await serializeStoreWrite(async () => {
+    const current = await readProviderFile();
+    const cache = await readCache();
+    for (const provider of providers) {
+      if (!isSite(provider) || !Array.isArray(provider.models)) continue;
+      cache.providers[provider.id] = provider.models
+        .filter(model => model?.id)
+        .map(model => toMetadata(model, model.origin === "user" ? "manual" : model.meta?.source === "remote" ? "remote" : "legacy"));
+    }
+    const { providers: _old, ...unknown } = current;
+    await writeCache(cache);
+    await writeProviderFile({ ...unknown, version: PROVIDERS_VERSION, providers: providers.filter(isSite).map(stripModels) });
+  });
+}
 export async function mergeProviderSites(sites: ProviderSite[]): Promise<void> {
+  return serializeStoreWrite(async () => {
   // Sync must not perform a preliminary provider-file migration write: an old
   // receiving file is backed up, its embedded models are merged into the
   // receiver's cache, and the final v2 sites document is written once.
@@ -221,11 +395,24 @@ export async function mergeProviderSites(sites: ProviderSite[]): Promise<void> {
     if (index >= 0) merged[index] = { ...merged[index], ...incoming };
     else merged.push(incoming);
   }
-  await writeProviderFile({ ...current, providers: merged });
+    await writeProviderFile({ ...current, providers: merged });
+  });
 }
 export async function getProvider(id: string): Promise<Provider | undefined> { return (await loadProviders()).find(provider => provider.id === id); }
 export async function addProvider(provider: Provider): Promise<void> { const providers = await loadProviders(); const index = providers.findIndex(item => item.id === provider.id); if (index >= 0) providers[index] = provider; else providers.push(provider); await saveProviders(providers); }
-export async function deleteProvider(id: string): Promise<boolean> { const file = await readProviderFile(); const index = file.providers.findIndex(provider => provider.id === id); if (index < 0) return false; file.providers.splice(index, 1); const cache = await readCache(); delete cache.providers[id]; await writeCache(cache); await writeProviderFile(file); return true; }
+export async function deleteProvider(id: string): Promise<boolean> {
+  return serializeStoreWrite(async () => {
+    const file = await readProviderFile();
+    const index = file.providers.findIndex(provider => provider.id === id);
+    if (index < 0) return false;
+    file.providers.splice(index, 1);
+    const cache = await readCache();
+    delete cache.providers[id];
+    await writeCache(cache);
+    await writeProviderFile(file);
+    return true;
+  });
+}
 export async function loadModelsCache(): Promise<ModelsCacheData> { return readCache(); }
 export async function saveModelsCache(cache: ModelsCacheData): Promise<void> { await writeCache(cache); }
 /** Read-only sync projection. It never triggers a legacy migration/write. */

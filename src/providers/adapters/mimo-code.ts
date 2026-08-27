@@ -2,7 +2,8 @@ import fs from "fs-extra";
 import path from "path";
 import os from "os";
 import { BaseAdapter } from "./base";
-import { gatewayHeadersFor, modelLimitFor } from "./gateway";
+import { gatewayHeadersFor } from "./gateway";
+import { modelTokenLimit } from "./model-facts";
 import { AgentSelection, AuthStatus, Provider, ProviderType } from "../types";
 import { loadUserConfig, updateUserConfig } from "../../config/user";
 import { atomicWrite } from "../../utils/atomicWrite";
@@ -84,10 +85,9 @@ export class MimoCodeAdapter extends BaseAdapter {
   private buildModelsMap(provider: Provider): Record<string, any> {
     const modelsMap: Record<string, any> = {};
     for (const m of provider.models) {
-      const limit = modelLimitFor(provider.baseUrl, m.id);
+      const limit = modelTokenLimit(provider, m);
       modelsMap[m.id] = limit
-        ? { name: m.name || m.id, limit }
-        : { name: m.name || m.id };
+        && Object.keys(limit).length ? { name: m.name || m.id, limit } : { name: m.name || m.id };
     }
     return modelsMap;
   }

@@ -87,6 +87,16 @@ const testProvider = {
   models: [{ id: 'deepseek-chat', name: 'DeepSeek V4' }],
 };
 
+const resolvedModel = (id: string, context: number, output: number) => ({
+  id,
+  name: id,
+  context,
+  output,
+  modalities: { input: ['text'], output: ['text'] },
+  source: 'modelsdev' as const,
+  confidence: 'high' as const,
+});
+
 beforeEach(() => {
   mocks.files.clear();
   Object.keys(userConfigStore).forEach(k => delete userConfigStore[k]);
@@ -247,15 +257,15 @@ describe('ZCodeAdapter.applyConfig (v2 config schema)', () => {
     expect(entry.options.headers).toBeUndefined();
   });
 
-  it('writes explicit limits for opencode-zen free models so max_tokens stays under the gateway cap', async () => {
+  it('writes model-directory limits for opencode-zen models', async () => {
     const opencodeProvider = {
       ...testProvider,
       id: 'opencode-zen',
       baseUrl: 'https://opencode.ai/zen/v1',
       endpoints: [{ type: 'openai' as const, protocol: 'chat' as const, baseUrl: 'https://opencode.ai/zen/v1' }],
       models: [
-        { id: 'deepseek-v4-flash-free', name: 'DeepSeek V4 Flash Free' },
-        { id: 'hy3-free', name: 'Hy3 Free' },
+        { id: 'deepseek-v4-flash-free', name: 'DeepSeek V4 Flash Free', resolved: resolvedModel('deepseek-v4-flash-free', 200000, 128000) },
+        { id: 'hy3-free', name: 'Hy3 Free', resolved: resolvedModel('hy3-free', 190000, 64000) },
       ],
     };
     const adapter = new ZCodeAdapter();
@@ -264,7 +274,7 @@ describe('ZCodeAdapter.applyConfig (v2 config schema)', () => {
     const written = JSON.parse(mocks.files.get(CONFIG_PATH)!);
     const entry = written.provider['opencode-zen'];
     expect(entry.models['deepseek-v4-flash-free'].limit).toEqual({ context: 200000, output: 128000 });
-    expect(entry.models['hy3-free'].limit).toEqual({ context: 200000, output: 128000 });
+    expect(entry.models['hy3-free'].limit).toEqual({ context: 190000, output: 64000 });
   });
 
   it('does not write limits for non-opencode endpoints', async () => {
@@ -275,14 +285,14 @@ describe('ZCodeAdapter.applyConfig (v2 config schema)', () => {
     expect(written.provider.deepseek.models['deepseek-chat'].limit).toBeUndefined();
   });
 
-  it('writes limits for OpenRouter :free models missing from the ZCode built-in catalog', async () => {
+  it('writes OpenRouter model-directory limits', async () => {
     const openrouterProvider = {
       ...testProvider,
       id: 'openrouter',
       baseUrl: 'https://openrouter.ai/api/v1',
       endpoints: [{ type: 'openai' as const, protocol: 'chat' as const, baseUrl: 'https://openrouter.ai/api/v1' }],
       models: [
-        { id: 'cohere/north-mini-code:free', name: 'Cohere North Mini Code (Free)' },
+        { id: 'cohere/north-mini-code:free', name: 'Cohere North Mini Code (Free)', resolved: resolvedModel('cohere/north-mini-code:free', 256000, 64000) },
         { id: 'google/gemma-4-26b-a4b-it:free', name: 'Gemma 4 26B (Free)' },
       ],
     };
@@ -293,7 +303,7 @@ describe('ZCodeAdapter.applyConfig (v2 config schema)', () => {
     const entry = written.provider.openrouter;
     // ZCode knows gemma-4-26b-a4b-it:free itself — OKIT must not override it.
     expect(entry.models['google/gemma-4-26b-a4b-it:free'].limit).toBeUndefined();
-    expect(entry.models['cohere/north-mini-code:free'].limit).toEqual({ context: 256000, output: 8192 });
+    expect(entry.models['cohere/north-mini-code:free'].limit).toEqual({ context: 256000, output: 64000 });
   });
 });
 
@@ -500,8 +510,8 @@ describe('ZCodeAdapter media capability overrides (cli/config.json)', () => {
     name: 'OpenCode Zen',
     baseUrl: 'https://opencode.ai/zen/v1',
     models: [
-      { id: 'deepseek-v4-flash-free', name: 'DeepSeek V4 Flash Free', capabilities: ['chat'] },
-      { id: 'mimo-v2.5-free', name: 'MiMo V2.5 Free', capabilities: ['chat', 'vision'] },
+      { id: 'deepseek-v4-flash-free', name: 'DeepSeek V4 Flash Free', resolved: resolvedModel('deepseek-v4-flash-free', 200000, 128000) },
+      { id: 'mimo-v2.5-free', name: 'MiMo V2.5 Free', resolved: { ...resolvedModel('mimo-v2.5-free', 262144, 32768), modalities: { input: ['text', 'image'], output: ['text'] } } },
       { id: 'muse-spark-1.2-contributor-free', name: 'Muse Spark 1.2 Free' },
     ],
   };

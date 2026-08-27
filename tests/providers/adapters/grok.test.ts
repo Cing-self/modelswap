@@ -72,6 +72,16 @@ const anthropicProvider = {
   models: [{ id: 'claude-model' }],
 };
 
+const resolvedModel = (id: string, context: number, output: number) => ({
+  id,
+  name: id,
+  context,
+  output,
+  modalities: { input: ['text'], output: ['text'] },
+  source: 'modelsdev' as const,
+  confidence: 'high' as const,
+});
+
 beforeEach(() => {
   mocks.files.clear();
   vi.mocked(updateUserConfig).mockClear();
@@ -94,7 +104,8 @@ describe('GrokAdapter', () => {
     expect(toml).toContain('base_url = "https://custom.api.com/v1"');
     expect(toml).toContain('api_backend = "chat_completions"');
     expect(toml).toContain('api_key = "sk-test-123"');
-    expect(toml).toContain('context_window = ');
+    // Unknown model facts stay unknown; the adapter must not invent a window.
+    expect(toml).not.toContain('context_window = ');
     expect(toml).toContain('[models]\ndefault = "okit-custom-openai-my-model"');
   });
 
@@ -127,8 +138,12 @@ it('routes ernie models through the local tool-schema proxy', async () => {
     expect(toml).not.toContain('base_url = "https://custom.api.com/v1"');
   });
 
-  it('writes gateway context windows for opencode.ai / openrouter.ai free models', async () => {
-    const zenProvider = { ...openAIProvider, baseUrl: 'https://opencode.ai/zen/v1', models: [{ id: 'deepseek-v4-flash-free' }] };
+  it('writes resolved context windows for gateway models', async () => {
+    const zenProvider = {
+      ...openAIProvider,
+      baseUrl: 'https://opencode.ai/zen/v1',
+      models: [{ id: 'deepseek-v4-flash-free', resolved: resolvedModel('deepseek-v4-flash-free', 200000, 128000) }],
+    };
     const adapter = new GrokAdapter();
     await adapter.applyConfig(zenProvider, 'deepseek-v4-flash-free');
 

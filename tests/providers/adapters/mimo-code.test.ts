@@ -70,6 +70,16 @@ const anthropicProvider = {
   models: [{ id: 'claude-model' }],
 };
 
+const resolvedModel = (id: string, context: number, output: number) => ({
+  id,
+  name: id,
+  context,
+  output,
+  modalities: { input: ['text'], output: ['text'] },
+  source: 'modelsdev' as const,
+  confidence: 'high' as const,
+});
+
 beforeEach(() => {
   mocks.files.clear();
   vi.mocked(updateUserConfig).mockClear();
@@ -104,11 +114,14 @@ describe('MimoCodeAdapter', () => {
     expect(data.provider['custom-anthropic'].npm).toBe('@ai-sdk/anthropic');
   });
 
-  it('adds opencode UA headers and model limits for opencode.ai gateway endpoints', async () => {
+  it('adds opencode UA headers and model-directory limits', async () => {
     const zenProvider = {
       ...openAIProvider,
       baseUrl: 'https://opencode.ai/zen/v1',
-      models: [{ id: 'deepseek-v4-flash-free' }, { id: 'hy3-free' }],
+      models: [
+        { id: 'deepseek-v4-flash-free', resolved: resolvedModel('deepseek-v4-flash-free', 200000, 128000) },
+        { id: 'hy3-free', resolved: resolvedModel('hy3-free', 190000, 64000) },
+      ],
     };
     const adapter = new MimoCodeAdapter();
     await adapter.applyConfig(zenProvider, 'deepseek-v4-flash-free');
@@ -121,11 +134,11 @@ describe('MimoCodeAdapter', () => {
     });
   });
 
-  it('writes openrouter :free model limits without UA headers', async () => {
+  it('writes OpenRouter model-directory limits without UA headers', async () => {
     const orProvider = {
       ...openAIProvider,
       baseUrl: 'https://openrouter.ai/api/v1',
-      models: [{ id: 'poolside/laguna-s-2.1:free' }],
+      models: [{ id: 'poolside/laguna-s-2.1:free', resolved: resolvedModel('poolside/laguna-s-2.1:free', 262144, 32768) }],
     };
     const adapter = new MimoCodeAdapter();
     await adapter.applyConfig(orProvider, 'poolside/laguna-s-2.1:free');
@@ -134,7 +147,7 @@ describe('MimoCodeAdapter', () => {
     expect(data.provider['custom-openai'].options.headers).toBeUndefined();
     expect(data.provider['custom-openai'].models['poolside/laguna-s-2.1:free']).toEqual({
       name: 'poolside/laguna-s-2.1:free',
-      limit: { context: 262144, output: 8192 },
+      limit: { context: 262144, output: 32768 },
     });
   });
 
@@ -142,7 +155,7 @@ describe('MimoCodeAdapter', () => {
     const zenProvider = {
       ...openAIProvider,
       baseUrl: 'https://opencode.ai/zen/v1',
-      models: [{ id: 'mimo-v2.5-free' }],
+      models: [{ id: 'mimo-v2.5-free', resolved: resolvedModel('mimo-v2.5-free', 200000, 32000) }],
     };
     const adapter = new MimoCodeAdapter();
     await adapter.applyModels([{ provider: zenProvider, modelId: 'mimo-v2.5-free' }]);
@@ -151,7 +164,7 @@ describe('MimoCodeAdapter', () => {
     expect(data.provider['custom-openai'].options.headers).toEqual({ 'User-Agent': 'opencode/1.18.15' });
     expect(data.provider['custom-openai'].models['mimo-v2.5-free']).toEqual({
       name: 'mimo-v2.5-free',
-      limit: { context: 200000, output: 128000 },
+      limit: { context: 200000, output: 32000 },
     });
   });
 

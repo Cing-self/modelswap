@@ -100,7 +100,7 @@ describe('provider data architecture', () => {
     expect(migrated).not.toHaveProperty('modelCache');
   });
 
-  it('migrates exactly the old DeepSeek default cache to the current three models', () => {
+  it('replaces old built-in DeepSeek rows with the current shared-directory models', () => {
     const result = runInTemporaryHome(`
       const fs=require('fs'), path=require('path');
       const store=require(path.join(process.argv[1], 'src/providers/store'));
@@ -113,6 +113,12 @@ describe('provider data architecture', () => {
           {id:'deepseek-chat',source:'legacy',confidence:'low'},
           {id:'deepseek-reasoner',source:'legacy',confidence:'low'}
         ]}}));
+        const catalogDir=path.join(dir,'cache'); fs.mkdirSync(catalogDir,{recursive:true});
+        fs.writeFileSync(path.join(catalogDir,'models-dev.json'), JSON.stringify({source:'models.dev',version:1,fetchedAt:new Date().toISOString(),data:{deepseek:{api:'https://api.deepseek.com',models:{
+          'deepseek-v4-flash':{limit:{context:128000,output:8192}},
+          'deepseek-v4-pro':{limit:{context:128000,output:8192}},
+          'deepseek-v4-flash-vision-exp':{limit:{context:128000,output:8192}}
+        }}}}));
         const providers=await store.loadProviders();
         const cache=await store.loadModelsCache();
         console.log(JSON.stringify({ runtime:providers.find(p=>p.id==='deepseek').models.map(m=>m.id), cache:cache.providers.deepseek.map(m=>m.id) }));

@@ -2,16 +2,7 @@
 // from the regular V2 API. Keep the provider-specific detection and messages
 // in one small CommonJS module so model discovery and connection tests agree.
 
-const QIANFAN_CODING_MODELS = [
-  'qianfan-code-latest',
-  'glm-5.2',
-  'glm-5.1',
-  'deepseek-v4-pro',
-  'deepseek-v4-flash',
-  'kimi-k2.6',
-  'ernie-5.1',
-  'deepseek-v4-flash-0731',
-];
+const QIANFAN_CODING_MODELS = [];
 
 const QIANFAN_CODING_PROBE_MODEL = 'qianfan-code-latest';
 
