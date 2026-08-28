@@ -366,6 +366,10 @@ export async function fetchModels(providerId?: string, config?: { endpoints?: Pr
   });
 }
 
+export async function warmupMissingModels(): Promise<{ warmed: string[]; pending: string[]; results: Array<{ providerId: string; status: string; modelsDiscovered: boolean }> }> {
+  return api('/api/providers/warmup-missing-models', { method: 'POST' });
+}
+
 export interface UsageWindow {
   label: string;
   usedPercent: number | null;

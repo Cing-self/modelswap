@@ -46,6 +46,7 @@ module.exports = {
   verifyProviderAuth: (req, res) => respond(res, () => service.verifyProviderAuth(route(req, 'id'))),
   triggerOAuthLogin: (req, res) => respond(res, () => service.triggerOAuthLogin(body(req).providerId)),
   fetchModels: (req, res) => respond(res, () => service.fetchModels(body(req))),
+  warmupMissingModels: (_req, res) => respond(res, () => service.discoverMissingConfiguredModels()),
   exportProviderCode: (req, res) => respond(res, () => service.exportProviderCode(body(req))),
   importProviderCode: (req, res) => respond(res, () => service.importProviderCode(body(req))),
   __testing: service.__testing,

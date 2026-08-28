@@ -1,6 +1,7 @@
 // Provider model discovery is transport/cache orchestration, independent of HTTP.
 function createModelDiscoveryService(deps) {
   const { fs, path, os, _store, loadProviders, saveProviders, loadUserConfig, providerEndpointEntries, providerExecutionMode, QIANFAN_CODING_PROBE_MODEL, isQianfanCodingEndpoint, isQianfanCodingAnthropicEndpoint, qianfanCodingErrorCode, qianfanCodingErrorMessage, getAnthropicAuthMode, normalizeRemoteModel, detectOAuth, resolveVaultKey, findCommand } = deps;
+  const warmupInflight = new Map();
 async function readCodexCachedModels() {
   const cachePath = path.join(os.homedir(), '.codex', 'models_cache.json');
   if (!(await fs.pathExists(cachePath))) {
@@ -322,6 +323,92 @@ async function fetchModels(input = {}) {
   }
 }
 
+function isReferencedByAnAgent(providerId, config) {
+  return Object.values(config?.agentProviders || {}).some(state =>
+    state?.activeProviderId === providerId || Boolean(state?.sites?.[providerId]),
+  );
+}
+
+async function isConfiguredForWarmup(provider, config) {
+  const native = providerExecutionMode(provider) === 'agent_native';
+  if (native) {
+    // These are the only native branches with an actual CLI/cache discovery
+    // implementation in fetchModels. A selected Agent site also counts as an
+    // explicit configuration; fetchModels still verifies OAuth where needed.
+    if (!['openai-codex', 'xai-grok-build', 'github-copilot'].includes(provider.id)) return false;
+    return isReferencedByAnAgent(provider.id, config) || await detectOAuth(provider.id);
+  }
+
+  // Do not turn unauthenticated presets (including authMode:none) into
+  // network work. HTTP warmup requires a real local vault binding and at
+  // least one endpoint; it never derives models from a preset/catalog.
+  if (provider.authMode === 'none' || !provider.vaultKey || providerEndpointEntries(provider).length === 0) return false;
+  return Boolean(await resolveVaultKey(provider.vaultKey));
+}
+
+async function runWithConcurrency(items, limit, worker) {
+  const results = new Array(items.length);
+  let next = 0;
+  const run = async () => {
+    while (true) {
+      const index = next++;
+      if (index >= items.length) return;
+      results[index] = await worker(items[index]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, run));
+  return results;
+}
+
+/**
+ * Background startup warmup for sites whose canonical runtime cache is absent.
+ * It intentionally delegates each candidate to fetchModels so discovery,
+ * same-ID models.dev enrichment, cache writes, and UI invalidation stay on the
+ * established path. The providers directory and Agent configuration remain
+ * untouched.
+ */
+async function discoverMissingConfiguredModels({ concurrency = 2 } = {}) {
+  const [providers, config, cache] = await Promise.all([
+    loadProviders(),
+    loadUserConfig(),
+    _store.loadModelsCache(),
+  ]);
+  const candidates = [];
+  for (const provider of providers) {
+    if (Array.isArray(cache.providers?.[provider.id]) && cache.providers[provider.id].length > 0) continue;
+    if (await isConfiguredForWarmup(provider, config)) candidates.push(provider);
+  }
+
+  const results = await runWithConcurrency(candidates, Math.max(1, Math.min(3, Number(concurrency) || 2)), async provider => {
+    const existing = warmupInflight.get(provider.id);
+    if (existing) return existing;
+    const task = (async () => {
+      try {
+        const result = await fetchModels({ providerId: provider.id });
+        return {
+          providerId: provider.id,
+          status: result.modelsDiscovered ? 'discovered' : 'unavailable',
+          modelsDiscovered: Boolean(result.modelsDiscovered),
+        };
+      } catch (error) {
+        // Warmup is deliberately silent and independent per site. A manual
+        // connection test remains the place to surface detailed diagnostics.
+        return { providerId: provider.id, status: 'failed', modelsDiscovered: false };
+      } finally {
+        warmupInflight.delete(provider.id);
+      }
+    })();
+    warmupInflight.set(provider.id, task);
+    return task;
+  });
+
+  return {
+    warmed: results.filter(result => result?.status === 'discovered').map(result => result.providerId),
+    pending: candidates.map(provider => provider.id),
+    results,
+  };
+}
+
 async function fetchOpenAIModels(baseUrl, apiKey) {
   const url = baseUrl.replace(/\/+$/, '') + '/models';
   const headers = {};
@@ -431,6 +518,6 @@ const PROVIDER_CODE_PREFIX = 'okit-provider:';
 const PROVIDER_CODE_SALT = 'okit-provider-salt';
 
 
-  return { readCodexCachedModels, readGrokCliModels, readCopilotCliModels, withNativeAvailability, replaceRemoteModels, fetchModels, fetchOpenAIModels, fetchQianfanCodingModels, fetchQianfanCodingAnthropicModels, fetchAnthropicModels };
+  return { readCodexCachedModels, readGrokCliModels, readCopilotCliModels, withNativeAvailability, replaceRemoteModels, fetchModels, discoverMissingConfiguredModels, fetchOpenAIModels, fetchQianfanCodingModels, fetchQianfanCodingAnthropicModels, fetchAnthropicModels };
 }
 module.exports = { createModelDiscoveryService };

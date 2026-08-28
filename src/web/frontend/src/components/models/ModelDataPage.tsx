@@ -3,6 +3,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { ChevronDown, Database, ExternalLink, RefreshCw, Search } from 'lucide-react';
 import { getModelData, refreshDemoProviderModels, refreshModelData, ModelDataProvider, ModelDataRecord, ModelDataSnapshot } from '../../api/providers';
 import { useDataChanged } from '../../hooks/useDataChanged';
+import { useModelCacheWarmupPending } from '../../hooks/useModelCacheWarmup';
 import { useApp } from '../Layout/AppContext';
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -196,6 +197,7 @@ function ModelRow({ model }: { model: ModelDataRecord }) {
 
 export default function ModelDataPage() {
   const { showToast } = useApp();
+  const warmupPending = useModelCacheWarmupPending();
   const [snapshot, setSnapshot] = useState<ModelDataSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
@@ -217,7 +219,7 @@ export default function ModelDataPage() {
     }
   }, [showToast]);
 
-  useEffect(() => { load(true); }, [load]);
+  useEffect(() => { load(); }, [load]);
   useDataChanged(['providers', 'agents'], load);
 
   const providers = useMemo(() => {
@@ -274,7 +276,7 @@ export default function ModelDataPage() {
     }
   }
 
-  if (loading || !snapshot) {
+  if (loading || warmupPending || !snapshot) {
     return (
       <div className="model-data-page model-data-loading" aria-busy="true">
         <div className="skeleton-line route-skeleton-vault-title" />

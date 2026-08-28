@@ -9,7 +9,7 @@ const { getLogs } = require('./api/logs');
 const { getSettings, updateSettings, testPlatformConnection, getPresets, getOnboarding, dismissOnboarding, resetOnboarding } = require('./api/settings');
 const { checkWrangler, listStores, listStoreSecrets, syncToCloudflare } = require('./api/cloudflare-sync');
 const { handlePush, handlePull, handleStatus, handleExportCode, handleImportCode, handleLanStatus, handleLanEnable, handleLanDisable, handleLanRegenerate, handleLanPairingPeek, handleLanPairingCreate, handleLanPair, handleSyncOverview } = require('./api/sync');
-const { listProviders, getModelData, refreshModelData, refreshDemoProviderModels, getAdaptersList, createProvider, updateProvider, deleteProvider, switchProvider, configureAgentProvider, removeAgentProvider, setAgentProviderEnabled, getAgentConfigFiles, saveAgentConfigFile, getTierMaps, setTierMap, launchAgent, getAuthStatus, verifyProviderAuth, triggerOAuthLogin, fetchModels, exportProviderCode, importProviderCode } = require('./api/providers');
+const { listProviders, getModelData, refreshModelData, refreshDemoProviderModels, getAdaptersList, createProvider, updateProvider, deleteProvider, switchProvider, configureAgentProvider, removeAgentProvider, setAgentProviderEnabled, getAgentConfigFiles, saveAgentConfigFile, getTierMaps, setTierMap, launchAgent, getAuthStatus, verifyProviderAuth, triggerOAuthLogin, fetchModels, warmupMissingModels, exportProviderCode, importProviderCode } = require('./api/providers');
 const { getUsage, getSupportedUsageProviders, openXiaomiLogin, closeXiaomiLoginWindow } = require('./api/usage');
 const { createGrokProxyHandler } = require('./api/grok-proxy');
 const { listSnapshotsHandler, snapshotDetailHandler, restoreSnapshotHandler } = require('./api/snapshots');
@@ -213,6 +213,7 @@ function createServer(port = 3780) {
   app.post('/api/providers/:id/verify-auth', verifyProviderAuth);
   app.post('/api/providers/auth/login', triggerOAuthLogin);
   app.post('/api/providers/fetch-models', fetchModels);
+  app.post('/api/providers/warmup-missing-models', warmupMissingModels);
   app.post('/api/providers/export-code', exportProviderCode);
   app.post('/api/providers/import-code', importProviderCode);
 

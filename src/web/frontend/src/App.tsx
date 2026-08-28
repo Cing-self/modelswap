@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate, useLocation, useSearchParams } from 'react-router-dom';
-import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, useLayoutEffect, lazy, Suspense } from 'react';
 import { ArrowDownToLine, CircleAlert, Loader2, PanelLeftClose, PanelLeftOpen, RotateCcw } from 'lucide-react';
 import { getOnboarding } from './api/settings';
 import { primeOnboardingFromSession, getOnboardingDoneCache, setOnboardingDone } from './lib/onboardingGate';
@@ -8,7 +8,8 @@ import ProviderImportModal from './components/shared/ProviderImportModal';
 import { useI18n } from './i18n';
 import { useAppUpdate } from './hooks/useAppUpdate';
 import { useApp } from './components/Layout/AppContext';
-import { invalidateProvidersCache } from './api/providers';
+import { invalidateProvidersCache, warmupMissingModels } from './api/providers';
+import { startModelCacheWarmup } from './lib/modelCacheWarmup';
 
 // Route-level code splitting: heavy pages are loaded on demand so the main
 // entry chunk stays small. A lightweight, layout-stable placeholder is shown
@@ -287,6 +288,13 @@ function DataChangeEvents() {
   return null;
 }
 
+function ModelCacheWarmupBootstrap() {
+  useLayoutEffect(() => {
+    void startModelCacheWarmup(warmupMissingModels);
+  }, []);
+  return null;
+}
+
 /**
  * Electron's macOS window uses a hidden native title bar so its surface can
  * share the same material as the app. This small renderer-owned strip keeps
@@ -505,6 +513,7 @@ export default function App() {
       showSidebarToggle
     >
       <DocumentTitle />
+      <ModelCacheWarmupBootstrap />
       <Routes>
         {/* Standalone model/platform data demo — intentionally not part of the product shell. */}
         <Route path="/model-data" element={<LazyRoute><ModelDataPage /></LazyRoute>} />

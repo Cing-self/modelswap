@@ -3,11 +3,13 @@ import { createProvider, deleteProvider, fetchModels, getAuthStatus, listProvide
 import { useApp } from '../Layout/AppContext';
 import { useI18n } from '../../i18n';
 import { useDataChanged } from '../../hooks/useDataChanged';
+import { useModelCacheWarmupPending } from '../../hooks/useModelCacheWarmup';
 import { crossData, PLATFORM_DEFINITIONS, PROVIDER_FAMILIES, PROVIDER_FAMILY_MAP, PROVIDER_GROUPS, PLAN_FILTERS, providerPlans, providerProtocols, groupOf, filterModelEntries, MODEL_COMPARISON_ENABLED, PLATFORM_DETAIL_ENABLED } from './modelsCatalog';
 import type { AuthState, PlanFilter, ProviderFamily, StatusFilter, ViewKey } from './modelsCatalog';
 export function useModelsPageState() {
   const { showToast: toast, confirm } = useApp() as any;
   const { t, providerName } = useI18n();
+  const warmupPending = useModelCacheWarmupPending();
   const [providers, setProviders] = useState<Provider[]>([]);
   const [platforms, setPlatforms] = useState<Platform[]>(PLATFORM_DEFINITIONS);
   const [authMap, setAuthMap] = useState<Record<string, AuthState>>({});
@@ -463,7 +465,7 @@ export function useModelsPageState() {
 
   // 分组 chips：跟随视角动态生成（分段结构，每段独立一行）
   // 返回: [{ label, chips: [...] }, ...]
-  return { loading, activePlatform, activeModel, t, providerName, modelStats, authLoaded, authLoadFailed, MODEL_COMPARISON_ENABLED, PLATFORM_DETAIL_ENABLED, view, searchQuery, setSearchQuery, activeModelProvider, setActiveModelProvider, modelVendorOptions, activeModality, setActiveModality, activeProtocol, setActiveProtocol, providers, providerProtocols, hideLegacy, setHideLegacy, filteredComparisonCount, hasComparisonFilters, sortedFamilies, handleAdd, activePlanFilter, setActivePlanFilter, setFamilyPlan, platformPlanOptions, statusFilter, setStatusFilter, platformStatusOptions, crossData, authMap, setActiveModel, sortedProviders, familyPlan, providerPlans, platforms, isAuthed, getCardAuthMethod, isUsedBy, isAuthMethodAuthed, testingConn, setActivePlatform, actionMenuId, setActionMenuId, loggingIn, handleOAuthLogin, handleConnect, syncingModels, handleEdit, handleDelete, showForm, editProvider, setEditProvider, setShowForm, handleFormSave };
+  return { loading: loading || warmupPending, activePlatform, activeModel, t, providerName, modelStats, authLoaded, authLoadFailed, MODEL_COMPARISON_ENABLED, PLATFORM_DETAIL_ENABLED, view, searchQuery, setSearchQuery, activeModelProvider, setActiveModelProvider, modelVendorOptions, activeModality, setActiveModality, activeProtocol, setActiveProtocol, providers, providerProtocols, hideLegacy, setHideLegacy, filteredComparisonCount, hasComparisonFilters, sortedFamilies, handleAdd, activePlanFilter, setActivePlanFilter, setFamilyPlan, platformPlanOptions, statusFilter, setStatusFilter, platformStatusOptions, crossData, authMap, setActiveModel, sortedProviders, familyPlan, providerPlans, platforms, isAuthed, getCardAuthMethod, isUsedBy, isAuthMethodAuthed, testingConn, setActivePlatform, actionMenuId, setActionMenuId, loggingIn, handleOAuthLogin, handleConnect, syncingModels, handleEdit, handleDelete, showForm, editProvider, setEditProvider, setShowForm, handleFormSave };
 }
 
 export type ModelsPageState = ReturnType<typeof useModelsPageState>;

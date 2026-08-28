@@ -10,6 +10,7 @@ import { Eye, EyeOff, Copy, Save, RefreshCw, X, Plus, FileJson, Loader2, Check, 
 import UsageSummary from './UsageSummary';
 import { useTransientFeedback } from '../../hooks/useTransientFeedback';
 import { useDataChanged } from '../../hooks/useDataChanged';
+import { useModelCacheWarmupPending } from '../../hooks/useModelCacheWarmup';
 
 const AGENT_ORDER_KEY = 'okit.agentOrder';
 
@@ -47,6 +48,7 @@ function applySavedAgentOrder(list: AgentInfo[]): AgentInfo[] {
 export default function HomePage() {
   const { t } = useI18n();
   const { showToast, confirm } = useApp();
+  const warmupPending = useModelCacheWarmupPending();
   const [adapters, setAdapters] = useState<AgentInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
@@ -332,7 +334,7 @@ export default function HomePage() {
     }
   }
 
-  if (loading) {
+  if (loading || warmupPending) {
     return (
       <div className="quick-start-page" aria-busy="true">
         <div className="home-section">

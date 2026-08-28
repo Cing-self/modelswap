@@ -608,7 +608,7 @@ const modelDiscoveryService = createModelDiscoveryService({
 });
 const {
   readCodexCachedModels, readGrokCliModels, readCopilotCliModels,
-  withNativeAvailability, replaceRemoteModels, fetchModels,
+  withNativeAvailability, replaceRemoteModels, fetchModels, discoverMissingConfiguredModels,
 } = modelDiscoveryService;
 
 
@@ -780,6 +780,7 @@ module.exports = {
   verifyProviderAuth,
   triggerOAuthLogin,
   fetchModels,
+  discoverMissingConfiguredModels,
   exportProviderCode,
   importProviderCode,
   __testing: {
