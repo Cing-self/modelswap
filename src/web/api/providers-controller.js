@@ -1,13 +1,12 @@
 // Express transport adapter for the provider application services. Keep all
 // request parsing and HTTP status mapping at this edge.
 const service = require('../../application/provider-service');
+const { sendApiError } = require('../../application/error-normalization');
 
 function respond(res, operation) {
-  return Promise.resolve(operation()).then(result => res.json(result)).catch(error => {
-    const payload = { error: error.message, ...(error.code ? { code: error.code } : {}) };
-    if (error.errors) payload.errors = error.errors;
-    res.status(error.status || 500).json(payload);
-  });
+  return Promise.resolve().then(operation).then(result => res.json(result)).catch(error =>
+    sendApiError(res, error, res?.locals?.requestId),
+  );
 }
 
 const body = req => req.body || {};
@@ -46,7 +45,7 @@ module.exports = {
   verifyProviderAuth: (req, res) => respond(res, () => service.verifyProviderAuth(route(req, 'id'))),
   triggerOAuthLogin: (req, res) => respond(res, () => service.triggerOAuthLogin(body(req).providerId)),
   fetchModels: (req, res) => respond(res, () => service.fetchModels(body(req))),
-  warmupMissingModels: (_req, res) => respond(res, () => service.discoverMissingConfiguredModels()),
+  warmupMissingModels: (_req, res) => respond(res, () => service.discoverMissingConfiguredModels({ requestId: res?.locals?.requestId })),
   exportProviderCode: (req, res) => respond(res, () => service.exportProviderCode(body(req))),
   importProviderCode: (req, res) => respond(res, () => service.importProviderCode(body(req))),
   __testing: service.__testing,

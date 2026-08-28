@@ -16,9 +16,19 @@ const { listSnapshotsHandler, snapshotDetailHandler, restoreSnapshotHandler } = 
 const { issueExtensionToken, isExtensionOrigin } = require('./api/ws-extension');
 const { getUpdateCheck, downloadUpdate, getUpdateDownloadStatus } = require('./api/update-check');
 const { subscribeUiEvents } = require('./api/ui-events');
+const { sendApiError } = require('../application/error-normalization');
+const { agentConfigPresence } = require('../application/provider-service');
 
 function createServer(port = 3780) {
   const app = express();
+  let requestSequence = 0;
+
+  // A local correlation id is enough to connect a safe operator log with the
+  // request that failed. It deliberately never incorporates request content.
+  app.use((req, res, next) => {
+    res.locals.requestId = `api-${++requestSequence}`;
+    next();
+  });
 
   // Grok Build tool-schema sanitizing proxy. Must be mounted before
   // express.json(): the proxy reads the raw request body itself, and a
@@ -59,7 +69,7 @@ function createServer(port = 3780) {
       res.json({ success: true, platform: 'zai-global', name: result.name, valueLength: result.valueLength });
       require('./api/sync-scheduler').markDirty('secrets');
     } catch (error) {
-      res.status(500).json({ success: false, error: error instanceof Error ? error.message : String(error) });
+      sendApiError(res, error, res.locals.requestId);
     }
   });
   app.get('/api/vault/auto-create/platforms', listAutoCreatePlatforms);
@@ -114,7 +124,7 @@ function createServer(port = 3780) {
       child.unref();
       res.json({ success: true, dir });
     } catch (error) {
-      res.status(500).json({ error: error.message || '无法打开扩展目录' });
+      sendApiError(res, error, res.locals.requestId);
     }
   });
 
@@ -130,7 +140,6 @@ function createServer(port = 3780) {
   app.get('/api/diagnostics', (_req, res) => {
     try {
       const wsExt = require('./api/ws-extension');
-      const providersApi = require('./api/providers');
       const { recentFailures } = require('./api/logs');
       const { augmentedPath } = require('./api/agent-path');
       res.json({
@@ -150,11 +159,14 @@ function createServer(port = 3780) {
           version: wsExt.getExtensionVersion(),
           protocol: wsExt.getExtensionProtocol(),
         },
-        agents: providersApi.agentConfigPresence(),
+        // This is an application read, not an HTTP controller invocation.
+        // Calling ./api/providers here passed no Express response to the
+        // controller adapter and turned diagnostics into an async crash.
+        agents: agentConfigPresence(),
         recentFailures: recentFailures(5),
       });
     } catch (error) {
-      res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+      sendApiError(res, error, res.locals.requestId);
     }
   });
 
@@ -227,6 +239,14 @@ function createServer(port = 3780) {
   app.post('/api/usage/:providerId/login', openXiaomiLogin);
   app.post('/api/usage/:providerId/close-window', closeXiaomiLoginWindow);
   app.get('/api/usage/:providerId', getUsage);
+
+  // Controllers can be legacy callback handlers, async functions, or a
+  // shared Promise adapter. Express 5 forwards any rejected value here;
+  // normalize it once so a `throw undefined` cannot terminate the service.
+  app.use((error, req, res, next) => {
+    if (res.headersSent) return next(error);
+    return sendApiError(res, error, res.locals?.requestId);
+  });
 
   // SPA fallback
   app.use((req, res) => {

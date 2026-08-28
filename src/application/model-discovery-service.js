@@ -1,4 +1,6 @@
 // Provider model discovery is transport/cache orchestration, independent of HTTP.
+const { describeRejection, modelDiscoveryFailure } = require('./error-normalization');
+
 function createModelDiscoveryService(deps) {
   const { fs, path, os, _store, loadProviders, saveProviders, loadUserConfig, providerEndpointEntries, providerExecutionMode, QIANFAN_CODING_PROBE_MODEL, isQianfanCodingEndpoint, isQianfanCodingAnthropicEndpoint, qianfanModelDirectoryUrl, qianfanCodingErrorCode, qianfanCodingErrorMessage, getAnthropicAuthMode, normalizeRemoteModel, detectOAuth, resolveVaultKey, findCommand } = deps;
   const warmupInflight = new Map();
@@ -270,7 +272,11 @@ async function fetchModels(input = {}) {
           discoveries.push({ endpointId, model: m });
         }
       } catch (err) {
-        errors.push({ endpoint: ep.baseUrl, error: err.message });
+        const failure = modelDiscoveryFailure(err);
+        // Keep endpoint identity for support correlation, but never return a
+        // raw rejected value which could contain an Authorization credential.
+        console.warn(`[model-discovery] provider=${providerId || p?.id || 'preview'} endpoint=${endpointId} kind=${describeRejection(err)}`);
+        errors.push({ endpoint: ep.baseUrl, error: failure.error });
       }
     }
 
@@ -363,7 +369,7 @@ async function runWithConcurrency(items, limit, worker) {
  * established path. The providers directory and Agent configuration remain
  * untouched.
  */
-async function discoverMissingConfiguredModels({ concurrency = 2, providerIds } = {}) {
+async function discoverMissingConfiguredModels({ concurrency = 2, providerIds, requestId } = {}) {
   // loadProviders performs the one-time legacy catalog-membership cleanup.
   // Read the canonical cache only after that migration settles; otherwise a
   // parallel read can observe a soon-to-be-removed models.dev-only row and
@@ -377,13 +383,25 @@ async function discoverMissingConfiguredModels({ concurrency = 2, providerIds } 
     ? new Set(providerIds.filter(id => typeof id === 'string' && id))
     : null;
   const candidates = [];
+  const preflightFailures = [];
   for (const provider of providers) {
     if (requestedIds && !requestedIds.has(provider.id)) continue;
     if (Array.isArray(cache.providers?.[provider.id]) && cache.providers[provider.id].length > 0) continue;
-    if (await isConfiguredForWarmup(provider, config)) candidates.push(provider);
+    try {
+      if (await isConfiguredForWarmup(provider, config)) candidates.push(provider);
+    } catch (error) {
+      const failure = modelDiscoveryFailure(error);
+      console.warn(`[model-warmup] request=${requestId || 'background'} provider=${provider.id} stage=configuration kind=${describeRejection(error)}`);
+      preflightFailures.push({
+        providerId: provider.id,
+        status: 'failed',
+        modelsDiscovered: false,
+        ...failure,
+      });
+    }
   }
 
-  const results = await runWithConcurrency(candidates, Math.max(1, Math.min(3, Number(concurrency) || 2)), async provider => {
+  const discoveredResults = await runWithConcurrency(candidates, Math.max(1, Math.min(3, Number(concurrency) || 2)), async provider => {
     const existing = warmupInflight.get(provider.id);
     if (existing) return existing;
     const task = (async () => {
@@ -405,12 +423,13 @@ async function discoverMissingConfiguredModels({ concurrency = 2, providerIds } 
       } catch (error) {
         // Warmup is deliberately silent and independent per site. A manual
         // connection test remains the place to surface detailed diagnostics.
+        const failure = modelDiscoveryFailure(error);
+        console.warn(`[model-warmup] request=${requestId || 'background'} provider=${provider.id} stage=discovery kind=${describeRejection(error)}`);
         return {
           providerId: provider.id,
           status: 'failed',
           modelsDiscovered: false,
-          code: 'MODEL_DISCOVERY_FAILED',
-          error: error.message,
+          ...failure,
         };
       } finally {
         warmupInflight.delete(provider.id);
@@ -419,10 +438,11 @@ async function discoverMissingConfiguredModels({ concurrency = 2, providerIds } 
     warmupInflight.set(provider.id, task);
     return task;
   });
+  const results = [...preflightFailures, ...discoveredResults];
 
   return {
     warmed: results.filter(result => result?.status === 'discovered').map(result => result.providerId),
-    pending: candidates.map(provider => provider.id),
+    pending: [...preflightFailures.map(result => result.providerId), ...candidates.map(provider => provider.id)],
     results,
   };
 }
