@@ -8,6 +8,8 @@
 
 逐行门禁的唯一来源是 `docs/testing/sync-agent-release-checklist.md`：每轮复制完整表，保留历史轮次，不能用新一轮覆盖旧记录。任何行只有本行列出的“需要的证据”齐全才能标 `PASS`；全量测试全绿、相邻行通过或人工判断均不能替代该证据。基线报告只归类缺陷，两份文档以 defect ID 相互链接。
 
+涉及页面交互、文案、加载态或浏览器行为的改动，还必须遵守 [`docs/testing/issue-coverage-playbook.md`](issue-coverage-playbook.md)，并在 [`docs/testing/ui-operation-checklist.md`](ui-operation-checklist.md) 中新增或更新对应操作行。同步/配对页的 P0 浏览器操作行未通过时，不得用后端协议测试、组件 helper 单测或全量 Vitest 通过替代。
+
 ## 范围与不覆盖边界
 
 范围：

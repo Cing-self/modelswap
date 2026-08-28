@@ -162,3 +162,17 @@ R2 不覆盖 R1。R1 `QA-P0-GAP-002` 已由实际 vault lifecycle regression 关
 | R3-G03 | P0 | real B smoke | 发布产物后的最后确认 | acceptance §真实 B smoke | 最小非秘密证据 | NOT RUN | 后续发布门禁；不操作真实 B。 |
 
 R3 **本地合并前 P0 全部 PASS：QA_PASS**。`R3-G01` 至 `R3-G03` 是合并后的后续门禁，尚未执行；待 CEO 合并推送后由 QA 监控，不能提前把发布或真实 B 结果标为通过。
+
+## Round R4 — 前端真实操作覆盖基线（同步设置页）
+
+> 本轮引用 [`ui-operation-checklist.md`](ui-operation-checklist.md) 的 `UI-SYNC-*` 和 `UI-DIAG-01`。它不覆盖历史 R1-R3 的同步/模型/Agent 结论；目标是建立浏览器操作的独立门禁。`PARTIAL` 不等于可发布。
+
+| ID | P0/P1 | 域 | 场景/预期 | 执行命令或测试文件 | 需要的证据 | 状态 | 证据摘要/defect ID |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| R4-U01 | P0 | 主设备首次配对 | 输入密码后保存→启 listener→创建配对码，并立即显示代码卡 | `tests/frontend/lan-primary-pairing.test.ts`；隔离 browser smoke | helper 编排 + 从真实 UI 入口的 DOM 成功证据 | PARTIAL | helper 测试与一次隔离 browser smoke 已过；缺 CI browser E2E。`UI-PAIR-001`。 |
+| R4-U02 | P0 | 配对失败 | listener 失败/空码有可见错误且可重试，不显示假成功 | `tests/frontend/lan-primary-pairing.test.ts` | DOM error + retry browser E2E | PARTIAL | helper 错误传播已覆盖；无 DOM E2E。`UI-PAIR-001`。 |
+| R4-U03 | P0 | 加入设备/改密码 | 有效、无效、过期 code；改密码、关闭和刷新后状态正确 | 新增 browser E2E（待实现） | 成功/失败 DOM、持久化和 listener cleanup | BLOCKED | `tests/web/lan-sync.test.ts` 不是前端操作覆盖。`UI-PAIR-001`。 |
+| R4-U04 | P1 | 同步弹窗展示 | 简短文案；375px/深色无截断或溢出 | 新增 browser viewport/dark smoke（待实现） | 截图或 DOM viewport 证据 | BLOCKED | 仅人工截图，不能算自动化通过。 |
+| R4-U05 | P1 | 诊断快捷操作 | 诊断页没有“打开扩展目录”；扩展页原有操作未受影响 | 新增 settings diagnostics browser smoke（待实现） | 两个路由的 DOM 断言 | PARTIAL | 当前隔离浏览器手测确认诊断页无该按钮；缺自动化。 |
+| R4-U06 | P1 | 同步信息层级 | 页头显示上次同步；设备/云端统计不重复；设备和云端卡片信息/操作不拥挤 | `ui-operation-checklist.md` 的 UI-SYNC-08 至 UI-SYNC-10 | desktop + 375px browser visual/interaction evidence | PARTIAL | 本轮桌面浏览器确认信息区、设备状态、平台展开/收起；缺自动化 snapshot/375px 回归。 |
+| R4-G01 | P0 | UI 发布门禁 | R4-U01 至 R4-U03 均 PASS；跨平台 Browser E2E 已接入 CI | `ui-operation-checklist.md` §Browser E2E | CI macOS/Ubuntu/Windows 记录 | BLOCKED | 不得再以 Vitest 全绿声明同步设置页已完整验收。 |
