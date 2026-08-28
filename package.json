@@ -7,9 +7,10 @@
     "okit": "dist/main.js"
   },
   "scripts": {
-    "build": "tsc && npm run gen-presets && npm run build-extension && npm run copy-web && npm run build-frontend",
+    "build": "tsc && npm run gen-presets && npm run build-extension && npm run copy-web && npm run verify-runtime && npm run build-frontend",
     "gen-presets": "node scripts/gen-presets.js",
     "copy-web": "node scripts/copy-web.js",
+    "verify-runtime": "node scripts/verify-runtime-closure.js",
     "build-frontend": "cd src/web/frontend && npm ci && npm run build",
     "app:dev": "npm run build && electron dist/electron/main.js",
     "app:build": "npm run build && electron-builder --mac dir",
@@ -26,7 +27,9 @@
   "files": [
     "dist/main.*",
     "dist/commands/**",
+    "dist/application/**",
     "dist/config/**",
+    "dist/infrastructure/**",
     "dist/providers/**",
     "dist/utils/**",
     "dist/vault/**",
