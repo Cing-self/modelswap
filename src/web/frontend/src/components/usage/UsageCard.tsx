@@ -8,6 +8,8 @@ import {
   usageSeverity,
   windowLabel,
   isGuidedConfigurationMessage,
+  isConsoleOnlyUsage,
+  isExternalUsageNotice,
 } from './usagePresentation';
 
 export function UsageCard({
@@ -36,6 +38,8 @@ export function UsageCard({
   const hasData = usage?.supported && (usage.windows?.length || 0) > 0;
   const hasError = usage?.error;
   const hasNotice = usage?.notice;
+  const externalUsageNotice = isExternalUsageNotice(usage);
+  const consoleOnly = isConsoleOnlyUsage(usage);
   const externalSource = usage?.source === 'console' || usage?.source === 'cli';
   const compactGuideError =
     !!onOpenGuide && isGuidedConfigurationMessage(usage?.error);
@@ -92,37 +96,39 @@ export function UsageCard({
               {t('usage.configureGuide')}
             </button>
           )}
-          <button
-            className="btn-icon usage-card-refresh"
-            onClick={onRefresh}
-            disabled={fetching}
-            title={t('usage.refresh')}
-          >
-            {fetching ? (
-              <span className="provider-status-spinner" aria-hidden="true" />
-            ) : (
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M21 12a9 9 0 1 1-2.6-6.4" />
-                <path d="M21 3v6h-6" />
-              </svg>
-            )}
-          </button>
+          {!consoleOnly && (
+            <button
+              className="btn-icon usage-card-refresh"
+              onClick={onRefresh}
+              disabled={fetching}
+              title={t('usage.refresh')}
+            >
+              {fetching ? (
+                <span className="provider-status-spinner" aria-hidden="true" />
+              ) : (
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M21 12a9 9 0 1 1-2.6-6.4" />
+                  <path d="M21 3v6h-6" />
+                </svg>
+              )}
+            </button>
+          )}
         </div>
       </div>
       <div className="usage-card-body">
         {fetching && !usage && (
           <div className="usage-card-loading">{t('usage.loading')}</div>
         )}
-        {hasError && !fetching && (
+        {hasError && !externalUsageNotice && !fetching && (
           <div className="usage-card-error">
             <span>
               {compactGuideError
@@ -134,7 +140,7 @@ export function UsageCard({
             )}
           </div>
         )}
-        {hasNotice && !fetching && (
+        {(hasNotice || externalUsageNotice) && !fetching && (
           <div className="usage-card-notice">
             <span className="usage-card-notice-mark" aria-hidden="true">
               ↗
@@ -143,7 +149,7 @@ export function UsageCard({
               <span>
                 {compactGuideNotice
                   ? t('usage.configurationRequired')
-                  : usage!.notice}
+                  : usage!.notice || usage!.error}
               </span>
               {!compactGuideNotice &&
                 usage!.action &&

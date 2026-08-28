@@ -20,6 +20,10 @@ import {
   type CredentialGuideContext,
   type UsageKind,
 } from './usageCatalog';
+import {
+  isConsoleOnlyUsage,
+  refreshableUsageIds,
+} from './usagePresentation';
 
 export type SaveUsageCredentials = (input: {
   providerId: string;
@@ -136,12 +140,15 @@ export function useUsagePageState() {
     supportedIds,
     onResult: handlePollResult,
     silent: true,
-    skipIds: [...manualOnlyIds],
+    skipIds: [
+      ...manualOnlyIds,
+      ...supportedIds.filter((id) => isConsoleOnlyUsage(usageMap[id])),
+    ],
   });
 
   const retryOnExtensionReady = useCallback(() => {
     for (const id of supportedIds) {
-      if (manualOnlyIds.has(id)) continue;
+      if (manualOnlyIds.has(id) || isConsoleOnlyUsage(usageMap[id])) continue;
       const usage = usageMap[id];
       if (
         usage === undefined ||
@@ -153,8 +160,9 @@ export function useUsagePageState() {
   useDataChanged(['extension'], retryOnExtensionReady);
 
   const handleManualRefresh = useCallback(() => {
-    for (const id of supportedIds) void fetchOne(id);
-  }, [supportedIds, fetchOne]);
+    for (const id of refreshableUsageIds(supportedIds, usageMap))
+      void fetchOne(id);
+  }, [supportedIds, usageMap, fetchOne]);
 
   const alerts = useMemo(
     () => checkAlerts(usageMap, providerNames, lang),

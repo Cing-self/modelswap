@@ -1,5 +1,30 @@
-import type { UsageWindow } from '../../api/providers';
+import type { UsageResult, UsageWindow } from '../../api/providers';
 import type { UsageTranslate } from './usageCatalog';
+
+/**
+ * A console/CLI result with an action is an external hand-off, not a failed
+ * usage request. Providers use either `notice` or `error` for the human
+ * explanation while their public balance endpoint is unavailable.
+ */
+export function isExternalUsageNotice(usage?: UsageResult): boolean {
+  return Boolean(
+    usage?.action &&
+      (usage.source === 'console' || usage.source === 'cli') &&
+      (usage.error || usage.notice),
+  );
+}
+
+/** Console-only cards have no meaningful refresh operation after discovery. */
+export function isConsoleOnlyUsage(usage?: UsageResult): boolean {
+  return Boolean(usage?.source === 'console' && usage.action);
+}
+
+export function refreshableUsageIds(
+  providerIds: string[],
+  usageMap: Record<string, UsageResult | undefined>,
+): string[] {
+  return providerIds.filter((id) => !isConsoleOnlyUsage(usageMap[id]));
+}
 
 export function isGuidedConfigurationMessage(message?: string): boolean {
   if (!message) return false;

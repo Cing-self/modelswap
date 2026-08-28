@@ -504,6 +504,7 @@ button.usage-overview-item:disabled { cursor: default; }
   line-height: 1.1;
 }
 .usage-card-notice-content {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -1026,6 +1027,9 @@ button.usage-overview-item:disabled { cursor: default; }
   .usage-tab { padding-inline: 11px; }
   .usage-grid { grid-template-columns: minmax(0, 1fr); }
   .usage-card { padding: 13px; }
+  .usage-card-notice { align-items: stretch; }
+  .usage-card-notice-content { min-width: 0; }
+  .usage-card-action { min-height: 30px; }
   .usage-bar { flex-wrap: wrap; }
   .usage-bar-track { order: 3; flex-basis: calc(100% - 56px); margin-left: 56px; }
   .usage-bar-reset { margin-left: auto; }
