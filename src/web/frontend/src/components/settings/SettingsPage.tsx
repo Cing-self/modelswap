@@ -90,24 +90,6 @@ export default function SettingsPage() {
     }
   }
 
-  async function revealExtension() {
-    try {
-      const desktop = (window as any).okitDesktop;
-      if (desktop?.revealExtension) {
-        await desktop.revealExtension();
-      } else {
-        await fetch('/api/extension/reveal', { method: 'POST' }).then(async res => {
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-        });
-      }
-      // Opening the system folder is the confirmation; setup instructions live
-      // in the documentation rather than repeating in a product toast.
-    } catch (err: any) {
-      showToast(err.message || t('settings.extensionRevealFail'), 'error');
-    }
-  }
-
   const [searchParams] = useSearchParams();
   const rawSection = searchParams.get('section') || 'appearance';
   const section = ['appearance', 'sync', 'snapshots', 'extension', 'diagnostics'].includes(rawSection) ? rawSection : 'appearance';
@@ -315,16 +297,6 @@ export default function SettingsPage() {
           <footer className="settings-system-actions">
             <span><CheckCircle2 size={14} />{t('settings.diagnosticsPrivacy')}</span>
             <div className="settings-system-utilities">
-              <button
-                className="settings-system-icon-button"
-                type="button"
-                onClick={revealExtension}
-                title={t('settings.revealExtension')}
-                aria-label={t('settings.revealExtension')}
-              >
-                <FolderOpen size={15} />
-              </button>
-
               <div className="settings-system-update" aria-live="polite">
                 {update.status === 'available' ? (
                   <>

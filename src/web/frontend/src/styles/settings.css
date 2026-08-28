@@ -3654,6 +3654,43 @@
   line-height: 1.55;
 }
 
+.devsync-header-actions {
+  flex: none;
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+
+.devsync-last-sync {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  color: var(--ink-muted);
+}
+
+.devsync-last-sync > svg {
+  color: var(--accent);
+}
+
+.devsync-last-sync > span {
+  display: grid;
+  gap: 1px;
+  text-align: right;
+}
+
+.devsync-last-sync small {
+  color: var(--ink-muted);
+  font-size: 9.5px;
+  font-weight: 680;
+}
+
+.devsync-last-sync strong {
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 730;
+}
+
 .devsync-autosync-control {
   flex: none;
   display: flex;
@@ -3683,7 +3720,6 @@
   font-size: 10px;
 }
 
-[data-style] .settings-workspace .devsync-overview-card,
 [data-style] .settings-workspace .devsync-devices-card,
 [data-style] .settings-workspace .devsync-platform-card {
   border: 1px solid var(--card-line) !important;
@@ -3691,30 +3727,6 @@
   background: var(--card-surface) !important;
   box-shadow: var(--card-shadow) !important;
 }
-
-.devsync-overview-card {
-  overflow: hidden;
-}
-
-.devsync-overview-grid {
-  display: grid;
-  grid-template-columns: 1.35fr 1fr 1fr;
-  gap: 8px;
-  padding: 10px;
-}
-
-.devsync-overview-item {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 58px;
-  padding: 9px 11px;
-  border-radius: 9px;
-  background: var(--card-inner);
-}
-
-.devsync-overview-icon,
 .devsync-device-icon,
 .devsync-platform-icon {
   flex: none;
@@ -3726,27 +3738,6 @@
   border-radius: 9px;
   background: color-mix(in srgb, var(--accent) 8%, var(--card-surface));
   color: var(--accent);
-}
-
-.devsync-overview-item > span:last-child {
-  min-width: 0;
-  display: grid;
-  gap: 3px;
-}
-
-.devsync-overview-item small {
-  color: var(--ink-muted);
-  font-size: 10px;
-  font-weight: 650;
-}
-
-.devsync-overview-item strong {
-  overflow: hidden;
-  color: var(--ink);
-  font-size: 12px;
-  font-weight: 760;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .devsync-password-form { display: grid; gap: 8px; }
@@ -3795,8 +3786,7 @@
 }
 
 .devsync-add-button,
-.devsync-platform-test,
-.devsync-platform-edit {
+.devsync-platform-test {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -3909,12 +3899,12 @@
 }
 
 .devsync-devices-card {
-  padding: 7px;
+  padding: 8px;
 }
 
 .settings-workspace .devsync-devices {
   display: grid;
-  gap: 4px;
+  gap: 7px;
   margin: 0;
 }
 
@@ -3922,16 +3912,22 @@
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 50px;
-  padding: 8px 10px;
-  border: 0;
-  border-radius: 9px;
-  background: transparent;
+  gap: 12px;
+  min-height: 64px;
+  padding: 11px 13px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--card-inner) 60%, transparent);
 }
 
 .settings-workspace .devsync-device--self {
   background: var(--card-inner);
+  border-color: color-mix(in srgb, var(--accent) 14%, var(--card-line));
+}
+
+.devsync-device-icon--peer {
+  background: var(--card-surface);
+  color: var(--ink-muted);
 }
 
 .settings-workspace .devsync-device-name {
@@ -3960,9 +3956,40 @@
   font-weight: 550;
 }
 
-.settings-workspace .devsync-role {
-  border-color: var(--card-line);
+.settings-workspace .devsync-device-badge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 26px;
+  padding: 0 9px;
+  border: 1px solid var(--card-line);
+  border-radius: 999px;
   background: var(--card-surface);
+  color: var(--ink-muted);
+  font-size: 10.5px;
+  font-weight: 720;
+  white-space: nowrap;
+}
+
+.settings-workspace .devsync-presence--on {
+  border-color: color-mix(in srgb, var(--green) 22%, var(--card-line));
+  background: color-mix(in srgb, var(--green) 8%, var(--card-surface));
+  color: color-mix(in srgb, var(--green) 78%, var(--ink));
+}
+
+.devsync-dot {
+  width: 6px;
+  height: 6px;
+  display: inline-block;
+  border-radius: 999px;
+  background: var(--ink-muted);
+}
+
+.devsync-dot--on {
+  background: var(--green);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 12%, transparent);
 }
 
 .devsync-no-devices {
@@ -3994,6 +4021,14 @@
   flex: 1;
   display: grid;
   gap: 4px;
+  position: relative;
+  padding: 0 24px 0 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .devsync-platform-copy strong {
@@ -4008,6 +4043,24 @@
   font-size: 10.5px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.devsync-platform-disclosure > svg {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  color: var(--ink-muted);
+  transform: translateY(-50%);
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.devsync-platform-disclosure:hover strong,
+.devsync-platform-disclosure:hover > svg {
+  color: var(--accent);
+}
+
+.devsync-platform-card.is-expanded .devsync-platform-disclosure > svg {
+  transform: translateY(-50%) rotate(180deg);
 }
 
 .devsync-platform-copy i {
@@ -4025,14 +4078,6 @@
   display: flex;
   align-items: center;
   gap: 7px;
-}
-
-.devsync-platform-edit svg {
-  transition: transform 0.15s ease;
-}
-
-.devsync-platform-card.is-expanded .devsync-platform-edit svg {
-  transform: rotate(180deg);
 }
 
 .settings-workspace .devsync-platform-editor {
@@ -4121,14 +4166,6 @@
 }
 
 @media (max-width: 840px) {
-  .devsync-overview-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .devsync-overview-item:first-child {
-    grid-column: 1 / -1;
-  }
-
   .devsync-platform-summary {
     align-items: flex-start;
     flex-wrap: wrap;
@@ -4155,12 +4192,18 @@
     text-align: left;
   }
 
-  .devsync-overview-grid {
-    grid-template-columns: 1fr;
+  .devsync-header-actions {
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
   }
 
-  .devsync-overview-item:first-child {
-    grid-column: auto;
+  .devsync-last-sync {
+    justify-content: flex-start;
+  }
+
+  .devsync-last-sync > span {
+    text-align: left;
   }
 
   .settings-workspace .devsync-platform-editor > .settings-field,
@@ -4181,6 +4224,10 @@
 
   .settings-workspace .devsync-device {
     flex-wrap: wrap;
+  }
+
+  .settings-workspace .devsync-device-badge {
+    margin-left: auto;
   }
 
   .settings-workspace .devsync-device-actions {

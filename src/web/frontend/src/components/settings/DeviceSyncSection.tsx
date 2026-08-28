@@ -11,8 +11,9 @@ import { useI18n } from '../../i18n';
 import VaultFormModal from '../shared/VaultFormModal';
 import VaultPickerModal from '../shared/VaultPickerModal';
 import CustomSelect from '../shared/CustomSelect';
-import { AlertTriangle, ArrowLeft, ArrowRight, Check, CheckCircle2, ChevronDown, Clock3, Cloud, Copy, FileText, KeyRound, Link2, Monitor, MoreHorizontal, Plus, PlugZap, QrCode, RefreshCw, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, CheckCircle2, ChevronDown, Clock3, Cloud, Copy, FileText, KeyRound, Laptop, Link2, Monitor, MoreHorizontal, Plus, PlugZap, QrCode, RefreshCw, X } from 'lucide-react';
 import { useTransientFeedback } from '../../hooks/useTransientFeedback';
+import { enableAndCreatePrimaryPairing } from '../../lib/lanPrimaryPairing';
 
 const VAULT_REF_FIELDS = new Set([
   'apiToken',
@@ -88,6 +89,7 @@ export default function DeviceSyncSection() {
   const [lanModalStep, setLanModalStep] = useState<'choice' | 'primary' | 'join'>('choice');
   const [pairing, setPairing] = useState<LanPairingSession | null>(null);
   const [pairingDone, setPairingDone] = useState(false);
+  const [lanPrimaryError, setLanPrimaryError] = useState<string | null>(null);
   const [nowTs, setNowTs] = useState(Date.now());
   const { activeKey: copiedItem, showFeedback: showCopied } = useTransientFeedback();
 
@@ -168,20 +170,27 @@ export default function DeviceSyncSection() {
   }
 
   // --- Devices --------------------------------------------------------------
-  async function generatePairing(silent = false) {
+  async function generatePairing() {
     setLanBusy('pairing');
+    setLanPrimaryError(null);
     try {
       const session = await createLanPairing();
+      if (!session.codes?.some(item => item?.code)) {
+        throw new Error('未生成可用配对码，请检查网络后重试');
+      }
       setPairing(session);
       setPairingDone(false);
     } catch (e: any) {
-      if (!silent) showToast(e.message || t('settings.lanPairFail'), 'error');
+      const message = e.message || t('settings.lanPairFail');
+      setLanPrimaryError(message);
+      showToast(message, 'error');
     } finally { setLanBusy(null); }
   }
 
   function openLanModal() {
     setLanModalStep('choice');
     setPairingDone(false);
+    setLanPrimaryError(null);
     setLanModalOpen(true);
   }
 
@@ -190,6 +199,7 @@ export default function DeviceSyncSection() {
     setPairing(null);
     setPairingDone(false);
     setLanPairCode('');
+    setLanPrimaryError(null);
   }
 
   // "Connect existing devices" — this machine is the primary. Enabling the
@@ -197,26 +207,32 @@ export default function DeviceSyncSection() {
   // step collects it inline instead of dead-ending with a toast.
   async function choosePrimary() {
     setLanModalStep('primary');
+    setLanPrimaryError(null);
     if (overview?.lan.enabled) {
-      generatePairing();
+      void generatePairing();
       return;
     }
     if (!syncPassword && !overview?.hasPassword) return; // wait for the inline password form
     setLanBusy('enable');
     try {
-      if (syncPassword && !overview?.hasPassword) {
-        await saveSync(undefined, undefined, syncPassword);
+      const needsPasswordSave = Boolean(syncPassword && !overview?.hasPassword);
+      const session = await enableAndCreatePrimaryPairing({
+        needsPasswordSave,
+        savePassword: () => saveSync(undefined, undefined, syncPassword),
+        enableListener: enableLanSync,
+        createPairing: createLanPairing,
+      });
+      if (!session) return;
+      if (needsPasswordSave) {
         setSyncPassword('');
       }
-      const status = await enableLanSync();
-      await Promise.all([refreshOverview(), loadData()]);
-      if (!status.running) {
-        showToast(status.error || t('settings.lanPairCodeEmpty'), 'error');
-        return;
-      }
-      await generatePairing(true);
+      setPairing(session);
+      setPairingDone(false);
+      void Promise.all([refreshOverview(), loadData()]);
     } catch (e: any) {
-      showToast(e.message || t('settings.lanEnableFail'), 'error');
+      const message = e.message || t('settings.lanEnableFail');
+      setLanPrimaryError(message);
+      showToast(message, 'error');
     } finally { setLanBusy(null); }
   }
 
@@ -379,39 +395,28 @@ export default function DeviceSyncSection() {
           <h2>{t('settings.sync2.title')}</h2>
           <p>{t('settings.sync2.description')}</p>
         </div>
-        <div className="devsync-autosync-control">
-          <span className="devsync-autosync-copy">
-            <strong>{t('settings.autoSync')}</strong>
-            <small>{t(autoSync ? 'settings.sync2.autoSyncOn' : 'settings.sync2.autoSyncOff')}</small>
-          </span>
-          <label className="settings-toggle" aria-label={t('settings.autoSync')}>
-            <input
-              type="checkbox"
-              checked={autoSync}
-              aria-label={t('settings.autoSync')}
-              onChange={e => { setAutoSync(e.target.checked); saveSync(undefined, e.target.checked); }}
-            />
-            <span className="settings-toggle-slider" />
-          </label>
-        </div>
-      </header>
-
-      <section className="settings-card devsync-overview-card" aria-label={t('settings.sync2.statusTitle')}>
-        <div className="devsync-overview-grid">
-          <div className="devsync-overview-item">
-            <span className="devsync-overview-icon"><Clock3 size={16} /></span>
+        <div className="devsync-header-actions">
+          <div className="devsync-last-sync" aria-label={`${t('settings.lastSync')}: ${lastSyncLabel}`}>
+            <Clock3 size={15} />
             <span><small>{t('settings.lastSync')}</small><strong>{lastSyncLabel}</strong></span>
           </div>
-          <div className="devsync-overview-item">
-            <span className="devsync-overview-icon"><Monitor size={16} /></span>
-            <span><small>{t('settings.sync2.devicesTitle')}</small><strong>{t('settings.sync2.otherDevices', { n: otherDeviceCount })}</strong></span>
-          </div>
-          <div className="devsync-overview-item">
-            <span className="devsync-overview-icon"><Cloud size={16} /></span>
-            <span><small>{t('settings.sync2.cloudBackup')}</small><strong>{t('settings.sync2.cloudTargets', { n: cloudCount })}</strong></span>
+          <div className="devsync-autosync-control">
+            <span className="devsync-autosync-copy">
+              <strong>{t('settings.autoSync')}</strong>
+              <small>{t(autoSync ? 'settings.sync2.autoSyncOn' : 'settings.sync2.autoSyncOff')}</small>
+            </span>
+            <label className="settings-toggle" aria-label={t('settings.autoSync')}>
+              <input
+                type="checkbox"
+                checked={autoSync}
+                aria-label={t('settings.autoSync')}
+                onChange={e => { setAutoSync(e.target.checked); saveSync(undefined, e.target.checked); }}
+              />
+              <span className="settings-toggle-slider" />
+            </label>
           </div>
         </div>
-      </section>
+      </header>
 
       <section className="settings-block devsync-section-block">
         <div className="settings-block-head devsync-section-head">
@@ -450,20 +455,21 @@ export default function DeviceSyncSection() {
               <span className="devsync-device-icon"><Monitor size={15} /></span>
               <span className="devsync-device-name">
                 <strong>{overview?.machine.name || t('settings.sync2.thisDevice')}</strong>
-                <small>{overview?.machine.id || t('settings.sync2.thisDevice')}</small>
+                <small>{t('settings.sync2.thisDevice')} · {overview?.machine.id || t('settings.sync2.thisDevice')}</small>
               </span>
-              {overview?.machine.role === 'hub' && <span className="devsync-role">{t('settings.sync2.roleHub')}</span>}
-              {isSpoke && <span className="devsync-role">{t('settings.sync2.roleSpoke')}</span>}
+              {overview?.machine.role === 'hub' && <span className="devsync-device-badge">{t('settings.sync2.roleHub')}</span>}
+              {isSpoke && <span className="devsync-device-badge">{t('settings.sync2.roleSpoke')}</span>}
             </div>
 
             {overview?.peer && (
               <div className="devsync-device">
-                <span className={`devsync-dot${overview.peer.online ? ' devsync-dot--on' : ''}`} />
+                <span className="devsync-device-icon devsync-device-icon--peer"><Laptop size={15} /></span>
                 <span className="devsync-device-name">
                   <strong>{overview.peer.name || overview.peer.url}</strong>
                   <small>{overview.peer.url}</small>
                 </span>
-                <span className={`devsync-presence${overview.peer.online ? ' devsync-presence--on' : ''}`}>
+                <span className={`devsync-device-badge devsync-presence${overview.peer.online ? ' devsync-presence--on' : ''}`}>
+                  <i className={`devsync-dot${overview.peer.online ? ' devsync-dot--on' : ''}`} />
                   {overview.peer.online ? t('settings.sync2.online') : t('settings.sync2.offline')}
                 </span>
                 <div className="devsync-device-actions">
@@ -477,12 +483,13 @@ export default function DeviceSyncSection() {
 
             {overview?.devices.map(device => (
               <div key={device.id} className="devsync-device">
-                <span className={`devsync-dot${device.online ? ' devsync-dot--on' : ''}`} />
+                <span className="devsync-device-icon devsync-device-icon--peer"><Laptop size={15} /></span>
                 <span className="devsync-device-name">
                   <strong>{device.name || device.id}</strong>
                   <small>{device.address} · {lastSeenLabel(device.lastSeen, t)}</small>
                 </span>
-                <span className={`devsync-presence${device.online ? ' devsync-presence--on' : ''}`}>
+                <span className={`devsync-device-badge devsync-presence${device.online ? ' devsync-presence--on' : ''}`}>
+                  <i className={`devsync-dot${device.online ? ' devsync-dot--on' : ''}`} />
                   {device.online ? t('settings.sync2.online') : t('settings.sync2.offline')}
                 </span>
               </div>
@@ -526,10 +533,18 @@ export default function DeviceSyncSection() {
               <article key={platId} className={`settings-plat-card devsync-platform-card${expanded ? ' is-expanded' : ''}`}>
                 <div className="devsync-platform-summary">
                   <span className="devsync-platform-icon"><Cloud size={16} /></span>
-                  <div className="devsync-platform-copy">
+                  <button
+                    type="button"
+                    className="devsync-platform-copy devsync-platform-disclosure"
+                    onClick={() => togglePlatformEditor(platId)}
+                    aria-expanded={expanded}
+                    aria-controls={`platform-editor-${platId}`}
+                    aria-label={`${platformName} · ${t(expanded ? 'settings.sync2.hideConfig' : 'settings.sync2.editConfig')}`}
+                  >
                     <strong>{platformName}</strong>
                     <span><i />{t('common.enabled')} · {platformSummaryValue(plat, t('settings.sync2.platformConfigured'))}</span>
-                  </div>
+                    <ChevronDown size={15} aria-hidden="true" />
+                  </button>
                   <div className="devsync-platform-actions">
                     <button
                       type="button"
@@ -538,16 +553,6 @@ export default function DeviceSyncSection() {
                       disabled={testing}
                     >
                       <PlugZap size={14} />{testing ? t('common.testing') : t('common.test')}
-                    </button>
-                    <button
-                      type="button"
-                      className="settings-test-btn devsync-platform-edit"
-                      onClick={() => togglePlatformEditor(platId)}
-                      aria-expanded={expanded}
-                      aria-controls={`platform-editor-${platId}`}
-                    >
-                      {t(expanded ? 'settings.sync2.hideConfig' : 'settings.sync2.editConfig')}
-                      <ChevronDown size={14} />
                     </button>
                     <label className="settings-toggle" title={`${platformName} · ${t('common.enabled')}`}>
                       <input
@@ -648,13 +653,14 @@ export default function DeviceSyncSection() {
 
               {lanModalStep === 'primary' && (
                 <div className="lan-step">
-                  <button type="button" className="lan-back" onClick={() => { setLanModalStep('choice'); setPairing(null); }}>
+                  <button type="button" className="lan-back" onClick={() => { setLanModalStep('choice'); setPairing(null); setLanPrimaryError(null); }}>
                     <ArrowLeft size={14} />{t('settings.lanBack')}
                   </button>
                   <div className="lan-step-heading">
                     <span><QrCode size={18} /></span>
                     <div><h4>{t('settings.lanPrimaryTitle')}</h4><p>{t('settings.lanPrimaryDesc')}</p></div>
                   </div>
+                  {lanPrimaryError && <div className="lan-modal-error" role="alert">{lanPrimaryError}</div>}
                   {pairingDone ? (
                     <div className="lan-pair-success"><CheckCircle2 size={20} />{t('settings.lanPairedSuccess')}</div>
                   ) : !overview?.lan.enabled && !overview?.hasPassword ? (
