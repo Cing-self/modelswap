@@ -15,9 +15,7 @@ async function loadProviders() {
 async function resolveVaultKey(vaultKey) {
   if (!vaultKey) return undefined;
   try {
-    const { VaultStore } = require('../../vault/store');
-    const store = new VaultStore();
-    return await store.get(vaultKey);
+    return await createVaultStore().get(vaultKey);
   } catch {
     return undefined;
   }

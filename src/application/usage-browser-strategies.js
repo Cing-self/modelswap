@@ -1,6 +1,6 @@
 // Browser/extension usage strategies; cookies never leave these functions.
 function createUsageBrowserStrategies(deps) {
-  const { resolveVaultKey, httpRequest, queryConsoleOnlyUsage, round1, round4, epochToISO, accountBalanceResult, MIMO_CONSOLE_URL, MIMO_BALANCE_CONSOLE_URL, MIMO_BALANCE_URL, MIMO_SESSION_VAULT_KEY } = deps;
+  const { resolveVaultKey, createVaultStore, httpRequest, queryConsoleOnlyUsage, round1, round4, epochToISO, accountBalanceResult, MIMO_CONSOLE_URL, MIMO_BALANCE_CONSOLE_URL, MIMO_BALANCE_URL, MIMO_SESSION_VAULT_KEY } = deps;
 async function queryQianfanCodingUsage(_apiKey) {
   const browserUsage = await queryQianfanPersonalUsageViaExtension();
   if (browserUsage) return browserUsage;
@@ -644,8 +644,7 @@ async function loadXiaomiSession() {
 
 async function saveXiaomiSession(cookie, endpoint, expiresAt) {
   try {
-    const { VaultStore } = require('../../vault/store');
-    const store = new VaultStore();
+    const store = createVaultStore();
     await store.set(
       MIMO_SESSION_VAULT_KEY,
       JSON.stringify({ cookie, endpoint, expiresAt: expiresAt || '' }),
@@ -661,8 +660,7 @@ async function saveXiaomiSession(cookie, endpoint, expiresAt) {
 
 async function clearXiaomiSession() {
   try {
-    const { VaultStore } = require('../../vault/store');
-    await new VaultStore().delete(MIMO_SESSION_VAULT_KEY);
+    await createVaultStore().delete(MIMO_SESSION_VAULT_KEY);
   } catch {}
 }
 

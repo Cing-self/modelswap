@@ -99,9 +99,15 @@ const PROVIDER_KIND = {
   'qwen': UsageKind.PREPAID,
 };
 function httpRequest(url, options) { return new Promise(resolve => { const parsed = new (require('url').URL)(url); const mod = parsed.protocol === 'https:' ? require('https') : require('http'); const request = mod.request(url, options, response => { let body = ''; response.on('data', chunk => body += chunk); response.on('end', () => resolve({ status: response.statusCode, body })); }); request.on('error', error => resolve({ status: 0, error: error.message })); if (options.body) request.write(options.body); request.setTimeout(options.timeout || 10000, () => { request.destroy(); resolve({ status: 0, error: 'Timeout' }); }); request.end(); }); }
-const api = createUsageApiStrategies({ fs, path, os, providersPath: PROVIDERS_PATH, round1: parsers.round1, round4: parsers.round4, epochToISO: parsers.epochToISO });
+// Keep the production composition at the HTTP edge. The lazy require lets
+// Vitest import parser-only usage exports without loading TypeScript storage.
+const createVaultStore = () => {
+  const { VaultStore } = require('../../vault/store');
+  return new VaultStore();
+};
+const api = createUsageApiStrategies({ fs, path, os, providersPath: PROVIDERS_PATH, createVaultStore, round1: parsers.round1, round4: parsers.round4, epochToISO: parsers.epochToISO });
 const cloud = createUsageCloudStrategies({ resolveCredentialPair: api.resolveCredentialPair, resolveVaultKey: api.resolveVaultKey, httpRequest, accountBalanceResult: parsers.accountBalanceResult, managementCredentialNotice: api.managementCredentialNotice, round1: parsers.round1, epochToISO: parsers.epochToISO });
-const browser = createUsageBrowserStrategies({ resolveVaultKey: api.resolveVaultKey, httpRequest, queryConsoleOnlyUsage: cloud.queryConsoleOnlyUsage, round1: parsers.round1, round4: parsers.round4, epochToISO: parsers.epochToISO, accountBalanceResult: parsers.accountBalanceResult, MIMO_CONSOLE_URL, MIMO_BALANCE_CONSOLE_URL, MIMO_BALANCE_URL, MIMO_SESSION_VAULT_KEY });
+const browser = createUsageBrowserStrategies({ resolveVaultKey: api.resolveVaultKey, createVaultStore, httpRequest, queryConsoleOnlyUsage: cloud.queryConsoleOnlyUsage, round1: parsers.round1, round4: parsers.round4, epochToISO: parsers.epochToISO, accountBalanceResult: parsers.accountBalanceResult, MIMO_CONSOLE_URL, MIMO_BALANCE_CONSOLE_URL, MIMO_BALANCE_URL, MIMO_SESSION_VAULT_KEY });
 const registry = createUsageProviderRegistry({ api, browser, cloud });
 async function getUsage(req, res) { const providerId = req.params.providerId; if (!providerId) return res.status(400).json({ error: 'providerId required' }); try { const result = await registry.queryUsage(providerId); if (result && result.supported !== false) result.kind = PROVIDER_KIND[providerId] || UsageKind.SUBSCRIPTION; return res.json(result); } catch (error) { return res.json({ supported: false, error: error.message }); } }
 const MANUAL_ONLY_USAGE = ['opencode-go'];
