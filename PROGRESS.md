@@ -1,5 +1,13 @@
 # OKIT data architecture progress
 
+## Sync/Agent release batch start (2026-08-28)
+
+1. Scope: only the frozen sync/model discovery/Agent release acceptance, including e378 and QA-P0-GAP-001/002.
+2. Boundary: add the two required P0 A→B temporary-HOME integration tests and their necessary production fixes; no feature/UI/release work.
+3. Maximum risk: a fixture can falsely pass without exercising a real adapter file or can leak a Vault secret; every child uses fresh HOME+USERPROFILE and asserts files/ref names only.
+4. Plan: dynamic 10-adapter sync reconcile matrix → Vault/auth lifecycle matrix → frozen P0 commands → package/build → three default-parallel full runs.
+5. Failure rule: after three identical failures, record it here and change diagnostic path; never retry/skip/serialize the suite to hide it.
+
 ## Independent acceptance (2026-08-27)
 
 1. Scope: test only the 10 registered adapters through real API/CLI routes, always with a temporary HOME.
