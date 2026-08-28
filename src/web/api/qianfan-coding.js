@@ -24,6 +24,10 @@ function isQianfanCodingAnthropicEndpoint(baseUrl) {
 function qianfanModelDirectoryUrl(baseUrl) {
   try {
     const parsed = new URL(String(baseUrl || '').trim());
+    // URL.hostname is normalized case-insensitively by the parser. Do not
+    // accept a lookalike subdomain, a different host, or an explicit
+    // non-default port: those endpoints keep ordinary OpenAI discovery.
+    if (parsed.hostname !== 'qianfan.baidubce.com' || parsed.port) return null;
     if (!/^\/v2\/(?:coding|tokenplan\/personal)\/?$/i.test(parsed.pathname)) return null;
     parsed.pathname = '/v2/models';
     parsed.search = '';

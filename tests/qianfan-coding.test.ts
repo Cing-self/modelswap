@@ -31,6 +31,11 @@ describe('Qianfan Coding Plan endpoint helpers', () => {
     expect(qianfanModelDirectoryUrl('https://qianfan.baidubce.com/v2/coding/'))
       .toBe('https://qianfan.baidubce.com/v2/models');
     expect(qianfanModelDirectoryUrl('https://qianfan.baidubce.com/v2')).toBeNull();
+    expect(qianfanModelDirectoryUrl('https://QIANFAN.BAIDUBCE.COM/v2/tokenplan/personal'))
+      .toBe('https://qianfan.baidubce.com/v2/models');
+    expect(qianfanModelDirectoryUrl('https://qianfan.baidubce.com:8443/v2/tokenplan/personal')).toBeNull();
+    expect(qianfanModelDirectoryUrl('https://third-party.example/v2/coding')).toBeNull();
+    expect(qianfanModelDirectoryUrl('https://third-party.example/v2/tokenplan/personal')).toBeNull();
   });
 
   it('extracts the provider error code without exposing credentials', () => {
