@@ -1,6 +1,6 @@
 // API and local-credential usage strategies. All host dependencies are injected.
 function createUsageApiStrategies(deps) {
-  const { fs, path, os, providersPath, createVaultStore, round1, round4, epochToISO } = deps;
+  const { fs, path, os, providersPath, createVaultStore, getOrigin, round1, round4, epochToISO } = deps;
 async function loadProviders() {
   if (!(await fs.pathExists(providersPath))) return [];
   try {
@@ -102,9 +102,16 @@ async function queryCodexUsage() {
 // the OAuth token stored by `claude login`, NOT with an API key.
 async function queryClaudeUsage(provider) {
   // Only attempt OAuth usage if the provider is NOT using an API key.
-  // If authMode is api_key, fall through to "unsupported" for subscription query.
+  // An API key cannot read a Claude Code subscription quota, but this remains
+  // a normal product state rather than an unexplained unsupported response.
   if (provider.authMode === 'api_key') {
-    return { supported: false };
+    return {
+      supported: true,
+      windows: [],
+      source: 'console',
+      notice: 'Claude Code 订阅用量需要 Claude OAuth 登录态；当前站点使用 API Key，请在 Claude 控制台查看 API 用量或通过 claude login 登录后刷新。',
+      action: { label: '打开 Claude 控制台', url: 'https://console.anthropic.com/' },
+    };
   }
 
   // Try to read the OAuth token from ~/.claude/.credentials.json
@@ -777,31 +784,16 @@ async function queryDeepseekUsage(apiKey) {
   };
 }
 
-// 硅基流动 (SiliconFlow) — GET /v1/user/info returns { data: { balance, ... } }.
-async function querySiliconflowUsage(apiKey) {
-  if (!apiKey) return { supported: true, windows: [], error: '无可用 API Key' };
-  const result = await httpRequest('https://api.siliconflow.cn/v1/user/info', {
-    method: 'GET',
-    headers: { Authorization: `Bearer ${apiKey}` },
-    timeout: 10000,
-  });
-  if (result.error) return { supported: true, windows: [], error: result.error };
-  if (result.status === 401) return { supported: true, windows: [], error: 'API Key 无效' };
-  if (result.status !== 200) return { supported: true, windows: [], error: `HTTP ${result.status}` };
-
-  const d = JSON.parse(result.body);
-  const balance = round4(d.data?.balance ?? 0);
+// SiliconFlow retired /v1/user/info on 2026-08-14 and has not published a
+// replacement account-balance API. Do not turn configured credentials into a
+// guaranteed failing network request; direct users to the official console.
+async function querySiliconflowUsage() {
   return {
     supported: true,
-    windows: [{
-      label: 'credits',
-      usedPercent: null,
-      usedCredits: null,
-      limitCredits: balance,
-      remainingCredits: balance,
-      isPrepaid: true,
-    }],
-    raw: d,
+    windows: [],
+    source: 'console',
+    error: 'SiliconFlow 暂不支持实时余额查询，请在 SiliconFlow 控制台查看账户余额',
+    action: { label: '打开 SiliconFlow 控制台', url: 'https://cloud.siliconflow.cn/' },
   };
 }
 

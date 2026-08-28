@@ -105,7 +105,7 @@ const createVaultStore = () => {
   const { VaultStore } = require('../../vault/store');
   return new VaultStore();
 };
-const api = createUsageApiStrategies({ fs, path, os, providersPath: PROVIDERS_PATH, createVaultStore, round1: parsers.round1, round4: parsers.round4, epochToISO: parsers.epochToISO });
+const api = createUsageApiStrategies({ fs, path, os, providersPath: PROVIDERS_PATH, createVaultStore, getOrigin: parsers.getOrigin, round1: parsers.round1, round4: parsers.round4, epochToISO: parsers.epochToISO });
 const cloud = createUsageCloudStrategies({ resolveCredentialPair: api.resolveCredentialPair, resolveVaultKey: api.resolveVaultKey, httpRequest, accountBalanceResult: parsers.accountBalanceResult, managementCredentialNotice: api.managementCredentialNotice, round1: parsers.round1, epochToISO: parsers.epochToISO });
 const browser = createUsageBrowserStrategies({ resolveVaultKey: api.resolveVaultKey, createVaultStore, httpRequest, queryConsoleOnlyUsage: cloud.queryConsoleOnlyUsage, round1: parsers.round1, round4: parsers.round4, epochToISO: parsers.epochToISO, accountBalanceResult: parsers.accountBalanceResult, MIMO_CONSOLE_URL, MIMO_BALANCE_CONSOLE_URL, MIMO_BALANCE_URL, MIMO_SESSION_VAULT_KEY });
 const registry = createUsageProviderRegistry({ api, browser, cloud });

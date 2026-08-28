@@ -272,7 +272,7 @@ async function queryOpenCodeGoUsage(_apiKey) {
 
 async function queryOpenCodeGoUsageViaExtension() {
   let bridge;
-  try { bridge = require('./ws-extension'); } catch { return null; }
+  try { bridge = require('../web/api/ws-extension'); } catch { return null; }
   if (!bridge.isExtensionConnected()) {
     return {
       supported: true,
@@ -573,7 +573,7 @@ async function queryXiaomiUsageViaExtension() {
 
 async function getXiaomiBrowserSession() {
   let bridge;
-  try { bridge = require('./ws-extension'); } catch { return null; }
+  try { bridge = require('../web/api/ws-extension'); } catch { return null; }
   if (!bridge.isExtensionConnected()) return null;
 
   // Older OKIT extensions only support an exact-domain lookup. Query both the

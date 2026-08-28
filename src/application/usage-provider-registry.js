@@ -16,7 +16,7 @@ function createUsageProviderRegistry({ api, browser, cloud }) {
       openai: () => consoleOnly('OpenAI API', 'https://platform.openai.com/usage', 'OpenAI API 的用量/费用需要组织 Admin Key；普通 API Key 不提供剩余额度接口。'),
       zai: () => consoleOnly('智谱 AI', 'https://open.bigmodel.cn/finance/overview'), 'zai-global': () => consoleOnly('Z.AI', 'https://z.ai/manage-apikey/billing'),
       minimax: () => consoleOnly('MiniMax', 'https://platform.minimaxi.com/user-center/payment'), 'minimax-global': () => consoleOnly('MiniMax 国际站', 'https://platform.minimax.io/user-center/payment'),
-      'kimi-coding': () => api.queryKimiApiBalance(apiKey, provider.baseUrl), qianfan: () => api.queryQianfanBalance(), tencent: () => ({ supported: false }), xai: () => api.queryXaiApiBalance(),
+      'kimi-coding': () => api.queryKimiApiBalance(apiKey, provider.baseUrl), qianfan: () => api.queryQianfanBalance(), tencent: () => consoleOnly('腾讯云', 'https://console.cloud.tencent.com/expense/overview', '腾讯云余额查询需要云账号账务凭证；当前不会使用推理 API Key 猜测余额。'), xai: () => api.queryXaiApiBalance(),
       stepfun: () => consoleOnly('阶跃星辰', 'https://platform.stepfun.com/console/billing'), 'stepfun-global': () => consoleOnly('StepFun Global', 'https://platform.stepfun.ai/console/billing'), xiaomi: () => browser.queryXiaomiBalance(),
       'glm-coding': () => api.queryGlmCodingUsage(apiKey), 'zai-global-coding': () => api.queryZaiGlobalCodingUsage(apiKey), 'kimi-coding-plan': () => api.queryKimiCodingUsage(apiKey),
       'minimax-coding': () => api.queryMinimaxCodingUsage(apiKey), 'minimax-global-coding': () => api.queryMinimaxGlobalCodingUsage(apiKey), 'qwen-coding': () => api.queryQwenCodingUsage(apiKey), 'qwen-token-plan': () => api.queryQwenTokenPlanUsage(apiKey),
