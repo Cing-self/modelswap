@@ -368,8 +368,12 @@ async function runWithConcurrency(items, limit, worker) {
  * untouched.
  */
 async function discoverMissingConfiguredModels({ concurrency = 2 } = {}) {
-  const [providers, config, cache] = await Promise.all([
-    loadProviders(),
+  // loadProviders performs the one-time legacy catalog-membership cleanup.
+  // Read the canonical cache only after that migration settles; otherwise a
+  // parallel read can observe a soon-to-be-removed models.dev-only row and
+  // incorrectly skip this process's only startup warmup attempt.
+  const providers = await loadProviders();
+  const [config, cache] = await Promise.all([
     loadUserConfig(),
     _store.loadModelsCache(),
   ]);

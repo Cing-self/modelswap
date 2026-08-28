@@ -94,4 +94,63 @@ describe('configured model-cache startup warmup', { timeout: 30000 }, () => {
     expect(result.userAfter).toBe(result.userBefore);
     expect(result.existingAfter).toBe(result.existingBefore);
   });
+
+  it('cleans a legacy catalog-only cache row before a single warmup computes missing candidates', () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-model-cache-migration-warmup-'));
+    const root = path.resolve(__dirname, '../..');
+    const script = `
+      const fs=require('fs'), path=require('path'), http=require('http');
+      const service=require(path.join(process.argv[1], 'src/application/provider-service.js'));
+      const {VaultStore}=require(path.join(process.argv[1], 'src/vault/store'));
+      (async()=>{
+        let calls=0;
+        const server=http.createServer((req,res)=>{
+          calls++; res.setHeader('content-type','application/json');
+          res.end(JSON.stringify({data:[{id:'actual-live'}]}));
+        });
+        await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+        const endpoint='http://127.0.0.1:'+server.address().port+'/v1';
+        const okit=path.join(process.env.HOME,'.okit');
+        fs.mkdirSync(path.join(okit,'cache'),{recursive:true});
+        fs.writeFileSync(path.join(okit,'providers.json'),JSON.stringify({version:2,providers:[{
+          id:'migration-glm',name:'Migration GLM',type:'openai',baseUrl:endpoint,authMode:'api_key',vaultKey:'MIGRATION_KEY',
+          endpoints:[{id:'migration-endpoint',type:'openai',baseUrl:endpoint}]
+        }]}));
+        fs.writeFileSync(path.join(okit,'models-cache.json'),JSON.stringify({version:2,source:'okit',generation:0,sourceFetchedAt:null,cachedAt:'2026-08-28T00:00:00.000Z',sourceHash:null,status:'fresh',lastError:null,providers:{
+          'migration-glm':[{id:'catalog-only',source:'modelsdev',origin:'modelsdev',confidence:'high'}]
+        }}));
+        fs.writeFileSync(path.join(okit,'user.json'),JSON.stringify({sync:{lastSyncAt:'2026-08-28T00:00:00.000Z',localChangedAt:{providers:'2026-08-28T00:00:00.000Z'}},agentProviders:{}}));
+        fs.writeFileSync(path.join(okit,'cache','models-dev.json'),JSON.stringify({source:'models.dev',version:2,generation:1,sourceFetchedAt:new Date().toISOString(),cachedAt:new Date().toISOString(),status:'fresh',data:{
+          'migration-glm':{api:'endpoint',models:{'actual-live':{limit:{context:111111},reasoning:true},'catalog-only':{limit:{context:999999}}}}
+        }}));
+        await new VaultStore().set('MIGRATION_KEY','test-key');
+        const providersPath=path.join(okit,'providers.json'), userPath=path.join(okit,'user.json'), cachePath=path.join(okit,'models-cache.json');
+        const providersBefore=fs.readFileSync(providersPath,'utf8'), userBefore=fs.readFileSync(userPath,'utf8');
+        const first=await service.discoverMissingConfiguredModels();
+        const cacheAfterFirst=JSON.parse(fs.readFileSync(cachePath,'utf8'));
+        const second=await service.discoverMissingConfiguredModels();
+        await new Promise(resolve=>server.close(resolve));
+        console.log(JSON.stringify({calls,first,second,cache:cacheAfterFirst,providersBefore,providersAfter:fs.readFileSync(providersPath,'utf8'),userBefore,userAfter:fs.readFileSync(userPath,'utf8')}));
+      })().catch(error=>{console.error(error.stack);process.exit(1)});
+    `;
+    const output = execFileSync(process.execPath, ['-r', 'ts-node/register', '-e', script, root], {
+      env: { ...process.env, HOME: home, USERPROFILE: home },
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const result = JSON.parse(output.trim());
+    const models = result.cache.providers['migration-glm'];
+
+    expect(result.calls).toBe(1);
+    expect(result.first).toMatchObject({
+      warmed: ['migration-glm'],
+      pending: ['migration-glm'],
+      results: [expect.objectContaining({ providerId: 'migration-glm', status: 'discovered', modelsDiscovered: true })],
+    });
+    expect(result.second).toMatchObject({ warmed: [], pending: [], results: [] });
+    expect(models).toEqual([expect.objectContaining({ id: 'actual-live', source: 'remote', context: 111111, reasoning: true })]);
+    expect(models.map((model: any) => model.id)).not.toContain('catalog-only');
+    expect(result.providersAfter).toBe(result.providersBefore);
+    expect(result.userAfter).toBe(result.userBefore);
+  });
 });
