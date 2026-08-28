@@ -50,7 +50,7 @@ describe('syncPull Agent configuration reconciliation', { timeout: 30000 }, () =
         await sync.syncPush();
       })().catch(error=>{console.error(error.stack);process.exit(1)});
     `;
-    execFileSync(process.execPath, ['-r', 'ts-node/register', '-e', push, root], {
+    execFileSync(process.execPath, ['-r', 'ts-node/register/transpile-only', '-e', push, root], {
       env: { ...process.env, HOME: machineA, USERPROFILE: machineA, OKIT_SYNC_BLOB: blob }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
     });
     const pull = `${shared}
@@ -90,7 +90,7 @@ describe('syncPull Agent configuration reconciliation', { timeout: 30000 }, () =
         console.log(JSON.stringify({first,second,third,hadNativeBeforeProvider,user,codex,claudeSettings,opencode}));
       })().catch(error=>{console.error(error.stack);process.exit(1)});
     `;
-    const result = JSON.parse(execFileSync(process.execPath, ['-r', 'ts-node/register', '-e', pull, root], {
+    const result = JSON.parse(execFileSync(process.execPath, ['-r', 'ts-node/register/transpile-only', '-e', pull, root], {
       env: { ...process.env, HOME: machineB, USERPROFILE: machineB, OKIT_SYNC_BLOB: blob }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
     }).trim());
 
