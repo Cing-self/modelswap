@@ -2,9 +2,9 @@
 function createUsageApiStrategies(deps) {
   const { fs, path, os, providersPath, createVaultStore, round1, round4, epochToISO } = deps;
 async function loadProviders() {
-  if (!(await fs.pathExists(PROVIDERS_PATH))) return [];
+  if (!(await fs.pathExists(providersPath))) return [];
   try {
-    const content = await fs.readFile(PROVIDERS_PATH, 'utf-8');
+    const content = await fs.readFile(providersPath, 'utf-8');
     const data = JSON.parse(content);
     return Array.isArray(data.providers) ? data.providers : [];
   } catch {
