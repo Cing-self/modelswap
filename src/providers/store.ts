@@ -42,6 +42,17 @@ type ProviderFile = { version: 2; providers: ProviderSite[]; [field: string]: un
 function clone<T>(value: T): T { return JSON.parse(JSON.stringify(value)); }
 function isSite(value: any): value is ProviderSite { return value && typeof value.id === "string" && typeof value.name === "string" && typeof value.type === "string" && typeof value.baseUrl === "string"; }
 function stripModels(provider: Provider | ProviderSite): ProviderSite { const { models: _models, modelCache: _cache, platforms: _platforms, ...site } = provider as any; return clone(site); }
+function membershipSource(model: ProviderModel): ModelMetadata["source"] {
+  if (model.origin === "user") return "manual";
+  if (
+    model.origin === "remote"
+    || model.meta?.source === "remote"
+    || model.availability?.some(item => item.source === "remote" || item.source === "cli")
+  ) return "remote";
+  // Models submitted through a create/update form are explicit user choices.
+  // models.dev metadata describes the same ID, never its membership source.
+  return "manual";
+}
 function toMetadata(model: ProviderModel, source: ModelMetadata["source"] = "legacy"): ModelMetadata {
   const meta = model.meta;
   // Live discovery and explicit user input own model membership. A catalog
@@ -260,6 +271,27 @@ function enrichKnownMetadata(existing: ModelMetadata[], catalogMetadata: ModelMe
   });
 }
 
+/**
+ * Prior builds materialized models.dev directory rows directly into the local
+ * cache. They have no authenticated-discovery provenance, so they cannot
+ * remain runtime model membership after the source-of-truth migration.
+ *
+ * A user may have attached catalog metadata to an explicit manual model;
+ * origin=user is therefore authoritative and must survive this cleanup.
+ */
+function purgeLegacyCatalogOnlyMembership(cache: ModelsCacheData): boolean {
+  let changed = false;
+  for (const [providerId, models] of Object.entries(cache.providers)) {
+    if (!Array.isArray(models)) continue;
+    const retained = models.filter(model => model?.source !== "modelsdev" || model.origin === "user");
+    if (retained.length !== models.length) {
+      cache.providers[providerId] = retained;
+      changed = true;
+    }
+  }
+  return changed;
+}
+
 async function refreshKnownMetadata(file: ProviderFile, cache: ModelsCacheData, suppliedCatalog?: any): Promise<boolean> {
   // A catalog is metadata only. It must never create runtime model rows; the
   // membership source is an authenticated endpoint/CLI discovery or an
@@ -300,10 +332,14 @@ function materialize(file: ProviderFile, cache: ModelsCacheData): Provider[] {
 
 export async function loadProviders(): Promise<Provider[]> {
   const file = await readProviderFile();
-  // Reading providers is intentionally side-effect free for the model cache.
-  // In particular, opening the model-data diagnostic must not synthesize rows
-  // from models.dev or rewrite a user's discovery snapshot.
-  const cache = await readCache();
+  const cache = await serializeStoreWrite(async () => {
+    const current = await readCache();
+    // A one-time compatibility repair is the sole read-path mutation. It
+    // removes unsafe directory-only rows left by older versions; normal
+    // reads, including model-data diagnostics, remain cache-only afterwards.
+    if (purgeLegacyCatalogOnlyMembership(current)) await writeCache(current);
+    return current;
+  });
   if (!(await fs.pathExists(PROVIDERS_PATH))) await writeProviderFile(file);
   return materialize(file, cache);
 }
@@ -312,7 +348,9 @@ export async function refreshModelsFromCatalog(catalog?: any): Promise<Provider[
   const file = await readProviderFile();
   const cache = await serializeStoreWrite(async () => {
     const current = await readCache();
-    const changed = await refreshKnownMetadata(file, current, catalog);
+    const purged = purgeLegacyCatalogOnlyMembership(current);
+    const refreshed = await refreshKnownMetadata(file, current, catalog);
+    const changed = purged || refreshed;
     if (changed) await writeCache(current);
     return current;
   });
@@ -330,14 +368,7 @@ export async function saveProviders(providers: Provider[]): Promise<void> {
       if (!isSite(provider) || !Array.isArray(provider.models)) continue;
       cache.providers[provider.id] = provider.models
         .filter(model => model?.id)
-        .map(model => toMetadata(
-          model,
-          model.origin === "user"
-            ? "manual"
-            : model.origin === "remote" || model.meta?.source === "remote"
-              ? "remote"
-              : "legacy",
-        ));
+        .map(model => toMetadata(model, membershipSource(model)));
     }
     const { providers: _old, ...unknown } = current;
     await writeCache(cache);

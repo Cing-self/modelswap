@@ -95,4 +95,60 @@ describe('live model discovery is the sole runtime membership source', { timeout
     expect(result.persisted).toMatchObject({ success: true, modelsDiscovered: true });
     expect(result.persistedSite.endpoints).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'glm-persisted' })]));
   });
+
+  it('purges legacy models.dev-only cache rows on the first v2 site read without deleting remote or user rows', () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-legacy-model-cache-'));
+    const root = path.resolve(__dirname, '../..');
+    const script = `
+      const fs=require('fs'), path=require('path');
+      const api=require(path.join(process.argv[1], 'src/application/provider-service.js'));
+      (async()=>{
+        const okit=path.join(process.env.HOME,'.okit');
+        fs.mkdirSync(okit,{recursive:true});
+        const providersPath=path.join(okit,'providers.json');
+        const cachePath=path.join(okit,'models-cache.json');
+        fs.writeFileSync(providersPath, JSON.stringify({version:2,providers:[{
+          id:'glm-coding',name:'GLM Coding Plan',type:'openai',baseUrl:'https://example.invalid/v1',
+          authMode:'none',executionMode:'http_endpoint'
+        }]}));
+        fs.writeFileSync(cachePath, JSON.stringify({
+          version:2,source:'okit',generation:1,sourceFetchedAt:null,cachedAt:'2026-08-28T00:00:00.000Z',
+          sourceHash:null,status:'fresh',lastError:null,providers:{'glm-coding':[
+            {id:'glm-live',source:'remote',confidence:'medium',origin:'remote'},
+            {id:'manual-kept',source:'manual',confidence:'medium',origin:'user'},
+            {id:'user-with-catalog-metadata',source:'modelsdev',confidence:'high',origin:'user',context:123},
+            {id:'glm-5.3-highspeed',source:'modelsdev',confidence:'high',context:999999},
+            {id:'glm-5v-turbo',source:'modelsdev',confidence:'high'}
+          ]}
+        }));
+        const providersBefore=fs.readFileSync(providersPath,'utf8');
+        const listed=await api.listProviders();
+        const cacheAfterList=fs.readFileSync(cachePath,'utf8');
+        const demo=await api.getModelData();
+        const cacheAfterDemo=fs.readFileSync(cachePath,'utf8');
+        console.log(JSON.stringify({providersBefore,providersAfter:fs.readFileSync(providersPath,'utf8'),listed,demo,cacheAfterList,cacheAfterDemo}));
+      })().catch(error=>{console.error(error.stack);process.exit(1)});
+    `;
+    const output = execFileSync(process.execPath, ['-r', 'ts-node/register', '-e', script, root], {
+      env: { ...process.env, HOME: home, USERPROFILE: home },
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const result = JSON.parse(output.trim());
+    const retainedIds = ['glm-live', 'manual-kept', 'user-with-catalog-metadata'];
+    const removedCatalogIds = ['glm-5.3-highspeed', 'glm-5v-turbo'];
+    const listed = result.listed.providers.find((provider: any) => provider.id === 'glm-coding');
+    const demo = result.demo.providers.find((provider: any) => provider.id === 'glm-coding');
+    const cache = JSON.parse(result.cacheAfterList).providers['glm-coding'];
+
+    expect(listed.models.map((model: any) => model.id).sort()).toEqual(retainedIds.slice().sort());
+    expect(demo.models.map((model: any) => model.id).sort()).toEqual(retainedIds.slice().sort());
+    expect(cache.map((model: any) => model.id).sort()).toEqual(retainedIds.slice().sort());
+    expect(cache.find((model: any) => model.id === 'user-with-catalog-metadata')).toMatchObject({ origin: 'user' });
+    expect(result.cacheAfterDemo).toBe(result.cacheAfterList);
+    expect(result.providersAfter).toBe(result.providersBefore);
+    for (const ids of [listed.models, demo.models, cache]) {
+      expect(ids.map((model: any) => model.id)).not.toEqual(expect.arrayContaining(removedCatalogIds));
+    }
+  });
 });
