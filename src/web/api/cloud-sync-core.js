@@ -12,7 +12,7 @@ const { createSyncConfigStore } = require('../../infrastructure/sync-config-stor
 const { createProviderSiteSyncService, stripRebuildableProviderData } = require('../../infrastructure/sync-provider-sites');
 const { decryptPayload, decryptSyncCodePayload, encryptPayload, encryptSyncCodePayload } = require('../../infrastructure/sync-crypto');
 const { createSyncPlatformService } = require('../../infrastructure/sync-platform-service');
-const { createPulledAgentReconciler } = require('../../application/sync-agent-reconciliation');
+const { createPulledAgentReconciler, desiredAgentSites } = require('../../application/sync-agent-reconciliation');
 const { createSyncService } = require('../../application/sync-service');
 const { shouldApplyRemoteSection } = require('../../application/sync-config-state');
 
@@ -74,6 +74,16 @@ const reconciler = createPulledAgentReconciler({
   saveConfig: configStore.saveConfig,
   appendLog,
 });
+async function hydratePulledAgentModels(config) {
+  const providerIds = [...new Set(
+    desiredAgentSites(config).map(site => site.providerId),
+  )];
+  if (providerIds.length === 0) return { warmed: [], pending: [], results: [] };
+  // Load lazily to avoid the provider-service -> sync-core composition cycle.
+  // The service owns the canonical endpoint/CLI discovery and cache semantics.
+  const { discoverMissingConfiguredModels } = require('../../application/provider-service');
+  return discoverMissingConfiguredModels({ providerIds, concurrency: 2 });
+}
 const syncService = createSyncService({
   appendLog,
   collectPlatformVaultSecrets: platforms.collectPlatformVaultSecrets,
@@ -82,6 +92,7 @@ const syncService = createSyncService({
   encryptPayload,
   encryptSyncCodePayload,
   getVaultStore: createVaultStore,
+  hydratePulledAgentModels,
   listEnabledSyncTargets: platforms.listEnabledSyncTargets,
   loadAdapter: platforms.adapterFor,
   loadConfig: configStore.loadConfig,

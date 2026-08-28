@@ -84,7 +84,7 @@ describe('sync domain conflict rules', () => {
 });
 
 describe('sync pull orchestration', () => {
-  it('merges sites before vault, desired state and agent reconciliation', async () => {
+  it('merges sites and persists desired state before local model hydration and agent reconciliation', async () => {
     const order = [];
     const config = {
       sync: { localChangedAt: {} },
@@ -112,6 +112,11 @@ describe('sync pull orchestration', () => {
         exportAll: async () => [],
         set: async () => order.push('vault'),
       }),
+      hydratePulledAgentModels: async (persistedConfig) => {
+        expect(persistedConfig.agentProviders.codex.activeProviderId).toBe('remote-site');
+        order.push('hydrate');
+        return { warmed: ['remote-site'], pending: ['remote-site'], results: [] };
+      },
       listEnabledSyncTargets: async () => ({
         targets: [{ id: 'memory', resolvedConfig: {} }],
         userId: 'u',
@@ -134,7 +139,8 @@ describe('sync pull orchestration', () => {
       shouldApplyRemoteSection,
     });
 
-    await service.syncPull();
-    expect(order).toEqual(['providers', 'vault', 'config', 'agent']);
+    const result = await service.syncPull();
+    expect(order).toEqual(['providers', 'vault', 'config', 'hydrate', 'agent']);
+    expect(result.agentModelHydration).toMatchObject({ warmed: ['remote-site'] });
   });
 });

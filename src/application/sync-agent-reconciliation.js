@@ -74,7 +74,16 @@ function createPulledAgentReconciler({
           return { ok: true };
         }
         const status = await auth.checkAuthStatus(provider);
-        if (status.hasApiKey || status.oauthLoggedIn) return { ok: true };
+        // Native providers are hydrated only from their Agent's own CLI/cache.
+        // That authenticated discovery is the proof available on this host;
+        // do not reject it merely because the generic vault checker has no
+        // OAuth implementation for that CLI.
+        const nativeCliDiscovery = (provider.models || []).some(model =>
+          model?.availability?.some(item => item.source === 'cli'),
+        );
+        if (status.hasApiKey || status.oauthLoggedIn || nativeCliDiscovery) {
+          return { ok: true };
+        }
         return {
           ok: false,
           code: 'AUTH_REQUIRED',

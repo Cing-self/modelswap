@@ -196,7 +196,6 @@ async function fetchModels(input = {}) {
       if (source.length) {
         p.models = withNativeAvailability(p, source, 'cli');
         await _store.saveDiscoveredModels(p.id, p.models);
-        await saveProviders(providers, { persistModels: false });
       }
       return {
         success: source.length > 0,
@@ -211,7 +210,6 @@ async function fetchModels(input = {}) {
       const models = withNativeAvailability(p, await readGrokCliModels(), 'cli');
       p.models = models;
       await _store.saveDiscoveredModels(p.id, p.models);
-      await saveProviders(providers, { persistModels: false });
       return { success: true, models, modelsDiscovered: true };
     }
 
@@ -220,7 +218,6 @@ async function fetchModels(input = {}) {
       const models = withNativeAvailability(p, await readCopilotCliModels(), 'cli');
       p.models = models;
       await _store.saveDiscoveredModels(p.id, p.models);
-      await saveProviders(providers, { persistModels: false });
       return { success: true, models, modelsDiscovered: true };
     }
 
@@ -305,7 +302,6 @@ async function fetchModels(input = {}) {
         await saveProviders(providers);
       } else {
         await _store.saveDiscoveredModels(p.id, p.models);
-        await saveProviders(providers, { persistModels: false });
       }
     }
 
@@ -367,7 +363,7 @@ async function runWithConcurrency(items, limit, worker) {
  * established path. The providers directory and Agent configuration remain
  * untouched.
  */
-async function discoverMissingConfiguredModels({ concurrency = 2 } = {}) {
+async function discoverMissingConfiguredModels({ concurrency = 2, providerIds } = {}) {
   // loadProviders performs the one-time legacy catalog-membership cleanup.
   // Read the canonical cache only after that migration settles; otherwise a
   // parallel read can observe a soon-to-be-removed models.dev-only row and
@@ -377,8 +373,12 @@ async function discoverMissingConfiguredModels({ concurrency = 2 } = {}) {
     loadUserConfig(),
     _store.loadModelsCache(),
   ]);
+  const requestedIds = Array.isArray(providerIds)
+    ? new Set(providerIds.filter(id => typeof id === 'string' && id))
+    : null;
   const candidates = [];
   for (const provider of providers) {
+    if (requestedIds && !requestedIds.has(provider.id)) continue;
     if (Array.isArray(cache.providers?.[provider.id]) && cache.providers[provider.id].length > 0) continue;
     if (await isConfiguredForWarmup(provider, config)) candidates.push(provider);
   }
@@ -389,15 +389,29 @@ async function discoverMissingConfiguredModels({ concurrency = 2 } = {}) {
     const task = (async () => {
       try {
         const result = await fetchModels({ providerId: provider.id });
+        const unavailable = !result.modelsDiscovered;
         return {
           providerId: provider.id,
-          status: result.modelsDiscovered ? 'discovered' : 'unavailable',
+          // An empty 200 response means no current directory is available;
+          // endpoint/network failures are actionable diagnostics for callers
+          // such as sync pull and must not be collapsed into that state.
+          status: result.modelsDiscovered ? 'discovered' : (result.errors?.length ? 'failed' : 'unavailable'),
           modelsDiscovered: Boolean(result.modelsDiscovered),
+          ...(unavailable && result.errors?.length ? {
+            code: 'MODEL_DISCOVERY_FAILED',
+            error: result.errors.map(item => item.error).join('; '),
+          } : {}),
         };
       } catch (error) {
         // Warmup is deliberately silent and independent per site. A manual
         // connection test remains the place to surface detailed diagnostics.
-        return { providerId: provider.id, status: 'failed', modelsDiscovered: false };
+        return {
+          providerId: provider.id,
+          status: 'failed',
+          modelsDiscovered: false,
+          code: 'MODEL_DISCOVERY_FAILED',
+          error: error.message,
+        };
       } finally {
         warmupInflight.delete(provider.id);
       }

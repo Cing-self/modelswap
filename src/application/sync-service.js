@@ -9,6 +9,7 @@ function createSyncService({
   encryptPayload,
   encryptSyncCodePayload,
   getVaultStore,
+  hydratePulledAgentModels = async () => ({ warmed: [], pending: [], results: [] }),
   listEnabledSyncTargets,
   loadAdapter,
   loadConfig,
@@ -206,6 +207,13 @@ function createSyncService({
       applyModelOverrides: modelOverridesApplied,
     });
 
+    // Desired Agent state is durable before this local-only step. Hydration
+    // discovers membership from B's authenticated endpoint/CLI and writes
+    // only B's models-cache; it never imports A's rebuildable cache or marks
+    // a sync section dirty. Reconciliation remains the single writer path.
+    const agentModelHydration = agentProvidersApplied
+      ? await hydratePulledAgentModels(config)
+      : { warmed: [], pending: [], results: [] };
     const agentReconciliation = agentProvidersApplied
       ? await reconcilePulledAgentProviders(config)
       : [];
@@ -231,6 +239,7 @@ function createSyncService({
       total: (remoteData.secrets || []).length,
       agentProvidersApplied,
       providersApplied,
+      agentModelHydration,
       agentReconciliation,
       agentFailures,
     };
