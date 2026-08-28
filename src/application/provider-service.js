@@ -10,6 +10,7 @@ const {
   QIANFAN_CODING_PROBE_MODEL,
   isQianfanCodingEndpoint,
   isQianfanCodingAnthropicEndpoint,
+  qianfanModelDirectoryUrl,
   qianfanCodingErrorCode,
   qianfanCodingErrorMessage,
 } = require('../web/api/qianfan-coding');
@@ -602,6 +603,7 @@ const modelDiscoveryService = createModelDiscoveryService({
   fs, path, os, _store, loadProviders, saveProviders, loadUserConfig,
   providerEndpointEntries, providerExecutionMode, QIANFAN_CODING_PROBE_MODEL,
   isQianfanCodingEndpoint, isQianfanCodingAnthropicEndpoint,
+  qianfanModelDirectoryUrl,
   qianfanCodingErrorCode, qianfanCodingErrorMessage,
   getAnthropicAuthMode, publishDataChanged, tagRecentModels, sortModels, normalizeRemoteModel,
   detectOAuth, resolveVaultKey, findCommand: (...args) => findCommand(...args),

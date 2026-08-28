@@ -12,6 +12,28 @@ function isQianfanCodingAnthropicEndpoint(baseUrl) {
   return /^https?:\/\/qianfan\.baidubce\.com\/anthropic\/(?:coding|tokenplan\/personal)\/?$/i.test(String(baseUrl || '').trim());
 }
 
+/**
+ * Qianfan's subscription inference routes are intentionally scoped under
+ * /v2/coding or /v2/tokenplan/personal. Their authenticated model directory
+ * is not scoped the same way: the public V2 API documents GET /v2/models
+ * (https://cloud.baidu.com/doc/qianfan-api/s/Dmba8k71y).
+ *
+ * Keep this route translation beside Qianfan's other provider-specific
+ * protocol rules so discovery never accidentally changes the invocation URL.
+ */
+function qianfanModelDirectoryUrl(baseUrl) {
+  try {
+    const parsed = new URL(String(baseUrl || '').trim());
+    if (!/^\/v2\/(?:coding|tokenplan\/personal)\/?$/i.test(parsed.pathname)) return null;
+    parsed.pathname = '/v2/models';
+    parsed.search = '';
+    parsed.hash = '';
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
 function qianfanCodingErrorCode(body) {
   try {
     const parsed = JSON.parse(body || '{}');
@@ -61,6 +83,7 @@ module.exports = {
   QIANFAN_CODING_PROBE_MODEL,
   isQianfanCodingEndpoint,
   isQianfanCodingAnthropicEndpoint,
+  qianfanModelDirectoryUrl,
   qianfanCodingErrorCode,
   qianfanCodingErrorMessage,
   qianfanCodingModels,
