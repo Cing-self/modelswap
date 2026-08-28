@@ -1,6 +1,6 @@
 // Provider model discovery is transport/cache orchestration, independent of HTTP.
 function createModelDiscoveryService(deps) {
-  const { fs, path, os, _store, loadProviders, saveProviders, loadUserConfig, providerEndpointEntries, providerExecutionMode, QIANFAN_CODING_PROBE_MODEL, isQianfanCodingEndpoint, isQianfanCodingAnthropicEndpoint, qianfanCodingErrorCode, qianfanCodingErrorMessage, getAnthropicAuthMode, normalizeRemoteModel, detectOAuth, resolveVaultKey, findCommand } = deps;
+  const { fs, path, os, _store, loadProviders, saveProviders, loadUserConfig, providerEndpointEntries, providerExecutionMode, QIANFAN_CODING_PROBE_MODEL, isQianfanCodingEndpoint, isQianfanCodingAnthropicEndpoint, qianfanModelDirectoryUrl, qianfanCodingErrorCode, qianfanCodingErrorMessage, getAnthropicAuthMode, normalizeRemoteModel, detectOAuth, resolveVaultKey, findCommand } = deps;
   const warmupInflight = new Map();
 async function readCodexCachedModels() {
   const cachePath = path.join(os.homedir(), '.codex', 'models_cache.json');
@@ -251,7 +251,7 @@ async function fetchModels(input = {}) {
       try {
         let models = [];
         if (ep.type === 'openai') {
-          models = isQianfanCodingEndpoint(ep.baseUrl)
+          models = qianfanModelDirectoryUrl(ep.baseUrl)
             ? await fetchQianfanCodingModels(ep.baseUrl, apiKey)
             : await fetchOpenAIModels(ep.baseUrl, apiKey);
         } else if (ep.type === 'anthropic') {
@@ -445,9 +445,15 @@ async function fetchOpenAIModels(baseUrl, apiKey) {
 }
 
 async function fetchQianfanCodingModels(baseUrl, apiKey) {
-  const root = baseUrl.replace(/\/+$/, '');
+  // Token Plan's inference URL is deliberately scoped under
+  // /v2/tokenplan/personal, but Qianfan documents the authenticated model
+  // directory at the canonical V2 endpoint: GET /v2/models. Appending
+  // /models to the plan URL asks for a non-existent resource and leaves a
+  // fresh synced device with no routeable models.
+  const directoryUrl = qianfanModelDirectoryUrl(baseUrl);
+  if (!directoryUrl) throw new Error('千帆 Token Plan 模型目录地址无效');
   const headers = apiKey ? { Authorization: `Bearer ${apiKey}` } : {};
-  const listResult = await httpReq(`${root}/models`, { method: 'GET', headers, timeout: 10000 });
+  const listResult = await httpReq(directoryUrl, { method: 'GET', headers, timeout: 10000 });
   if (listResult.error) throw new Error(listResult.error);
 
   const listCode = qianfanCodingErrorCode(listResult.body);

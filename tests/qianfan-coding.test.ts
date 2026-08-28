@@ -4,6 +4,7 @@ import {
   QIANFAN_CODING_PROBE_MODEL,
   isQianfanCodingEndpoint,
   isQianfanCodingAnthropicEndpoint,
+  qianfanModelDirectoryUrl,
   qianfanCodingErrorCode,
   qianfanCodingErrorMessage,
   qianfanCodingModels,
@@ -22,6 +23,19 @@ describe('Qianfan Coding Plan endpoint helpers', () => {
     expect(isQianfanCodingAnthropicEndpoint('https://qianfan.baidubce.com/anthropic/tokenplan/personal')).toBe(true);
     expect(isQianfanCodingAnthropicEndpoint('https://qianfan.baidubce.com/anthropic')).toBe(false);
     expect(QIANFAN_CODING_PROBE_MODEL).toBe('qianfan-code-latest');
+  });
+
+  it('keeps the Token Plan invocation URL separate from its official V2 model directory', () => {
+    expect(qianfanModelDirectoryUrl('https://qianfan.baidubce.com/v2/tokenplan/personal'))
+      .toBe('https://qianfan.baidubce.com/v2/models');
+    expect(qianfanModelDirectoryUrl('https://qianfan.baidubce.com/v2/coding/'))
+      .toBe('https://qianfan.baidubce.com/v2/models');
+    expect(qianfanModelDirectoryUrl('https://qianfan.baidubce.com/v2')).toBeNull();
+    expect(qianfanModelDirectoryUrl('https://QIANFAN.BAIDUBCE.COM/v2/tokenplan/personal'))
+      .toBe('https://qianfan.baidubce.com/v2/models');
+    expect(qianfanModelDirectoryUrl('https://qianfan.baidubce.com:8443/v2/tokenplan/personal')).toBeNull();
+    expect(qianfanModelDirectoryUrl('https://third-party.example/v2/coding')).toBeNull();
+    expect(qianfanModelDirectoryUrl('https://third-party.example/v2/tokenplan/personal')).toBeNull();
   });
 
   it('extracts the provider error code without exposing credentials', () => {
