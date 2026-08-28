@@ -69,7 +69,10 @@ describe('sync pull agent model hydration', { timeout: 30000 }, () => {
           opencode:{sites:{'sync-open':{modelIds:['sync-open-live']},'sync-offline':{modelIds:['sync-offline-model']}}}
         };
         user.sync={password:'shared-secret',platforms:{supabase:{enabled:true,projectId:'project',apiToken:'token'}}};
-        fs.writeFileSync(userPath,JSON.stringify(user));
+        // Use the same serialized config-store writer as syncPush. A direct
+        // fs write can race a queued user-config migration from another
+        // loaded application module when Vitest runs files concurrently.
+        await sync.saveConfig(user,{applyAgentProviders:true,applyModelOverrides:true});
         await sync.syncPush();
       })().catch(error=>{console.error(error.stack);process.exit(1)});
     `;
@@ -94,8 +97,7 @@ describe('sync pull agent model hydration', { timeout: 30000 }, () => {
           // CLI cache is a separate local discovery source, not sync payload.
           fs.mkdirSync(path.join(process.env.HOME,'.codex'),{recursive:true});
           fs.writeFileSync(path.join(process.env.HOME,'.codex','models_cache.json'),JSON.stringify([{slug:'gpt-5.6-sol',display_name:'GPT 5.6 Sol'}]));
-          fs.mkdirSync(path.dirname(userPath),{recursive:true});
-          fs.writeFileSync(userPath,JSON.stringify({sync:{password:'shared-secret',platforms:{supabase:{enabled:true,projectId:'project',apiToken:'token'}}}}));
+          await sync.saveConfig({sync:{password:'shared-secret',platforms:{supabase:{enabled:true,projectId:'project',apiToken:'token'}}}});
           const before={providers:fs.existsSync(providersPath),cache:fs.existsSync(cachePath)};
           const first=await sync.syncPull();
           const providersAfterFirst=fs.readFileSync(providersPath,'utf8');
