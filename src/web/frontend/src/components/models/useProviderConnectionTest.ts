@@ -69,7 +69,14 @@ export function useProviderConnectionTest({
       let pulledCount = 0;
       if (allOk) {
         try {
-          const modelResult = await fetchModels(provider?.id, { endpoints: validEndpoints, vaultKey: vaultKey.trim() });
+          const modelResult = await fetchModels(provider?.id, {
+            endpoints: validEndpoints,
+            vaultKey: vaultKey.trim(),
+            // Existing sites persist their validated connection and the exact
+            // discovery snapshot through one backend use case. New custom
+            // sites remain a preview until the form has an id to save.
+            persistConfig: Boolean(provider?.id),
+          });
           if (modelResult.success && modelResult.models?.length) {
             pulledCount = modelResult.models.length;
             setModels(modelResult.models.map(model => ({ ...model, id: model.id, name: model.name || model.id })));

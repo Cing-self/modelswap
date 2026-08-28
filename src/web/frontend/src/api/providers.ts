@@ -3,6 +3,7 @@ import { api } from './client';
 export interface ProviderModel {
   id: string;
   name?: string;
+  origin?: 'remote' | 'user';
   capabilities?: string[];
   recent?: boolean;
   availability?: ProviderModelAvailability[];
@@ -357,7 +358,7 @@ export async function triggerOAuthLogin(providerId: string): Promise<{ success: 
   });
 }
 
-export async function fetchModels(providerId?: string, config?: { endpoints?: ProviderEndpoint[]; vaultKey?: string }): Promise<{ success: boolean; models: ProviderModel[]; errors?: { endpoint: string; error: string }[]; kept?: ProviderModel[] }> {
+export async function fetchModels(providerId?: string, config?: { endpoints?: ProviderEndpoint[]; vaultKey?: string; persistConfig?: boolean }): Promise<{ success: boolean; models: ProviderModel[]; modelsDiscovered?: boolean; errors?: { endpoint: string; error: string }[]; kept?: ProviderModel[] }> {
   invalidateProvidersCache();
   return api('/api/providers/fetch-models', {
     method: 'POST',

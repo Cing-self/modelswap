@@ -1,6 +1,6 @@
 // Provider model discovery is transport/cache orchestration, independent of HTTP.
 function createModelDiscoveryService(deps) {
-  const { fs, path, os, _store, loadProviders, saveProviders, loadUserConfig, providerEndpointEntries, providerExecutionMode, QIANFAN_CODING_PROBE_MODEL, isQianfanCodingEndpoint, isQianfanCodingAnthropicEndpoint, qianfanCodingErrorCode, qianfanCodingErrorMessage, qianfanCodingModels, getProbeModels, getFallbackModels, getAuthenticatedResourceFailureMessage, getAnthropicAuthMode, isModelAccessFailure, publishDataChanged, tagRecentModels, sortModels, normalizeRemoteModel, detectOAuth, resolveVaultKey, findCommand } = deps;
+  const { fs, path, os, _store, loadProviders, saveProviders, loadUserConfig, providerEndpointEntries, providerExecutionMode, QIANFAN_CODING_PROBE_MODEL, isQianfanCodingEndpoint, isQianfanCodingAnthropicEndpoint, qianfanCodingErrorCode, qianfanCodingErrorMessage, getAnthropicAuthMode, normalizeRemoteModel, detectOAuth, resolveVaultKey, findCommand } = deps;
 async function readCodexCachedModels() {
   const cachePath = path.join(os.homedir(), '.codex', 'models_cache.json');
   if (!(await fs.pathExists(cachePath))) {
@@ -79,7 +79,7 @@ async function readCopilotCliModels() {
   }
 }
 
-function withNativeAvailability(provider, models, source = 'static') {
+function withNativeAvailability(provider, models, source = 'cli') {
   const now = new Date().toISOString();
   return models.map(model => ({
     ...model,
@@ -95,10 +95,9 @@ function withNativeAvailability(provider, models, source = 'static') {
   }));
 }
 
-// Explicit three-way refresh semantics: remote∩directory is enriched; remote
-// only stays selectable with incomplete metadata; directory-only is retained
-// but marked unavailable for this account. A failed request never reaches this
-// function, so its old snapshot remains intact.
+// A successful refresh replaces remote membership with the authenticated
+// endpoint/CLI response. User-added and currently-selected entries survive by
+// explicit product policy; a catalog never contributes a directory-only row.
 const RETIRED_DEEPSEEK_DEFAULT_MODEL_IDS = new Set(['deepseek-chat', 'deepseek-reasoner']);
 
 function replaceRemoteModels(provider, discoveries, activeModelIds) {
@@ -139,14 +138,8 @@ function replaceRemoteModels(provider, discoveries, activeModelIds) {
         lastSeenAt: now,
       }));
     }
-    if (!fresh && !survives) {
-      // This came from the local directory rather than the authenticated
-      // account. Keep it visible as an unavailable fact, never route it.
-      entry.availability = [{
-        executionMode: 'http_endpoint', remoteModelId: model.id,
-        status: 'unavailable', source: 'static', discoveredAt: now, lastSeenAt: now,
-      }];
-    } else if (!Array.isArray(entry.availability) || entry.availability.length === 0) {
+    if (!fresh && !survives) continue;
+    if (!Array.isArray(entry.availability) || entry.availability.length === 0) {
       entry.availability = [{
         executionMode: 'http_endpoint',
         remoteModelId: model.id,
@@ -180,8 +173,9 @@ function replaceRemoteModels(provider, discoveries, activeModelIds) {
 }
 
 async function fetchModels(input = {}) {
-  const { providerId, endpoints: requestedEndpoints, vaultKey: requestedVaultKey } = input;
-  const previewConfig = Array.isArray(requestedEndpoints) || Object.prototype.hasOwnProperty.call(input, 'vaultKey');
+  const { providerId, endpoints: requestedEndpoints, vaultKey: requestedVaultKey, persistConfig = false } = input;
+  const hasRequestedConfig = Array.isArray(requestedEndpoints) || Object.prototype.hasOwnProperty.call(input, 'vaultKey');
+  const previewConfig = hasRequestedConfig && !persistConfig;
   if (!providerId && !previewConfig) throw Object.assign(new Error('providerId required'), { status: 400 });
 
   try {
@@ -191,14 +185,13 @@ async function fetchModels(input = {}) {
 
     if (p?.id === 'openai-codex' && !previewConfig) {
       // The ChatGPT subscription exposes no list-models API — Codex's own
-      // runtime cache is the only fresh source. But OKIT must not HARD-depend
-      // on another tool having run: when the cache isn't there yet, fall back
-      // to the bundled preset list instead of failing the whole fetch.
+      // runtime cache is the only fresh source. Do not substitute a bundled
+      // list when the CLI has not produced one yet.
       let cached = [];
       try {
         cached = await readCodexCachedModels();
-      } catch { /* not run yet — preset list stands in */ }
-      const source = cached.length ? cached : (p.models || []);
+      } catch { /* no CLI discovery yet */ }
+      const source = cached;
       if (source.length) {
         p.models = withNativeAvailability(p, source, 'cli');
         await _store.saveDiscoveredModels(p.id, p.models);
@@ -206,6 +199,7 @@ async function fetchModels(input = {}) {
       }
       return {
         success: source.length > 0,
+        modelsDiscovered: source.length > 0,
         models: p.models || source,
         kept: source.length === 0 ? p.models : undefined,
       };
@@ -217,7 +211,7 @@ async function fetchModels(input = {}) {
       p.models = models;
       await _store.saveDiscoveredModels(p.id, p.models);
       await saveProviders(providers, { persistModels: false });
-      return { success: true, models };
+      return { success: true, models, modelsDiscovered: true };
     }
 
     if (p?.id === 'github-copilot' && !previewConfig) {
@@ -226,23 +220,29 @@ async function fetchModels(input = {}) {
       p.models = models;
       await _store.saveDiscoveredModels(p.id, p.models);
       await saveProviders(providers, { persistModels: false });
-      return { success: true, models };
+      return { success: true, models, modelsDiscovered: true };
     }
 
     if (p && providerExecutionMode(p) === 'agent_native' && !previewConfig) {
-      const models = withNativeAvailability(p, p.models || [], 'static');
-      p.models = models;
-      await _store.saveDiscoveredModels(p.id, p.models);
-      await saveProviders(providers, { persistModels: false });
-      return { success: models.length > 0, models };
+      // No native CLI source is available for this agent. Leave any existing
+      // cache intact rather than presenting a preset list as live discovery.
+      return { success: false, models: [], kept: p.models || [], modelsDiscovered: false };
     }
 
-    const apiKey = previewConfig
+    const discoveredProvider = p && hasRequestedConfig ? {
+      ...p,
+      ...(Array.isArray(requestedEndpoints) ? {
+        endpoints: requestedEndpoints,
+        ...(requestedEndpoints[0]?.baseUrl ? { baseUrl: requestedEndpoints[0].baseUrl } : {}),
+      } : {}),
+      ...(Object.prototype.hasOwnProperty.call(input, 'vaultKey') ? { vaultKey: requestedVaultKey || undefined } : {}),
+    } : p;
+    const apiKey = hasRequestedConfig
       ? (requestedVaultKey ? await resolveVaultKey(requestedVaultKey) : undefined)
       : (p?.vaultKey ? await resolveVaultKey(p.vaultKey) : undefined);
     const endpointEntries = Array.isArray(requestedEndpoints) && requestedEndpoints.length
       ? requestedEndpoints.map((endpoint, index) => ({ id: endpoint.id || `${providerId || 'preview'}:endpoint:${index}`, endpoint }))
-      : (p ? providerEndpointEntries(p) : []);
+      : (discoveredProvider ? providerEndpointEntries(discoveredProvider) : []);
     if (!endpointEntries.length) throw Object.assign(new Error('至少需要一个有效端点'), { status: 400 });
     const allModels = [];
     const discoveries = [];
@@ -262,7 +262,7 @@ async function fetchModels(input = {}) {
             : await fetchAnthropicModels(ep.baseUrl, apiKey);
         }
         try {
-          models = await require('../web/api/models-dev').enrichModels(p || { id: providerId, baseUrl: ep.baseUrl, endpoints: [ep] }, models);
+          models = await require('../web/api/models-dev').enrichModels(discoveredProvider || { id: providerId, baseUrl: ep.baseUrl, endpoints: [ep] }, models);
         } catch (enrichErr) {
           console.warn(`[fetchModels] endpoint metadata enrichment failed: ${enrichErr.message}`);
         }
@@ -289,17 +289,31 @@ async function fetchModels(input = {}) {
       // models.dev enrichment: platform /models gives bare ids — attach
       // context/output/tool/reasoning/multimodal metadata from the catalog.
       try {
-        p.models = await require('../web/api/models-dev').enrichModels(p, p.models);
+        p.models = await require('../web/api/models-dev').enrichModels(discoveredProvider || p, p.models);
       } catch (enrichErr) {
         console.warn(`[fetchModels] models.dev enrichment failed: ${enrichErr.message}`);
       }
-      await _store.saveDiscoveredModels(p.id, p.models);
-      await saveProviders(providers, { persistModels: false });
+      if (persistConfig && discoveredProvider) {
+        Object.assign(p, {
+          endpoints: discoveredProvider.endpoints,
+          baseUrl: discoveredProvider.baseUrl,
+          vaultKey: discoveredProvider.vaultKey,
+        });
+        // The connection configuration and its freshly discovered directory
+        // become visible together. The store keeps models out of providers.json.
+        await saveProviders(providers);
+      } else {
+        await _store.saveDiscoveredModels(p.id, p.models);
+        await saveProviders(providers, { persistModels: false });
+      }
     }
 
     return {
       success: allModels.length > 0,
-      models: p && !previewConfig && allModels.length > 0 ? p.models : allModels,
+      modelsDiscovered: allModels.length > 0,
+      models: p && !previewConfig && allModels.length > 0
+        ? p.models
+        : allModels.map(model => ({ ...model, origin: model.origin || 'remote' })),
       errors: errors.length > 0 ? errors : undefined,
       kept: allModels.length === 0 && p ? p.models : undefined,
     };
@@ -319,37 +333,8 @@ async function fetchOpenAIModels(baseUrl, apiKey) {
     const models = (d.data || []).map(normalizeRemoteModel);
     if (models.length) return models;
   }
-  // Some deployments return 200 with an empty list, or 404/403/405 when the
-  // /models endpoint is not exposed. For Coding Plan providers we probe the
-  // chat endpoint with a plan-specific model and return the known fallback
-  // list on success so the UI shows usable models instead of "sync failed".
-  const fallback = getFallbackModels(baseUrl);
-  if (fallback && (result.status === 200 || result.status === 404 || result.status === 403 || result.status === 405)) {
-    let probeResult;
-    for (const probeModel of getProbeModels(baseUrl)) {
-      const probeBody = JSON.stringify({
-        model: probeModel,
-        max_tokens: 1,
-        messages: [{ role: 'user', content: 'hi' }],
-        stream: false,
-      });
-      probeResult = await httpReq(`${baseUrl.replace(/\/+$/, '')}/chat/completions`, {
-        method: 'POST', headers, body: probeBody, timeout: 10000,
-      });
-      if (probeResult.error) throw new Error(probeResult.error);
-      // 200 or 400 (bad request for max_tokens=1 etc.) both mean the key is
-      // valid and the endpoint is reachable — return the known model list.
-      if (probeResult.status === 200 || probeResult.status === 400) return fallback;
-      if (isModelAccessFailure(probeResult.status, probeResult.body)) continue;
-      if (getAuthenticatedResourceFailureMessage(probeResult.status, probeResult.body)) return fallback;
-      if (probeResult.status === 401) throw new Error('API Key 无效');
-      break;
-    }
-    // A model-level denial means authentication succeeded. Keep the offering
-    // catalog visible; entitlement is evaluated when the user selects a model.
-    if (probeResult && isModelAccessFailure(probeResult.status, probeResult.body)) return fallback;
-    throw new Error(`HTTP ${probeResult?.status || 0}`);
-  }
+  // Probes may validate credentials elsewhere, but never manufacture model
+  // membership. An empty official list is an empty discovery result.
   if (result.status !== 200) throw new Error(`HTTP ${result.status}`);
   return [];
 }
@@ -369,53 +354,30 @@ async function fetchQianfanCodingModels(baseUrl, apiKey) {
     if (models.length) return models;
   }
 
-  // The Coding Plan documentation guarantees the chat route and model names,
-  // but some deployments do not expose /models. Validate the key with the
-  // documented model and use the known list only after the probe succeeds.
-  if (listResult.status === 404 || listResult.status === 405 || listResult.status === 200) {
-    const probeBody = JSON.stringify({
-      model: QIANFAN_CODING_PROBE_MODEL,
-      max_tokens: 1,
-      messages: [{ role: 'user', content: 'hi' }],
-      stream: false,
-    });
-    const probeResult = await httpReq(`${root}/chat/completions`, {
-      method: 'POST', headers, body: probeBody, timeout: 10000,
-    });
-    if (probeResult.error) throw new Error(probeResult.error);
-    const probeCode = qianfanCodingErrorCode(probeResult.body);
-    const probeMessage = qianfanCodingErrorMessage(probeCode);
-    if (probeMessage) throw new Error(probeMessage);
-    if (probeResult.status === 200 || probeResult.status === 400) return qianfanCodingModels();
-    if (probeResult.status === 401) throw new Error('百度千帆 Coding Plan API Key 无效');
-    throw new Error(`HTTP ${probeResult.status}`);
-  }
-
+  // A successful probe is not an official list-model response. Keep the
+  // existing cache when this endpoint cannot enumerate models.
   if (listResult.status === 401) throw new Error('百度千帆 Coding Plan API Key 无效');
+  if (listResult.status === 404 || listResult.status === 405) return [];
   throw new Error(`HTTP ${listResult.status}`);
 }
 
 async function fetchQianfanCodingAnthropicModels(baseUrl, apiKey) {
   const root = String(baseUrl || '').replace(/\/+$/, '');
-  const headers = {
-    'anthropic-version': '2023-06-01',
-    'content-type': 'application/json',
-  };
+  const headers = { 'anthropic-version': '2023-06-01' };
   if (apiKey) headers['x-api-key'] = apiKey;
-  const body = JSON.stringify({
-    model: QIANFAN_CODING_PROBE_MODEL,
-    max_tokens: 1,
-    messages: [{ role: 'user', content: 'hi' }],
-  });
-  const result = await httpReq(`${root}/v1/messages`, {
-    method: 'POST', headers, body, timeout: 10000,
+  const result = await httpReq(`${root}/v1/models`, {
+    method: 'GET', headers, timeout: 10000,
   });
   if (result.error) throw new Error(result.error);
   const code = qianfanCodingErrorCode(result.body);
   const message = qianfanCodingErrorMessage(code);
   if (message) throw new Error(message);
-  if (result.status === 200 || result.status === 400) return qianfanCodingModels();
+  if (result.status === 200) {
+    const data = JSON.parse(result.body);
+    return (data.data || []).map(normalizeRemoteModel).filter(model => model.id);
+  }
   if (result.status === 401) throw new Error('百度千帆 Token Plan API Key 无效');
+  if (result.status === 404 || result.status === 405) return [];
   throw new Error(`HTTP ${result.status}`);
 }
 
@@ -443,29 +405,6 @@ async function fetchAnthropicModels(baseUrl, apiKey) {
     if (models.length) return models;
   }
 
-  const fallback = getFallbackModels(baseUrl);
-  if (fallback && (result.status === 200 || result.status === 403 || result.status === 404 || result.status === 405)) {
-    headers['content-type'] = 'application/json';
-    let probeResult;
-    for (const probeModel of getProbeModels(baseUrl)) {
-      const body = JSON.stringify({
-        model: probeModel,
-        max_tokens: 1,
-        messages: [{ role: 'user', content: 'hi' }],
-      });
-      probeResult = await httpReq(`${root}/v1/messages`, {
-        method: 'POST', headers, body, timeout: 10000,
-      });
-      if (probeResult.error) throw new Error(probeResult.error);
-      if (probeResult.status === 200 || probeResult.status === 400) return fallback;
-      if (isModelAccessFailure(probeResult.status, probeResult.body)) continue;
-      if (getAuthenticatedResourceFailureMessage(probeResult.status, probeResult.body)) return fallback;
-      if (probeResult.status === 401) throw new Error('API Key 无效');
-      break;
-    }
-    if (probeResult && isModelAccessFailure(probeResult.status, probeResult.body)) return fallback;
-    throw new Error(`HTTP ${probeResult?.status || 0}`);
-  }
   if (result.status === 404 || result.status === 405) throw new Error('不支持模型列表接口');
   throw new Error(`HTTP ${result.status}`);
 }

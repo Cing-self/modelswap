@@ -2,8 +2,6 @@
 // from the regular V2 API. Keep the provider-specific detection and messages
 // in one small CommonJS module so model discovery and connection tests agree.
 
-const QIANFAN_CODING_MODELS = [];
-
 const QIANFAN_CODING_PROBE_MODEL = 'qianfan-code-latest';
 
 function isQianfanCodingEndpoint(baseUrl) {
@@ -55,12 +53,11 @@ function qianfanCodingErrorMessage(code) {
   return messages[code] || '';
 }
 
-function qianfanCodingModels() {
-  return QIANFAN_CODING_MODELS.map(id => ({ id, name: id }));
-}
+// Compatibility seam for callers/tests. It intentionally remains empty:
+// authenticated /models (or an Agent CLI) is the only model membership source.
+function qianfanCodingModels() { return []; }
 
 module.exports = {
-  QIANFAN_CODING_MODELS,
   QIANFAN_CODING_PROBE_MODEL,
   isQianfanCodingEndpoint,
   isQianfanCodingAnthropicEndpoint,

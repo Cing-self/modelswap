@@ -152,7 +152,7 @@ export function ProviderForm({ provider, platform, onSelectOffering, onOAuthLogi
   }
 
   function addModel() {
-    setModels([...models, { id: '' }]);
+    setModels([...models, { id: '', origin: 'user' }]);
     setEditorDirty(true);
   }
 

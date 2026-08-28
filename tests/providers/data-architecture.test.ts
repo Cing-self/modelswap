@@ -104,7 +104,7 @@ describe('provider data architecture', { timeout: 30000 }, () => {
     expect(migrated).not.toHaveProperty('modelCache');
   });
 
-  it('replaces old built-in DeepSeek rows with the current shared-directory models', () => {
+  it('does not let the shared directory replace a cached DeepSeek membership snapshot', () => {
     const result = runInTemporaryHome(`
       const fs=require('fs'), path=require('path');
       const store=require(path.join(process.argv[1], 'src/providers/store'));
@@ -128,7 +128,7 @@ describe('provider data architecture', { timeout: 30000 }, () => {
         console.log(JSON.stringify({ runtime:providers.find(p=>p.id==='deepseek').models.map(m=>m.id), cache:cache.providers.deepseek.map(m=>m.id) }));
       })().catch(error=>{console.error(error.stack);process.exit(1)});
     `);
-    const expected = ['deepseek-v4-flash', 'deepseek-v4-pro', 'deepseek-v4-flash-vision-exp'];
+    const expected = ['deepseek-v4-flash', 'deepseek-v4-pro', 'deepseek-chat', 'deepseek-reasoner'];
     expect(result.runtime).toEqual(expected);
     expect(result.cache).toEqual(expected);
   });

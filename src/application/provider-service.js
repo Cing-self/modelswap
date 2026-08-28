@@ -12,14 +12,9 @@ const {
   isQianfanCodingAnthropicEndpoint,
   qianfanCodingErrorCode,
   qianfanCodingErrorMessage,
-  qianfanCodingModels,
 } = require('../web/api/qianfan-coding');
 const {
   getAnthropicAuthMode,
-  getAuthenticatedResourceFailureMessage,
-  getFallbackModels,
-  getProbeModels,
-  isModelAccessFailure,
 } = require('../web/api/endpoint-profiles');
 const { createModelDiscoveryService } = require('./model-discovery-service');
 const { createProviderAuthService } = require('./provider-auth-service');
@@ -283,7 +278,7 @@ async function listProviders() {
 const providerStatusService = createProviderStatusService({
   _store, loadProviders, loadUserConfig, ADAPTERS, ADDITIVE_AGENTS,
   adapterSupportsProvider, _getAdapter, providerExecutionMode, providerEndpointEntries,
-  buildPlatforms, qianfanCodingModels, sortModels, sortProviders, tagRecentModels,
+  buildPlatforms, sortModels, sortProviders, tagRecentModels,
   enrichCodexOfficialModels, readCodexCachedModels: (...args) => modelDiscoveryService.readCodexCachedModels(...args),
   getAgentState, findCommand: (...args) => findCommand(...args), publishDataChanged,
 });
@@ -607,8 +602,8 @@ const modelDiscoveryService = createModelDiscoveryService({
   fs, path, os, _store, loadProviders, saveProviders, loadUserConfig,
   providerEndpointEntries, providerExecutionMode, QIANFAN_CODING_PROBE_MODEL,
   isQianfanCodingEndpoint, isQianfanCodingAnthropicEndpoint,
-  qianfanCodingErrorCode, qianfanCodingErrorMessage, qianfanCodingModels,
-  getProbeModels, getFallbackModels, getAuthenticatedResourceFailureMessage, getAnthropicAuthMode, isModelAccessFailure, publishDataChanged, tagRecentModels, sortModels, normalizeRemoteModel,
+  qianfanCodingErrorCode, qianfanCodingErrorMessage,
+  getAnthropicAuthMode, publishDataChanged, tagRecentModels, sortModels, normalizeRemoteModel,
   detectOAuth, resolveVaultKey, findCommand: (...args) => findCommand(...args),
 });
 const {

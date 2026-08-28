@@ -14,10 +14,9 @@ const CACHE_VERSION = 2 as const;
 const modelsDev: {
   loadCatalog(options?: { force?: boolean }): Promise<any>;
   getCatalogState(): { generation: number; sourceFetchedAt: string | null; cachedAt: string | null; sourceHash: string | null; status: "fresh" | "stale" | "error" | "empty"; lastError: string | null };
-  listFreshProviderModels(catalog: any, provider: ProviderSite, fetchedAt?: string): ModelMetadata[];
+  enrichFreshRemoteModels(catalog: any, provider: ProviderSite, models: ProviderModel[], fetchedAt?: string): ModelMetadata[];
   CACHE_PATH: string;
 } = require("../web/api/models-dev");
-const PRESET_PROVIDER_IDS = new Set(PRESET_PROVIDERS.map(provider => provider.id));
 let storeWriteQueue: Promise<void> = Promise.resolve();
 
 function serializeStoreWrite<T>(task: () => Promise<T>): Promise<T> {
@@ -45,7 +44,11 @@ function isSite(value: any): value is ProviderSite { return value && typeof valu
 function stripModels(provider: Provider | ProviderSite): ProviderSite { const { models: _models, modelCache: _cache, platforms: _platforms, ...site } = provider as any; return clone(site); }
 function toMetadata(model: ProviderModel, source: ModelMetadata["source"] = "legacy"): ModelMetadata {
   const meta = model.meta;
-  const effectiveSource = meta?.source === "modelsdev" ? "modelsdev" : meta?.source === "remote" ? "remote" : source;
+  // Live discovery and explicit user input own model membership. A catalog
+  // match may enrich their fields, but must not recast them as catalog models.
+  const effectiveSource = source === "manual" || source === "remote"
+    ? source
+    : meta?.source === "modelsdev" ? "modelsdev" : meta?.source === "remote" ? "remote" : source;
   return {
     id: model.id,
     ...(model.name ? { name: model.name } : {}),
@@ -237,32 +240,31 @@ async function readProviderFile(): Promise<ProviderFile> {
   await backupLegacy(content); await writeCache(cache); await writeProviderFile(next, false);
   return next;
 }
-function mergeDirectoryMetadata(existing: ModelMetadata[], directory: ModelMetadata[], dropUnknownLegacy = false): ModelMetadata[] {
-  const merged = new Map<string, ModelMetadata>();
-  for (const model of directory) if (model?.id) merged.set(model.id, clone(model));
-  for (const model of existing) {
-    if (!model?.id) continue;
-    const catalog = merged.get(model.id);
-    if (!catalog) {
-      if (dropUnknownLegacy && model.source === "legacy") continue;
-      merged.set(model.id, clone(model));
-      continue;
-    }
-    const keepLocalSource = model.source === "manual" || model.source === "remote";
-    merged.set(model.id, {
-      ...catalog,
-      ...(keepLocalSource ? clone(model) : {}),
-      ...(!keepLocalSource && model.name ? { name: model.name } : {}),
-    });
-  }
-  return [...merged.values()];
+function enrichKnownMetadata(existing: ModelMetadata[], catalogMetadata: ModelMetadata[]): ModelMetadata[] {
+  const byId = new Map(catalogMetadata.filter(model => model?.id).map(model => [model.id, model]));
+  return existing.map(model => {
+    const catalog = byId.get(model.id);
+    if (!catalog) return clone(model);
+    // The discovery/manual record owns membership and provenance. Catalog data
+    // can only supplement facts for that exact, already-known model id.
+    return {
+      ...clone(model),
+      ...clone(catalog),
+      ...(model.name ? { name: model.name } : {}),
+      source: model.source,
+      confidence: model.confidence,
+      ...(model.origin ? { origin: model.origin } : {}),
+      ...(model.availability ? { availability: clone(model.availability) } : {}),
+      ...(model.remote ? { remote: clone(model.remote) } : {}),
+    };
+  });
 }
 
-async function hydrateCacheFromDirectory(file: ProviderFile, cache: ModelsCacheData, suppliedCatalog?: any): Promise<boolean> {
-  // Unit tests without an explicit catalog fixture must remain deterministic
-  // and offline. Integration tests can opt in by creating the same cache file
-  // production uses.
-  if (process.env.VITEST && !(await fs.pathExists(modelsDev.CACHE_PATH))) return false;
+async function refreshKnownMetadata(file: ProviderFile, cache: ModelsCacheData, suppliedCatalog?: any): Promise<boolean> {
+  // A catalog is metadata only. It must never create runtime model rows; the
+  // membership source is an authenticated endpoint/CLI discovery or an
+  // explicit user model saved in models-cache.json.
+  if (process.env.VITEST && !suppliedCatalog && !(await fs.pathExists(modelsDev.CACHE_PATH))) return false;
   const catalog = suppliedCatalog || await modelsDev.loadCatalog();
   if (!catalog) return false;
   const state = modelsDev.getCatalogState();
@@ -273,16 +275,9 @@ async function hydrateCacheFromDirectory(file: ProviderFile, cache: ModelsCacheD
     || cache.lastError !== state.lastError;
   const fetchedAt = state.sourceFetchedAt || new Date().toISOString();
   for (const site of file.providers) {
-    const directory = modelsDev.listFreshProviderModels(catalog, site, fetchedAt);
     const existing = cache.providers[site.id] || [];
-    // Built-in sites own no model rows. If models.dev has no matching entry,
-    // remove only historical preset rows; user/manual and live-discovered
-    // rows remain authoritative local data.
-    const merged = directory.length
-      ? mergeDirectoryMetadata(existing, directory, PRESET_PROVIDER_IDS.has(site.id))
-      : PRESET_PROVIDER_IDS.has(site.id)
-        ? existing.filter(model => model.source !== "legacy")
-        : existing;
+    const directory = modelsDev.enrichFreshRemoteModels(catalog, site, existing.map(toModel), fetchedAt);
+    const merged = enrichKnownMetadata(existing, directory);
     if (JSON.stringify(existing) !== JSON.stringify(merged)) {
       cache.providers[site.id] = merged;
       changed = true;
@@ -305,12 +300,10 @@ function materialize(file: ProviderFile, cache: ModelsCacheData): Provider[] {
 
 export async function loadProviders(): Promise<Provider[]> {
   const file = await readProviderFile();
-  const cache = await serializeStoreWrite(async () => {
-    const current = await readCache();
-    const changed = await hydrateCacheFromDirectory(file, current);
-    if (changed) await writeCache(current);
-    return current;
-  });
+  // Reading providers is intentionally side-effect free for the model cache.
+  // In particular, opening the model-data diagnostic must not synthesize rows
+  // from models.dev or rewrite a user's discovery snapshot.
+  const cache = await readCache();
   if (!(await fs.pathExists(PROVIDERS_PATH))) await writeProviderFile(file);
   return materialize(file, cache);
 }
@@ -319,7 +312,7 @@ export async function refreshModelsFromCatalog(catalog?: any): Promise<Provider[
   const file = await readProviderFile();
   const cache = await serializeStoreWrite(async () => {
     const current = await readCache();
-    const changed = await hydrateCacheFromDirectory(file, current, catalog);
+    const changed = await refreshKnownMetadata(file, current, catalog);
     if (changed) await writeCache(current);
     return current;
   });
@@ -337,7 +330,14 @@ export async function saveProviders(providers: Provider[]): Promise<void> {
       if (!isSite(provider) || !Array.isArray(provider.models)) continue;
       cache.providers[provider.id] = provider.models
         .filter(model => model?.id)
-        .map(model => toMetadata(model, model.origin === "user" ? "manual" : model.meta?.source === "remote" ? "remote" : "legacy"));
+        .map(model => toMetadata(
+          model,
+          model.origin === "user"
+            ? "manual"
+            : model.origin === "remote" || model.meta?.source === "remote"
+              ? "remote"
+              : "legacy",
+        ));
     }
     const { providers: _old, ...unknown } = current;
     await writeCache(cache);
@@ -352,12 +352,23 @@ export async function saveProviders(providers: Provider[]): Promise<void> {
 export async function saveDiscoveredModels(providerId: string, models: ProviderModel[]): Promise<void> {
   await serializeStoreWrite(async () => {
     const cache = await readCache();
-    cache.providers[providerId] = models
+    const discovered = models
       .filter(model => model?.id)
       .map(model => toMetadata(
         model,
-        model.origin === "user" ? "manual" : model.meta?.source === "remote" ? "remote" : "legacy",
+        model.origin === "user"
+          ? "manual"
+          : model.origin === "remote" || model.meta?.source === "remote"
+            ? "remote"
+            : "legacy",
       ));
+    const incomingIds = new Set(discovered.map(model => model.id));
+    const manual = (cache.providers[providerId] || [])
+      .filter(model => (model.source === "manual" || model.origin === "user") && !incomingIds.has(model.id));
+    // A remote refresh is a full replacement only for remote rows. Explicit
+    // user additions belong to the local model directory and never disappear
+    // merely because an endpoint did not enumerate them.
+    cache.providers[providerId] = [...manual, ...discovered];
     await writeCache(cache);
   });
 }

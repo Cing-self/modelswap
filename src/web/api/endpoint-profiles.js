@@ -231,16 +231,6 @@ function getAuthenticatedResourceFailureMessage(status, body) {
   return null;
 }
 
-/**
- * Kept as a compatibility seam for older callers. Probe profiles no longer
- * provide model catalogs, so this always returns null.
- */
-function getFallbackModels(baseUrl) {
-  // Profiles describe transport probes, not a product model catalog.
-  // Canonical models come from models.dev, live discovery, or user input.
-  return null;
-}
-
 module.exports = {
   PROFILES,
   DEFAULT_PROBE_MODEL,
@@ -251,5 +241,4 @@ module.exports = {
   requiresInferenceProbe,
   isModelAccessFailure,
   getAuthenticatedResourceFailureMessage,
-  getFallbackModels,
 };

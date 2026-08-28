@@ -65,6 +65,13 @@ describe('syncPull Agent configuration reconciliation', { timeout: 30000 }, () =
           'sync-open-catalog':{api:'https://sync-open.test/v1',models:{'open-canonical':{name:'Open Canonical',limit:{context:123456,output:7890},reasoning:true,reasoning_options:[{type:'effort',values:['high']}],modalities:{input:['text','image']}}}},
           'sync-claude-catalog':{api:'https://sync-claude.test',models:{'claude-canonical':{name:'Claude Canonical',limit:{context:654321},reasoning:true,reasoning_options:[{type:'effort',values:['high']}],modalities:{input:['text','image']}}}}
         }}));
+        // Model membership is device-local discovery state. B has previously
+        // discovered these exact ids; the catalog fixture above may enrich
+        // facts but must never manufacture the rows itself.
+        fs.writeFileSync(path.join(process.env.HOME,'.okit','models-cache.json'),JSON.stringify({version:2,source:'okit',generation:0,sourceFetchedAt:null,cachedAt:now,sourceHash:null,status:'empty',lastError:null,providers:{
+          'sync-open':[{id:'open-canonical',name:'Open Canonical',source:'remote',confidence:'medium',origin:'remote',context:123456,output:7890,reasoning:true,reasoningOptions:[{type:'effort',values:['high']}],modalities:{input:['text','image']},availability:[{executionMode:'http_endpoint',endpointId:'open-endpoint',remoteModelId:'open-canonical',status:'available',source:'remote'}]}],
+          'sync-claude':[{id:'claude-canonical',name:'Claude Canonical',source:'remote',confidence:'medium',origin:'remote',context:654321,reasoning:true,reasoningOptions:[{type:'effort',values:['high']}],modalities:{input:['text','image']},availability:[{executionMode:'http_endpoint',endpointId:'claude-endpoint',remoteModelId:'claude-canonical',status:'available',source:'remote'}]}]
+        }}));
         fs.mkdirSync(path.dirname(userPath),{recursive:true});
         // Simulate an incomplete pull where the selection arrives before its
         // site partition is eligible. Desired state remains, diagnostics are

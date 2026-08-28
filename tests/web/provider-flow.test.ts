@@ -190,7 +190,7 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
     expect(result.afterPreview.agentProviders).toEqual(result.beforePreview.agentProviders);
     const refreshed = result.refreshed.models;
     expect(refreshed.find((model: any) => model.id === 'remote-one').availability[0]).toMatchObject({ status: 'available', source: 'remote' });
-    expect(refreshed.find((model: any) => model.id === 'directory-only').availability[0]).toMatchObject({ status: 'unavailable', source: 'static' });
+    expect(refreshed.find((model: any) => model.id === 'directory-only')).toBeUndefined();
     for (const agentId of ['codex', 'claude', 'opencode']) {
       const site = result.home.adapters.find((adapter: any) => adapter.id === agentId).compatibleProviders
         .find((provider: any) => provider.id === (agentId === 'claude' ? 'life-claude' : 'life-open'));

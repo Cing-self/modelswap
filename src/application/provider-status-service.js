@@ -1,4 +1,4 @@
-function createProviderStatusService(deps) { const { _store, loadProviders, loadUserConfig, ADAPTERS, ADDITIVE_AGENTS, adapterSupportsProvider, _getAdapter, providerExecutionMode, providerEndpointEntries, buildPlatforms, qianfanCodingModels, sortModels, sortProviders, tagRecentModels, enrichCodexOfficialModels, readCodexCachedModels, getAgentState, findCommand, publishDataChanged } = deps;
+function createProviderStatusService(deps) { const { _store, loadProviders, loadUserConfig, ADAPTERS, ADDITIVE_AGENTS, adapterSupportsProvider, _getAdapter, providerExecutionMode, providerEndpointEntries, buildPlatforms, sortModels, sortProviders, tagRecentModels, enrichCodexOfficialModels, readCodexCachedModels, getAgentState, findCommand, publishDataChanged } = deps;
 function modelDataSelections(config) {
   const selectedByProvider = new Map();
   for (const [agentId, state] of Object.entries(config.agentProviders || {})) {
@@ -85,33 +85,31 @@ function runtimeModelDataRecord(model) {
   };
 }
 
-async function buildFreshModelDataSnapshot() {
-  const modelsDev = require('../web/api/models-dev');
-  const [providers, config, catalog] = await Promise.all([
+async function buildFreshModelDataSnapshot(catalog = null) {
+  const [providers, config, modelCache] = await Promise.all([
     loadProviders(),
     loadUserConfig(),
-    modelsDev.loadCatalog(),
+    _store.loadModelsCache(),
   ]);
-  const state = modelsDev.getCatalogState();
   const selectedByProvider = modelDataSelections(config);
   const rows = providers.map(provider => modelDataProviderRow(
     provider,
     (provider.models || []).map(runtimeModelDataRecord),
     selectedByProvider,
-    catalog ? modelsDev.getFreshProviderMetadata(catalog, provider) : null,
+    catalog ? require('../web/api/models-dev').getFreshProviderMetadata(catalog, provider) : null,
   ));
   return {
     cache: {
-      version: state.version,
-      source: state.source,
-      generation: state.generation,
-      sourceFetchedAt: state.sourceFetchedAt,
-      cachedAt: state.cachedAt,
-      fetchedAt: state.sourceFetchedAt,
-      sourceHash: state.sourceHash,
-      status: state.status,
-      lastError: state.lastError,
-      file: state.file,
+      version: modelCache.version,
+      source: modelCache.source,
+      generation: modelCache.generation,
+      sourceFetchedAt: modelCache.sourceFetchedAt,
+      cachedAt: modelCache.cachedAt,
+      fetchedAt: modelCache.sourceFetchedAt,
+      sourceHash: modelCache.sourceHash,
+      status: modelCache.status,
+      lastError: modelCache.lastError,
+      file: _store.providerStorePaths.modelsCache,
     },
     summary: modelDataSummary(rows),
     providers: rows,
@@ -120,9 +118,8 @@ async function buildFreshModelDataSnapshot() {
 
 async function getModelData() {
   try {
-    // Read the same normalized generation used by /api/providers and Agent
-    // adapters. This route is a diagnostic view, not another cache.
-    await _store.refreshModelsFromCatalog(await require('../web/api/models-dev').loadCatalog());
+    // This diagnostic is strictly read-only. The shared model cache is the
+    // same materialized source used by /api/providers and agent pickers.
     return await buildFreshModelDataSnapshot();
   } catch (err) {
     throw Object.assign(new Error(`全新模型数据拉取失败：${err.message}`), { status: 502 });
@@ -134,7 +131,7 @@ async function refreshModelData() {
     const catalog = await require('../web/api/models-dev').loadFreshCatalog();
     await _store.refreshModelsFromCatalog(catalog);
     publishDataChanged(['providers']);
-    return await buildFreshModelDataSnapshot();
+    return await buildFreshModelDataSnapshot(catalog);
   } catch (err) {
     throw Object.assign(new Error(`全新模型数据拉取失败：${err.message}`), { status: 502 });
   }
@@ -227,15 +224,24 @@ async function refreshDemoProviderModels(id) {
     const target = materialized.find(item => item.id === provider.id);
     if (!target) throw Object.assign(new Error('Provider 不存在'), { status: 404 });
     const userConfig = await loadUserConfig();
-    const activeModelIds = new Set(
-      Object.values(userConfig.agentProviders || {}).flatMap(state => state?.sites?.[provider.id]?.modelIds || []),
-    );
-    const routedDiscoveries = discoveries.map(item => ({
-      endpointId: item.endpointId,
-      model: enrichedById.get(item.model.id) || item.model,
-    }));
-    target.models = replaceRemoteModels(target, routedDiscoveries, activeModelIds);
-    await saveProviders(materialized);
+    const activeModelIds = new Set(Object.values(userConfig.agentProviders || {})
+      .flatMap(state => state?.sites?.[provider.id]?.modelIds || []));
+    const now = new Date().toISOString();
+    const remoteById = new Map();
+    for (const discovery of discoveries) {
+      const model = enrichedById.get(discovery.model.id) || discovery.model;
+      const entry = remoteById.get(model.id) || { ...model, id: model.id, origin: 'remote', availability: [] };
+      entry.availability.push({ executionMode: 'http_endpoint', endpointId: discovery.endpointId, remoteModelId: model.id, status: 'available', source: 'remote', discoveredAt: now, lastSeenAt: now });
+      remoteById.set(model.id, entry);
+    }
+    // Match the shared discovery policy: remote membership is replaced, while
+    // explicit user rows and currently selected rows survive a refresh.
+    const retained = (target.models || []).filter(model =>
+      model.origin === 'user' || activeModelIds.has(model.id),
+    ).filter(model => !remoteById.has(model.id));
+    target.models = [...retained, ...remoteById.values()];
+    await _store.saveDiscoveredModels(provider.id, target.models);
+    publishDataChanged(['providers']);
     const snapshot = await buildFreshModelDataSnapshot();
     const row = snapshot.providers.find(item => item.id === provider.id);
     return { success: true, provider: row, errors: errors.length ? errors : undefined };
