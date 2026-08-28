@@ -22,10 +22,36 @@ function reservePort() {
 }
 
 function run(root: string, home: string, script: string, blob: string) {
-  return execFileSync(process.execPath, ['-r', 'ts-node/register', '-e', script, root], {
-    env: { ...process.env, HOME: home, USERPROFILE: home, OKIT_SYNC_BLOB: blob },
-    encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
-  });
+  try {
+    return execFileSync(process.execPath, ['-r', 'ts-node/register', '-e', script, root], {
+      env: { ...process.env, HOME: home, USERPROFILE: home, OKIT_SYNC_BLOB: blob },
+      encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  } catch (error: unknown) {
+    // execFileSync includes its whole `node -e` command in Error.message.
+    // The fixture script contains credential test values, so never let that
+    // command line, stdout, or stderr escape into the Vitest report.
+    const status = typeof error === 'object' && error && 'status' in error
+      ? (error as { status?: number | null }).status
+      : undefined;
+    throw new Error(`isolated sync fixture child failed${typeof status === 'number' ? ` (exit ${status})` : ''}`);
+  }
+}
+
+function readSimpleClaudeHelperValue(helper: string): string | undefined {
+  const prefix = '#!/bin/sh\necho ';
+  if (!helper.startsWith(prefix) || !helper.endsWith('\n')) return undefined;
+  const quoted = helper.slice(prefix.length, -1);
+  // The two non-secret fixture values are deliberately simple shell atoms.
+  // This validates the generated helper's relation to the selected Vault
+  // value without launching a POSIX shell on Windows.
+  return /^'[^']*'$/.test(quoted) ? quoted.slice(1, -1) : undefined;
+}
+
+function claudeHelperPermissionsArePortable(mode: number, platform: NodeJS.Platform) {
+  // Windows has no POSIX executable bits. The generated helper is consumed by
+  // Claude's platform adapter there, while POSIX keeps the 0700 contract.
+  return platform === 'win32' || (mode & 0o777) === 0o700;
 }
 
 describe('sync pull reconciles every registered Agent through local discovery', { timeout: 30000 }, () => {
@@ -135,12 +161,16 @@ describe('sync pull reconciles every registered Agent through local discovery', 
         const isSelectedCredential=value=>typeof value==='string'&&value===selectedValue&&value!==distractorValue;
         const claudeHelperPath=path.join(home,'.claude','.okit-key-helper.sh');
         const claudeHelper=claude.apiKeyHelper===claudeHelperPath&&fs.existsSync(claudeHelperPath)?fs.readFileSync(claudeHelperPath,'utf8'):'';
-        const claudeHelperValue=claudeHelper
-          ? require('child_process').execFileSync('/bin/sh',[claudeHelperPath],{encoding:'utf8'}).trim()
+        // Do not execute the POSIX helper: Windows has no /bin/sh. The
+        // fixture's two values are simple shell atoms, so inspect the helper
+        // shape in Node and compare its decoded output privately.
+        const helperPrefix='#!/bin/sh\\necho ';
+        const claudeHelperValue=claudeHelper.startsWith(helperPrefix)&&claudeHelper.endsWith('\\n')
+          ? (()=>{const quoted=claudeHelper.slice(helperPrefix.length,-1);return /^'[^']*'$/.test(quoted)?quoted.slice(1,-1):undefined})()
           : undefined;
         const claudeAuth={
           helperPath:claude.apiKeyHelper===claudeHelperPath,
-          executable:(fs.statSync(claudeHelperPath).mode&0o777)===0o700,
+          executable:process.platform==='win32'||(fs.statSync(claudeHelperPath).mode&0o777)===0o700,
           selectedOutput:isSelectedCredential(claudeHelperValue),
         };
         const yaml=require('js-yaml').load(hermes);
@@ -180,6 +210,31 @@ describe('sync pull reconciles every registered Agent through local discovery', 
       fs.rmSync(machineA, { recursive: true, force: true });
       fs.rmSync(machineB, { recursive: true, force: true });
       fs.rmSync(blobDir, { recursive: true, force: true });
+    }
+  });
+
+  it('uses portable Claude helper evidence and redacts child fixture failures', () => {
+    const primary = 'fixture-primary-credential';
+    const distractor = 'fixture-distractor-credential';
+    expect(readSimpleClaudeHelperValue(`#!/bin/sh\necho '${primary}'\n`)).toBe(primary);
+    expect(readSimpleClaudeHelperValue(`#!/bin/sh\necho '${distractor}'\n`)).not.toBe(primary);
+    expect(claudeHelperPermissionsArePortable(0o700, 'linux')).toBe(true);
+    expect(claudeHelperPermissionsArePortable(0o644, 'linux')).toBe(false);
+    expect(claudeHelperPermissionsArePortable(0o644, 'win32')).toBe(true);
+
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-sync-redacted-child-'));
+    try {
+      let failure: Error | undefined;
+      try {
+        run(process.cwd(), home, `process.stderr.write('${primary}'); process.exit(7)`, 'unused');
+      } catch (error) {
+        failure = error as Error;
+      }
+      expect(failure?.message).toBe('isolated sync fixture child failed (exit 7)');
+      expect(failure?.message).not.toContain(primary);
+      expect(failure?.message).not.toContain('-e');
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true });
     }
   });
 });
