@@ -84,3 +84,57 @@
 - 未启动 GitHub macOS/Ubuntu/Windows CI、Publish、tag/Release/DMG 或真实 B，因为两个 P0 缺口未清零；这些行在 checklist 都是 `BLOCKED` 并连接到上述 IDs。
 - 未使用真实 API key、订阅权限或 B 的本机 Agent 文件。mock 请求只在隔离 HOME/随机端口里验证，不包含 secret。
 - 基线已一次性完成所有存在的 P0 命令。下一个动作不是对 e378 单独验收/合并，而是 CEO 将上述两个根因批次一次性交开发；修复后完整统一复验。
+
+---
+
+## R2 独立复验：ab9f165
+
+### R2 结论
+
+**QA_BLOCKED。** `ab9f165a7aec073a4b0b0047989c0e68035ba035` 补入了 R1 所缺的两个测试并使所有执行命令通过，但按冻结标准仍有一个 P0 证据缺口。不得合并、发布、启动 CI/Publish 或操作真实 B。
+
+| 项目 | R2 记录 |
+| --- | --- |
+| 候选 / base | `ab9f165a7aec073a4b0b0047989c0e68035ba035` / `19207a25eb50ea48728ee5ff927d8599b1c802a8` |
+| clean/diff | detached worktree clean；`git diff --check base...HEAD` 无输出。 |
+| 范围 | 相对 base 11 files、741 insertions / 6 deletions；production 仅 Qianfan directory routing 三文件，新增功能均在两份 sync regression 与文档。 |
+| 环境 | macOS，Node `v26.7.0`，npm `11.19.1`；所有有效命令 fresh HOME+USERPROFILE+独立 npm cache。 |
+| 端口 | 没有浏览器 fixture；所有测试 listener 使用 port 0。最终 3780 仅见本轮前已运行的 PID 75039 (`127.0.0.1`)，未触碰。 |
+
+### R2 执行证据
+
+| 命令 | 结果 |
+| --- | --- |
+| `npx vitest run tests/web/sync-agent-all-adapters-reconcile.test.ts tests/web/sync-agent-vaultkey-reconciliation.test.ts` | **2 files / 2 tests passed**，10.55s。 |
+| R1 unit/domain 命令 | **7 files / 70 tests passed**，0.511s。 |
+| R1 integration 加两项新 P0 | **7 files / 37 tests passed**，11.66s。 |
+| R1 adapter/native 命令 | **14 files / 268 tests passed**，10.82s。 |
+| `npx vitest run tests/build/runtime-closure.test.ts` | **1 file / 1 test passed**，1.12s。 |
+| `npm run build` | passed：tsc、extension、copy-web、runtime `/ping`、frontend。 |
+| `npm pack --dry-run --json` | passed：348 entries，3,553,341 bytes，shasum `62b8d5e3a2cfab8c81add556a7776c66e674bddb`，required dist runtime entries present。 |
+| default parallel full #1/#2/#3 | **86 files / 770 tests** passed each（20.31s / 20.12s / 20.26s）。 |
+
+静态审查未发现新增 `.skip`、`.only`、`.todo`、retry、global serial pool、关闭 file parallelism 或全局 timeout 放宽。Qianfan helper 的独立纯 Node 矩阵确认 official `:443` coding、大小写 personal 带 query/hash 均归一至 `https://qianfan.baidubce.com/v2/models`；third-party coding/personal、lookalike、`:8443`、extra path 和 `/v2/models?x=1` 均返回 `null`。`model-discovery-service` 只有 helper 成功时进入 Qianfan discovery，否则保留普通 `baseUrl + /models`。
+
+### R1 缺陷状态
+
+- `QA-P0-GAP-002` **已关闭**：`tests/web/sync-agent-vaultkey-reconciliation.test.ts` 使用临时真实 `VaultStore`，验证局部编辑、missing/null/empty merge、GLM migration、sync push/pull、discovery、Codex reconcile 后 Vault ref 留存；projection/payload 不含 secret 或 rebuildable models；旧 `requires_openai_auth` 被移除，第三方通过 scoped Vault auth。
+- `QA-P0-GAP-001` 的“测试文件不存在”部分**已关闭**，但被以下更严格的 R2 缺陷替代，R2 不可放行。
+
+### QA-P0-R2-001 — 全 adapter fresh-B fixture 未逐项验证凭据引用/鉴权形态
+
+| 字段 | 内容 |
+| --- | --- |
+| P0/P1 | P0 |
+| 根因分类 | adapter mapping / auth evidence |
+| 受影响 | Claude、OpenCode、OpenClaw、WorkBuddy、ZCode、Hermes、Kimi Code、Grok Build、MiMo Code（Codex 行有精确 scoped Vault reference 断言）。 |
+| 精确位置 | `tests/web/sync-agent-all-adapters-reconcile.test.ts:120-131`。 |
+| 最小复现/审查 | fixture 确实运行时读取 `AGENTS_META`/`getAdapters()`，且集合精确十项；但 Claude 仅 `Boolean(ANTHROPIC_API_KEY) || Boolean(apiKeyHelper)`，OpenCode/OpenClaw/WorkBuddy/ZCode/MiMo 仅 `Boolean(...apiKey)`，Hermes/Kimi/Grok 仅检查 `api_key:`/`api_key =` 出现。任意错误或不安全的 credential 值/鉴权形态仍可使这些表达式为真。 |
+| 预期 / 实际 | 冻结规格要求每个 adapter 的真实 B 临时目标文件精确验证 credential **reference/auth shape**，同时仍不输出 secret；实际九行只有存在性检查。 |
+| 对应 checklist | `R2-A01`、`R2-A03` 至 `R2-A10` 为 `BLOCKED`；`R2-A02` 与 `R2-A11` 已 PASS。 |
+| 集中修复批次 | 只改测试：为每项对 API-key provider 写入可识别但非秘密的 Vault reference command/shape 并逐项断言；针对 Claude 同时断言合法 API-key 或 helper 的预期分支，禁止 truthy fallback。保留运行时动态 10-ID 集合和新增 adapter 失败契约。 |
+| 阻断 | 任一 P0 BLOCKED 即 QA_BLOCKED；full green 不能覆盖。 |
+
+### 后续门禁（未启动）
+
+R2 缺陷修复后，必须从新 SHA 重新跑 acceptance 全部 P0（含三次 default-parallel full、build、package）。QA PASS 后才依 checklist `R2-G01` 运行三 OS CI；成功后才运行 `R2-G02` Publish/tag/Release/arm64+x64 DMG；最后才运行 `R2-G03` 真实 B smoke。上述三行本轮均 `NOT RUN`，没有把未来发布结果冒充本轮证据。
