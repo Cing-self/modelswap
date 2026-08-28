@@ -141,6 +141,7 @@ function queryConsoleOnlyUsage(label, url, detail) {
     supported: true,
     windows: [],
     source: 'console',
+    refreshPolicy: 'never',
     notice: detail || `${label}当前没有公开的个人余额查询接口，请在控制台 Billing/用量页面查看。`,
     action: { label: `打开${label}控制台`, url },
   };

@@ -390,6 +390,11 @@ export interface UsageResult {
   notice?: string;
   action?: { label: string; url: string; mode?: 'external' | 'extension' };
   source?: 'live' | 'browser' | 'cli' | 'console';
+  /**
+   * `never` is a terminal console hand-off; `manual` requires a user-triggered
+   * browser/CLI lookup and must not be polled automatically.
+   */
+  refreshPolicy?: 'auto' | 'manual' | 'never';
   /** Goal ①: 'subscription' (percentage + reset) or 'prepaid' (USD balance). */
   kind?: 'subscription' | 'prepaid';
   raw?: any;

@@ -23,6 +23,7 @@ import {
 import {
   isConsoleOnlyUsage,
   refreshableUsageIds,
+  shouldSkipAutomaticUsageRefresh,
 } from './usagePresentation';
 
 export type SaveUsageCredentials = (input: {
@@ -142,13 +143,19 @@ export function useUsagePageState() {
     silent: true,
     skipIds: [
       ...manualOnlyIds,
-      ...supportedIds.filter((id) => isConsoleOnlyUsage(usageMap[id])),
+      ...supportedIds.filter((id) =>
+        shouldSkipAutomaticUsageRefresh(usageMap[id]),
+      ),
     ],
   });
 
   const retryOnExtensionReady = useCallback(() => {
     for (const id of supportedIds) {
-      if (manualOnlyIds.has(id) || isConsoleOnlyUsage(usageMap[id])) continue;
+      if (
+        manualOnlyIds.has(id) ||
+        shouldSkipAutomaticUsageRefresh(usageMap[id])
+      )
+        continue;
       const usage = usageMap[id];
       if (
         usage === undefined ||
@@ -243,6 +250,7 @@ export function useUsagePageState() {
         supported: true,
         windows: [],
         source: 'console',
+        refreshPolicy: 'manual',
         notice: t('usage.manualOnlyNotice'),
         action: {
           label: t('usage.manualOnlyAction'),

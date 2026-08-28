@@ -14,9 +14,14 @@ export function isExternalUsageNotice(usage?: UsageResult): boolean {
   );
 }
 
-/** Console-only cards have no meaningful refresh operation after discovery. */
+/** Terminal console hand-offs have no meaningful refresh operation. */
 export function isConsoleOnlyUsage(usage?: UsageResult): boolean {
-  return Boolean(usage?.source === 'console' && usage.action);
+  return usage?.refreshPolicy === 'never';
+}
+
+/** Manual browser/CLI results are available only from an explicit refresh. */
+export function shouldSkipAutomaticUsageRefresh(usage?: UsageResult): boolean {
+  return usage?.refreshPolicy === 'manual' || isConsoleOnlyUsage(usage);
 }
 
 export function refreshableUsageIds(

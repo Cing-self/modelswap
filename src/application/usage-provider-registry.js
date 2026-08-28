@@ -7,7 +7,7 @@ function createUsageProviderRegistry({ api, browser, cloud }) {
     if (!provider) return { supported: false, error: 'Provider 不存在' };
     if (providerId === 'anthropic') return consoleOnly('Anthropic', 'https://console.anthropic.com/settings/billing');
     if (providerId === 'anthropic-agent') return api.queryClaudeUsage(provider);
-    if (providerId === 'github-copilot') return { supported: true, windows: [], source: 'console', notice: 'GitHub Copilot 订阅用量请在 GitHub Billing and licensing 或 Copilot 客户端的配额页面查看。当前没有可复用的个人订阅用量接口。' };
+    if (providerId === 'github-copilot') return { supported: true, windows: [], source: 'console', refreshPolicy: 'never', notice: 'GitHub Copilot 订阅用量请在 GitHub Billing and licensing 或 Copilot 客户端的配额页面查看。当前没有可复用的个人订阅用量接口。' };
     if (providerId === 'xai-grok-build') return consoleOnly('SuperGrok', 'https://grok.com/', 'SuperGrok 是订阅产品，与 xAI API 余额分开；目前没有公开稳定的个人订阅用量接口。');
     if (providerId === 'volcengine-coding' || providerId === 'volcengine-agent') return cloud.queryVolcengineUsage(providerId === 'volcengine-agent' ? 'agent' : 'coding');
     if (providerId === 'volcengine') return cloud.queryVolcengineBalance();

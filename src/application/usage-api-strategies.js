@@ -109,6 +109,7 @@ async function queryClaudeUsage(provider) {
       supported: true,
       windows: [],
       source: 'console',
+      refreshPolicy: 'never',
       notice: 'Claude Code 订阅用量需要 Claude OAuth 登录态；当前站点使用 API Key，请在 Claude 控制台查看 API 用量或通过 claude login 登录后刷新。',
       action: { label: '打开 Claude 控制台', url: 'https://console.anthropic.com/' },
     };
@@ -467,6 +468,7 @@ function managementCredentialNotice(label, keyNames, url) {
     supported: true,
     windows: [],
     source: 'console',
+    refreshPolicy: 'auto',
     notice: `${label} 需要单独的管理凭证才能查询余额，请在密钥管理中添加：${keyNames.join('、')}。推理 API Key 不能替代该凭证。`,
     action: { label: `打开 ${label} 控制台`, url },
   };
@@ -477,6 +479,7 @@ function manualCredentialPairNotice(label, combinedName, accessKeyName, secretKe
     supported: true,
     windows: [],
     source: 'console',
+    refreshPolicy: 'auto',
     notice: `${label}余额查询需要单独的云账号管理凭证，推理 API Key 不能替代。请在云控制台创建具有账务只读权限的 IAM/CAM 用户凭证，再到密钥管理手动录入 ${combinedName}，密钥值格式：{"accessKey":"...","secretKey":"..."}；也可分别录入 ${accessKeyName} 和 ${secretKeyName}。`,
     action: { label: `打开${label}凭证控制台`, url },
   };
@@ -792,6 +795,7 @@ async function querySiliconflowUsage() {
     supported: true,
     windows: [],
     source: 'console',
+    refreshPolicy: 'never',
     error: 'SiliconFlow 暂不支持实时余额查询，请在 SiliconFlow 控制台查看账户余额',
     action: { label: '打开 SiliconFlow 控制台', url: 'https://cloud.siliconflow.cn/' },
   };
@@ -810,6 +814,7 @@ async function queryMistralUsage(_apiKey) {
     supported: true,
     windows: [],
     source: 'console',
+    refreshPolicy: 'never',
     notice: 'Mistral 暂无公开的余额查询 API，请在 Mistral Console 的 Billing 页面查看。',
   };
 }
@@ -828,6 +833,7 @@ async function queryQwenCodingUsage(_apiKey) {
     supported: true,
     windows: [],
     source: 'console',
+    refreshPolicy: 'never',
     notice: '阿里云百炼 Coding Plan 用量请在百炼控制台的 Coding Plan 页面查看。该套餐接口仅供官方 Coding Agent 使用。',
     action: { label: '打开百炼套餐页', url: 'https://bailian.console.aliyun.com/cn-beijing?tab=plan' },
   };
@@ -841,6 +847,7 @@ async function queryQwenTokenPlanUsage(_apiKey) {
     supported: true,
     windows: [],
     source: 'console',
+    refreshPolicy: 'never',
     notice: '阿里云百炼 Token Plan 用量请在“我的订阅”页面查看，当前没有可用的个人套餐用量 API。',
     action: { label: '打开百炼 Token Plan', url: 'https://bailian.console.aliyun.com/cn-beijing?tab=plan' },
   };

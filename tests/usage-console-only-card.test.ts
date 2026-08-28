@@ -8,6 +8,7 @@ import {
   isConsoleOnlyUsage,
   isExternalUsageNotice,
   refreshableUsageIds,
+  shouldSkipAutomaticUsageRefresh,
 } from '../src/web/frontend/src/components/usage/usagePresentation';
 
 // The root test runner deliberately does not hoist frontend dependencies.
@@ -48,6 +49,7 @@ describe('console-only usage cards', () => {
       supported: true,
       windows: [],
       source: 'console',
+      refreshPolicy: 'never',
       error: 'SiliconFlow 暂不支持实时余额查询，请在控制台查看',
       action: {
         label: '打开官方控制台',
@@ -88,12 +90,14 @@ describe('console-only usage cards', () => {
     const siliconFlow = {
       supported: true,
       source: 'console' as const,
+      refreshPolicy: 'never' as const,
       error: '实时余额不可用',
       action: { label: '打开官方控制台', url: 'https://cloud.siliconflow.cn/' },
     };
     const anthropic = {
       supported: true,
       source: 'console' as const,
+      refreshPolicy: 'never' as const,
       notice: '请在控制台查看',
       action: { label: '打开官方控制台', url: 'https://console.anthropic.com/' },
     };
@@ -111,6 +115,55 @@ describe('console-only usage cards', () => {
       anthropic,
       deepseek: live,
     })).toEqual(['deepseek']);
+  });
+
+  it('keeps manual browser/CLI console results refreshable but out of automatic polling', () => {
+    const openCodeGo = {
+      supported: true,
+      source: 'console' as const,
+      refreshPolicy: 'manual' as const,
+      notice: '请先登录后刷新。',
+      action: { label: '打开套餐页', url: 'https://opencode.ai/' },
+    };
+    const terminal = {
+      supported: true,
+      source: 'console' as const,
+      refreshPolicy: 'never' as const,
+      notice: '请在官方控制台查看。',
+      action: { label: '打开控制台', url: 'https://example.test/' },
+    };
+
+    expect(isConsoleOnlyUsage(openCodeGo)).toBe(false);
+    expect(shouldSkipAutomaticUsageRefresh(openCodeGo)).toBe(true);
+    expect(refreshableUsageIds(['opencode-go', 'siliconflow'], {
+      'opencode-go': openCodeGo,
+      siliconflow: terminal,
+    })).toEqual(['opencode-go']);
+    expect(renderUsageCard(openCodeGo)).toContain('usage-card-refresh');
+  });
+
+  it('uses the structured refresh-policy table for console products with similar shapes', () => {
+    const cases = [
+      { name: 'SiliconFlow terminal console', policy: 'never' as const, refreshable: false, automatic: true },
+      { name: 'Anthropic terminal console', policy: 'never' as const, refreshable: false, automatic: true },
+      { name: 'OpenCode Go browser bridge', policy: 'manual' as const, refreshable: true, automatic: true },
+      { name: 'Qianfan browser bridge', policy: 'manual' as const, refreshable: true, automatic: true },
+      { name: 'management credential setup', policy: 'auto' as const, refreshable: true, automatic: false },
+    ];
+
+    for (const item of cases) {
+      const usage = {
+        supported: true,
+        source: 'console' as const,
+        refreshPolicy: item.policy,
+        notice: item.name,
+        action: { label: '打开官方控制台', url: 'https://example.test/' },
+      };
+      expect(isConsoleOnlyUsage(usage), item.name).toBe(!item.refreshable);
+      expect(shouldSkipAutomaticUsageRefresh(usage), item.name).toBe(item.automatic);
+      expect(refreshableUsageIds(['provider'], { provider: usage }), item.name)
+        .toEqual(item.refreshable ? ['provider'] : []);
+    }
   });
 
   it('keeps the notice action responsive and token-based for narrow and dark themes', () => {

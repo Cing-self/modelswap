@@ -188,10 +188,30 @@ describe('usage provider path injection', { timeout: 30000 }, () => {
     expect(result.results.siliconflow).toMatchObject({
       supported: true,
       source: 'console',
+      refreshPolicy: 'never',
       action: { url: 'https://cloud.siliconflow.cn/' },
     });
     expect(result.results['anthropic-agent']).toMatchObject({ supported: true, source: 'console' });
     expect(result.results.tencent).toMatchObject({ supported: true, source: 'console' });
+    expect(result.results['opencode-go']).toMatchObject({
+      supported: true,
+      source: 'console',
+      refreshPolicy: 'manual',
+    });
+    expect(result.results['qianfan-coding']).toMatchObject({
+      supported: true,
+      source: 'console',
+      refreshPolicy: 'manual',
+    });
+    expect(result.results['qwen-coding']).toMatchObject({
+      supported: true,
+      source: 'console',
+      refreshPolicy: 'never',
+    });
+    expect(Object.values(result.results)
+      .filter((usage: any) => usage.source === 'console')
+      .every((usage: any) => ['auto', 'manual', 'never'].includes(usage.refreshPolicy)))
+      .toBe(true);
     expect(JSON.stringify(result)).not.toMatch(/ReferenceError|is not defined|HTTP 410/);
   });
 });
