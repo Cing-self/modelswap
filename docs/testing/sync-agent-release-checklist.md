@@ -100,16 +100,16 @@ R1 结束时间、最终 defect 分类与集中修复批次在基线报告中固
 | R2-S03 | P0 | repeat/concurrency | repeat pull 不重复发现；排他不覆盖本地更新 | sync/scheduler/atomic write | runExclusive、timestamp、三轮 full | PASS | unit/domain 70/70；full 3×86/770。 |
 | R2-S04 | P0 | config queue | config 经 `sync.saveConfig`，队列不丢 state | atomic write/hydration | 无直写 user config；稳定 full | PASS | unit/domain 70/70；full 3×86/770。 |
 | R2-S05 | P0 | vaultKey lifecycle | edit、missing/null/empty merge、migration、sync/reconcile/discovery 后 ref 保留；payload 无 secret | `tests/web/sync-agent-vaultkey-reconciliation.test.ts` | real encrypted Vault、ref equality、Codex legacy 清理、third-party scoped vault auth | PASS | 新回归 1/1；R1 `QA-P0-GAP-002` 已关闭。 |
-| R2-A01 | P0 | Claude adapter | fresh B 文件：endpoint、remote model、credential/auth shape、tier | `sync-agent-all-adapters-reconcile` | 精确凭据引用/鉴权形态，而非 truthy | BLOCKED | `QA-P0-R2-001`：只断言 key/helper truthy，未验证精确 auth shape/ref。 |
-| R2-A02 | P0 | Codex adapter | fresh B config/.env/catalog：endpoint、model、auth、mapping | 同上 | 精确 scoped Vault ref 与 legacy cleanup | PASS | 新回归 1/1：`SYNC_ALL_ADAPTERS_KEY`、无 `requires_openai_auth`。 |
-| R2-A03 | P0 | OpenCode adapter | fresh B opencode.json：endpoint、model、credential/auth、map | 同上 | 精确凭据引用/鉴权形态 | BLOCKED | `QA-P0-R2-001`：仅 `Boolean(apiKey)`。 |
-| R2-A04 | P0 | OpenClaw adapter | fresh B openclaw.json 全字段 | 同上 | 精确凭据引用/鉴权形态 | BLOCKED | `QA-P0-R2-001`：仅 `Boolean(apiKey)`。 |
-| R2-A05 | P0 | WorkBuddy adapter | fresh B models.json 全字段 | 同上 | 精确凭据引用/鉴权形态 | BLOCKED | `QA-P0-R2-001`：仅 `Boolean(apiKey)`。 |
-| R2-A06 | P0 | ZCode adapter | fresh B v2/CLI config 全字段 | 同上 | 精确凭据引用/鉴权形态 | BLOCKED | `QA-P0-R2-001`：仅 `Boolean(apiKey)`。 |
-| R2-A07 | P0 | Hermes adapter | fresh B YAML 全字段 | 同上 | 精确凭据引用/鉴权形态 | BLOCKED | `QA-P0-R2-001`：仅 `api_key:` presence。 |
-| R2-A08 | P0 | Kimi Code adapter | fresh B TOML 全字段 | 同上 | 精确凭据引用/鉴权形态 | BLOCKED | `QA-P0-R2-001`：仅 `api_key =` presence。 |
-| R2-A09 | P0 | Grok Build adapter | fresh B TOML 全字段 | 同上 | 精确凭据引用/鉴权形态 | BLOCKED | `QA-P0-R2-001`：仅 `api_key =` presence。 |
-| R2-A10 | P0 | MiMo Code adapter | fresh B 原生输出、endpoint/model/auth/tier | 同上 | 精确凭据引用/鉴权形态 | BLOCKED | `QA-P0-R2-001`：仅 `Boolean(apiKey)`。 |
+| R2-A01 | P0 | Claude adapter | fresh B 文件：endpoint、remote model、official helper、tier | `sync-agent-all-adapters-reconcile` | helper path/shape；two-Vault primary 解析、distractor 不解析（无 key 输出） | BLOCKED | `QA-P0-R2-001`：仅 key/helper truthy，未验证 helper/primary-vs-distractor。 |
+| R2-A02 | P0 | Codex adapter | fresh B config/.env/catalog：endpoint、model、auth、mapping | 同上 | 精确 scoped Vault command/ref 指向 primary、无 inline/distractor、legacy cleanup | BLOCKED | `QA-P0-R2-001`：当前只单一 ref；必须加入 primary/distractor ref 选择。 |
+| R2-A03 | P0 | OpenCode adapter | fresh B opencode.json：endpoint、model、credential/auth、map | 同上 | API-key field 等于 primary value、非 distractor（不输出值） | BLOCKED | `QA-P0-R2-001`：仅 `Boolean(apiKey)`。 |
+| R2-A04 | P0 | OpenClaw adapter | fresh B openclaw.json 全字段 | 同上 | API-key field 等于 primary value、非 distractor（不输出值） | BLOCKED | `QA-P0-R2-001`：仅 `Boolean(apiKey)`。 |
+| R2-A05 | P0 | WorkBuddy adapter | fresh B models.json 全字段 | 同上 | API-key field 等于 primary value、非 distractor（不输出值） | BLOCKED | `QA-P0-R2-001`：仅 `Boolean(apiKey)`。 |
+| R2-A06 | P0 | ZCode adapter | fresh B v2/CLI config 全字段 | 同上 | API-key field 等于 primary value、非 distractor（不输出值） | BLOCKED | `QA-P0-R2-001`：仅 `Boolean(apiKey)`。 |
+| R2-A07 | P0 | Hermes adapter | fresh B YAML 全字段 | 同上 | API-key field 等于 primary value、非 distractor（不输出值） | BLOCKED | `QA-P0-R2-001`：仅 `api_key:` presence。 |
+| R2-A08 | P0 | Kimi Code adapter | fresh B TOML 全字段 | 同上 | API-key field 等于 primary value、非 distractor（不输出值） | BLOCKED | `QA-P0-R2-001`：仅 `api_key =` presence。 |
+| R2-A09 | P0 | Grok Build adapter | fresh B TOML 全字段 | 同上 | API-key field 等于 primary value、非 distractor（不输出值） | BLOCKED | `QA-P0-R2-001`：仅 `api_key =` presence。 |
+| R2-A10 | P0 | MiMo Code adapter | fresh B 原生输出、endpoint/model/auth/tier | 同上 | API-key field 等于 primary value、非 distractor（不输出值） | BLOCKED | `QA-P0-R2-001`：仅 `Boolean(apiKey)`。 |
 | R2-A11 | P0 | dynamic registry full set | runtime meta/registry 精确 10，新增 adapter 必须失败 | `tests/web/sync-agent-all-adapters-reconcile.test.ts` | `AGENTS_META`+`getAdapters()` 动态取集且等于冻结 10 | PASS | 新回归 1/1；两 runtime 集合均与冻结数组相等。 |
 | R2-R01 | P0 | packaged runtime | dist closure、CLI/server `/ping` 与 frontend runtime | runtime-closure | dist 不依赖 src；健康检查 | PASS | 1 file / 1 test。 |
 | R2-R02 | P0 | package | 发布包包含运行时文件 | `npm pack --dry-run --json` | package JSON / runtime entries | PASS | 348 entries；3,553,341 bytes；runtime entries present。 |
@@ -123,11 +123,42 @@ R1 结束时间、最终 defect 分类与集中修复批次在基线报告中固
 
 R2 不覆盖 R1。R1 `QA-P0-GAP-002` 已由实际 vault lifecycle regression 关闭；R1 全 adapter 缺口已新增文件但未满足每项精确 credential/auth evidence，替换为 `QA-P0-R2-001`。在该 P0 清零前，R2 结论保持 `QA_BLOCKED`。
 
-## Round R3 — dual-binding credential evidence follow-up
+## Round R3 — d4290f1 收口定向 P0
 
-| ID | P0/P1 | 域 | 场景/预期 | 测试文件 | 需要的证据 | 状态 |
+| 元数据 | 值 |
+| --- | --- |
+| Round | R3（只复验 credential binding、vault lifecycle、hydration；不是完整发布门禁） |
+| 候选 / base SHA | `d4290f10194289b5625e94539535ba9ca30fba22` / `19207a25eb50ea48728ee5ff927d8599b1c802a8` |
+| QA 环境 | macOS；fresh HOME+USERPROFILE+isolated npm cache；clean detached worktree `/tmp/okit-qa-r3-d4290f1-4MNDIc` |
+| 真实 B | 否；未操作真实用户目录、B 或 3780 |
+| 已执行命令 | `npx vitest run tests/web/sync-agent-all-adapters-reconcile.test.ts tests/web/sync-agent-vaultkey-reconciliation.test.ts tests/web/sync-agent-model-hydration.test.ts` → **3 files / 3 tests passed**（10.66s） |
+| 未执行 | build、package、full suite ×3、three-OS CI、release/DMG、真实 B smoke；本轮刻意不执行。 |
+
+| ID | P0/P1 | 域 | 场景/预期 | 执行命令或测试文件 | 需要的证据 | 状态 | 证据摘要/defect ID |
 | --- | --- | --- | --- | --- | --- | --- |
-| R3-A01 | P0 | all adapters auth shape | fresh B 的 10 个 native 文件在 production syncPull → discovery → reconcile 后保留正确 endpoint/remote model/auth shape | sync-agent-all-adapters-reconcile | Codex 精确 scoped command/ref；Claude helper path/mode/primary relation；其余八个 inline-key field 仅在 child 内断言 primary 且拒绝 distractor；不输出值 | PASS（开发定向 1/1，待 QA R3 独立复验） |
-| R3-A02 | P0 | native schema boundary | 不向 9 个 inline-key schema 注入未定义 Vault-ref 字段 | acceptance “原生 credential/auth 证据契约” | 双 binding relation proof；官方字段仍只包含其原生 auth form | PASS（开发审计；待 QA R3） |
+| R3-P02 | P0 | Qianfan official directory | official coding/personal 仅到 `/v2/models`；A→B 发现后再写 OpenCode | `tests/web/sync-agent-model-hydration.test.ts` | remote IDs、same-ID enrich、personal 未请求 | PASS | targeted 3/3；继承 hydration 的 canonical discovery assertions。 |
+| R3-P03 | P0 | Qianfan third-party negative | 两种 third-party 同路径仍走自身 `/models` | `tests/web/sync-agent-model-hydration.test.ts` | third-party request paths 与 OpenCode model entries | PASS | targeted 3/3。 |
+| R3-S05 | P0 | vaultKey lifecycle | encrypted Vault：edit、missing/null/empty、migration、sync/reconcile/discovery、payload secret boundary | `tests/web/sync-agent-vaultkey-reconciliation.test.ts` | ref equality、no secret output、scoped auth / legacy cleanup | PASS | targeted 3/3。 |
+| R3-A01 | P0 | Claude | helper path/0700 shape，实际 helper primary output、非 distractor；endpoint/model/tier | `tests/web/sync-agent-all-adapters-reconcile.test.ts` | boolean comparison only，no key output | PASS | targeted 3/3；helper is actually executed. |
+| R3-A02 | P0 | Codex | scoped Vault command/ref primary、非 distractor、无 `requires_openai_auth`；endpoint/model | 同上 | exact primary ref command + legacy cleanup | PASS | targeted 3/3。 |
+| R3-A03 | P0 | OpenCode | native API-key field = primary ≠ distractor；endpoint/model/auth map | 同上 | non-secret equality comparison | PASS | targeted 3/3。 |
+| R3-A04 | P0 | OpenClaw | native API-key field = primary ≠ distractor；endpoint/model/auth | 同上 | non-secret equality comparison | PASS | targeted 3/3。 |
+| R3-A05 | P0 | WorkBuddy | native API-key field = primary ≠ distractor；endpoint/model/auth | 同上 | non-secret equality comparison | PASS | targeted 3/3。 |
+| R3-A06 | P0 | ZCode | native API-key field = primary ≠ distractor；endpoint/model/mapping | 同上 | non-secret equality comparison | PASS | targeted 3/3。 |
+| R3-A07 | P0 | Hermes | YAML API-key field = primary ≠ distractor；endpoint/model | 同上 | non-secret equality comparison | PASS | targeted 3/3。 |
+| R3-A08 | P0 | Kimi Code | TOML API-key field = primary ≠ distractor；endpoint/model | 同上 | non-secret equality comparison | PASS | targeted 3/3。 |
+| R3-A09 | P0 | Grok Build | TOML API-key field = primary ≠ distractor；endpoint/model | 同上 | non-secret equality comparison | PASS | targeted 3/3。 |
+| R3-A10 | P0 | MiMo Code | native API-key field = primary ≠ distractor；endpoint/model/auth | 同上 | non-secret equality comparison | PASS | targeted 3/3。 |
+| R3-A11 | P0 | registry full set | runtime `AGENTS_META` + `getAdapters()` 严格十项，新增 adapter 会失败 | 同上 | dynamic sets equal frozen ten | PASS | targeted 3/3。 |
 
-R3 不修改 R1/R2 历史记录。QA-P0-R2-001 的处理标准为 relation proof，而不是向 OpenCode/OpenClaw/WorkBuddy/ZCode/Hermes/Kimi/Grok/MiMo 伪造持久 Vault ref。
+| R3-R01 | P0 | build | extension、copy-web、runtime closure、frontend | `npm run build` | exit 0；runtime `/ping` 与 frontend build | PASS | 2026-08-28 R3。 |
+| R3-R02 | P0 | package | 发布包含 runtime closure | `npm pack --dry-run --json` | 348 entries、required dist runtime entries | PASS | 3,553,341 bytes；shasum `62b8d5e3a2cfab8c81add556a7776c66e674bddb`。 |
+| R3-R03 | P0 | full #1 | 默认并行、fresh HOME/cache | `npm test -- --run` | 86 files / 770 tests | PASS | 19.82s。 |
+| R3-R04 | P0 | full #2 | 默认并行、fresh HOME/cache | `npm test -- --run` | 86 files / 770 tests | PASS | 18.85s。 |
+| R3-R05 | P0 | full #3 | 默认并行、fresh HOME/cache | `npm test -- --run` | 86 files / 770 tests | PASS | 18.53s。 |
+| R3-R06 | P0 | diff check | candidate 相对 base 无 whitespace error | `git diff --check 19207a25...HEAD` | 无输出 | PASS | clean detached worktree。 |
+| R3-G01 | P0 | three-OS CI | 合并后 macOS/Ubuntu/Windows success | GitHub CI | 3 jobs/run URLs | NOT RUN | 后续发布门禁；等待 CEO 合并推送。 |
+| R3-G02 | P0 | release/DMG | Publish、tag/Release、arm64+x64 DMG | Publish workflow | assets/SHA-256 | NOT RUN | 后续发布门禁；不得先启动。 |
+| R3-G03 | P0 | real B smoke | 发布产物后的最后确认 | acceptance §真实 B smoke | 最小非秘密证据 | NOT RUN | 后续发布门禁；不操作真实 B。 |
+
+R3 **本地合并前 P0 全部 PASS：QA_PASS**。`R3-G01` 至 `R3-G03` 是合并后的后续门禁，尚未执行；待 CEO 合并推送后由 QA 监控，不能提前把发布或真实 B 结果标为通过。

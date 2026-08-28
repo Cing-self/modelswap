@@ -127,12 +127,12 @@
 | --- | --- |
 | P0/P1 | P0 |
 | 根因分类 | adapter mapping / auth evidence |
-| 受影响 | Claude、OpenCode、OpenClaw、WorkBuddy、ZCode、Hermes、Kimi Code、Grok Build、MiMo Code（Codex 行有精确 scoped Vault reference 断言）。 |
+| 受影响 | 全部 10 个 adapter：Codex 仍需 primary-vs-distractor ref 选择；Claude 需 helper proof；其余八个需 API-key value proof。 |
 | 精确位置 | `tests/web/sync-agent-all-adapters-reconcile.test.ts:120-131`。 |
 | 最小复现/审查 | fixture 确实运行时读取 `AGENTS_META`/`getAdapters()`，且集合精确十项；但 Claude 仅 `Boolean(ANTHROPIC_API_KEY) || Boolean(apiKeyHelper)`，OpenCode/OpenClaw/WorkBuddy/ZCode/MiMo 仅 `Boolean(...apiKey)`，Hermes/Kimi/Grok 仅检查 `api_key:`/`api_key =` 出现。任意错误或不安全的 credential 值/鉴权形态仍可使这些表达式为真。 |
-| 预期 / 实际 | 冻结规格要求每个 adapter 的真实 B 临时目标文件精确验证 credential **reference/auth shape**，同时仍不输出 secret；实际九行只有存在性检查。 |
-| 对应 checklist | `R2-A01`、`R2-A03` 至 `R2-A10` 为 `BLOCKED`；`R2-A02` 与 `R2-A11` 已 PASS。 |
-| 集中修复批次 | 只改测试：为每项对 API-key provider 写入可识别但非秘密的 Vault reference command/shape 并逐项断言；针对 Claude 同时断言合法 API-key 或 helper 的预期分支，禁止 truthy fallback。保留运行时动态 10-ID 集合和新增 adapter 失败契约。 |
+| 预期 / 实际 | schema 澄清后：Codex 必须精确验证 Vault command/ref；Claude 必须验证官方 helper path/shape 及 primary-vs-distractor 解析；其余八个官方 schema 没有 Vault-ref 字段，必须使用两个临时加密 Vault 值读取 native API-key field、无输出地断言 primary 且非 distractor。实际十项都只有单一凭据/存在性检查，不能证明选择正确。 |
+| 对应 checklist | `R2-A01` 至 `R2-A10` 为 `BLOCKED`；只有动态集合行 `R2-A11` 已 PASS。 |
+| 集中修复批次 | 只改测试：fixture 写入 primary/distractor 两个临时加密 Vault entry；Codex 断言 primary command/ref，Claude 断言官方 helper shape + primary 解析；其余八项比较 native API-key field 与 primary/distractor value 但不记录值。保留运行时动态 10-ID 集合和新增 adapter 失败契约。 |
 | 阻断 | 任一 P0 BLOCKED 即 QA_BLOCKED；full green 不能覆盖。 |
 
 ### 后续门禁（未启动）
@@ -141,8 +141,14 @@ R2 缺陷修复后，必须从新 SHA 重新跑 acceptance 全部 P0（含三次
 
 ---
 
-## R3 开发收口记录：dual-binding credential/auth relation proof
+## R3 收口完整本地门禁：d4290f1
 
-R2 的 QA-P0-R2-001 不要求向所有 Agent 原生文件添加 Vault ref。生产审计结论为：Codex 的 scoped command 保留 ref；Claude 使用固定 helper；OpenCode、OpenClaw、WorkBuddy、ZCode、Hermes、Kimi Code、Grok Build、MiMo Code 的兼容 native schema 只接受 inline API key。向后九个 schema 写入未定义 ref 字段会污染配置，未获授权。
+**QA_PASS（合并前本地 P0）。** 候选 `d4290f10194289b5625e94539535ba9ca30fba22` 在 fresh HOME+USERPROFILE+isolated npm cache、clean detached worktree 下通过 R3 credential binding/vault/hydration 和所有尚未运行的本地门禁：
 
-R3 测试以两把临时、加密 Vault binding 执行完整 A→B production 路径。所有 inline-key 文件的 credential field 仅在 child 内比较“等于 primary 且不等于 distractor”；Claude 实际执行受限 helper 并只返回该关系的布尔结果；Codex 精确比较 command/args 的 primary ref 并拒绝 distractor。没有 secret、解析值或其派生文本被输出。该实现替换了 R2 的 truthy 检查；QA R3 必须独立重跑后决定 P0 状态。
+- credential binding + vault lifecycle + hydration：**3 files / 3 tests passed**；双 Vault primary/distractor、Claude helper 实际执行、Codex scoped ref/legacy auth、十个 Agent 原生文件、Qianfan official/third-party 均已在 R3 checklist 逐行 PASS。
+- `npm run build`：passed（tsc、extension、copy-web、runtime `/ping`、frontend）。
+- `npm pack --dry-run --json`：passed，348 entries、3,553,341 bytes、shasum `62b8d5e3a2cfab8c81add556a7776c66e674bddb`，required dist runtime entries present。
+- default-parallel `npm test -- --run`：三次均 **86 files / 770 tests passed**（19.82s、18.85s、18.53s）。
+- `git diff --check 19207a25eb50ea48728ee5ff927d8599b1c802a8...HEAD`：无输出。
+
+未执行的仅是**合并后**门禁：three-OS CI、Publish/tag/Release/arm64+x64 DMG 和真实 B smoke（checklist `R3-G01` 至 `R3-G03`）。它们不属于本地候选执行结果；CEO 合并推送后，QA 应继续监控，三者全部成功才可更新 B。
