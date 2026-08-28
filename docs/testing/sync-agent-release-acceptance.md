@@ -82,6 +82,16 @@
 
 在该用例落地前，本文的 adapter/native 层只能作为已有覆盖，不能使跨设备发布门禁变绿。
 
+### 原生 credential/auth 证据契约
+
+不得为 Agent 配置伪造其官方 schema 不支持的 Vault-ref 字段。全 adapter A→B fixture 必须使用两把不同的临时加密 Vault binding，且不得把任一解析值写入 stdout、断言文本或日志：
+
+- **Codex**：其 TOML schema 支持 scoped Vault command，必须精确断言 command/args 中的 Vault ref、第三方 endpoint/model，以及 requires_openai_auth 不残留。
+- **Claude**：必须断言固定 apiKeyHelper 路径、可执行权限和实际 helper 输出只解析为 primary binding（绝不等于 distractor），同时验证 Anthropic endpoint、remote model 与 tier。
+- **OpenCode、OpenClaw、WorkBuddy、ZCode、Hermes、Kimi Code、Grok Build、MiMo Code**：这些原生 schema 只接受 inline API key，因而没有可兼容断言的持久 Vault ref。读取实际 credential field 但仅在子进程内断言其等于 primary binding、且不等于 distractor，再断言各自 endpoint、remote model 和适用 map/tier。
+
+存在性（Boolean(apiKey)、api_key 字段存在等）不构成 credential/auth 证据。上述 relation proof 是对官方 inline-key schema 的兼容验证，不表示该 schema 缺少可验证性，也不授权向原生文件添加未定义字段。
+
 ## A→B 生命周期矩阵（P0）
 
 | 场景 | 输入 | 必须观察的结果 |

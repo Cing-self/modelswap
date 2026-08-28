@@ -122,3 +122,12 @@ R1 结束时间、最终 defect 分类与集中修复批次在基线报告中固
 | R2-G03 | P0 | real B smoke | 发布后最后确认 Qianfan/third-party/native/adapter | acceptance §真实 B smoke | 最小非秘密证据与可回滚备份 | NOT RUN | 后续发布门禁；不操作真实 B。 |
 
 R2 不覆盖 R1。R1 `QA-P0-GAP-002` 已由实际 vault lifecycle regression 关闭；R1 全 adapter 缺口已新增文件但未满足每项精确 credential/auth evidence，替换为 `QA-P0-R2-001`。在该 P0 清零前，R2 结论保持 `QA_BLOCKED`。
+
+## Round R3 — dual-binding credential evidence follow-up
+
+| ID | P0/P1 | 域 | 场景/预期 | 测试文件 | 需要的证据 | 状态 |
+| --- | --- | --- | --- | --- | --- | --- |
+| R3-A01 | P0 | all adapters auth shape | fresh B 的 10 个 native 文件在 production syncPull → discovery → reconcile 后保留正确 endpoint/remote model/auth shape | sync-agent-all-adapters-reconcile | Codex 精确 scoped command/ref；Claude helper path/mode/primary relation；其余八个 inline-key field 仅在 child 内断言 primary 且拒绝 distractor；不输出值 | PASS（开发定向 1/1，待 QA R3 独立复验） |
+| R3-A02 | P0 | native schema boundary | 不向 9 个 inline-key schema 注入未定义 Vault-ref 字段 | acceptance “原生 credential/auth 证据契约” | 双 binding relation proof；官方字段仍只包含其原生 auth form | PASS（开发审计；待 QA R3） |
+
+R3 不修改 R1/R2 历史记录。QA-P0-R2-001 的处理标准为 relation proof，而不是向 OpenCode/OpenClaw/WorkBuddy/ZCode/Hermes/Kimi/Grok/MiMo 伪造持久 Vault ref。

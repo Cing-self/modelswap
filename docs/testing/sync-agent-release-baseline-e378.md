@@ -138,3 +138,11 @@
 ### 后续门禁（未启动）
 
 R2 缺陷修复后，必须从新 SHA 重新跑 acceptance 全部 P0（含三次 default-parallel full、build、package）。QA PASS 后才依 checklist `R2-G01` 运行三 OS CI；成功后才运行 `R2-G02` Publish/tag/Release/arm64+x64 DMG；最后才运行 `R2-G03` 真实 B smoke。上述三行本轮均 `NOT RUN`，没有把未来发布结果冒充本轮证据。
+
+---
+
+## R3 开发收口记录：dual-binding credential/auth relation proof
+
+R2 的 QA-P0-R2-001 不要求向所有 Agent 原生文件添加 Vault ref。生产审计结论为：Codex 的 scoped command 保留 ref；Claude 使用固定 helper；OpenCode、OpenClaw、WorkBuddy、ZCode、Hermes、Kimi Code、Grok Build、MiMo Code 的兼容 native schema 只接受 inline API key。向后九个 schema 写入未定义 ref 字段会污染配置，未获授权。
+
+R3 测试以两把临时、加密 Vault binding 执行完整 A→B production 路径。所有 inline-key 文件的 credential field 仅在 child 内比较“等于 primary 且不等于 distractor”；Claude 实际执行受限 helper 并只返回该关系的布尔结果；Codex 精确比较 command/args 的 primary ref 并拒绝 distractor。没有 secret、解析值或其派生文本被输出。该实现替换了 R2 的 truthy 检查；QA R3 必须独立重跑后决定 P0 状态。
