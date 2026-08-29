@@ -4,7 +4,7 @@ Status: **final design gate / implementation paused**. The only normative regist
 
 ## How the future implementation consumes it
 
-1. Load `entries` and select `kind: "writer"`; join every ID to `astSelectors[id]`, then compare AST-discovered writer IDs, registry IDs, `schemaId`s and `raceId`s as equal sets.
+1. Load `entries` and select `kind: "writer"`; join every ID to `astSelectors[id]`, reject duplicate canonical `{sourceSymbol,selector,position}` keys, then compare AST-discovered writer IDs, registry IDs, `schemaId`s and `raceId`s as equal sets.
 2. Compile each `schemaRules[id]` as JSON Schema. Invalid input must be rejected before a counted `fs.read*` or `fs.write*`; the pre/post `user.json` bytes must match.
 3. Generate one real temporary-HOME+USERPROFILE race participant per `raceId`; the test fails if an entry has no independent participant.
 4. Treat all `kind: "native-only-no-write"` entries separately: reconciliation and every adapter must create/update their declared native file while user-config write counters remain zero. They are deliberately outside the writer/schema/race equality set.
