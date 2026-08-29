@@ -307,7 +307,13 @@ async function getAdaptersList() {
         ? { providerId: state.activeProviderId, modelId: state.activeModelId }
         : null);
       const currentProvider = currentSel?.providerId ? providers.find(p => p.id === currentSel.providerId) : null;
-      const selectedProviders = allCompatible.filter(p => state.sites[p.id]);
+      // Site cards follow the order sites were added (user.json key order);
+      // a newly added site appends at the end instead of jumping to its
+      // name-collation position. The add-site picker below stays alphabetical
+      // for discovery.
+      const selectedProviders = Object.keys(state.sites)
+        .map(id => allCompatible.find(p => p.id === id))
+        .filter(Boolean);
 
       return {
         ...adapter,
@@ -320,7 +326,7 @@ async function getAdaptersList() {
           : null,
         // The home page renders exactly the saved site/model selection. The
         // full provider catalog is deliberately sent separately for the picker.
-        compatibleProviders: sortProviders(selectedProviders).map(p => {
+        compatibleProviders: selectedProviders.map(p => {
           const site = state.sites[p.id];
           const selectedIds = new Set(site.modelIds || []);
           const selectedModels = tagRecentModels(sortModels((p.models || []).filter(m => selectedIds.has(m.id))));
