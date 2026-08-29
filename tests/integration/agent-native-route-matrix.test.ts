@@ -113,6 +113,12 @@ const auditScript = String.raw`
           excluded.push({ agentId: adapter.id, providerId: provider.id, reason: 'no endpoint with an adapter-supported protocol' });
           continue;
         }
+        if (adapter.id === 'codex' && /^https:\/\/qianfan\.baidubce\.com\//.test(provider.baseUrl || '')) {
+          // Probed: qianfan exposes no OpenAI Responses endpoint (404), and the
+          // codex adapter refuses chat-only endpoints at apply time.
+          excluded.push({ agentId: adapter.id, providerId: provider.id, reason: 'qianfan has no OpenAI Responses endpoint; Codex requires it' });
+          continue;
+        }
         const models = provider.models || [];
         if (models.length < 2) { excluded.push({ agentId: adapter.id, providerId: provider.id, reason: 'temporary built-in model cache has fewer than two routeable models' }); continue; }
         let mainRoute, flashRoute;

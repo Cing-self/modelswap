@@ -103,6 +103,10 @@ export class CodexAdapter extends BaseAdapter {
       // http_headers: the opencode.ai gateway rate-limits anonymous traffic
       // separately from the official opencode client (verified 429 without the
       // UA). Codex sends its own UA, so we pin the opencode client's one.
+      const unsupported = CODEX_UNSUPPORTED_CHAT_ENDPOINTS[openAIEndpoint.baseUrl.replace(/\/+$/, "")];
+      if (unsupported) {
+        throw new Error(`${provider.name} 无法配置给 Codex：${unsupported}。该站点可继续用于 Claude 等支持 Chat 协议的 Agent。`);
+      }
       const providerLines = [
         `name = ${tomlString(provider.name)}`,
         `base_url = ${tomlString(normalizeBaseUrl(codexResponsesBaseUrl(openAIEndpoint.baseUrl)))}`,
@@ -379,6 +383,15 @@ function codexVaultAuthCommand(vaultKey: string): { command: string; args: strin
 // in providers.json, hence the lookup at apply time.
 const CODEX_RESPONSES_ENDPOINTS: Record<string, string> = {
   "https://open.bigmodel.cn/api/coding/paas/v4": "https://open.bigmodel.cn/api/v1",
+};
+
+// Verified chat-only endpoints with no Responses-compatible counterpart
+// (probed: /responses returns 404). Codex requires the Responses wire API, so
+// these URLs 404 on every request; refuse them with an actionable error
+// instead of writing a config that cannot work.
+const CODEX_UNSUPPORTED_CHAT_ENDPOINTS: Record<string, string> = {
+  "https://qianfan.baidubce.com/v2/tokenplan/personal": "百度千帆 Token Plan 暂未提供 OpenAI Responses 协议端点",
+  "https://qianfan.baidubce.com/v2": "百度千帆暂未提供 OpenAI Responses 协议端点",
 };
 
 function codexResponsesBaseUrl(baseUrl: string): string {

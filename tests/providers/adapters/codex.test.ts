@@ -190,6 +190,23 @@ describe('CodexAdapter.applyConfig', () => {
     expect(toml).toContain('wire_api = "responses"');
   });
 
+  it('refuses chat-only endpoints that have no Responses counterpart (qianfan)', async () => {
+    const qianfanCoding = {
+      ...customProvider,
+      id: 'qianfan-coding',
+      name: '百度千帆 Token Plan',
+      baseUrl: 'https://qianfan.baidubce.com/v2/tokenplan/personal',
+      models: [{ id: 'ernie-4.5-turbo-128k' }],
+    };
+    const adapter = new CodexAdapter();
+    // Codex requires the Responses wire API; qianfan's OpenAI-compatible URL
+    // 404s on /responses (probed). Refuse with an actionable error instead of
+    // writing a config that cannot work.
+    await expect(adapter.applyConfig(qianfanCoding, 'ernie-4.5-turbo-128k'))
+      .rejects.toThrow('无法配置给 Codex');
+    expect(mocks.files.has(CODEX_CONFIG)).toBe(false);
+  });
+
   it('keeps only Codex-accepted input modalities in the catalog', async () => {
     const { mapModelToCodexCatalog } = await import('../../../src/providers/mappings/codex-mapping');
     const entry = mapModelToCodexCatalog({
