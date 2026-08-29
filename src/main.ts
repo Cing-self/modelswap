@@ -539,7 +539,13 @@ async function showMainHelpHintOnce(): Promise<void> {
   await setUserPreference("mainHelpShown", true);
 }
 
-program.parseAsync().catch((error: unknown) => {
+// Explicit argv: commander auto-detects its 'electron' argv convention when
+// process.versions.electron is set, stripping only the binary path. The
+// packaged CLI always runs through ELECTRON_RUN_AS_NODE (where that flag is
+// still set but argv follows the node convention), so the auto-detection
+// would leave the script path in place and every subcommand would fall into
+// the default help action.
+program.parseAsync(process.argv).catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);
   console.error(kleur.red(`✗ ${message}`));
   process.exitCode = 1;
