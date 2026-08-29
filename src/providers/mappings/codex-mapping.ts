@@ -47,6 +47,16 @@ export function getCodexConfigReasoningEffort(model?: Partial<ResolvedModel>): s
   return documented.has(level) ? level : null;
 }
 
+const CODEX_INPUT_MODALITIES = new Set(["text", "image", "audio"]);
+
+export function codexInputModalities(input?: string[]): string[] {
+  // Codex parses input_modalities as a closed enum (text | image | audio);
+  // upstream lists carrying video/pdf variants make the entire catalog fail
+  // to load, so keep only the members Codex accepts.
+  const list = (input || []).filter(modality => CODEX_INPUT_MODALITIES.has(modality));
+  return list.length ? list : ["text"];
+}
+
 export function mapModelToCodexCatalog(input: {
   model: Partial<ResolvedModel> & { id: string; name?: string };
   providerName: string;
@@ -82,7 +92,7 @@ export function mapModelToCodexCatalog(input: {
     max_context_window: contextWindow,
     effective_context_window_percent: defaults.effective_context_window_percent,
     experimental_supported_tools: defaults.experimental_supported_tools,
-    input_modalities: model.modalities?.input?.length ? model.modalities.input : ["text"],
+    input_modalities: codexInputModalities(model.modalities?.input),
     supports_search_tool: defaults.supports_search_tool,
   };
 }

@@ -1,6 +1,7 @@
 import fs from "fs-extra";
 import path from "path";
 import os from "os";
+import { spawnSync } from "child_process";
 import { BaseAdapter } from "./base";
 import { gatewayHeadersFor } from "./gateway";
 import { modelFacts } from "./model-facts";
@@ -104,7 +105,7 @@ export class CodexAdapter extends BaseAdapter {
       // UA). Codex sends its own UA, so we pin the opencode client's one.
       const providerLines = [
         `name = ${tomlString(provider.name)}`,
-        `base_url = ${tomlString(normalizeBaseUrl(openAIEndpoint.baseUrl))}`,
+        `base_url = ${tomlString(normalizeBaseUrl(codexResponsesBaseUrl(openAIEndpoint.baseUrl)))}`,
         `wire_api = ${tomlString(codexMapping.thirdPartyDefaults.wireApi)}`,
       ];
       const gatewayHeaders = gatewayHeadersFor(openAIEndpoint.baseUrl);
@@ -116,7 +117,7 @@ export class CodexAdapter extends BaseAdapter {
       toml = upsertTomlTable(toml, providerTable, providerLines);
 
       if (provider.vaultKey) {
-        const auth = codexVaultAuthCommand(provider.vaultKey);
+        const auth = await resolveVaultAuthCommand(provider.vaultKey);
         toml = upsertTomlTable(toml, `${providerTable}.auth`, [
           `command = ${tomlString(auth.command)}`,
           `args = ${tomlStringArray(auth.args)}`,
@@ -351,6 +352,65 @@ function codexVaultAuthCommand(vaultKey: string): { command: string; args: strin
     return { command: "cmd.exe", args: ["/d", "/s", "/c", invocation] };
   }
   return { command: process.execPath, args: [cliEntry, "vault", "get", vaultKey] };
+}
+
+// Verified OpenAI-Responses endpoints for coding plans whose
+// OpenAI-compatible URL only serves chat completions. Codex requires the
+// Responses wire API; pointing it at the chat URL 404s on every request.
+// Providers registered before this map existed still carry the chat endpoint
+// in providers.json, hence the lookup at apply time.
+const CODEX_RESPONSES_ENDPOINTS: Record<string, string> = {
+  "https://open.bigmodel.cn/api/coding/paas/v4": "https://open.bigmodel.cn/api/v1",
+};
+
+function codexResponsesBaseUrl(baseUrl: string): string {
+  return CODEX_RESPONSES_ENDPOINTS[baseUrl.replace(/\/+$/, "")] ?? baseUrl;
+}
+
+type VaultCommand = { command: string; args: string[] };
+
+// A packaged desktop build can be older than this adapter and ship a bundled
+// CLI that predates `vault get`; it then prints the help screen instead of the
+// key and Codex signs requests with no Authorization header at all. Probe each
+// candidate once and fall back; only a bare single-line key is acceptable.
+export function vaultKeyLooksReal(stdout: string): boolean {
+  const text = stdout.trim();
+  return text.length >= 20 && !text.includes("\n") && !/[█║╚╝═│]/.test(text) && !/^usage/i.test(text);
+}
+
+export function pickVaultCommand(candidates: VaultCommand[], probe: (candidate: VaultCommand) => boolean): VaultCommand {
+  for (const candidate of candidates) {
+    if (probe(candidate)) return candidate;
+  }
+  return candidates[0];
+}
+
+function probeVaultCommand(candidate: VaultCommand): boolean {
+  try {
+    const result = spawnSync(candidate.command, candidate.args, { encoding: "utf-8", timeout: 15000 });
+    return result.status === 0 && vaultKeyLooksReal(String(result.stdout || ""));
+  } catch {
+    return false;
+  }
+}
+
+async function resolveVaultAuthCommand(vaultKey: string): Promise<VaultCommand> {
+  const primary = codexVaultAuthCommand(vaultKey);
+  // Plain CLI builds always execute the entry point they ship with, so there
+  // is nothing to fall back to; only the desktop (Electron) path can point at
+  // a stale packaged app.
+  if (!process.versions.electron) return primary;
+  const candidates: VaultCommand[] = [primary];
+  if (process.platform === "win32") {
+    candidates.push({ command: "cmd.exe", args: ["/d", "/s", "/c", `okit vault get "${vaultKey}"`] });
+  } else {
+    candidates.push({ command: "okit", args: ["vault", "get", vaultKey] });
+  }
+  const chosen = pickVaultCommand(candidates, probeVaultCommand);
+  if (chosen === primary) {
+    appendLog("codex-vault-auth-probe", vaultKey, false, "no vault command produced a bare key; Codex will start without Authorization until the packaged CLI or the okit binary understands `vault get`");
+  }
+  return chosen;
 }
 
 // Remove OPENAI_API_KEY from auth.json, preserving OAuth tokens and any other

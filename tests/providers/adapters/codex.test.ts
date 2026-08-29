@@ -170,6 +170,51 @@ describe('CodexAdapter.applyConfig', () => {
     expect(toml).toContain('base_url = "https://custom.api.com/v1"');
   });
 
+  it('routes known chat-only coding plan endpoints to their verified Responses URL', async () => {
+    const glmCoding = {
+      ...customProvider,
+      id: 'glm-coding',
+      name: 'GLM Coding Plan',
+      baseUrl: 'https://open.bigmodel.cn/api/coding/paas/v4',
+      models: [{ id: 'glm-5.3' }],
+    };
+    const adapter = new CodexAdapter();
+    await adapter.applyConfig(glmCoding, 'glm-5.3');
+
+    const toml = mocks.files.get(CODEX_CONFIG)!;
+    // Codex requires the Responses wire API; the plan's chat-completions URL
+    // 404s on /responses. The adapter rewrites the known chat endpoint even
+    // when the provider was registered before the mapping existed.
+    expect(toml).toContain('base_url = "https://open.bigmodel.cn/api/v1"');
+    expect(toml).not.toContain('api/coding/paas/v4');
+    expect(toml).toContain('wire_api = "responses"');
+  });
+
+  it('keeps only Codex-accepted input modalities in the catalog', async () => {
+    const { mapModelToCodexCatalog } = await import('../../../src/providers/mappings/codex-mapping');
+    const entry = mapModelToCodexCatalog({
+      model: { id: 'glm-5.3-flash', name: 'glm-5.3-flash', modalities: { input: ['text', 'image', 'video', 'pdf'] } } as any,
+      providerName: 'GLM Coding Plan',
+      priority: 0,
+    });
+    // Codex parses input_modalities as a closed enum (text | image | audio);
+    // a video/pdf variant makes the entire catalog fail to load.
+    expect(entry.input_modalities).toEqual(['text', 'image']);
+  });
+
+  it('falls back to the okit binary when the primary vault command cannot emit a key', async () => {
+    const { pickVaultCommand, vaultKeyLooksReal } = await import('../../../src/providers/adapters/codex');
+    const primary = { command: 'old-app', args: ['vault', 'get', 'K'] };
+    const fallback = { command: 'okit', args: ['vault', 'get', 'K'] };
+    expect(pickVaultCommand([primary, fallback], () => false)).toBe(primary);
+    expect(pickVaultCommand([primary, fallback], candidate => candidate === fallback)).toBe(fallback);
+    expect(vaultKeyLooksReal('sk-codex-456789012345')).toBe(true);
+    // A stale packaged CLI prints the help screen (banner + usage) instead of
+    // the key; neither a multi-line answer nor the banner art may pass.
+    expect(vaultKeyLooksReal('Usage: okit <command>\n  vault  Manage the key vault')).toBe(false);
+    expect(vaultKeyLooksReal(' ██████████\n ██ OKIT v1.0\n')).toBe(false);
+  });
+
   it('replaces legacy OpenAI-auth residue with scoped provider authentication', async () => {
     mocks.files.set(CODEX_CONFIG, [
       'model = "old"',
