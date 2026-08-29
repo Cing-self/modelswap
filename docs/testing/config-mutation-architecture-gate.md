@@ -1,8 +1,18 @@
 # User config mutation architecture gate
 
-Status: design gate for the P0 lost-update repair. This document inventories every production path that reads or writes `~/.okit/user.json`. It does not authorize a product implementation by itself.
+Status: **final v4 design gate; implementation paused**. This document inventories every production path that reads or writes `~/.okit/user.json`. It does not authorize a product implementation by itself.
 
-The v3 operation registry at `docs/testing/config-write-operation-registry.md` is normative. This document explains invariants only; no area-level operation is sufficient without a matching registry row, runtime schema and isolated matrix participant.
+The machine-readable registry at `docs/testing/config-mutation-registry.json` is normative. This document explains invariants and the QA acceptance mapping only; no area-level operation is sufficient without a matching machine registry entry, JSON Schema and isolated matrix participant.
+
+## QA final-blocker mapping
+
+| QA blocked item | Implemented mechanism after design PASS | Runnable acceptance |
+| --- | --- | --- |
+| 1. One machine-readable registry and complete inventory | JSON registry `entries`; AST inventory resolves imports, aliases and write callsites; writer/schema/race ID sets must match exactly. | Fixture adds an unregistered config writer and an alias import; inventory fails with its source/callsite. Registry count equals executed participants. |
+| 2. Capability/import boundary | Registry lists the only composition/store-private allow points; AST import graph rejects application/web/CLI/adapter imports of generic/private or unregistered write APIs. | Synthetic CommonJS require, ESM import, destructured alias and re-export each fail; an allowed composition binding passes. |
+| 3. Executable closed schemas | Every writer has an ID-keyed JSON Schema with `additionalProperties:false`, scalar/enum/array/null/version/URL-port-token rules. | For every schema: unknown field, alias, deep copy, full config/sync/platform object and stale payload reject while counted reads/writes are zero and bytes are unchanged. |
+| 4. Exact source symbols and native-only reconciler | Registry has separate provider switch/configure/remove/enable/tier, Agent actions and config-user façade entries. Reconciler is `native-only-no-write`, outside equality sets. | AST source location matches each row; reconcile creates target native files but user-config write counter is zero. |
+| 5. A→B sequence and A01–A10 | Registry owns A01–A10: payload boundary, decoded per-item operations, local cache hydration and ten-adapter native/auth proof. | Fresh B temporary HOME runs A01–A10 in order; payload contains no cache; B cache is locally rebuilt; all ten native files/auth shapes are checked without reading secrets. |
 
 ## Invariant
 
@@ -32,11 +42,11 @@ A production business layer must never submit a complete `user.json` object obta
 
 `writeTail`, file reads, normalization and temp-plus-rename are private implementation details of `sync-config-store`. Neither application modules nor `cloud-sync-core` exports a generic mutation callback, a full replacement, a `save*` alias, a generic sync patch, or an API accepting `sync`, `platforms`, `lan`, Agent/override maps, or a whole user configuration object.
 
-The exhaustive public operation names, caller bindings and exact schemas are the individual rows of the v3 registry. A row may accept only one single-key binding/field/action, never a section map or free-form patch. Read APIs may return snapshots for rendering or remote requests, but a read result cannot be accepted by any write API. `replaceConfigForTest` is private to test-store construction; it is not re-exported by production modules.
+The exhaustive public operation names, caller bindings and exact schemas are the individual JSON entries in the v4 registry. A row may accept only one single-key binding/field/action, never a section map or free-form patch. Read APIs may return snapshots for rendering or remote requests, but a read result cannot be accepted by any write API. `replaceConfigForTest` is private to test-store construction; it is not re-exported by production modules.
 
 ## Private normalization semantics
 
-The store validates and normalizes each registry operation after its queue-fresh read. Valid ISO timestamp keys retain the later instant; invalid input rejects rather than replacing valid state. Only explicitly registered site/model deletion operations delete data; omission always preserves live state. The sync decoder transforms remote wire data into individual allowlisted operations; each operation recalculates `shouldApplyRemoteSection` against live timestamps within the private queue before changing desired state.
+The store validates and normalizes each registry operation after its queue-fresh read. Valid ISO timestamp keys retain the later instant; invalid input rejects rather than replacing valid state. Only explicitly listed site/model deletion operations delete data; omission always preserves live state. The sync decoder transforms remote wire data into individual JSON-Schema-validated operations; each operation recalculates `shouldApplyRemoteSection` against live timestamps within the private queue before changing desired state.
 
 ## Guard design
 

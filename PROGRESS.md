@@ -32,6 +32,14 @@
 3. Registry/test participant counts must match; unregistered writers, generic callbacks/maps, aliases and byte-changing invalid requests fail the gate.
 4. The DEV-ESCAPE evidence package now references registry-generated negative and concurrency evidence, not area-level claims.
 
+## Final machine-readable design gate v4 (2026-08-29)
+
+1. Status: paused; this replaces v3's Markdown table as the sole implementation definition.
+2. `docs/testing/config-mutation-registry.json` has 52 writer entries plus one explicit native-only reconciler entry; writer IDs, schema IDs and race IDs are required to be equal sets.
+3. An AST inventory (imports, CommonJS/ESM aliases, re-exports and direct file writes) must discover every user-config mutation and reject unregistered or unresolved targets.
+4. The JSON registry contains closed per-operation schemas and A01–A10 B-side payload→decode→local-hydrate→native-file acceptance; no model cache crosses A→B.
+5. `docs/testing/config-mutation-architecture-gate.md` maps all five QA blockers to future runnable acceptance. No production source or test implementation resumes before QA design PASS.
+
 ## Sync/Agent release batch start (2026-08-28)
 
 1. Scope: only the frozen sync/model discovery/Agent release acceptance, including e378 and QA-P0-GAP-001/002.

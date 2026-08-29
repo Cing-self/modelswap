@@ -22,7 +22,7 @@ The root fix is not a writer-specific merge: all durable `user.json` changes mus
 
 ## Production writer migration checklist
 
-The checklist is now driven by the v3 operation registry. The failed `fbe5143` experiment satisfies none of these rows. “Migrated” may only be set after that row's schema negative tests and independent real-disk race participant pass; area summaries are not evidence.
+The checklist is now driven by the v4 machine-readable `config-mutation-registry.json`. The failed `fbe5143` experiment satisfies none of these rows. “Migrated” may only be set after its exact registry ID has an AST-inventory match, JSON-Schema negative test, independent real-disk race participant and byte-identical rejection proof; area summaries are not evidence.
 
 | Area | Required target | Status | Evidence still required |
 | --- | --- | --- | --- |
@@ -41,7 +41,8 @@ No item is eligible for “complete” until its final column has executable evi
 ## Required executable evidence
 
 1. **Red → green:** preserve the existing paused settings-read race, demonstrate the old snapshot save loses a field, and demonstrate the scoped implementation keeps every field.
-2. **Bypass proof:** inject both `loadConfig(); saveConfig(snapshot)` and a non-store direct `user.json` write into the static guard input; each must fail independently.
+2. **Bypass proof:** inject both `loadConfig(); saveConfig(snapshot)` and a non-store direct `user.json` write into the AST guard input; CommonJS/ESM aliases, destructuring and re-exports must each fail independently.
 3. **Integration matrix:** one temporary HOME+USERPROFILE process with actual store I/O must interleave settings, scheduler, sync push, sync pull, sync-code import, LAN controller/listener, provider delete, Agent native/reconcile, model override and legacy migration. Assert the on-disk final file contains every independent latest intent.
 4. **Adapter matrix:** derive all registered adapters; each must persist a scoped Agent selection and no adapter may call a generic config writer.
-5. **Release record:** enumerate changed files, source-guard results, default-parallel full runs, package/build result, known no-coverage bounds and release recommendation.
+5. **A→B proof:** execute A01–A10 from the registry, dynamically cover all ten adapters, prove payload/cache separation and prove native-only reconciliation cannot persist user config.
+6. **Release record:** enumerate changed files, source-guard results, default-parallel full runs, package/build result, known no-coverage bounds and release recommendation.
