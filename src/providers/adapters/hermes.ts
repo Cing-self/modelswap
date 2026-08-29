@@ -5,7 +5,7 @@ import yaml from "js-yaml";
 import { BaseAdapter } from "./base";
 import { gatewayHeadersFor } from "./gateway";
 import { AgentSelection, AuthStatus, Provider, ProviderType, ResolvedModel } from "../types";
-import { loadUserConfig, updateUserConfig } from "../../config/user";
+import { loadUserConfig } from "../../config/user";
 import { atomicWrite } from "../../utils/atomicWrite";
 
 // Hermes (v0.12+ through v0.20.x) keeps ALL of its config in
@@ -86,14 +86,5 @@ export class HermesAdapter extends BaseAdapter {
     // would be an unsupported guess.
 
     await atomicWrite(HERMES_CONFIG_PATH, yaml.dump(data, { lineWidth: 120, noRefs: true }));
-    await updateUserConfig({
-      agentProviders: {
-        hermes: {
-          activeProviderId: provider.id,
-          activeModelId: modelId,
-          sites: { [provider.id]: { modelIds: [...new Set([...(provider.models || []).map(item => item.id), modelId])] } },
-        },
-      },
-    });
   }
 }

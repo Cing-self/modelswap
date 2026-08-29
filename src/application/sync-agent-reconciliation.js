@@ -25,7 +25,6 @@ function createPulledAgentReconciler({
   providerStore,
   loadProviderRuntime,
   loadConfig,
-  saveConfig,
   appendLog,
 }) {
   async function reconcilePulledAgentProviders(config) {
@@ -57,12 +56,10 @@ function createPulledAgentReconciler({
       getAdapter: registry.getAdapter,
       loadProviders: providerStore.loadProviders,
       loadUserConfig: loadConfig,
-      saveUserConfig: saveConfig,
-      persistReconciledDesired: (desiredState) =>
-        saveConfig(desiredState, {
-          applyAgentProviders: true,
-          applyModelOverrides: true,
-        }),
+      applyAgentBinding: async () => {},
+      // Desired state was atomically committed by syncPull before hydration.
+      // Reconciliation must not replay its earlier snapshot after native I/O.
+      persistReconciledDesired: undefined,
       captureSnapshot: snapshots.capturePreSwitchSnapshot,
       restoreSnapshot: snapshots.restoreSnapshot,
       providerSupportsAdapter: routing.providerSupportsAdapter,

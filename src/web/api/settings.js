@@ -1,24 +1,10 @@
-const fs = require('fs-extra');
-const path = require('path');
-const os = require('os');
-const { backupImportantData } = require('./backup');
 const { appendLog } = require('./log-writer');
-
-const CONFIG_PATH = path.join(os.homedir(), '.okit', 'user.json');
+const syncCore = require('./cloud-sync-core');
 
 const SENSITIVE_KEYS = ['accessKeySecret', 'password', 'token'];
 
 async function loadConfig() {
-  try {
-    if (!(await fs.pathExists(CONFIG_PATH))) return {};
-    return await fs.readJson(CONFIG_PATH);
-  } catch { return {}; }
-}
-
-async function saveConfig(config) {
-  await fs.ensureDir(path.dirname(CONFIG_PATH));
-  await backupImportantData('settings');
-  await fs.writeJson(CONFIG_PATH, config, { spaces: 2 });
+  return syncCore.loadConfig();
 }
 
 function maskConfig(sync) {
@@ -77,24 +63,20 @@ async function updateSettings(req, res) {
   try {
     const { sync } = req.body;
     if (!sync) return res.status(400).json({ error: 'sync is required' });
-
-    const config = await loadConfig();
-    const autoSyncWasOn = !!config.sync?.autoSync;
-    const prevLan = JSON.stringify(config.sync?.lan || null);
-
-    if (sync) {
-      const merged = mergeSensitive(config.sync, sync);
-      config.sync = {
-        ...config.sync,
-        ...merged,
-        platforms: {
-          ...config.sync?.platforms,
-          ...merged.platforms,
-        },
-      };
+    const previous = await loadConfig();
+    const autoSyncWasOn = !!previous.sync?.autoSync;
+    const prevLan = JSON.stringify(previous.sync?.lan || null);
+    // Only request-owned sync fields are handed to the semantic store entry;
+    // it reads the queue-fresh config before merging them.
+    const merged = mergeSensitive(previous.sync, sync);
+    for (const key of ['autoSync', 'password', 'syncPlatform']) {
+      if (Object.prototype.hasOwnProperty.call(merged, key)) await syncCore.setSyncSetting(key, merged[key]);
     }
-
-    await saveConfig(config);
+    for (const [platformId, fields] of Object.entries(merged.platforms || {})) {
+      for (const [field, value] of Object.entries(fields || {})) await syncCore.setSyncPlatformField(platformId, field, value);
+    }
+    for (const [field, value] of Object.entries(merged.lan || {})) await syncCore.setLanField(field, value);
+    const config = await loadConfig();
     const changes = [];
     if (sync) changes.push(...Object.keys(sync.platforms || {}));
     appendLog('settings-update', changes.join(',') || 'settings', true);
@@ -182,10 +164,7 @@ async function getOnboarding(req, res) {
 
 async function dismissOnboarding(req, res) {
   try {
-    const config = await loadConfig();
-    if (!config.hints) config.hints = {};
-    config.hints.onboardingDone = true;
-    await saveConfig(config);
+    await syncCore.setOnboardingDismissed(true);
     appendLog('onboarding-dismiss', 'onboarding', true);
     res.json({ success: true });
   } catch (error) {
@@ -196,9 +175,7 @@ async function dismissOnboarding(req, res) {
 
 async function resetOnboarding(req, res) {
   try {
-    const config = await loadConfig();
-    if (config.hints) delete config.hints.onboardingDone;
-    await saveConfig(config);
+    await syncCore.setOnboardingDismissed(false);
     appendLog('onboarding-reset', 'onboarding', true);
     res.json({ success: true });
   } catch (error) {

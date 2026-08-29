@@ -5,7 +5,7 @@ import { BaseAdapter } from "./base";
 import { gatewayHeadersFor } from "./gateway";
 import { modelFacts } from "./model-facts";
 import { AgentSelection, AuthStatus, Provider, ProviderType } from "../types";
-import { loadUserConfig, updateUserConfig } from "../../config/user";
+import { loadUserConfig } from "../../config/user";
 import { atomicWrite } from "../../utils/atomicWrite";
 import { loadProviders } from "../store";
 import {
@@ -121,15 +121,6 @@ export class GrokAdapter extends BaseAdapter {
     toml = upsertTableKey(toml, "models", "default", tomlString(getModelAlias(provider.id, modelId)));
 
     await atomicWrite(GROK_CONFIG_PATH, normalizeToml(toml));
-    await updateUserConfig({
-      agentProviders: {
-        grok: {
-          activeProviderId: provider.id,
-          activeModelId: modelId,
-          sites: { [provider.id]: { modelIds: [...new Set([...(provider.models || []).map(item => item.id), modelId])] } },
-        },
-      },
-    });
   }
 
   // Additive (multi-site): write one site's model tables without touching

@@ -5,7 +5,7 @@ import { loadProviders, addProvider, deleteProvider, getProvider } from "../prov
 import { PRESET_PROVIDERS } from "../providers/presets";
 import { getAdapters, getAdapter } from "../providers/registry";
 import { checkAuthStatus } from "../providers/auth";
-import { loadUserConfig, updateUserConfig } from "../config/user";
+import { loadUserConfig, applyAgentBinding } from "../config/user";
 import { Provider, ProviderModel, ResolvedModel } from "../providers/types";
 import { providerSupportsAdapter, resolveModelRoute } from "../providers/routing";
 import { resolveModelFacts } from "../providers/adapters/model-facts";
@@ -41,9 +41,7 @@ function agentConfigService() {
     getAdapter,
     loadProviders,
     loadUserConfig,
-    saveUserConfig: async (config: Awaited<ReturnType<typeof loadUserConfig>>) => {
-      await updateUserConfig({ agentProviders: config.agentProviders });
-    },
+    applyAgentBinding,
     captureSnapshot: capturePreSwitchSnapshot,
     providerSupportsAdapter,
     resolveModelRoute,

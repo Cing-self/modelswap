@@ -135,12 +135,18 @@ describe('sync pull orchestration', () => {
         return [];
       },
       resolvePrimaryTarget: async () => ({ id: 'memory' }),
-      saveConfig: async () => order.push('config'),
-      shouldApplyRemoteSection,
+      applyPulledSyncMetadata: async () => {
+        order.push('config');
+      },
+      applyPulledAgentSite: async ({ agentId, providerId, modelIds }) => { config.agentProviders[agentId] = { ...(config.agentProviders[agentId] || { sites: {} }), activeProviderId: providerId, activeModelId: modelIds[0], sites: { ...(config.agentProviders[agentId]?.sites || {}), [providerId]: { modelIds } } }; },
+      applyPulledAgentActive: async ({ agentId, providerId, modelId }) => { config.agentProviders[agentId] = { ...config.agentProviders[agentId], activeProviderId: providerId, activeModelId: modelId }; },
+      applyPulledModelOverrideField: async ({ providerId, modelId, field, value }) => { config.modelOverrides[providerId] = { ...(config.modelOverrides[providerId] || {}), [modelId]: { ...(config.modelOverrides[providerId]?.[modelId] || {}), [field]: value } }; },
+      recordSyncSuccess: async () => order.push('config'),
+      shouldApplyRemoteSection: () => true,
     });
 
     const result = await service.syncPull();
-    expect(order).toEqual(['providers', 'vault', 'config', 'hydrate', 'agent']);
+    expect(order).toEqual(['vault', 'config', 'providers', 'hydrate', 'agent']);
     expect(result.agentModelHydration).toMatchObject({ warmed: ['remote-site'] });
   });
 });

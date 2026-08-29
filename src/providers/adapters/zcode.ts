@@ -5,7 +5,7 @@ import { BaseAdapter } from "./base";
 import { gatewayHeadersFor } from "./gateway";
 import { modelFacts, modelTokenLimit } from "./model-facts";
 import { AgentSelection, AuthStatus, ManagedModels, Provider, ProviderType } from "../types";
-import { loadUserConfig, updateUserConfig } from "../../config/user";
+import { loadUserConfig } from "../../config/user";
 import { atomicWriteJSON } from "../../utils/atomicWrite";
 
 // ZCode (zcode.z.ai, the GLM desktop coding agent) reads ~/.zcode/v2/config.json
@@ -54,6 +54,7 @@ import { atomicWriteJSON } from "../../utils/atomicWrite";
 // "openai-chat-completions" (base URL with /v1).
 
 const ZCODE_CONFIG_PATH = path.join(os.homedir(), ".zcode", "v2", "config.json");
+const ZCODE_OWNERSHIP_PATH = path.join(os.homedir(), ".zcode", "v2", ".okit-managed.json");
 
 // The agent process (spawned by the ZCode desktop app) resolves its user
 // settings from ~/.zcode/cli/config.json — the v2 config above is only the
@@ -144,6 +145,18 @@ async function readV2Config(): Promise<Record<string, any>> {
     }
   }
   return {};
+}
+
+async function readOwnership(): Promise<ManagedModels | null> {
+  try {
+    const value = JSON.parse(await fs.readFile(ZCODE_OWNERSHIP_PATH, "utf-8"));
+    return value && typeof value === "object" && !Array.isArray(value) ? value : null;
+  } catch { return null; }
+}
+
+async function writeOwnership(models: ManagedModels): Promise<void> {
+  await fs.ensureDir(path.dirname(ZCODE_OWNERSHIP_PATH));
+  await atomicWriteJSON(ZCODE_OWNERSHIP_PATH, models);
 }
 
 async function writeV2Config(data: Record<string, any>): Promise<void> {
@@ -263,6 +276,8 @@ export class ZCodeAdapter extends BaseAdapter {
   }
 
   private async readManaged(): Promise<ManagedModels> {
+    const local = await readOwnership();
+    if (local) return local;
     const config = await loadUserConfig();
     const sites = config.agentProviders?.zcode?.sites || {};
     if (Object.keys(sites).length > 0) {
@@ -273,30 +288,8 @@ export class ZCodeAdapter extends BaseAdapter {
   }
 
   private async persistState(managed: ManagedModels, active?: AgentSelection | null, enabled?: Record<string, boolean>): Promise<void> {
-    const config = await loadUserConfig();
-    const previous = config.agentProviders?.zcode || { sites: {} };
-    const sites: Record<string, any> = { ...previous.sites };
-    for (const providerId of Object.keys(sites)) {
-      if (!(providerId in managed)) sites[providerId] = null;
-    }
-    for (const [providerId, modelIds] of Object.entries(managed)) {
-      sites[providerId] = {
-        ...sites[providerId],
-        modelIds: [...new Set(modelIds)],
-        ...(enabled?.[providerId] === undefined ? {} : { enabled: enabled[providerId] }),
-      };
-    }
-    const next = {
-      ...previous,
-      ...(active?.providerId ? { activeProviderId: active.providerId } : {}),
-      ...(active?.modelId ? { activeModelId: active.modelId } : {}),
-      sites,
-    };
-    if (active === null) {
-      next.activeProviderId = undefined;
-      next.activeModelId = undefined;
-    }
-    await updateUserConfig({ agentProviders: { zcode: next } } as any);
+    void active; void enabled;
+    await writeOwnership(managed);
   }
 
   async applyConfig(provider: Provider, modelId: string): Promise<void> {

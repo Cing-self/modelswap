@@ -199,19 +199,11 @@ async function saveProviders(providers, options) {
 }
 
 async function loadUserConfig() {
-  try {
-    if (!(await fs.pathExists(USER_CONFIG_PATH))) return {};
-    const content = await fs.readFile(USER_CONFIG_PATH, 'utf-8');
-    const config = JSON.parse(content);
-    if (migrateAgentProviders(config)) {
-      await saveUserConfig(config);
-    }
-    return config;
-  } catch { return {}; }
+  return syncCore.loadConfig();
 }
 
-async function saveUserConfig(config, options) {
-  await syncCore.saveUserConfig(config, options);
+async function applyAgentBinding(agentId, selection) {
+  await syncCore.applyAgentBinding(agentId, selection);
   publishDataChanged(['agents']);
   require('../web/api/sync-scheduler').markDirty('agentProviders');
 }
@@ -240,7 +232,7 @@ const agentConfigService = createAgentConfigurationService({
   getAdapter: _getAdapter,
   loadProviders,
   loadUserConfig,
-  saveUserConfig,
+  applyAgentBinding,
   captureSnapshot: capturePreSwitchSnapshot,
   restoreSnapshot,
   providerSupportsAdapter,
@@ -594,7 +586,7 @@ const {
 } = providerAuthService;
 
 const providerLifecycleService = createProviderLifecycleService({
-  loadProviders, saveProviders, loadUserConfig, saveUserConfig, agentConfigService,
+  loadProviders, saveProviders, loadUserConfig, removeProviderConfiguration: syncCore.removeProviderConfiguration, agentConfigService,
 });
 const { createProvider, updateProvider, deleteProvider } = providerLifecycleService;
 

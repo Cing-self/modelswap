@@ -1,5 +1,45 @@
 # OKIT data architecture progress
 
+## Config mutation architecture closure (2026-08-29)
+
+1. Scope: eliminate every production user.json read→full-snapshot save path; no unrelated product work.
+2. Full call graph, target API, ownership rules and deterministic test matrix: `docs/testing/config-mutation-architecture-gate.md`.
+3. Contract: external code gets read-only snapshots; all production writes are registry-defined, closed-schema semantic operations only. Queue mutation remains store-private.
+4. Risk: sync payload, Agent desired state and LAN credentials have independent ownership; merge/delete/timestamp semantics must remain explicit.
+5. Migration: remove every production generic/full patch API; replacement is initialization/test-only/private and guarded by name and source scan.
+6. Guard: production-source rule plus an injected violating fixture must fail before any runtime race is required.
+7. Matrix: settings, scheduler, sync push/pull, LAN/listener, provider/Agent/reconciler and migration interleave against one fresh HOME.
+8. Gate only: no implementation is committed before CEO approves this inventory and API; then run focused red→green, full ×3, build and diff.
+
+## DEV-ESCAPE-CONFIG-001 self-certification (2026-08-29)
+
+1. Status: development in progress; prior test/build evidence is insufficient for QA handoff.
+2. Required evidence: root-cause graph, zero-pending writer matrix, red→green plus bypass proof, live guard failure, real concurrency integration matrix, and explicit residual bounds.
+3. Hold: do not label this P0 complete or request release/QA sign-off until the evidence package is committed and sent to CEO + QA.
+
+## Final semantic-config API design gate (2026-08-29)
+
+1. Status: implementation paused; `fbe5143` is a failed experiment and must not merge.
+2. Public business/composition API may expose only field-validated semantic operations; no generic mutation, config/sync snapshot patch, callback or compatibility alias.
+3. `writeTail` mutation is infrastructure-private; pull conflict checks consume a remote intent and re-evaluate live state internally.
+4. The detailed writer map, schemas, ownership/deletion/timestamp rules, boundaries and negative tests are in `docs/testing/config-mutation-architecture-gate.md`.
+5. Wait for QA review of this design revision before source implementation or verification resumes.
+
+## Registry-driven design gate v3 (2026-08-29)
+
+1. Status: paused; no source implementation until QA design PASS.
+2. `docs/testing/config-write-operation-registry.md` is the sole implementation definition: every writer has one closed-schema operation and one matrix participant; the earlier `fbe5143` API is explicitly rejected.
+3. Registry/test participant counts must match; unregistered writers, generic callbacks/maps, aliases and byte-changing invalid requests fail the gate.
+4. The DEV-ESCAPE evidence package now references registry-generated negative and concurrency evidence, not area-level claims.
+
+## Final machine-readable design gate v4 (2026-08-29)
+
+1. Status: paused; this replaces v3's Markdown table as the sole implementation definition.
+2. `docs/testing/config-mutation-registry.json` has 42 user-config writers and 11 native-only entries (reconciler + ten adapters); only writer/schema/race IDs are required to be equal sets.
+3. Every entry is joined to a stable source symbol and machine-parsed AST selector/position; inventory resolves CommonJS/ESM aliases and re-exports, and rejects unregistered or unresolved targets.
+4. The JSON registry contains closed per-operation schemas, retired-key scalar/enum migration rules, and A01–A10 dependency/participant B-side payload→decode→local-hydrate→native-file acceptance; no model cache crosses A→B.
+5. `docs/testing/config-mutation-architecture-gate.md` maps all five QA blockers to future runnable acceptance. No production source or test implementation resumes before QA design PASS.
+
 ## Sync/Agent release batch start (2026-08-28)
 
 1. Scope: only the frozen sync/model discovery/Agent release acceptance, including e378 and QA-P0-GAP-001/002.

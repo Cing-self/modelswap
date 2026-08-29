@@ -5,7 +5,7 @@ import { execFileSync } from "child_process";
 import { BaseAdapter } from "./base";
 import { AgentSelection, AuthStatus, Provider, ProviderType, ResolvedModel } from "../types";
 import { resolveModelRoute } from "../routing";
-import { loadUserConfig, updateUserConfig } from "../../config/user";
+import { loadUserConfig } from "../../config/user";
 import { checkClaudeOAuth } from "../auth";
 import { atomicWrite, atomicWriteJSON } from "../../utils/atomicWrite";
 
@@ -260,16 +260,5 @@ export class ClaudeAdapter extends BaseAdapter {
 
     await atomicWriteJSON(CLAUDE_SETTINGS_PATH, data);
 
-    await updateUserConfig({
-      agentProviders: {
-        claude: {
-          activeProviderId: provider.id,
-          activeModelId: modelId,
-          sites: {
-            [provider.id]: { modelIds: [...new Set([...(provider.models || []).map(item => item.id), modelId])] },
-          },
-        },
-      },
-    });
   }
 }

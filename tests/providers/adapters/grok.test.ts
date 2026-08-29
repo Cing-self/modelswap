@@ -37,7 +37,7 @@ vi.mock('../../../src/config/registry', () => ({
 
 vi.mock('../../../src/config/user', () => ({
   loadUserConfig: vi.fn(async function() { return {}; }),
-  updateUserConfig: vi.fn(async function(patch: any) { return patch; }),
+  patchAgentSelection: vi.fn(async function(_agentId: string, patch: any) { return patch; }),
 }));
 
 vi.mock('../../../src/vault/store', () => ({
@@ -47,7 +47,7 @@ vi.mock('../../../src/vault/store', () => ({
 }));
 
 const { GrokAdapter } = await import('../../../src/providers/adapters/grok');
-const { updateUserConfig } = await import('../../../src/config/user');
+const { patchAgentSelection } = await import('../../../src/config/user');
 
 const CONFIG_PATH = path.join(os.homedir(), '.grok', 'config.toml');
 const PROVIDERS_JSON = testRoot.PROVIDERS_PATH;
@@ -84,7 +84,7 @@ const resolvedModel = (id: string, context: number, output: number) => ({
 
 beforeEach(() => {
   mocks.files.clear();
-  vi.mocked(updateUserConfig).mockClear();
+  vi.mocked(patchAgentSelection).mockClear();
 });
 
 describe('GrokAdapter', () => {

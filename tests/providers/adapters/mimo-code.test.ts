@@ -36,7 +36,7 @@ vi.mock('../../../src/config/registry', () => ({
 
 vi.mock('../../../src/config/user', () => ({
   loadUserConfig: vi.fn(async function() { return {}; }),
-  updateUserConfig: vi.fn(async function(patch: any) { return patch; }),
+  patchAgentSelection: vi.fn(async function(_agentId: string, patch: any) { return patch; }),
 }));
 
 vi.mock('../../../src/vault/store', () => ({
@@ -46,7 +46,7 @@ vi.mock('../../../src/vault/store', () => ({
 }));
 
 const { MimoCodeAdapter } = await import('../../../src/providers/adapters/mimo-code');
-const { updateUserConfig } = await import('../../../src/config/user');
+const { patchAgentSelection } = await import('../../../src/config/user');
 
 const CONFIG_PATH = path.join(os.homedir(), '.config', 'mimocode', 'mimocode.jsonc');
 
@@ -82,7 +82,7 @@ const resolvedModel = (id: string, context: number, output: number) => ({
 
 beforeEach(() => {
   mocks.files.clear();
-  vi.mocked(updateUserConfig).mockClear();
+  vi.mocked(patchAgentSelection).mockClear();
 });
 
 describe('MimoCodeAdapter', () => {

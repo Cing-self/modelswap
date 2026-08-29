@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 
 vi.mock('../../src/config/user', () => ({
   loadUserConfig: vi.fn().mockResolvedValue({}),
-  updateUserConfig: vi.fn().mockResolvedValue({}),
+  patchUserPreferences: vi.fn().mockResolvedValue({}),
 }));
 
 const { setLanguage, getLanguage, t } = await import('../../src/config/i18n');
