@@ -1,3 +1,5 @@
+const { consoleUsageHandoff } = require('./usage-handoff-copy');
+
 // Cloud-control-plane usage strategies (AK/SK or management credentials).
 function createUsageCloudStrategies(deps) {
   const { resolveCredentialPair, resolveVaultKey, httpRequest, accountBalanceResult, managementCredentialNotice, round1, epochToISO } = deps;
@@ -12,7 +14,7 @@ async function resolveVolcCredentials() {
 
 async function queryVolcengineBalance() {
   const credentials = await resolveVolcCredentials();
-  if (!credentials) return managementCredentialNotice('火山引擎', ['VOLCENGINE_BILLING_CREDENTIALS（请按文档手动录入）', 'VOLCENGINE_ACCESS_KEY', 'VOLCENGINE_SECRET_KEY'], 'https://console.volcengine.com/iam/keymanage/');
+  if (!credentials) return managementCredentialNotice('volcengineCredentials', ['VOLCENGINE_BILLING_CREDENTIALS（请按文档手动录入）', 'VOLCENGINE_ACCESS_KEY', 'VOLCENGINE_SECRET_KEY'], 'https://console.volcengine.com/iam/keymanage/');
   const result = await callVolcApi(credentials.accessKey, credentials.secretKey, 'QueryBalanceAcct', {
     service: 'billing',
     version: '2022-01-01',
@@ -136,14 +138,11 @@ function callVolcApi(ak, sk, action, options = {}) {
   });
 }
 
-function queryConsoleOnlyUsage(label, url, detail) {
+function queryConsoleOnlyUsage(targetKey, url) {
   return {
     supported: true,
     windows: [],
-    source: 'console',
-    refreshPolicy: 'never',
-    notice: detail || `${label}当前没有公开的个人余额查询接口，请在控制台 Billing/用量页面查看。`,
-    action: { label: `打开${label}控制台`, url },
+    ...consoleUsageHandoff(targetKey, url),
   };
 }
 

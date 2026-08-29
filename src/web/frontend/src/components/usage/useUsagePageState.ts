@@ -159,7 +159,7 @@ export function useUsagePageState() {
       const usage = usageMap[id];
       if (
         usage === undefined ||
-        (!usage.windows?.length && (usage.error || usage.notice))
+        (!usage.windows?.length && (usage.error || usage.notice || usage.handoff))
       )
         void fetchOne(id);
     }
@@ -251,10 +251,16 @@ export function useUsagePageState() {
         windows: [],
         source: 'console',
         refreshPolicy: 'manual',
-        notice: t('usage.manualOnlyNotice'),
-        action: {
-          label: t('usage.manualOnlyAction'),
-          url: 'https://opencode.ai/',
+        handoff: {
+          notice: {
+            key: 'usage.handoff.notice.manualRefresh',
+            params: { target: { key: 'usage.handoff.target.opencodeGo' } },
+          },
+          action: {
+            key: 'usage.handoff.action.open',
+            params: { target: { key: 'usage.handoff.target.opencodeGoPlan' } },
+            url: 'https://opencode.ai/',
+          },
         },
       };
     },
@@ -289,7 +295,7 @@ export function useUsagePageState() {
           ? 4
           : card.usage?.error
             ? 5
-            : card.usage?.notice
+          : (card.usage?.notice || card.usage?.handoff)
               ? 6
               : 7);
     return score(a) - score(b);

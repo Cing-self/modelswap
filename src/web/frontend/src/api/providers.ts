@@ -389,6 +389,11 @@ export interface UsageResult {
   error?: string;
   notice?: string;
   action?: { label: string; url: string; mode?: 'external' | 'extension' };
+  /** Localized by the client; application code must not return display text. */
+  handoff?: {
+    notice: UsageHandoffText;
+    action?: UsageHandoffText & { url: string; mode?: 'external' | 'extension' };
+  };
   source?: 'live' | 'browser' | 'cli' | 'console';
   /**
    * `never` is a terminal console hand-off; `manual` requires a user-triggered
@@ -398,6 +403,11 @@ export interface UsageResult {
   /** Goal ①: 'subscription' (percentage + reset) or 'prepaid' (USD balance). */
   kind?: 'subscription' | 'prepaid';
   raw?: any;
+}
+
+export interface UsageHandoffText {
+  key: string;
+  params?: Record<string, string | number | { key: string; params?: Record<string, string | number> }>;
 }
 
 export async function getSupportedUsageProviders(): Promise<{ providers: string[]; manualOnly?: string[] }> {

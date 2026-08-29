@@ -1,3 +1,8 @@
+const {
+  consoleUsageHandoff,
+  credentialRefreshHandoff,
+} = require('./usage-handoff-copy');
+
 // API and local-credential usage strategies. All host dependencies are injected.
 function createUsageApiStrategies(deps) {
   const { fs, path, os, providersPath, createVaultStore, getOrigin, round1, round4, epochToISO } = deps;
@@ -108,10 +113,7 @@ async function queryClaudeUsage(provider) {
     return {
       supported: true,
       windows: [],
-      source: 'console',
-      refreshPolicy: 'never',
-      notice: 'Claude Code 订阅用量需要 Claude OAuth 登录态；当前站点使用 API Key，请在 Claude 控制台查看 API 用量或通过 claude login 登录后刷新。',
-      action: { label: '打开 Claude 控制台', url: 'https://console.anthropic.com/' },
+      ...consoleUsageHandoff('claudeConsole', 'https://console.anthropic.com/'),
     };
   }
 
@@ -336,7 +338,7 @@ async function queryOpenRouterUsage() {
   const managementKey = await resolveFirstVaultKey(['OPENROUTER_MANAGEMENT_KEY']);
   if (!managementKey) {
     return managementCredentialNotice(
-      'OpenRouter',
+      'openrouterManagementKeys',
       ['OPENROUTER_MANAGEMENT_KEY'],
       'https://openrouter.ai/settings/management-keys',
     );
@@ -463,25 +465,19 @@ function parseXaiPrepaidBalance(data) {
   return accountBalanceResult(flatAmount, 'USD', data);
 }
 
-function managementCredentialNotice(label, keyNames, url) {
+function managementCredentialNotice(targetKey, keyNames, url) {
   return {
     supported: true,
     windows: [],
-    source: 'console',
-    refreshPolicy: 'auto',
-    notice: `${label} 需要单独的管理凭证才能查询余额，请在密钥管理中添加：${keyNames.join('、')}。推理 API Key 不能替代该凭证。`,
-    action: { label: `打开 ${label} 控制台`, url },
+    ...credentialRefreshHandoff(targetKey, url),
   };
 }
 
-function manualCredentialPairNotice(label, combinedName, accessKeyName, secretKeyName, url) {
+function manualCredentialPairNotice(targetKey, combinedName, accessKeyName, secretKeyName, url) {
   return {
     supported: true,
     windows: [],
-    source: 'console',
-    refreshPolicy: 'auto',
-    notice: `${label}余额查询需要单独的云账号管理凭证，推理 API Key 不能替代。请在云控制台创建具有账务只读权限的 IAM/CAM 用户凭证，再到密钥管理手动录入 ${combinedName}，密钥值格式：{"accessKey":"...","secretKey":"..."}；也可分别录入 ${accessKeyName} 和 ${secretKeyName}。`,
-    action: { label: `打开${label}凭证控制台`, url },
+    ...credentialRefreshHandoff(targetKey, url),
   };
 }
 
@@ -525,7 +521,7 @@ async function queryAlibabaBalance() {
     accessKey: ['ALIYUN_ACCESS_KEY_ID', 'ALIBABA_CLOUD_ACCESS_KEY_ID', 'QWEN_ACCESS_KEY_ID'],
     secretKey: ['ALIYUN_ACCESS_KEY_SECRET', 'ALIBABA_CLOUD_ACCESS_KEY_SECRET', 'QWEN_ACCESS_KEY_SECRET'],
   });
-  if (!credentials) return managementCredentialNotice('阿里云百炼', ['ALIYUN_ACCESS_KEY_ID（手动录入）', 'ALIYUN_ACCESS_KEY_SECRET（手动录入）'], 'https://ram.console.aliyun.com/profile/accessKey');
+  if (!credentials) return managementCredentialNotice('aliyunRam', ['ALIYUN_ACCESS_KEY_ID（手动录入）', 'ALIYUN_ACCESS_KEY_SECRET（手动录入）'], 'https://ram.console.aliyun.com/profile/accessKey');
 
   const result = await callAlibabaRpc(credentials.accessKey, credentials.secretKey, 'QueryAccountBalance', '2017-12-14');
   if (result.error) return { supported: true, windows: [], error: result.error };
@@ -577,7 +573,7 @@ async function queryQianfanBalance() {
   });
   if (!credentials) {
     return manualCredentialPairNotice(
-      '百度千帆',
+      'qianfanCredentials',
       'QIANFAN_BCE_CREDENTIALS',
       'QIANFAN_ACCESS_KEY_ID',
       'QIANFAN_SECRET_ACCESS_KEY',
@@ -714,7 +710,7 @@ function hmacSha256(key, value, encoding) {
 async function queryXaiApiBalance() {
   const managementKey = await resolveFirstVaultKey(['XAI_MANAGEMENT_KEY', 'XAI_BILLING_MANAGEMENT_KEY']);
   let teamId = await resolveFirstVaultKey(['XAI_TEAM_ID', 'XAI_MANAGEMENT_TEAM_ID']);
-  if (!managementKey) return managementCredentialNotice('xAI API', ['XAI_MANAGEMENT_KEY'], 'https://console.x.ai/team/default/settings/management-keys');
+  if (!managementKey) return managementCredentialNotice('xaiManagementKeys', ['XAI_MANAGEMENT_KEY'], 'https://console.x.ai/team/default/settings/management-keys');
 
   // The management-key validation endpoint returns the scope/team id. This
   // keeps the auto-create flow to one secret and avoids asking users to copy a
@@ -794,10 +790,7 @@ async function querySiliconflowUsage() {
   return {
     supported: true,
     windows: [],
-    source: 'console',
-    refreshPolicy: 'never',
-    error: 'SiliconFlow 暂不支持实时余额查询，请在 SiliconFlow 控制台查看账户余额',
-    action: { label: '打开 SiliconFlow 控制台', url: 'https://cloud.siliconflow.cn/' },
+    ...consoleUsageHandoff('siliconflowConsole', 'https://cloud.siliconflow.cn/'),
   };
 }
 
@@ -813,9 +806,7 @@ async function queryMistralUsage(_apiKey) {
   return {
     supported: true,
     windows: [],
-    source: 'console',
-    refreshPolicy: 'never',
-    notice: 'Mistral 暂无公开的余额查询 API，请在 Mistral Console 的 Billing 页面查看。',
+    ...consoleUsageHandoff('mistralConsole', 'https://console.mistral.ai/billing/'),
   };
 }
 
@@ -832,10 +823,7 @@ async function queryQwenCodingUsage(_apiKey) {
   return {
     supported: true,
     windows: [],
-    source: 'console',
-    refreshPolicy: 'never',
-    notice: '阿里云百炼 Coding Plan 用量请在百炼控制台的 Coding Plan 页面查看。该套餐接口仅供官方 Coding Agent 使用。',
-    action: { label: '打开百炼套餐页', url: 'https://bailian.console.aliyun.com/cn-beijing?tab=plan' },
+    ...consoleUsageHandoff('qwenCodingPlan', 'https://bailian.console.aliyun.com/cn-beijing?tab=plan'),
   };
 }
 
@@ -846,10 +834,7 @@ async function queryQwenTokenPlanUsage(_apiKey) {
   return {
     supported: true,
     windows: [],
-    source: 'console',
-    refreshPolicy: 'never',
-    notice: '阿里云百炼 Token Plan 用量请在“我的订阅”页面查看，当前没有可用的个人套餐用量 API。',
-    action: { label: '打开百炼 Token Plan', url: 'https://bailian.console.aliyun.com/cn-beijing?tab=plan' },
+    ...consoleUsageHandoff('qwenTokenPlan', 'https://bailian.console.aliyun.com/cn-beijing?tab=plan'),
   };
 }
 

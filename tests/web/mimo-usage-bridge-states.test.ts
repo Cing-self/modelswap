@@ -55,12 +55,15 @@ describe('MiMo bridge usage states', () => {
       });
       const result = JSON.parse(stdout.slice(stdout.indexOf('RESULT') + 'RESULT'.length));
       expect(result.disconnected).toMatchObject({ source: 'console', refreshPolicy: 'manual' });
-      expect(result.disconnected.notice).toContain('插件未连接');
-      expect(result.disconnected.action).toBeUndefined();
+      expect(result.disconnected.handoff).toEqual({
+        notice: { key: 'usage.handoff.notice.pluginRefresh', params: { target: { key: 'usage.handoff.target.mimoConsole' } } },
+      });
 
       expect(result.noSession).toMatchObject({ source: 'console', refreshPolicy: 'manual' });
-      expect(result.noSession.notice).toContain('控制台会话 Cookie');
-      expect(result.noSession.action).toMatchObject({ mode: 'extension', url: 'https://platform.xiaomimimo.com/console/plan-manage' });
+      expect(result.noSession.handoff).toMatchObject({
+        notice: { key: 'usage.handoff.notice.browserRefresh' },
+        action: { key: 'usage.handoff.action.open', mode: 'extension', url: 'https://platform.xiaomimimo.com/console/plan-manage' },
+      });
 
       expect(result.validSession).toMatchObject({ supported: true, source: 'browser' });
       expect(result.validSession.windows).toEqual([expect.objectContaining({ label: 'credits', usedPercent: 25, remainingCredits: 75 })]);

@@ -10,6 +10,7 @@ import {
   isGuidedConfigurationMessage,
   isConsoleOnlyUsage,
   isExternalUsageNotice,
+  formatUsageHandoff,
 } from './usagePresentation';
 
 export function UsageCard({
@@ -36,8 +37,10 @@ export function UsageCard({
   t: UsageTranslate;
 }) {
   const hasData = usage?.supported && (usage.windows?.length || 0) > 0;
+  const handoff = formatUsageHandoff(usage?.handoff, t);
   const hasError = usage?.error;
-  const hasNotice = usage?.notice;
+  const hasNotice = usage?.notice || handoff?.notice;
+  const action = handoff?.action || usage?.action;
   const externalUsageNotice = isExternalUsageNotice(usage);
   const consoleOnly = isConsoleOnlyUsage(usage);
   const externalSource = usage?.source === 'console' || usage?.source === 'cli';
@@ -135,8 +138,8 @@ export function UsageCard({
                 ? t('usage.configurationRequired')
                 : usage!.error}
             </span>
-            {!compactGuideError && usage!.action && (
-              <UsageAction action={usage!.action} />
+            {!compactGuideError && action && (
+              <UsageAction action={action} />
             )}
           </div>
         )}
@@ -149,11 +152,11 @@ export function UsageCard({
               <span>
                 {compactGuideNotice
                   ? t('usage.configurationRequired')
-                  : usage!.notice || usage!.error}
+                  : handoff?.notice || usage!.notice || usage!.error}
               </span>
               {!compactGuideNotice &&
-                usage!.action &&
-                (usage!.action.mode === 'extension' ? (
+                action &&
+                (action.mode === 'extension' ? (
                   <button
                     className="usage-card-action"
                     type="button"
@@ -174,13 +177,13 @@ export function UsageCard({
                       </>
                     ) : (
                       <>
-                        {usage!.action.label}
+                        {action.label}
                         <span aria-hidden="true">→</span>
                       </>
                     )}
                   </button>
                 ) : (
-                  <UsageAction action={usage!.action} />
+                  <UsageAction action={action} />
                 ))}
             </div>
           </div>

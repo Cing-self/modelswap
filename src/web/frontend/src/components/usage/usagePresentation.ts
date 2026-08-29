@@ -1,4 +1,4 @@
-import type { UsageResult, UsageWindow } from '../../api/providers';
+import type { UsageHandoffText, UsageResult, UsageWindow } from '../../api/providers';
 import type { UsageTranslate } from './usageCatalog';
 
 /**
@@ -8,10 +8,36 @@ import type { UsageTranslate } from './usageCatalog';
  */
 export function isExternalUsageNotice(usage?: UsageResult): boolean {
   return Boolean(
-    usage?.action &&
+    (usage?.action || usage?.handoff?.action) &&
       (usage.source === 'console' || usage.source === 'cli') &&
-      (usage.error || usage.notice),
+      (usage.error || usage.notice || usage.handoff?.notice),
   );
+}
+
+export function formatUsageHandoff(
+  handoff: UsageResult['handoff'] | undefined,
+  t: UsageTranslate,
+): { notice: string; action?: NonNullable<UsageResult['action']> } | undefined {
+  if (!handoff) return undefined;
+  const format = (text: UsageHandoffText) => t(
+    text.key,
+    Object.fromEntries(Object.entries(text.params || {}).map(([name, value]) => [
+      name,
+      typeof value === 'object' && value !== null
+        ? t(value.key, value.params)
+        : value,
+    ])),
+  );
+  return {
+    notice: format(handoff.notice),
+    ...(handoff.action ? {
+      action: {
+        label: format(handoff.action),
+        url: handoff.action.url,
+        mode: handoff.action.mode,
+      },
+    } : {}),
+  };
 }
 
 /** Terminal console hand-offs have no meaningful refresh operation. */

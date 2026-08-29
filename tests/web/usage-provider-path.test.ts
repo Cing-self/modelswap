@@ -189,7 +189,10 @@ describe('usage provider path injection', { timeout: 30000 }, () => {
       supported: true,
       source: 'console',
       refreshPolicy: 'never',
-      action: { url: 'https://cloud.siliconflow.cn/' },
+      handoff: {
+        notice: { key: 'usage.handoff.notice.console' },
+        action: { key: 'usage.handoff.action.open', url: 'https://cloud.siliconflow.cn/' },
+      },
     });
     expect(result.results['anthropic-agent']).toMatchObject({ supported: true, source: 'console' });
     expect(result.results.tencent).toMatchObject({ supported: true, source: 'console' });

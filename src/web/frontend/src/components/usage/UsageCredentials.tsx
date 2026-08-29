@@ -1,6 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import type { CloudBalanceGuide, UsageTranslate } from './usageCatalog';
 import { cloudBalanceGuideConfig } from './usageCredentialGuides';
+import { formatUsageHandoff } from './usagePresentation';
 import type { SaveUsageCredentials } from './useUsagePageState';
 
 export function VolcengineUsageGuide({
@@ -309,11 +310,11 @@ export function CredentialSetupForm({
         setMessage(
           t('usage.credentials.savedButFailed', { message: result.error }),
         );
-      } else if (result.notice || !result.windows?.length) {
+      } else if (result.notice || result.handoff || !result.windows?.length) {
         setStatus('warning');
         setMessage(
           t('usage.credentials.savedButUnavailable', {
-            message: result.notice || t('usage.empty'),
+            message: formatUsageHandoff(result.handoff, t)?.notice || result.notice || t('usage.empty'),
           }),
         );
       } else {

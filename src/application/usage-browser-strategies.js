@@ -1,3 +1,11 @@
+const {
+  browserRefreshHandoff,
+  consoleUsageHandoff,
+  manualRefreshHandoff,
+  pluginRefreshHandoff,
+  unavailableConsoleHandoff,
+} = require('./usage-handoff-copy');
+
 // Browser/extension usage strategies; cookies never leave these functions.
 function createUsageBrowserStrategies(deps) {
   const { resolveVaultKey, createVaultStore, httpRequest, queryConsoleOnlyUsage, round1, round4, epochToISO, accountBalanceResult, MIMO_CONSOLE_URL, MIMO_BALANCE_CONSOLE_URL, MIMO_BALANCE_URL, MIMO_SESSION_VAULT_KEY } = deps;
@@ -7,10 +15,7 @@ async function queryQianfanCodingUsage(_apiKey) {
   return {
     supported: true,
     windows: [],
-    source: 'console',
-    refreshPolicy: 'manual',
-    notice: '百度千帆 Token Plan 用量需要在已登录的千帆控制台页面中查询，请先打开并登录 Token Plan 页面后刷新。',
-    action: { label: '打开千帆 Token Plan', url: 'https://console.bce.baidu.com/qianfan/resource/token-plan' },
+    ...browserRefreshHandoff('qianfanTokenPlan', 'https://console.bce.baidu.com/qianfan/resource/token-plan'),
   };
 }
 
@@ -51,35 +56,26 @@ async function queryQianfanPersonalUsageViaExtension() {
     return {
       supported: true,
       windows: [],
-      source: 'console',
-      refreshPolicy: 'manual',
-      notice: '百度千帆控制台登录态已过期，请重新登录后刷新。',
-      action: { label: '打开千帆 Token Plan', url: target.url },
+      ...browserRefreshHandoff('qianfanTokenPlan', target.url),
     };
   }
   if (response.status !== 200 || !response.body || !/json/i.test(response.contentType || '')) {
     return {
       supported: true,
       windows: [],
-      source: 'console',
-      refreshPolicy: 'manual',
-      notice: `百度千帆用量接口返回异常（HTTP ${response.status}）。`,
-      action: { label: '打开千帆 Token Plan', url: target.url },
+      ...unavailableConsoleHandoff('qianfanTokenPlan', target.url),
     };
   }
   let payload;
   try { payload = JSON.parse(response.body); } catch {
-    return { supported: true, windows: [], source: 'console', refreshPolicy: 'manual', notice: '百度千帆用量接口返回了无效 JSON。' };
+    return { supported: true, windows: [], ...unavailableConsoleHandoff('qianfanTokenPlan', target.url) };
   }
   const parsed = parseQianfanTokenPlanUsage(payload);
   if (parsed.error) {
     return {
       supported: true,
       windows: [],
-      source: 'console',
-      refreshPolicy: 'manual',
-      notice: parsed.error,
-      action: { label: '打开千帆 Token Plan', url: target.url },
+      ...unavailableConsoleHandoff('qianfanTokenPlan', target.url),
     };
   }
   return { supported: true, windows: parsed.windows, source: 'browser' };
@@ -163,10 +159,7 @@ async function queryTencentTokenPlanUsage(_apiKey) {
   return {
     supported: true,
     windows: [],
-    source: 'console',
-    refreshPolicy: 'never',
-    notice: '腾讯云 Token Plan 个人版用量暂不支持自动查询，请在控制台查看。',
-    action: { label: '打开腾讯云 Token Plan', url: 'https://console.cloud.tencent.com/tokenhub/tokenplan' },
+    ...consoleUsageHandoff('tencentTokenPlanConsole', 'https://console.cloud.tencent.com/tokenhub/tokenplan'),
   };
 }
 
@@ -181,7 +174,7 @@ async function queryTencentBalance() {
   });
   if (!credentials) {
     return manualCredentialPairNotice(
-      '腾讯云',
+      'tencentCloudCredentials',
       'TENCENT_CLOUD_CREDENTIALS',
       'TENCENT_SECRET_ID',
       'TENCENT_SECRET_KEY',
@@ -269,10 +262,7 @@ async function queryOpenCodeGoUsage(_apiKey) {
   return {
     supported: true,
     windows: [],
-    source: 'console',
-    refreshPolicy: 'manual',
-    notice: '请先在已登录 OpenCode Go 的浏览器页面打开套餐页，然后回到这里刷新用量。',
-    action: { label: '打开 OpenCode Go 套餐页', url: 'https://opencode.ai/' },
+    ...manualRefreshHandoff('opencodeGo', 'https://opencode.ai/', undefined, 'opencodeGoPlan'),
   };
 }
 
@@ -283,10 +273,7 @@ async function queryOpenCodeGoUsageViaExtension() {
     return {
       supported: true,
       windows: [],
-      source: 'console',
-      refreshPolicy: 'manual',
-      notice: 'OKIT 浏览器插件当前未连接。请先启动/重新加载 OKIT 插件，再刷新用量；内置浏览器里的登录态不会自动共享给插件。',
-      action: { label: '打开 OpenCode Go 套餐页', url: 'https://opencode.ai/' },
+      ...pluginRefreshHandoff('opencodeGoPlan', 'https://opencode.ai/'),
     };
   }
 
@@ -319,10 +306,7 @@ async function queryOpenCodeGoUsageViaExtension() {
         return {
           supported: true,
           windows: [],
-          source: 'console',
-          refreshPolicy: 'manual',
-          notice: '插件已连接，但没有发现 OpenCode Go 套餐页。请在插件连接的 Chrome 中打开并登录 OpenCode Go 页面，然后刷新用量。',
-          action: { label: '打开 OpenCode Go 套餐页', url: 'https://opencode.ai/' },
+          ...manualRefreshHandoff('opencodeGo', 'https://opencode.ai/', undefined, 'opencodeGoPlan'),
         };
       }
       const goNavigation = await bridge.sendCommand('navigate', {
@@ -432,12 +416,7 @@ async function queryOpenCodeGoUsageViaExtension() {
   return {
     supported: true,
     windows: [],
-    source: 'console',
-    refreshPolicy: 'manual',
-    notice: unauthorized
-      ? 'OpenCode Go 页面登录态已过期，请在浏览器中重新登录后刷新。'
-      : 'OpenCode Go 用量接口暂未返回可识别的额度数据，请在 Go 套餐页查看。',
-    action: { label: '打开 OpenCode Go 套餐页', url: target.url },
+    ...manualRefreshHandoff('opencodeGo', target.url, undefined, 'opencodeGoPlan'),
   };
 }
 
@@ -485,18 +464,13 @@ function xiaomiSessionNotice(loginUrl) {
     return {
       supported: true,
       windows: [],
-      source: 'console',
-      refreshPolicy: 'manual',
-      notice: 'OKIT 浏览器插件未连接，无法读取 Chrome 中的 MiMo 登录态。请先在 Chrome 扩展管理页启用或重新加载 OKIT 插件，然后回到这里点击刷新。',
+      ...pluginRefreshHandoff('mimoConsole'),
     };
   }
   return {
     supported: true,
     windows: [],
-    source: 'console',
-    refreshPolicy: 'manual',
-    notice: 'MiMo 的用量接口需要控制台会话 Cookie——即使浏览器已登录，也需打开一次控制台让小米账号完成 SSO 换发（已登录时无需再输密码）。点击下方按钮后无需其他操作：OKIT 会自动检测会话、关闭控制台窗口并刷新用量；会话同时被加密缓存，过期前不再需要打开。',
-    action: { label: '在插件中打开 MiMo 控制台', url: loginUrl || MIMO_CONSOLE_URL, mode: 'extension' },
+    ...browserRefreshHandoff('mimoConsole', loginUrl || MIMO_CONSOLE_URL, 'extension'),
   };
 }
 
@@ -559,9 +533,7 @@ async function queryXiaomiCodingUsage(apiKey, baseUrl) {
   return {
     supported: true,
     windows: [],
-    source: 'console',
-    refreshPolicy: 'manual',
-    notice: lastError || 'MiMo 用量接口暂不可用，请在 MiMo 控制台的 Token Plan 页面查看。',
+    ...unavailableConsoleHandoff('mimoConsole', MIMO_CONSOLE_URL, 'extension'),
   };
 }
 
@@ -735,10 +707,7 @@ async function queryXiaomiBalance() {
   return {
     supported: true,
     windows: [],
-    source: 'console',
-    refreshPolicy: 'manual',
-    notice: '小米 MiMo 余额接口需要控制台登录态。请在 OKIT 浏览器插件打开的 MiMo 控制台中登录，完成后回到这里刷新。',
-    action: { label: '在 OKIT 插件中登录', url: MIMO_BALANCE_CONSOLE_URL, mode: 'extension' },
+    ...browserRefreshHandoff('mimoConsole', MIMO_BALANCE_CONSOLE_URL, 'extension'),
   };
 }
 
