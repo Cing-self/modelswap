@@ -1,5 +1,16 @@
 # OKIT data architecture progress
 
+## Config mutation architecture closure (2026-08-29)
+
+1. Scope: eliminate every production user.json read→full-snapshot save path; no unrelated product work.
+2. Full call graph, target API, ownership rules and deterministic test matrix: `docs/testing/config-mutation-architecture-gate.md`.
+3. Contract: external code gets read-only snapshots; writes are queue-internal atomic mutations or ownership-scoped patches only.
+4. Risk: sync payload, Agent desired state and LAN credentials have independent ownership; merge/delete/timestamp semantics must remain explicit.
+5. Migration: remove production full-snapshot save APIs; replacement is initialization/test-only and guarded by name and source scan.
+6. Guard: production-source rule plus an injected violating fixture must fail before any runtime race is required.
+7. Matrix: settings, scheduler, sync push/pull, LAN/listener, provider/Agent/reconciler and migration interleave against one fresh HOME.
+8. Gate only: no implementation is committed before CEO approves this inventory and API; then run focused red→green, full ×3, build and diff.
+
 ## Sync/Agent release batch start (2026-08-28)
 
 1. Scope: only the frozen sync/model discovery/Agent release acceptance, including e378 and QA-P0-GAP-001/002.
