@@ -1,24 +1,17 @@
-const fs = require('fs-extra');
-const path = require('path');
-const os = require('os');
-const { backupImportantData } = require('./backup');
 const { appendLog } = require('./log-writer');
-
-const CONFIG_PATH = path.join(os.homedir(), '.okit', 'user.json');
+const syncCore = require('./cloud-sync-core');
 
 const SENSITIVE_KEYS = ['accessKeySecret', 'password', 'token'];
 
 async function loadConfig() {
-  try {
-    if (!(await fs.pathExists(CONFIG_PATH))) return {};
-    return await fs.readJson(CONFIG_PATH);
-  } catch { return {}; }
+  return syncCore.loadConfig();
 }
 
 async function saveConfig(config) {
-  await fs.ensureDir(path.dirname(CONFIG_PATH));
-  await backupImportantData('settings');
-  await fs.writeJson(CONFIG_PATH, config, { spaces: 2 });
+  // Settings and Agent selection both mutate user.json. The shared config
+  // store serializes and merges their partitions; direct writeJson here used
+  // a stale settings snapshot and could erase modelOverrides during a save.
+  await syncCore.saveConfig(config);
 }
 
 function maskConfig(sync) {
