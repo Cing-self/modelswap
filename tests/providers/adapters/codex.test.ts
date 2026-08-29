@@ -215,6 +215,31 @@ describe('CodexAdapter.applyConfig', () => {
     expect(vaultKeyLooksReal(' ██████████\n ██ OKIT v1.0\n')).toBe(false);
   });
 
+  it('drops the desktop app [models] table only when it references a removed okit provider', async () => {
+    const { removeStaleModelsTable } = await import('../../../src/providers/adapters/codex');
+    const stale = [
+      'model = "glm-5.3"',
+      '[models]',
+      'default = "okit-xiaomi-coding-mimo-v2-5"',
+      'default_reasoning_effort = "xhigh"',
+      '',
+      '[model_providers.okit-glm-coding]',
+      'base_url = "https://open.bigmodel.cn/api/v1"',
+    ].join('\n');
+    const cleaned = removeStaleModelsTable(stale);
+    expect(cleaned).not.toContain('[models]');
+    expect(cleaned).toContain('model = "glm-5.3"');
+    expect(cleaned).toContain('[model_providers.okit-glm-coding]');
+
+    // A reference that still resolves (and any non-okit value) belongs to the
+    // desktop app's own picker preference and must survive.
+    const live = stale.replace('okit-xiaomi-coding-mimo-v2-5', 'okit-glm-coding');
+    expect(removeStaleModelsTable(live)).toBe(live);
+    const appOwned = stale.replace('okit-xiaomi-coding-mimo-v2-5', 'gpt-5.6');
+    expect(removeStaleModelsTable(appOwned)).toBe(appOwned);
+    expect(removeStaleModelsTable('model = "glm-5.3"')).toBe('model = "glm-5.3"');
+  });
+
   it('replaces legacy OpenAI-auth residue with scoped provider authentication', async () => {
     mocks.files.set(CODEX_CONFIG, [
       'model = "old"',

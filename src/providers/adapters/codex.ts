@@ -125,6 +125,7 @@ export class CodexAdapter extends BaseAdapter {
       } else {
         toml = removeTomlTable(toml, `${providerTable}.auth`);
       }
+      toml = removeStaleModelsTable(toml);
       await atomicWrite(CODEX_CONFIG_PATH, toml);
 
       // Generate model-catalogs.json so the user can switch between this
@@ -149,8 +150,25 @@ export class CodexAdapter extends BaseAdapter {
       toml = removeTopLevelTomlKey(toml, "model_catalog_json");
       await fs.remove(MODEL_CATALOG_PATH);
     }
+    toml = removeStaleModelsTable(toml);
     await atomicWrite(CODEX_CONFIG_PATH, toml);
   }
+}
+
+// The ChatGPT desktop app persists its own picker preference under [models]
+// (`default` + `default_reasoning_effort`). When the referenced okit
+// provider's site has been removed, the stale default keeps pointing at a
+// dead provider table. Drop the table only for okit references that no
+// longer resolve; anything else (including app-owned non-okit values) stays
+// untouched so we never fight the app's own preference.
+export function removeStaleModelsTable(toml: string): string {
+  const match = toml.match(/\[models\]\s*\n[^[]*?default\s*=\s*"([^"]+)"/);
+  if (!match) return toml;
+  const referenced = match[1];
+  if (!referenced.startsWith("okit-")) return toml;
+  const escaped = referenced.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  if (new RegExp(`\\[model_providers\\.${escaped}\\]`).test(toml)) return toml;
+  return removeTomlTable(toml, "models");
 }
 
 function getProviderEndpoint(provider: Provider, type: ProviderType) {
