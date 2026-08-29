@@ -103,9 +103,13 @@ export class CodexAdapter extends BaseAdapter {
       // http_headers: the opencode.ai gateway rate-limits anonymous traffic
       // separately from the official opencode client (verified 429 without the
       // UA). Codex sends its own UA, so we pin the opencode client's one.
-      const unsupported = CODEX_UNSUPPORTED_CHAT_ENDPOINTS[openAIEndpoint.baseUrl.replace(/\/+$/, "")];
-      if (unsupported) {
-        throw new Error(`${provider.name} 无法配置给 Codex：${unsupported}。该站点可继续用于 Claude 等支持 Chat 协议的 Agent。`);
+      const auth = provider.vaultKey ? await resolveVaultAuthCommand(provider.vaultKey) : null;
+      if (auth?.key && responsesEndpointProbe) {
+        const probeUrl = `${normalizeBaseUrl(codexResponsesBaseUrl(openAIEndpoint.baseUrl)).replace(/\/+$/, "")}/responses`;
+        const status = await responsesEndpointProbe(probeUrl, auth.key, provider.models?.[0]?.id);
+        if (status === 404) {
+          throw new Error(`${provider.name} 无法配置给 Codex：其 OpenAI 端点不支持 Codex 要求的 Responses 协议（${probeUrl} 返回 404）。该站点可继续用于 Claude 等支持 Chat 协议的 Agent。`);
+        }
       }
       const providerLines = [
         `name = ${tomlString(provider.name)}`,
@@ -120,8 +124,7 @@ export class CodexAdapter extends BaseAdapter {
       toml = removeLegacyProviderAuthTables(toml, providerTable);
       toml = upsertTomlTable(toml, providerTable, providerLines);
 
-      if (provider.vaultKey) {
-        const auth = await resolveVaultAuthCommand(provider.vaultKey);
+      if (provider.vaultKey && auth) {
         toml = upsertTomlTable(toml, `${providerTable}.auth`, [
           `command = ${tomlString(auth.command)}`,
           `args = ${tomlStringArray(auth.args)}`,
@@ -381,17 +384,15 @@ function codexVaultAuthCommand(vaultKey: string): { command: string; args: strin
 // Responses wire API; pointing it at the chat URL 404s on every request.
 // Providers registered before this map existed still carry the chat endpoint
 // in providers.json, hence the lookup at apply time.
+// Verified OpenAI-Responses endpoints for coding plans whose
+// OpenAI-compatible URL only serves chat completions. Codex requires the
+// Responses wire API; pointing it at the chat URL 404s on every request.
+// Providers registered before this map existed still carry the chat endpoint
+// in providers.json, hence the lookup at apply time. Endpoints that have no
+// Responses counterpart at all are caught by the live probe below.
 const CODEX_RESPONSES_ENDPOINTS: Record<string, string> = {
   "https://open.bigmodel.cn/api/coding/paas/v4": "https://open.bigmodel.cn/api/v1",
-};
-
-// Verified chat-only endpoints with no Responses-compatible counterpart
-// (probed: /responses returns 404). Codex requires the Responses wire API, so
-// these URLs 404 on every request; refuse them with an actionable error
-// instead of writing a config that cannot work.
-const CODEX_UNSUPPORTED_CHAT_ENDPOINTS: Record<string, string> = {
-  "https://qianfan.baidubce.com/v2/tokenplan/personal": "百度千帆 Token Plan 暂未提供 OpenAI Responses 协议端点",
-  "https://qianfan.baidubce.com/v2": "百度千帆暂未提供 OpenAI Responses 协议端点",
+  "https://open.bigmodel.cn/api/paas/v4": "https://open.bigmodel.cn/api/v1",
 };
 
 function codexResponsesBaseUrl(baseUrl: string): string {
@@ -409,39 +410,83 @@ export function vaultKeyLooksReal(stdout: string): boolean {
   return text.length >= 20 && !text.includes("\n") && !/[█║╚╝═│]/.test(text) && !/^usage/i.test(text);
 }
 
-export function pickVaultCommand(candidates: VaultCommand[], probe: (candidate: VaultCommand) => boolean): VaultCommand {
-  for (const candidate of candidates) {
-    if (probe(candidate)) return candidate;
-  }
-  return candidates[0];
-}
-
-function probeVaultCommand(candidate: VaultCommand): boolean {
+function liveVaultKeyProbe(candidate: VaultCommand): string | null {
   try {
     const result = spawnSync(candidate.command, candidate.args, { encoding: "utf-8", timeout: 15000 });
-    return result.status === 0 && vaultKeyLooksReal(String(result.stdout || ""));
+    if (result.status !== 0) return null;
+    const stdout = String(result.stdout || "").trim();
+    return vaultKeyLooksReal(stdout) ? stdout : null;
   } catch {
-    return false;
+    return null;
   }
 }
 
-async function resolveVaultAuthCommand(vaultKey: string): Promise<VaultCommand> {
-  const primary = codexVaultAuthCommand(vaultKey);
-  // Plain CLI builds always execute the entry point they ship with, so there
-  // is nothing to fall back to; only the desktop (Electron) path can point at
-  // a stale packaged app.
-  if (!process.versions.electron) return primary;
-  const candidates: VaultCommand[] = [primary];
-  if (process.platform === "win32") {
-    candidates.push({ command: "cmd.exe", args: ["/d", "/s", "/c", `okit vault get "${vaultKey}"`] });
-  } else {
-    candidates.push({ command: "okit", args: ["vault", "get", vaultKey] });
+type VaultKeyProbe = (candidate: VaultCommand) => string | null;
+let vaultKeyProbe: VaultKeyProbe = liveVaultKeyProbe;
+
+/** Test seam: replace the live vault command probe. */
+export function setVaultProbeForTests(probe: VaultKeyProbe | null): void {
+  vaultKeyProbe = probe ?? liveVaultKeyProbe;
+}
+
+export function pickVaultCommand(candidates: VaultCommand[]): { command: VaultCommand; key: string | null } {
+  for (const candidate of candidates) {
+    const key = vaultKeyProbe(candidate);
+    if (key) return { command: candidate, key };
   }
-  const chosen = pickVaultCommand(candidates, probeVaultCommand);
-  if (chosen === primary) {
+  return { command: candidates[0], key: null };
+}
+
+async function resolveVaultAuthCommand(vaultKey: string): Promise<VaultCommand & { key: string | null }> {
+  const primary = codexVaultAuthCommand(vaultKey);
+  const candidates: VaultCommand[] = [primary];
+  if (process.versions.electron) {
+    // Plain CLI builds always execute the entry point they ship with; only the
+    // desktop (Electron) path can point at a stale packaged app, so it gets a
+    // PATH `okit` fallback candidate.
+    if (process.platform === "win32") {
+      candidates.push({ command: "cmd.exe", args: ["/d", "/s", "/c", `okit vault get "${vaultKey}"`] });
+    } else {
+      candidates.push({ command: "okit", args: ["vault", "get", vaultKey] });
+    }
+  }
+  const chosen = pickVaultCommand(candidates);
+  if (!chosen.key) {
     appendLog("codex-vault-auth-probe", vaultKey, false, "no vault command produced a bare key; Codex will start without Authorization until the packaged CLI or the okit binary understands `vault get`");
   }
-  return chosen;
+  return { ...chosen.command, key: chosen.key };
+}
+
+// Live probe of the OpenAI-Responses endpoint with the resolved credential.
+// Returns the HTTP status, or null when the probe could not run (offline etc.)
+// — apply proceeds and Codex surfaces whatever the real request yields.
+async function liveResponsesEndpointProbe(baseUrl: string, apiKey: string, model?: string): Promise<number | null> {
+  try {
+    const response = await fetch(`${baseUrl.replace(/\/+$/, "")}/responses`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+      body: JSON.stringify({ model: model || "test", input: "hi", max_output_tokens: 8 }),
+      signal: AbortSignal.timeout(10000),
+    });
+    return response.status;
+  } catch {
+    return null;
+  }
+}
+
+type ResponsesEndpointProbe = (baseUrl: string, apiKey: string, model?: string) => Promise<number | null>;
+let responsesEndpointProbe: ResponsesEndpointProbe | null = null;
+
+/** Test seam: replace the live /responses endpoint probe. */
+export function setResponsesEndpointProbeForTests(probe: ResponsesEndpointProbe | null): void {
+  responsesEndpointProbe = probe;
+}
+
+function activeResponsesEndpointProbe(): ResponsesEndpointProbe | null {
+  if (responsesEndpointProbe) return responsesEndpointProbe;
+  // The dashboard (Electron) is the flow where a clear refusal matters; CLI
+  // and CI runs skip the live probe entirely.
+  return process.versions.electron ? liveResponsesEndpointProbe : null;
 }
 
 // Remove OPENAI_API_KEY from auth.json, preserving OAuth tokens and any other

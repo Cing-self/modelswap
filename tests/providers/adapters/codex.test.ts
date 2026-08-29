@@ -190,21 +190,30 @@ describe('CodexAdapter.applyConfig', () => {
     expect(toml).toContain('wire_api = "responses"');
   });
 
-  it('refuses chat-only endpoints that have no Responses counterpart (qianfan)', async () => {
-    const qianfanCoding = {
-      ...customProvider,
-      id: 'qianfan-coding',
-      name: '百度千帆 Token Plan',
-      baseUrl: 'https://qianfan.baidubce.com/v2/tokenplan/personal',
-      models: [{ id: 'ernie-4.5-turbo-128k' }],
-    };
-    const adapter = new CodexAdapter();
-    // Codex requires the Responses wire API; qianfan's OpenAI-compatible URL
-    // 404s on /responses (probed). Refuse with an actionable error instead of
-    // writing a config that cannot work.
-    await expect(adapter.applyConfig(qianfanCoding, 'ernie-4.5-turbo-128k'))
-      .rejects.toThrow('无法配置给 Codex');
-    expect(mocks.files.has(CODEX_CONFIG)).toBe(false);
+  it('refuses endpoints whose /responses probe returns 404 (qianfan)', async () => {
+    const { setResponsesEndpointProbeForTests, setVaultProbeForTests } = await import('../../../src/providers/adapters/codex');
+    setResponsesEndpointProbeForTests(async () => 404);
+    setVaultProbeForTests(() => 'sk-codex-456789012345');
+    try {
+      const qianfanCoding = {
+        ...customProvider,
+        id: 'qianfan-coding',
+        name: '百度千帆 Token Plan',
+        baseUrl: 'https://qianfan.baidubce.com/v2/tokenplan/personal',
+        models: [{ id: 'ernie-4.5-turbo-128k' }],
+      };
+      const adapter = new CodexAdapter();
+      // Codex requires the Responses wire API; qianfan's OpenAI-compatible URL
+      // 404s on /responses (probed live at apply time in the desktop app).
+      // Refuse with an actionable error instead of writing a config that
+      // cannot work.
+      await expect(adapter.applyConfig(qianfanCoding, 'ernie-4.5-turbo-128k'))
+        .rejects.toThrow('无法配置给 Codex');
+      expect(mocks.files.has(CODEX_CONFIG)).toBe(false);
+    } finally {
+      setResponsesEndpointProbeForTests(null);
+      setVaultProbeForTests(null);
+    }
   });
 
   it('keeps only Codex-accepted input modalities in the catalog', async () => {
@@ -220,11 +229,20 @@ describe('CodexAdapter.applyConfig', () => {
   });
 
   it('falls back to the okit binary when the primary vault command cannot emit a key', async () => {
-    const { pickVaultCommand, vaultKeyLooksReal } = await import('../../../src/providers/adapters/codex');
+    const { pickVaultCommand, vaultKeyLooksReal, setVaultProbeForTests } = await import('../../../src/providers/adapters/codex');
     const primary = { command: 'old-app', args: ['vault', 'get', 'K'] };
     const fallback = { command: 'okit', args: ['vault', 'get', 'K'] };
-    expect(pickVaultCommand([primary, fallback], () => false)).toBe(primary);
-    expect(pickVaultCommand([primary, fallback], candidate => candidate === fallback)).toBe(fallback);
+    const noKey = pickVaultCommand([primary, fallback]);
+    expect(noKey.command).toBe(primary);
+    expect(noKey.key).toBeNull();
+    setVaultProbeForTests(candidate => candidate === fallback ? 'sk-codex-456789012345' : null);
+    try {
+      const chosen = pickVaultCommand([primary, fallback]);
+      expect(chosen.command).toBe(fallback);
+      expect(chosen.key).toBe('sk-codex-456789012345');
+    } finally {
+      setVaultProbeForTests(null);
+    }
     expect(vaultKeyLooksReal('sk-codex-456789012345')).toBe(true);
     // A stale packaged CLI prints the help screen (banner + usage) instead of
     // the key; neither a multi-line answer nor the banner art may pass.
