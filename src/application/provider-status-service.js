@@ -1,4 +1,19 @@
+const { codexEndpointSupport } = (() => {
+  try { return require("../providers/mappings/codex-mapping"); }
+  catch { return require("../../dist/providers/mappings/codex-mapping"); }
+})();
+
 function createProviderStatusService(deps) { const { _store, loadProviders, loadUserConfig, ADAPTERS, ADDITIVE_AGENTS, adapterSupportsProvider, _getAdapter, providerExecutionMode, providerEndpointEntries, buildPlatforms, sortModels, sortProviders, tagRecentModels, enrichCodexOfficialModels, readCodexCachedModels, getAgentState, findCommand, publishDataChanged } = deps;
+
+// Codex requires the OpenAI-Responses wire protocol; surface per-provider
+// support so the dashboard can filter the add-site picker and show the
+// effective endpoint address.
+function codexSiteFields(adapterId, provider) {
+  if (adapterId !== 'codex') return {};
+  const responsesEp = (provider.endpoints || []).find(ep => ep.type === 'responses');
+  if (responsesEp?.baseUrl) return {};
+  return codexEndpointSupport(provider.baseUrl).chatOnly ? { codexUnsupported: true } : {};
+}
 function modelDataSelections(config) {
   const selectedByProvider = new Map();
   for (const [agentId, state] of Object.entries(config.agentProviders || {})) {
@@ -139,7 +154,7 @@ async function refreshModelData() {
 
 async function fetchFreshEndpointModels(endpoint, apiKey) {
   const root = String(endpoint.baseUrl || '').replace(/\/+$/, '');
-  if (endpoint.type === 'openai') {
+  if (endpoint.type === 'openai' || endpoint.type === 'responses') {
     const headers = apiKey ? { Authorization: `Bearer ${apiKey}` } : {};
     const result = await httpReq(`${root}/models`, { method: 'GET', headers, timeout: 10000 });
     if (result.error) throw new Error(result.error);
@@ -325,6 +340,7 @@ async function getAdaptersList() {
             id: p.id, name: p.name, type: p.type, baseUrl: p.baseUrl,
             models: tagRecentModels(sortModels(p.models || [])),
             added: Boolean(state.sites[p.id]),
+            ...codexSiteFields(adapter.id, p),
           })),
         externalSites: [],
       };

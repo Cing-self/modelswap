@@ -26,6 +26,7 @@ const OKIT_DIR = path.join(os.homedir(), '.okit');
 const PROVIDERS_PATH = path.join(OKIT_DIR, 'providers.json');
 const USER_CONFIG_PATH = path.join(OKIT_DIR, 'user.json');
 
+
 // Sort models by "capability descending": higher version first, then size tier.
 // Extracts version tuples (5.6 > 5.5 > 4.7) and size tiers from the id so
 // models display high→low regardless of the provider API return order.

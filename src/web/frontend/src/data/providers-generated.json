@@ -69,6 +69,10 @@
           "baseUrl": "https://open.bigmodel.cn/api/paas/v4"
         },
         {
+          "type": "responses",
+          "baseUrl": "https://open.bigmodel.cn/api/v1"
+        },
+        {
           "type": "anthropic",
           "baseUrl": "https://open.bigmodel.cn/api/anthropic"
         }
@@ -356,6 +360,11 @@
           "type": "openai",
           "protocol": "chat",
           "baseUrl": "https://open.bigmodel.cn/api/coding/paas/v4",
+          "plan": "coding"
+        },
+        {
+          "type": "responses",
+          "baseUrl": "https://open.bigmodel.cn/api/v1",
           "plan": "coding"
         },
         {
@@ -1203,6 +1212,7 @@
           "providerId": "zai",
           "endpointIds": [
             "zai:endpoint:1hyue1o",
+            "zai:endpoint:1cn38zv",
             "zai:endpoint:vkjdgq"
           ],
           "authMethodIds": [
@@ -1217,6 +1227,7 @@
           "providerId": "glm-coding",
           "endpointIds": [
             "glm-coding:endpoint:1ha0sot",
+            "glm-coding:endpoint:1cfbhjh",
             "glm-coding:endpoint:hq5nck"
           ],
           "authMethodIds": [
@@ -1260,6 +1271,23 @@
           }
         },
         {
+          "id": "zai:endpoint:1cn38zv",
+          "name": "RESPONSES",
+          "offeringId": "zai",
+          "baseUrl": "https://open.bigmodel.cn/api/v1",
+          "protocol": {
+            "family": "responses",
+            "mode": "generate-content"
+          },
+          "authMethodIds": [
+            "zai:api-key"
+          ],
+          "modelDiscovery": {
+            "type": "remote",
+            "path": "/models"
+          }
+        },
+        {
           "id": "zai:endpoint:vkjdgq",
           "name": "ANTHROPIC",
           "offeringId": "zai",
@@ -1284,6 +1312,23 @@
           "protocol": {
             "family": "openai",
             "mode": "chat"
+          },
+          "authMethodIds": [
+            "glm-coding:api-key"
+          ],
+          "modelDiscovery": {
+            "type": "remote",
+            "path": "/models"
+          }
+        },
+        {
+          "id": "glm-coding:endpoint:1cfbhjh",
+          "name": "RESPONSES",
+          "offeringId": "glm-coding",
+          "baseUrl": "https://open.bigmodel.cn/api/v1",
+          "protocol": {
+            "family": "responses",
+            "mode": "generate-content"
           },
           "authMethodIds": [
             "glm-coding:api-key"

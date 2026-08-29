@@ -1,5 +1,5 @@
 // API protocol compatibility
-export type ProviderType = 'anthropic' | 'openai';
+export type ProviderType = 'anthropic' | 'openai' | 'responses';
 export type OpenAIProtocol = 'chat' | 'responses';
 export type ProviderEndpointPlan = 'coding' | 'token' | 'agent' | 'go';
 export type OfferingType = 'api' | 'coding_plan' | 'token_plan' | 'agent_plan' | 'agent_subscription' | 'go_plan' | string;

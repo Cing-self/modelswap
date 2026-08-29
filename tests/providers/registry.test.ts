@@ -22,7 +22,7 @@ describe('getAdapter', () => {
     const adapter = getAdapter('codex');
     expect(adapter).toBeDefined();
     expect(adapter!.name).toBe('ChatGPT');
-    expect(adapter!.supportedTypes).toEqual(['openai']);
+    expect(adapter!.supportedTypes).toEqual(['openai', 'responses']);
   });
 
   it('finds workbuddy adapter by id', () => {

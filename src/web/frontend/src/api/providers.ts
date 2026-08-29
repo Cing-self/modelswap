@@ -22,7 +22,7 @@ export interface ProviderModelAvailability {
 
 export interface ProviderEndpoint {
   id?: string;
-  type: 'anthropic' | 'openai';
+  type: 'anthropic' | 'openai' | 'responses';
   baseUrl: string;
   protocol?: 'chat' | 'responses';
   plan?: 'coding' | 'token' | 'agent' | 'go';
@@ -197,9 +197,9 @@ export interface AgentInfo {
   additive?: boolean;
   current: { providerId: string; providerName: string; modelId: string } | null;
   /** Exact sites/models saved for this Agent. */
-  compatibleProviders: { id: string; name: string; type: string; baseUrl?: string; models: ProviderModel[]; allModels?: ProviderModel[]; enabled?: boolean }[];
+  compatibleProviders: { id: string; name: string; type: string; baseUrl?: string; models: ProviderModel[]; allModels?: ProviderModel[]; enabled?: boolean; codexResponsesBaseUrl?: string }[];
   /** Full compatible catalog, used only by the add-site model picker. */
-  availableProviders?: { id: string; name: string; type: string; baseUrl?: string; models: ProviderModel[]; allModels?: ProviderModel[]; added: boolean }[];
+  availableProviders?: { id: string; name: string; type: string; baseUrl?: string; models: ProviderModel[]; allModels?: ProviderModel[]; added: boolean; codexUnsupported?: boolean }[];
   externalSites?: { id: string; name: string; known: boolean }[];
 }
 

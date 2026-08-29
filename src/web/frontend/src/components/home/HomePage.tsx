@@ -690,9 +690,9 @@ export default function HomePage() {
                     {(() => {
                       const q = providerPickerSearch.trim().toLowerCase();
                       const all = activeAgent.availableProviders || [];
-                      const list = q
+                      const list = (q
                         ? all.filter(p => (p.name || '').toLowerCase().includes(q) || (p.id || '').toLowerCase().includes(q))
-                        : all;
+                        : all).filter(p => !(activeAgentId === 'codex' && p.codexUnsupported === true));
                       return (
                         <>
                           {list.map(p => (

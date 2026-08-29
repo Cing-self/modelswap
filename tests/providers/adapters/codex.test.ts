@@ -103,9 +103,9 @@ describe('CodexAdapter', () => {
     expect(adapter.name).toBe('ChatGPT');
   });
 
-  it('supports openai type only', () => {
+  it('supports openai and responses types', () => {
     const adapter = new CodexAdapter();
-    expect(adapter.supportedTypes).toEqual(['openai']);
+    expect(adapter.supportedTypes).toEqual(['openai', 'responses']);
   });
 });
 
@@ -190,6 +190,29 @@ describe('CodexAdapter.applyConfig', () => {
     expect(toml).toContain('wire_api = "responses"');
   });
 
+  it('writes the responses-type endpoint baseUrl as-is (no path suffix, no mapping)', async () => {
+    const glmPresetLike = {
+      ...customProvider,
+      id: 'glm-coding',
+      name: 'GLM Coding Plan',
+      baseUrl: 'https://open.bigmodel.cn/api/coding/paas/v4',
+      endpoints: [
+        { type: 'openai' as const, protocol: 'chat' as const, baseUrl: 'https://open.bigmodel.cn/api/coding/paas/v4' },
+        { type: 'responses' as const, baseUrl: 'https://open.bigmodel.cn/api/v1' },
+        { type: 'anthropic' as const, baseUrl: 'https://open.bigmodel.cn/api/anthropic' },
+      ],
+      models: [{ id: 'glm-5.3' }],
+    };
+    const adapter = new CodexAdapter();
+    await adapter.applyConfig(glmPresetLike, 'glm-5.3');
+    const toml = mocks.files.get(CODEX_CONFIG)!;
+    // The responses endpoint row carries the BASE url; codex appends /responses
+    // itself. Never write the suffixed path and never the chat fallback.
+    expect(toml).toContain('base_url = "https://open.bigmodel.cn/api/v1"');
+    expect(toml).not.toContain('/api/v1/responses');
+    expect(toml).not.toContain('api/coding/paas/v4');
+  });
+
   it('refuses endpoints whose /responses probe returns 404 (qianfan)', async () => {
     const { setResponsesEndpointProbeForTests, setVaultProbeForTests } = await import('../../../src/providers/adapters/codex');
     setResponsesEndpointProbeForTests(async () => 404);
@@ -214,6 +237,27 @@ describe('CodexAdapter.applyConfig', () => {
       setResponsesEndpointProbeForTests(null);
       setVaultProbeForTests(null);
     }
+  });
+
+  it('prefers an explicit responses-type endpoint over the chat one', async () => {
+    const dualProvider = {
+      ...customProvider,
+      id: 'dual-resp',
+      name: 'Dual Responses',
+      baseUrl: 'https://chat.example.com/v1',
+      endpoints: [
+        { type: 'openai' as const, baseUrl: 'https://chat.example.com/v1' },
+        { type: 'responses' as const, baseUrl: 'https://responses.example.com/v1' },
+      ],
+      models: [{ id: 'my-model' }],
+    };
+    const adapter = new CodexAdapter();
+    await adapter.applyConfig(dualProvider, 'my-model');
+    const toml = mocks.files.get(CODEX_CONFIG)!;
+    // The responses-type endpoint IS the Responses wire API; codex must use
+    // it as-is instead of the chat endpoint or any mapping.
+    expect(toml).toContain('base_url = "https://responses.example.com/v1"');
+    expect(toml).not.toContain('chat.example.com');
   });
 
   it('keeps only Codex-accepted input modalities in the catalog', async () => {

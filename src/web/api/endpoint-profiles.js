@@ -55,6 +55,12 @@ const PROFILES = [
     probeModel: 'glm-4.7',
   },
   {
+    id: 'glm-responses',
+    // GLM's OpenAI-Responses gateway (codex) shares the plan's model family.
+    match: /^https?:\/\/open\.bigmodel\.cn\/api\/v1\/?$/i,
+    probeModel: 'glm-4.7',
+  },
+  {
     id: 'glm-anthropic',
     // GLM's Anthropic-compatible endpoint is shared by API and Coding Plan.
     match: /^https?:\/\/open\.bigmodel\.cn\/api\/anthropic\/?$/i,

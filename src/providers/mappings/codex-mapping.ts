@@ -49,6 +49,37 @@ export function getCodexConfigReasoningEffort(model?: Partial<ResolvedModel>): s
 
 const CODEX_INPUT_MODALITIES = new Set(["text", "image", "audio"]);
 
+// Verified OpenAI-Responses endpoints for coding plans whose
+// OpenAI-compatible URL only serves chat completions. Codex requires the
+// Responses wire API; pointing it at the chat URL 404s on every request.
+export const CODEX_RESPONSES_ENDPOINTS: Record<string, string> = {
+  "https://open.bigmodel.cn/api/coding/paas/v4": "https://open.bigmodel.cn/api/v1",
+  "https://open.bigmodel.cn/api/paas/v4": "https://open.bigmodel.cn/api/v1",
+};
+
+// Endpoints verified (2026-08-29 sweep) to 404 on /responses: they have no
+// OpenAI-Responses counterpart, and Codex requires that protocol.
+const CHAT_ONLY_ENDPOINTS = new Set([
+  "https://qianfan.baidubce.com/v2",
+  "https://qianfan.baidubce.com/v2/tokenplan/personal",
+  "https://api.z.ai/api/paas/v4",
+  "https://api.z.ai/api/coding/paas/v4",
+  "https://ark.cn-beijing.volces.com/api/v3",
+  "https://ark.cn-beijing.volces.com/api/coding/v3",
+  "https://api.siliconflow.cn/v1",
+  "https://api.stepfun.com/v1",
+]);
+
+export function codexEndpointSupport(baseUrl?: string): { supported: boolean; chatOnly: boolean; responsesBaseUrl: string | null } {
+  const clean = (baseUrl || "").replace(/\/+$/, "");
+  const mapped = CODEX_RESPONSES_ENDPOINTS[clean];
+  if (mapped) return { supported: true, chatOnly: false, responsesBaseUrl: mapped };
+  if (CHAT_ONLY_ENDPOINTS.has(clean)) return { supported: false, chatOnly: true, responsesBaseUrl: null };
+  // Unknown endpoints default to supported; the desktop apply-time probe is
+  // the authoritative gate.
+  return { supported: true, chatOnly: false, responsesBaseUrl: null };
+}
+
 export function codexInputModalities(input?: string[]): string[] {
   // Codex parses input_modalities as a closed enum (text | image | audio);
   // upstream lists carrying video/pdf variants make the entire catalog fail

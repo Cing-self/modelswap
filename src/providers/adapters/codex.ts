@@ -10,6 +10,7 @@ import { loadUserConfig } from "../../config/user";
 import { checkCodexOAuth } from "../auth";
 import { atomicWrite, atomicWriteJSON } from "../../utils/atomicWrite";
 import {
+  codexEndpointSupport,
   codexMapping,
   getCodexConfigReasoningEffort,
   mapModelToCodexCatalog,
@@ -23,7 +24,7 @@ const CODEX_AUTH_PATH = path.join(CODEX_DIR, "auth.json");
 export class CodexAdapter extends BaseAdapter {
   readonly id = "codex";
   readonly name = "ChatGPT";
-  readonly supportedTypes: ProviderType[] = ["openai"];
+  readonly supportedTypes: ProviderType[] = ["openai", "responses"];
 
   async detectOAuthStatus(): Promise<AuthStatus> {
     const oauthLoggedIn = await checkCodexOAuth();
@@ -75,7 +76,7 @@ export class CodexAdapter extends BaseAdapter {
       await atomicWrite(CODEX_CONFIG_PATH, toml);
     } else {
       const providerId = getCodexProviderId(provider);
-      const openAIEndpoint = getProviderEndpoint(provider, "openai");
+      const openAIEndpoint = getProviderEndpoint(provider, "responses", "openai");
 
       toml = upsertTopLevelTomlKey(toml, "model", tomlString(modelId));
       toml = upsertTopLevelTomlKey(toml, "model_provider", tomlString(providerId));
@@ -178,11 +179,13 @@ export function removeStaleModelsTable(toml: string): string {
   return removeTomlTable(toml, "models");
 }
 
-function getProviderEndpoint(provider: Provider, type: ProviderType) {
+function getProviderEndpoint(provider: Provider, ...types: ProviderType[]) {
   const endpoints = provider.endpoints || [{ type: provider.type, baseUrl: provider.baseUrl }];
-  const endpoint = endpoints.find(ep => ep.type === type);
-  if (!endpoint?.baseUrl) throw new Error(`${provider.name} 缺少 ${type} endpoint`);
-  return endpoint;
+  for (const type of types) {
+    const endpoint = endpoints.find(ep => ep.type === type);
+    if (endpoint?.baseUrl) return endpoint;
+  }
+  throw new Error(`${provider.name} 缺少 ${types.join("/")} endpoint`);
 }
 
 const MODEL_CATALOG_DIR = path.join(CODEX_DIR, "model-catalogs");
@@ -382,21 +385,8 @@ function codexVaultAuthCommand(vaultKey: string): { command: string; args: strin
 // Verified OpenAI-Responses endpoints for coding plans whose
 // OpenAI-compatible URL only serves chat completions. Codex requires the
 // Responses wire API; pointing it at the chat URL 404s on every request.
-// Providers registered before this map existed still carry the chat endpoint
-// in providers.json, hence the lookup at apply time.
-// Verified OpenAI-Responses endpoints for coding plans whose
-// OpenAI-compatible URL only serves chat completions. Codex requires the
-// Responses wire API; pointing it at the chat URL 404s on every request.
-// Providers registered before this map existed still carry the chat endpoint
-// in providers.json, hence the lookup at apply time. Endpoints that have no
-// Responses counterpart at all are caught by the live probe below.
-const CODEX_RESPONSES_ENDPOINTS: Record<string, string> = {
-  "https://open.bigmodel.cn/api/coding/paas/v4": "https://open.bigmodel.cn/api/v1",
-  "https://open.bigmodel.cn/api/paas/v4": "https://open.bigmodel.cn/api/v1",
-};
-
 function codexResponsesBaseUrl(baseUrl: string): string {
-  return CODEX_RESPONSES_ENDPOINTS[baseUrl.replace(/\/+$/, "")] ?? baseUrl;
+  return codexEndpointSupport(baseUrl).responsesBaseUrl ?? baseUrl;
 }
 
 type VaultCommand = { command: string; args: string[] };
@@ -439,16 +429,17 @@ export function pickVaultCommand(candidates: VaultCommand[]): { command: VaultCo
 
 async function resolveVaultAuthCommand(vaultKey: string): Promise<VaultCommand & { key: string | null }> {
   const primary = codexVaultAuthCommand(vaultKey);
+  // Probing spawns the CLI once per apply; only the desktop (Electron) path
+  // needs that (fallback candidates + /responses endpoint gate). Plain CLI
+  // builds always execute the entry point they ship with, so the primary is
+  // returned as-is to keep applies fast.
+  const probing = process.versions.electron || vaultKeyProbe !== liveVaultKeyProbe;
+  if (!probing) return { ...primary, key: null };
   const candidates: VaultCommand[] = [primary];
-  if (process.versions.electron) {
-    // Plain CLI builds always execute the entry point they ship with; only the
-    // desktop (Electron) path can point at a stale packaged app, so it gets a
-    // PATH `okit` fallback candidate.
-    if (process.platform === "win32") {
-      candidates.push({ command: "cmd.exe", args: ["/d", "/s", "/c", `okit vault get "${vaultKey}"`] });
-    } else {
-      candidates.push({ command: "okit", args: ["vault", "get", vaultKey] });
-    }
+  if (process.platform === "win32") {
+    candidates.push({ command: "cmd.exe", args: ["/d", "/s", "/c", `okit vault get "${vaultKey}"`] });
+  } else {
+    candidates.push({ command: "okit", args: ["vault", "get", vaultKey] });
   }
   const chosen = pickVaultCommand(candidates);
   if (!chosen.key) {

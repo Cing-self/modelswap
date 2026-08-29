@@ -58,6 +58,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
     baseUrl: "https://open.bigmodel.cn/api/paas/v4",
     endpoints: [
       { type: "openai", baseUrl: "https://open.bigmodel.cn/api/paas/v4" },
+      { type: "responses", baseUrl: "https://open.bigmodel.cn/api/v1" },
       { type: "anthropic", baseUrl: "https://open.bigmodel.cn/api/anthropic" },
     ],
     authMode: "api_key",
@@ -239,6 +240,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
     baseUrl: "https://open.bigmodel.cn/api/coding/paas/v4",
     endpoints: [
       { type: "openai", protocol: "chat", baseUrl: "https://open.bigmodel.cn/api/coding/paas/v4", plan: "coding" },
+      { type: "responses", baseUrl: "https://open.bigmodel.cn/api/v1", plan: "coding" },
       { type: "anthropic", baseUrl: "https://open.bigmodel.cn/api/anthropic", plan: "coding" },
     ],
     authMode: "api_key",

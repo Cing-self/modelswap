@@ -62,7 +62,7 @@ describe('PRESET_PROVIDERS alignment', () => {
     for (const p of PRESET_PROVIDERS) {
       if (!p.endpoints) continue;
       for (const ep of p.endpoints) {
-        expect(ep.type).toMatch(/^(anthropic|openai)$/);
+        expect(ep.type).toMatch(/^(anthropic|openai|responses)$/);
         expect(ep.baseUrl).toMatch(/^https?:\/\//);
       }
     }

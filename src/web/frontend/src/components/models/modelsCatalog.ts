@@ -24,6 +24,7 @@ for (const platform of PLATFORM_DEFINITIONS) {
 const TYPE_OPTIONS = [
   { value: 'anthropic', label: 'anthropic' },
   { value: 'openai', label: 'openai' },
+  { value: 'responses', label: 'responses' },
 ];
 const OPENAI_PROTOCOL_OPTIONS = [
   { value: 'chat', label: 'chat' },
@@ -103,6 +104,7 @@ function groupOf(providerId: string): { key: string; labelKey: string } {
 }
 
 function endpointProtocol(ep: ProviderEndpoint) {
+  if (ep.type === 'responses') return 'responses';
   return ep.type === 'openai' ? (ep.protocol || 'chat') : undefined;
 }
 
@@ -115,6 +117,7 @@ function endpointPlan(ep: ProviderEndpoint) {
 
 function normalizeEndpoint(ep: ProviderEndpoint): ProviderEndpoint {
   if (ep.type === 'openai') return { ...ep, protocol: ep.protocol || 'chat' };
+  if (ep.type === 'responses') return { ...ep, protocol: 'responses' };
   const { protocol, ...rest } = ep;
   return rest;
 }
