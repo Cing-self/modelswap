@@ -1,0 +1,58 @@
+/* Shared update-details sheet. It extends the existing modal language rather
+   than creating a separate overlay visual system. */
+.update-details-overlay { align-items: stretch; justify-content: flex-end; padding: 16px; }
+.update-details-sheet {
+  width: min(472px, calc(100vw - 32px));
+  max-width: 472px;
+  max-height: calc(100dvh - 32px);
+  height: auto;
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  border: 1.5px solid var(--card-line);
+  border-radius: var(--card-radius);
+  background: var(--card-surface);
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+  animation: update-sheet-in .18s ease-out;
+}
+.update-details-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 20px 20px 15px; border-bottom: 1px solid var(--card-line); background: var(--card-surface-soft); }
+.update-details-heading { display: flex; gap: 10px; min-width: 0; }
+.update-details-status-icon { display: grid; flex: none; place-items: center; width: 32px; height: 32px; margin-top: 1px; border-radius: 10px; color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--card-inner)); }
+.update-details-status-icon.is-error { color: var(--red); background: color-mix(in srgb, var(--red) 10%, var(--card-inner)); }
+.update-details-heading h2 { margin: 0; color: var(--ink); font-size: 19px; line-height: 1.25; }
+.update-details-version { margin: 4px 0 0; color: var(--ink-muted); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.update-details-body { min-height: 0; overflow-y: auto; padding: 20px; }
+.update-details-summary { margin: 0 0 20px; color: var(--ink); font-size: 14px; line-height: 1.6; }
+.update-details-group + .update-details-group { margin-top: 18px; }
+.update-details-group h3 { margin: 0 0 7px; color: var(--ink-muted); font-size: 11px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.update-details-group ul { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.update-details-group li { position: relative; padding-left: 16px; color: var(--ink); font-size: 14px; line-height: 1.55; }
+.update-details-group li::before { position: absolute; left: 0; top: .6em; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); content: ''; }
+.update-details-recovery, .update-details-last-check { margin: 0; color: var(--ink-muted); font-size: 13px; line-height: 1.55; }
+.update-details-download-error { margin: 18px 0 0; color: var(--red); font-size: 13px; line-height: 1.5; }
+.update-details-progress { margin-top: 18px; padding: 12px; border: 1px solid var(--card-line); border-radius: 10px; background: var(--card-inner); color: var(--ink-muted); font-size: 12px; }
+.update-details-progress-row { display: flex; justify-content: space-between; gap: 12px; }
+.update-details-progress-track { display: block; height: 6px; margin-top: 9px; overflow: hidden; border-radius: 999px; background: color-mix(in srgb, var(--ink-muted) 15%, transparent); }
+.update-details-progress-track > span { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width .2s ease; }
+.update-details-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px; border-top: 1px solid var(--card-line); background: var(--card-surface-soft); }
+.update-details-release-link { display: inline-flex; align-items: center; gap: 4px; min-width: 0; color: var(--ink-muted); font-size: 12px; line-height: 1.4; text-decoration: none; }
+.update-details-release-link:hover { color: var(--ink); text-decoration: underline; }
+.update-details-action-buttons { display: flex; flex: none; align-items: center; gap: 8px; }
+.update-details-primary { min-height: 36px; white-space: nowrap; }
+.update-details-later { min-height: 36px; border: 0; background: transparent; color: var(--ink-muted); font: inherit; font-size: 12px; cursor: pointer; }
+.update-details-later:hover { color: var(--ink); text-decoration: underline; }
+[data-theme="dark"] .update-details-sheet { border-color: var(--card-line); box-shadow: var(--card-shadow); }
+@keyframes update-sheet-in { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: translateX(0); } }
+@media (max-width: 640px) {
+  .update-details-overlay { align-items: flex-end; padding: 12px; }
+  .update-details-sheet { width: 100%; max-width: none; max-height: calc(100dvh - 24px); margin: 0; }
+  .update-details-actions { align-items: stretch; flex-direction: column; }
+  .update-details-release-link { min-height: 30px; }
+  .update-details-action-buttons { width: 100%; }
+  .update-details-primary, .update-details-later { min-height: 44px; }
+  .update-details-primary { flex: 1; justify-content: center; }
+  @keyframes update-sheet-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+}
+@media (max-width: 375px) { .update-details-header, .update-details-body, .update-details-actions { padding-left: 16px; padding-right: 16px; } }
+@media (prefers-reduced-motion: reduce) { .update-details-sheet, .update-details-progress-track > span { animation: none; transition: none; } }

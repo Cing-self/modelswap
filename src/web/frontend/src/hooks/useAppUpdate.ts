@@ -22,7 +22,18 @@ export type UpdateState = {
   latest?: string;
   dmgUrl?: string;
   releaseUrl?: string;
+  publishedAt?: string | null;
+  releaseNotes?: ReleaseNotes | null;
   error?: string;
+};
+
+export type ReleaseNoteCategory = 'new' | 'improved' | 'fixed';
+export type ReleaseNotes = {
+  version: string;
+  publishedAt: string;
+  summary: { zh: string; en: string };
+  highlights: Array<{ category: ReleaseNoteCategory; zh: string; en: string }>;
+  releaseUrl?: string;
 };
 
 export type UpdateDownload = {
@@ -39,18 +50,16 @@ export function formatFileSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(bytes >= 100 * 1024 * 1024 ? 0 : 1)} MB`;
 }
 
-export function useAppUpdate(options?: { autoCheck?: boolean; autoInstall?: boolean }) {
+export function useAppUpdate(options?: { autoCheck?: boolean }) {
   const autoCheck = options?.autoCheck !== false;
-  // Desktop downloads install themselves (mount → swap → relaunch) instead of
-  // popping the DMG drag-window; browsers keep the manual installer flow.
+  // Desktop owns installation after an explicit restart action. Browsers keep
+  // the manual installer flow after the server opens the DMG.
   const isDesktop = typeof window !== 'undefined' && Boolean((window as any).okitDesktop?.installUpdate);
-  const autoInstall = options?.autoInstall !== false;
   const [update, setUpdate] = useState<UpdateState>({ status: 'idle' });
   const [download, setDownload] = useState<UpdateDownload | null>(null);
   const [restarting, setRestarting] = useState(false);
   const [lastCheckedAt, setLastCheckedAt] = useState<number | null>(null);
   const dmgPathRef = useRef<string | null>(null);
-  const autoInstallStartedFor = useRef<string | null>(null);
 
   const downloading = download?.status === 'queued' || download?.status === 'downloading';
   const downloadProgress = download?.total && download.total > 0
@@ -70,6 +79,8 @@ export function useAppUpdate(options?: { autoCheck?: boolean; autoInstall?: bool
           latest: data.latestVersion,
           dmgUrl: data.assets?.dmg?.url,
           releaseUrl: data.releaseUrl,
+          publishedAt: data.publishedAt,
+          releaseNotes: data.releaseNotes || null,
         };
       setUpdate(next);
       setLastCheckedAt(Date.now());
@@ -137,20 +148,6 @@ export function useAppUpdate(options?: { autoCheck?: boolean; autoInstall?: bool
       setRestarting(false);
     }
   }, []);
-
-  // Full-auto desktop flow: once the installer has landed, run the install
-  // (which quits and relaunches this app) without waiting for another click —
-  // the user already opted in by pressing download. Guarded per job so a
-  // re-render storm can never trigger it twice.
-  useEffect(() => {
-    if (!isDesktop || !autoInstall) return;
-    if (download?.status !== 'completed' || !download.path) return;
-    if (autoInstallStartedFor.current === download.id) return;
-    autoInstallStartedFor.current = download.id;
-    // Fire-and-forget on purpose: a re-render cleanup would cancel the timer,
-    // and the per-job guard above would then block ever re-arming it.
-    window.setTimeout(() => { void restart(); }, 1200);
-  }, [isDesktop, autoInstall, download?.status, download?.path, download?.id, restart]);
 
   useEffect(() => {
     if (autoCheck) void check(true);

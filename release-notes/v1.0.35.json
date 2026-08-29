@@ -1,0 +1,31 @@
+{
+  "version": "v1.0.35",
+  "publishedAt": "2026-08-29",
+  "summary": {
+    "zh": "本次更新让更新内容更容易查看，并提升了桌面端的稳定性。",
+    "en": "This update makes release details easier to review and improves desktop stability."
+  },
+  "highlights": [
+    {
+      "category": "new",
+      "zh": "现在可在下载前查看本次更新的主要内容。",
+      "en": "You can now review the key changes before downloading an update."
+    },
+    {
+      "category": "improved",
+      "zh": "更新下载会显示实际进度，关闭详情后仍会继续。",
+      "en": "Update downloads show real progress and continue after you close the details."
+    },
+    {
+      "category": "improved",
+      "zh": "设置与标题栏会展示同一份更新说明。",
+      "en": "Settings and the title bar now show the same release details."
+    },
+    {
+      "category": "fixed",
+      "zh": "修复部分桌面环境在更新检查失败后服务中断的问题。",
+      "en": "Fixed an issue that could interrupt the desktop service after an update check failed."
+    }
+  ],
+  "releaseUrl": "https://github.com/Cing-self/okit/releases/tag/v1.0.35"
+}
