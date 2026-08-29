@@ -38,7 +38,7 @@ const userConfigStore: Record<string, any> = {};
 
 vi.mock('../../../src/config/user', () => ({
   loadUserConfig: vi.fn(async function() { return userConfigStore; }),
-  patchAgentSelection: vi.fn(async function(agentId: string, patch: any) {
+  updateUserConfig: vi.fn(async function(patch: any) {
     if (patch.providers && typeof patch.providers === 'object') {
       userConfigStore.providers = {
         ...(userConfigStore.providers || {}),
@@ -48,8 +48,8 @@ vi.mock('../../../src/config/user', () => ({
       })),
       };
     }
-    if (agentId === 'zcode') {
-      const state = patch;
+    if (patch.agentProviders?.zcode) {
+      const state = patch.agentProviders.zcode;
       userConfigStore.agentProviders = { ...(userConfigStore.agentProviders || {}), zcode: state };
       userConfigStore.providers = {
         ...(userConfigStore.providers || {}),
@@ -221,12 +221,11 @@ describe('ZCodeAdapter.applyConfig (v2 config schema)', () => {
     expect(written.provider.deepseek.options.apiKey).toBe('sk-test-123');
   });
 
-  it('records local ownership without writing user.json', async () => {
+  it('records local native ownership outside user.json', async () => {
     const adapter = new ZCodeAdapter();
     await adapter.applyConfig(testProvider, 'deepseek-chat');
 
     expect(readOwnership()).toEqual({ deepseek: ['deepseek-chat'] });
-    expect((await loadUserConfig()).providers?.zcode).toBeUndefined();
   });
 
   it('adds opencode UA headers for opencode.ai gateway endpoints', async () => {
@@ -338,7 +337,7 @@ describe('ZCodeAdapter.applyModels (additive home-site write)', () => {
     expect(written.provider.zai).toBeDefined();
   });
 
-  it('does not touch the current selection in user.json', async () => {
+  it('does not touch user.json when adding native models', async () => {
     userConfigStore.providers.zcode = { providerId: 'old', modelId: 'old-model' };
     const adapter = new ZCodeAdapter();
     await adapter.applyModels([{ provider: testProvider, modelId: 'deepseek-chat' }]);
@@ -379,7 +378,7 @@ describe('ZCodeAdapter.setProviderEnabled', () => {
     expect(written.provider.deepseek.models['deepseek-chat'].name).toBe('DeepSeek V4');
     expect(written.provider.deepseek.options.baseURL).toBe('https://api.deepseek.com');
 
-    // Desired selection is application-owned; native ownership remains local.
+    // Desired selection is owned by the application service, not this adapter.
     const config = await loadUserConfig();
     expect(config.providers.zcode.providerId).toBe('deepseek');
     expect(readOwnership().deepseek).toEqual(['deepseek-chat']);

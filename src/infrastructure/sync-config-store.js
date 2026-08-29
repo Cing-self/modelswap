@@ -2,6 +2,7 @@ const {
   mergeAgentProviderSelections,
   mergeModelOverrides,
 } = require('../application/sync-config-state');
+const crypto = require('crypto');
 
 function createSyncConfigStore({
   fs,
@@ -35,12 +36,11 @@ function createSyncConfigStore({
 
   async function readLiveConfig(fallback = {}) {
     try {
-      if (fs.writeJson && Object.prototype.hasOwnProperty.call(fs.writeJson, 'mock')) {
-        const live = await fs.readJson(configPath);
-        migrateAgentProviders(live);
-        return live;
-      }
-      const live = JSON.parse(await fs.readFile(configPath, 'utf-8'));
+      // fs-extra's parser keeps the test and production paths aligned while
+      // the queue still guarantees that this is the newest committed state.
+      const live = fs.readJson
+        ? await fs.readJson(configPath)
+        : JSON.parse(await fs.readFile(configPath, 'utf-8'));
       migrateAgentProviders(live);
       return live;
     } catch {
@@ -48,38 +48,19 @@ function createSyncConfigStore({
     }
   }
 
-  function laterTimestamp(liveValue, incomingValue) {
-    const liveTime = typeof liveValue === 'string' ? Date.parse(liveValue) : NaN;
-    const incomingTime = typeof incomingValue === 'string' ? Date.parse(incomingValue) : NaN;
-    if (Number.isFinite(liveTime) && Number.isFinite(incomingTime)) {
-      return incomingTime >= liveTime ? incomingValue : liveValue;
-    }
-    if (Number.isFinite(incomingTime)) return incomingValue;
-    return liveValue;
-  }
-
-  function mergeSyncConfig(live, patch) {
-    if (!patch || typeof patch !== 'object') return live;
-    const next = { ...(live || {}), ...patch };
-    if (patch.platforms && typeof patch.platforms === 'object') {
-      next.platforms = { ...(live?.platforms || {}) };
-      for (const [platformId, platformPatch] of Object.entries(patch.platforms)) {
-        next.platforms[platformId] = platformPatch && typeof platformPatch === 'object'
-          ? { ...(live?.platforms?.[platformId] || {}), ...platformPatch }
-          : platformPatch;
-      }
-    }
-    if (patch.lan && typeof patch.lan === 'object') next.lan = { ...(live?.lan || {}), ...patch.lan };
-    if (patch.localChangedAt && typeof patch.localChangedAt === 'object') {
-      next.localChangedAt = { ...(live?.localChangedAt || {}) };
-      for (const [section, timestamp] of Object.entries(patch.localChangedAt)) {
-        next.localChangedAt[section] = laterTimestamp(live?.localChangedAt?.[section], timestamp);
-      }
-    }
-    if (Object.prototype.hasOwnProperty.call(patch, 'lastSyncAt')) {
-      next.lastSyncAt = laterTimestamp(live?.lastSyncAt, patch.lastSyncAt);
-    }
-    return next;
+  // Queue-private read/modify/write primitive. Semantic callers validate their
+  // intent before calling this, then the live file is read only after every
+  // older mutation has finished.
+  async function commitIntent(owner, mutate) {
+    return enqueue(async () => {
+      await fs.ensureDir(require('path').dirname(configPath));
+      await backupImportantData(owner);
+      const live = await readLiveConfig({});
+      const next = await mutate(live);
+      if (!next || typeof next !== 'object' || Array.isArray(next)) throw new Error('Invalid config mutation');
+      await atomicWriteJson(configPath, next);
+      return next;
+    });
   }
 
   async function loadConfig() {
@@ -87,10 +68,7 @@ function createSyncConfigStore({
       if (!(await fs.pathExists(configPath))) return {};
       const config = await fs.readJson(configPath);
       if (migrateAgentProviders(config)) {
-        // Re-read and persist the migration inside the same queue as every
-        // other user.json mutation. A direct write here could otherwise
-        // replace a concurrent Agent or sync update with this stale snapshot.
-        return commitMutation('legacy-migration', live => {
+        return commitIntent('legacy-migration', live => {
           migrateAgentProviders(live);
           return live;
         });
@@ -101,266 +79,217 @@ function createSyncConfigStore({
     }
   }
 
-  /**
-   * The sole production write primitive for user.json. Callers declare their
-   * owned fields in a mutator; the current file is read only after earlier
-   * writes finish, then atomically replaced as part of that same queue item.
-   */
-  // Store-private queue primitive. It is deliberately not returned from this
-  // factory: application/web callers can only use the semantic operations.
-  async function commitMutation(owner, mutator) {
-    if (typeof owner !== 'string' || !owner) throw new Error('Config mutation owner is required');
-    if (typeof mutator !== 'function') throw new Error('Config mutator is required');
-    return enqueue(async () => {
-      await fs.ensureDir(require('path').dirname(configPath));
-      const live = await readLiveConfig({});
-      const proposed = await mutator(live);
-      if (!proposed || typeof proposed !== 'object') throw new Error('Config mutator must return an object');
-      // Even conditional mutations share the canonical sync normalization.
-      // A mutator can choose which sync keys it owns, but cannot roll a newer
-      // timestamp/platform/lan field back with an older value.
-      const next = {
-        ...proposed,
-        ...(proposed.sync ? { sync: mergeSyncConfig(live.sync, proposed.sync) } : {}),
-      };
-      await backupImportantData(owner);
-      await atomicWriteJson(configPath, next);
-      return next;
-    });
+  // Model identifiers are provider-defined and legitimately contain route
+  // separators (for example `deepseek/model:free` and `~model`).
+  const validId = value => typeof value === 'string' && /^[a-z0-9~][a-z0-9._~:/+-]{0,255}$/i.test(value);
+  const validTime = value => typeof value === 'string' && Number.isFinite(Date.parse(value));
+
+  async function setPreference(field, value) {
+    if (field === 'language' && !['zh', 'en'].includes(value)) throw new Error('Invalid preference');
+    if (field !== 'language' && !['mainHelpShown', 'onboardingDone'].includes(field)) throw new Error('Invalid preference');
+    if (field !== 'language' && typeof value !== 'boolean') throw new Error('Invalid preference');
+    return commitIntent(`preference:${field}`, live => field === 'language'
+      ? { ...live, language: value }
+      : { ...live, hints: { ...(live.hints || {}), [field]: value } });
   }
 
-  async function setSyncSetting(key, value) {
-    if (!['autoSync', 'syncPlatform', 'password'].includes(key)) throw new Error('Unsupported sync setting');
-    if (key === 'autoSync' ? typeof value !== 'boolean' : typeof value !== 'string' || !value) throw new Error('Invalid sync setting');
-    return commitMutation(`sync-setting:${key}`, live => ({ ...live, sync: { ...(live.sync || {}), [key]: value } }));
+  async function setSyncField(field, value) {
+    if (!['autoSync', 'password', 'syncPlatform'].includes(field)) throw new Error('Invalid sync field');
+    if (field === 'autoSync' ? typeof value !== 'boolean' : typeof value !== 'string' || !value) throw new Error('Invalid sync field');
+    return commitIntent(`sync:${field}`, live => ({ ...live, sync: { ...(live.sync || {}), [field]: value } }));
   }
 
-  async function setSyncPlatformField(platformId, field, value) {
-    const allowed = new Set(['enabled', 'storeId', 'databaseId', 'tableName', 'bucketName', 'region', 'accessKey', 'secretKey', 'projectId', 'apiKey', 'apiToken', 'url', 'username', 'password', 'baseUrl', 'token']);
-    if (typeof platformId !== 'string' || !platformId || !allowed.has(field) || !['string', 'boolean'].includes(typeof value)) throw new Error('Invalid sync platform field');
-    return commitMutation(`sync-platform:${platformId}:${field}`, live => ({ ...live, sync: { ...(live.sync || {}), platforms: { ...(live.sync?.platforms || {}), [platformId]: { ...(live.sync?.platforms?.[platformId] || {}), [field]: value } } } }));
+  async function setPlatformField(platformId, field, value) {
+    const allowed = {
+      cloudflare: ['enabled', 'apiToken', 'storeId'],
+      'cloudflare-kv': ['enabled', 'apiToken', 'storeId'],
+      'cloudflare-d1': ['enabled', 'apiToken', 'databaseId', 'tableName'],
+      'cloudflare-r2': ['enabled', 'accountId', 'r2AccessKeyId', 'r2SecretAccessKey', 'bucketName'],
+      // apiToken is the long-standing Supabase spelling. Keep it as an
+      // explicit compatibility field; arbitrary legacy properties are not
+      // accepted by this facade.
+      supabase: ['enabled', 'projectId', 'apiKey', 'apiToken', 'storeId'],
+      volcengine: ['enabled', 'region', 'accessKey', 'secretKey'],
+      webdav: ['enabled', 'url', 'username', 'password'],
+      lan: ['enabled', 'baseUrl', 'token'],
+      icloud: ['enabled'],
+    };
+    if (!Object.prototype.hasOwnProperty.call(allowed, platformId) || !allowed[platformId].includes(field) || !['string', 'boolean'].includes(typeof value)) throw new Error('Invalid sync platform field');
+    return commitIntent(`platform:${platformId}:${field}`, live => ({ ...live, sync: { ...(live.sync || {}), platforms: { ...(live.sync?.platforms || {}), [platformId]: { ...(live.sync?.platforms?.[platformId] || {}), [field]: value } } } }));
   }
 
-  async function recordLocalChange(scope, timestamp) {
-    if (!['secrets', 'providers', 'agentProviders', 'modelOverrides'].includes(scope) || !Number.isFinite(Date.parse(timestamp))) throw new Error('Invalid local change');
-    return commitMutation(`local-change:${scope}`, live => ({ ...live, sync: mergeSyncConfig(live.sync, { localChangedAt: { [scope]: timestamp } }) }));
+  async function setLanField(field, value) {
+    if (!['enabled', 'port', 'token'].includes(field)) throw new Error('Invalid LAN field');
+    if (field === 'enabled' && typeof value !== 'boolean') throw new Error('Invalid LAN field');
+    if (field === 'port' && (!Number.isInteger(value) || value < 1 || value > 65535)) throw new Error('Invalid LAN field');
+    if (field === 'token' && (typeof value !== 'string' || !value)) throw new Error('Invalid LAN field');
+    return commitIntent(`lan:${field}`, live => ({ ...live, sync: { ...(live.sync || {}), lan: { ...(live.sync?.lan || {}), [field]: value } } }));
   }
 
-  async function applyAgentBinding(agentId, selection) {
-    if (typeof agentId !== 'string' || !agentId || !selection || typeof selection !== 'object') throw new Error('Invalid agent binding');
-    return commitMutation(`agent-binding:${agentId}`, live => ({ ...live, agentProviders: mergeAgentProviderSelections(live.agentProviders, { [agentId]: selection }) }));
-  }
-
-  async function setModelOverrideField(providerId, modelId, field, value) {
-    if (![providerId, modelId, field].every(item => typeof item === 'string' && item)) throw new Error('Invalid model override');
-    return commitMutation(`model-override:${providerId}:${modelId}:${field}`, live => ({ ...live, modelOverrides: mergeModelOverrides(live.modelOverrides, { [providerId]: { [modelId]: { [field]: value } } }) }));
-  }
-
-  async function updateUserPreferences(patch) {
-    const allowed = new Set(['language', 'git', 'repo', 'hints']);
-    if (!patch || typeof patch !== 'object' || Object.keys(patch).some(key => !allowed.has(key))) {
-      throw new Error('Invalid user preference patch');
+  async function replaceAgentState(agentId, state) {
+    if (!validId(agentId) || !state || typeof state !== 'object' || Array.isArray(state) || !state.sites || typeof state.sites !== 'object' || Array.isArray(state.sites)) throw new Error('Invalid agent state');
+    if (!Object.keys(state).every(field => ['activeProviderId', 'activeModelId', 'sites'].includes(field))
+      || (state.activeProviderId !== undefined && !validId(state.activeProviderId))
+      || (state.activeModelId !== undefined && !validId(state.activeModelId))) throw new Error('Invalid agent state');
+    for (const [providerId, site] of Object.entries(state.sites)) {
+      if (!validId(providerId) || !site || typeof site !== 'object' || Array.isArray(site) || !Object.keys(site).every(field => ['modelIds', 'enabled', 'tierMap'].includes(field)) || !Array.isArray(site.modelIds) || site.modelIds.some(id => !validId(id)) || (site.enabled !== undefined && typeof site.enabled !== 'boolean')) throw new Error('Invalid agent state');
+      if (site.tierMap !== undefined && (!site.tierMap || typeof site.tierMap !== 'object' || Array.isArray(site.tierMap) || !Object.keys(site.tierMap).every(tier => ['haiku', 'sonnet', 'opus'].includes(tier)) || Object.values(site.tierMap).some(id => !validId(id)))) throw new Error('Invalid agent state');
     }
-    return commitMutation('user-preferences', live => ({
-      ...live,
-      ...(Object.prototype.hasOwnProperty.call(patch, 'language') ? { language: patch.language } : {}),
-      ...(patch.git ? { git: { ...(live.git || {}), ...patch.git } } : {}),
-      ...(patch.repo ? { repo: { ...(live.repo || {}), ...patch.repo } } : {}),
-      ...(patch.hints ? { hints: { ...(live.hints || {}), ...patch.hints } } : {}),
-    }));
+    const copied = JSON.parse(JSON.stringify(state));
+    return commitIntent(`agent:${agentId}`, live => ({ ...live, agentProviders: mergeAgentProviderSelections(live.agentProviders, { [agentId]: copied }) }));
   }
 
   async function applyLegacyMigration() {
-    return commitMutation('legacy-migration', live => {
+    return commitIntent('legacy-migration', live => {
       migrateAgentProviders(live);
       return live;
     });
   }
 
-  async function setOnboardingDismissed(dismissed) {
-    if (typeof dismissed !== 'boolean') throw new Error('Invalid onboarding state');
-    return commitMutation('onboarding', live => {
-      const hints = { ...(live.hints || {}) };
-      if (dismissed) hints.onboardingDone = true;
-      else delete hints.onboardingDone;
-      return { ...live, hints };
+  async function initializeLegacyClaude(providerId, modelId) {
+    if (!validId(providerId) || !validId(modelId)) throw new Error('Invalid legacy Claude state');
+    return commitIntent('legacy-claude-initialize', live => {
+      const current = live.agentProviders?.claude;
+      if (current?.activeProviderId || current?.activeModelId) return live;
+      return {
+        ...live,
+        agentProviders: mergeAgentProviderSelections(live.agentProviders, {
+          claude: {
+            activeProviderId: providerId,
+            activeModelId: modelId,
+            sites: { [providerId]: { modelIds: [modelId] } },
+          },
+        }),
+      };
     });
   }
 
-  async function setLanField(field, value) {
-    const valid = field === 'enabled' ? typeof value === 'boolean'
-      : field === 'port' ? Number.isInteger(value) && value > 0 && value < 65536
-      : ['token'].includes(field) && typeof value === 'string' && value;
-    if (!valid) throw new Error('Invalid LAN field');
-    return commitMutation(`lan-field:${field}`, live => ({ ...live, sync: { ...(live.sync || {}), lan: { ...(live.sync?.lan || {}), [field]: value } } }));
-  }
-
-  async function enableLan({ port, token }) {
-    if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid LAN port');
-    if (token !== undefined && (typeof token !== 'string' || !token)) throw new Error('Invalid LAN token');
-    return commitMutation('lan-enable', live => {
-      const sync = { ...(live.sync || {}) };
-      const lan = { ...(sync.lan || {}), enabled: true, port, ...(token ? { token } : {}) };
-      const platforms = { ...(sync.platforms || {}) };
-      const existing = platforms.lan;
-      if (!existing || /^http:\/\/(127\.0\.0\.1|localhost)(?::\d+)?$/i.test(existing.baseUrl || '')) {
-        platforms.lan = { baseUrl: `http://127.0.0.1:${port}`, token: lan.token, enabled: true };
-      }
-      if (!sync.syncPlatform) sync.syncPlatform = 'lan';
-      if (!sync.autoSync) sync.autoSync = true;
-      return { ...live, sync: { ...sync, lan, platforms } };
-    });
-  }
-
-  async function disableLan() {
-    return commitMutation('lan-disable', live => {
-      if (!live.sync?.lan) return live;
-      const sync = { ...live.sync, lan: { ...live.sync.lan, enabled: false } };
-      const local = sync.platforms?.lan;
-      if (local && /^http:\/\/(127\.0\.0\.1|localhost)(?::\d+)?$/i.test(local.baseUrl || '')) {
-        sync.platforms = { ...sync.platforms, lan: { ...local, enabled: false } };
-      }
-      return { ...live, sync };
-    });
-  }
-
-  async function rotateLanToken(token) {
-    if (typeof token !== 'string' || !token) throw new Error('Invalid LAN token');
-    return commitMutation('lan-token-rotate', live => {
-      if (!live.sync?.lan?.token) throw new Error('LAN is not enabled');
-      const sync = { ...live.sync, lan: { ...live.sync.lan, token } };
-      const local = sync.platforms?.lan;
-      if (local && /^http:\/\/(127\.0\.0\.1|localhost)(?::\d+)?$/i.test(local.baseUrl || '')) {
-        sync.platforms = { ...sync.platforms, lan: { ...local, token } };
-      }
-      return { ...live, sync };
-    });
-  }
-
-  async function pairLan({ password, baseUrl, token }) {
-    if (![password, baseUrl, token].every(value => typeof value === 'string' && value)) throw new Error('Invalid LAN pairing');
-    const url = new URL(baseUrl);
-    if (url.protocol !== 'http:') throw new Error('Invalid LAN peer URL');
-    return commitMutation('lan-pair', live => {
-      const sync = { ...(live.sync || {}), password };
-      const platforms = { ...(sync.platforms || {}) };
-      if (sync.lan?.enabled && /^http:\/\/(127\.0\.0\.1|localhost)(?::\d+)?$/i.test(platforms.lan?.baseUrl || '')) {
-        sync.lan = { ...sync.lan, enabled: false };
-      }
-      platforms.lan = { baseUrl, token, enabled: true };
-      sync.platforms = platforms;
-      if (!sync.syncPlatform) sync.syncPlatform = 'lan';
-      if (!sync.autoSync) sync.autoSync = true;
-      return { ...live, sync };
-    });
-  }
-
-  async function recordLanListenerPort({ expectedToken, port }) {
-    if (typeof expectedToken !== 'string' || !expectedToken || !Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid LAN listener port');
-    return commitMutation('lan-listener-port', live => {
-      const sync = { ...(live.sync || {}) };
-      const lan = sync.lan || {};
-      if (!lan.enabled || lan.token !== expectedToken) return live;
-      sync.lan = { ...lan, port };
-      const local = sync.platforms?.lan;
-      if (local && /^http:\/\/(127\.0\.0\.1|localhost)(?::\d+)?$/i.test(local.baseUrl || '')) {
-        sync.platforms = { ...sync.platforms, lan: { ...local, baseUrl: `http://127.0.0.1:${port}` } };
-      }
-      return { ...live, sync };
-    });
-  }
-
-  async function recordSyncSuccess({ machineId, lastRemote, lastSyncPlatform, changedAt }) {
-    if (typeof machineId !== 'string' || !machineId || typeof lastSyncPlatform !== 'string' || !lastSyncPlatform || !Number.isFinite(Date.parse(changedAt))) throw new Error('Invalid sync success');
-    return commitMutation('sync-success', live => ({ ...live, sync: mergeSyncConfig(live.sync, {
-      machineId,
-      lastRemote,
-      lastSyncAt: changedAt,
-      lastSyncPlatform,
-      localChangedAt: { secrets: changedAt, agentProviders: changedAt, modelOverrides: changedAt, providers: changedAt },
-    }) }));
-  }
-
-  async function recordSyncObservation({ machineId, lastSyncPlatform, observedAt }) {
-    if (typeof machineId !== 'string' || !machineId || typeof lastSyncPlatform !== 'string' || !lastSyncPlatform || !Number.isFinite(Date.parse(observedAt))) throw new Error('Invalid sync observation');
-    return commitMutation('sync-observation', live => ({ ...live, sync: mergeSyncConfig(live.sync, {
-      machineId,
-      lastSyncAt: observedAt,
-      lastSyncPlatform,
-    }) }));
-  }
-
-  function validRemoteMeta(remoteUpdated, remoteFrom) {
-    return Number.isFinite(Date.parse(remoteUpdated)) && typeof remoteFrom === 'string' && remoteFrom;
-  }
-  async function applyPulledSyncMetadata({ remoteUpdated, remoteMachineId, remoteFrom }) {
-    if (!validRemoteMeta(remoteUpdated, remoteFrom) || (remoteMachineId !== null && remoteMachineId !== undefined && typeof remoteMachineId !== 'string')) throw new Error('Invalid pulled sync metadata');
-    return commitMutation('sync-pull-metadata', live => ({ ...live, sync: mergeSyncConfig(live.sync, { machineId: live.sync?.machineId || require('crypto').randomUUID(), lastRemote: { updatedAt: remoteUpdated, machineId: remoteMachineId || null }, lastSyncAt: new Date().toISOString(), lastSyncPlatform: remoteFrom }) }));
-  }
-  async function applyPulledAgentSite({ remoteUpdated, agentId, providerId, modelIds, enabled, tierMap }) {
-    if (!Number.isFinite(Date.parse(remoteUpdated)) || ![agentId, providerId].every(value => typeof value === 'string' && value) || !Array.isArray(modelIds) || modelIds.some(id => typeof id !== 'string') || (enabled !== undefined && typeof enabled !== 'boolean') || (tierMap !== undefined && (!tierMap || typeof tierMap !== 'object' || Array.isArray(tierMap)))) throw new Error('Invalid pulled agent site');
-    return commitMutation('sync-pull-agent-site', live => {
-      if (Date.parse(remoteUpdated) < Date.parse(live.sync?.localChangedAt?.agentProviders || 0)) return live;
-      return { ...live, agentProviders: mergeAgentProviderSelections(live.agentProviders, { [agentId]: { sites: { [providerId]: { modelIds, ...(enabled === undefined ? {} : { enabled }), ...(tierMap === undefined ? {} : { tierMap }) } } } }) };
-    });
-  }
-  async function applyPulledAgentActive({ remoteUpdated, agentId, providerId, modelId }) {
-    if (!Number.isFinite(Date.parse(remoteUpdated)) || ![agentId, providerId, modelId].every(value => typeof value === 'string' && value)) throw new Error('Invalid pulled agent active model');
-    return commitMutation('sync-pull-agent-active', live => {
-      if (Date.parse(remoteUpdated) < Date.parse(live.sync?.localChangedAt?.agentProviders || 0)) return live;
-      return { ...live, agentProviders: mergeAgentProviderSelections(live.agentProviders, { [agentId]: { activeProviderId: providerId, activeModelId: modelId, sites: {} } }) };
-    });
-  }
-  async function applyPulledModelOverrideField({ remoteUpdated, providerId, modelId, field, value }) {
-    if (!Number.isFinite(Date.parse(remoteUpdated)) || ![providerId, modelId, field].every(item => typeof item === 'string' && item) || value === undefined || (value && typeof value === 'object')) throw new Error('Invalid pulled model override');
-    return commitMutation('sync-pull-model-override', live => {
-      if (Date.parse(remoteUpdated) < Date.parse(live.sync?.localChangedAt?.modelOverrides || 0)) return live;
-      return { ...live, modelOverrides: mergeModelOverrides(live.modelOverrides, { [providerId]: { [modelId]: { [field]: value } } }) };
-    });
+  async function removeAgentSite(agentId, providerId) {
+    if (!validId(agentId) || !validId(providerId)) throw new Error('Invalid agent site');
+    return commitIntent(`agent-site-remove:${agentId}:${providerId}`, live => ({
+      ...live,
+      agentProviders: mergeAgentProviderSelections(live.agentProviders, { [agentId]: { sites: { [providerId]: null } } }),
+    }));
   }
 
   async function removeProviderConfiguration(providerId) {
-    if (typeof providerId !== 'string' || !providerId) throw new Error('Invalid provider id');
-    return commitMutation('provider-delete', live => {
-      const next = { ...live, agentProviders: { ...(live.agentProviders || {}) }, modelOverrides: { ...(live.modelOverrides || {}) } };
-      delete next.modelOverrides[providerId];
-      for (const [agentId, state] of Object.entries(next.agentProviders)) {
+    if (!validId(providerId)) throw new Error('Invalid provider id');
+    return commitIntent(`provider-remove:${providerId}`, live => {
+      const agentProviders = JSON.parse(JSON.stringify(live.agentProviders || {}));
+      for (const [agentId, state] of Object.entries(agentProviders)) {
         if (!state?.sites?.[providerId]) continue;
-        const sites = { ...(state.sites || {}) };
-        delete sites[providerId];
-        const replacement = { ...state, sites };
-        if (replacement.activeProviderId === providerId) { delete replacement.activeProviderId; delete replacement.activeModelId; }
-        if (!Object.keys(sites).length && !replacement.activeProviderId) delete next.agentProviders[agentId];
-        else next.agentProviders[agentId] = replacement;
+        delete state.sites[providerId];
+        if (state.activeProviderId === providerId) { delete state.activeProviderId; delete state.activeModelId; }
+        if (!Object.keys(state.sites).length && !state.activeProviderId) delete agentProviders[agentId];
       }
-      return next;
+      const modelOverrides = { ...(live.modelOverrides || {}) }; delete modelOverrides[providerId];
+      return { ...live, agentProviders, modelOverrides };
     });
   }
 
-  return {
-    loadConfig,
-    setSyncSetting,
-    setSyncPlatformField,
-    recordLocalChange,
-    applyAgentBinding,
-    setModelOverrideField,
-    updateUserPreferences,
-    applyLegacyMigration,
-    setOnboardingDismissed,
-    setLanField,
-    enableLan,
-    disableLan,
-    rotateLanToken,
-    pairLan,
-    recordLanListenerPort,
-    recordSyncSuccess,
-    recordSyncObservation,
-    applyPulledSyncMetadata,
-    applyPulledAgentSite,
-    applyPulledAgentActive,
-    applyPulledModelOverrideField,
-    removeProviderConfiguration,
-  };
+  async function recordLocalChange(scope, at) {
+    if (!['secrets', 'providers', 'agentProviders', 'modelOverrides'].includes(scope) || !validTime(at)) throw new Error('Invalid local change');
+    return commitIntent(`local-change:${scope}`, live => ({ ...live, sync: { ...(live.sync || {}), localChangedAt: { ...(live.sync?.localChangedAt || {}), [scope]: at } } }));
+  }
+
+  async function recordSyncPush(machineId, updatedAt, platformId) {
+    if (!validId(machineId) || !validTime(updatedAt) || !validId(platformId)) throw new Error('Invalid sync push');
+    return commitIntent('sync-push', live => {
+      const incoming = Date.parse(updatedAt);
+      const markers = { ...(live.sync?.localChangedAt || {}) };
+      // Keep-newer per scope: the push snapshot was taken at `updatedAt`, so a
+      // local change marked after that must stay dirty instead of being rolled
+      // back by this push's completion marker. Unparseable legacy markers
+      // carry no ordering information and are always overwritten.
+      for (const scope of ['secrets', 'providers', 'agentProviders', 'modelOverrides']) {
+        const currentMs = markers[scope] === undefined ? Number.NEGATIVE_INFINITY : Date.parse(markers[scope]);
+        if (Number.isNaN(currentMs) || currentMs <= incoming) markers[scope] = updatedAt;
+      }
+      return { ...live, sync: {
+        ...(live.sync || {}), machineId, lastRemote: { updatedAt, machineId },
+        lastSyncAt: updatedAt, lastSyncPlatform: platformId,
+        localChangedAt: markers,
+      } };
+    });
+  }
+
+  async function acceptPulledDesired(updatedAt, machineId, platformId, agentEntries, overrideEntries) {
+    if (!validTime(updatedAt) || !validId(platformId) || !Array.isArray(agentEntries) || !Array.isArray(overrideEntries)) throw new Error('Invalid pulled desired state');
+    const allowedOverrideFields = new Set(['name', 'description', 'context', 'output', 'reasoning', 'tool', 'structuredOutput', 'temperature', 'inputPrice', 'outputPrice']);
+    for (const entry of agentEntries) {
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry) || !Object.keys(entry).every(field => ['agentId', 'activeProviderId', 'activeModelId', 'sites'].includes(field)) || !validId(entry.agentId) || !Array.isArray(entry.sites) || (entry.activeProviderId !== undefined && !validId(entry.activeProviderId)) || (entry.activeModelId !== undefined && !validId(entry.activeModelId))) throw new Error('Invalid pulled desired state');
+      const providerIds = new Set();
+      for (const site of entry.sites) {
+        if (!site || typeof site !== 'object' || Array.isArray(site) || !Object.keys(site).every(field => ['providerId', 'modelIds', 'enabled', 'tierMap'].includes(field)) || !validId(site.providerId) || providerIds.has(site.providerId) || !Array.isArray(site.modelIds) || site.modelIds.some(id => !validId(id)) || (site.enabled !== undefined && typeof site.enabled !== 'boolean')) throw new Error('Invalid pulled desired state');
+        providerIds.add(site.providerId);
+        if (site.tierMap !== undefined && (!site.tierMap || typeof site.tierMap !== 'object' || Array.isArray(site.tierMap) || !Object.keys(site.tierMap).every(tier => ['haiku', 'sonnet', 'opus'].includes(tier)) || Object.values(site.tierMap).some(id => !validId(id)))) throw new Error('Invalid pulled desired state');
+      }
+    }
+    if (new Set(agentEntries.map(entry => entry.agentId)).size !== agentEntries.length) throw new Error('Invalid pulled desired state');
+    for (const entry of overrideEntries) if (!entry || typeof entry !== 'object' || Array.isArray(entry) || !Object.keys(entry).every(field => ['providerId', 'modelId', 'field', 'value'].includes(field)) || !validId(entry.providerId) || !validId(entry.modelId) || !allowedOverrideFields.has(entry.field) || !['string', 'number', 'boolean'].includes(typeof entry.value) || (typeof entry.value === 'number' && !Number.isFinite(entry.value))) throw new Error('Invalid pulled desired state');
+    return commitIntent('sync-pull', live => {
+      const localChanged = live.sync?.localChangedAt || {};
+      const applyAgents = !localChanged.agentProviders || Date.parse(updatedAt) >= Date.parse(localChanged.agentProviders);
+      const applyOverrides = !localChanged.modelOverrides || Date.parse(updatedAt) >= Date.parse(localChanged.modelOverrides);
+      let agents = live.agentProviders;
+      let overrides = live.modelOverrides;
+      if (applyAgents) {
+        agents = { ...(agents || {}) };
+        for (const entry of agentEntries) agents[entry.agentId] = {
+          ...(entry.activeProviderId ? { activeProviderId: entry.activeProviderId } : {}),
+          ...(entry.activeModelId ? { activeModelId: entry.activeModelId } : {}),
+          sites: Object.fromEntries(entry.sites.map(site => [site.providerId, {
+            modelIds: [...new Set(site.modelIds)],
+            ...(site.enabled === undefined ? {} : { enabled: site.enabled }),
+            ...(site.tierMap ? { tierMap: { ...site.tierMap } } : {}),
+          }])),
+        };
+      }
+      if (applyOverrides) for (const entry of overrideEntries) overrides = mergeModelOverrides(overrides, { [entry.providerId]: { [entry.modelId]: { [entry.field]: entry.value } } });
+      return { ...live, ...(applyAgents ? { agentProviders: agents } : {}), ...(applyOverrides ? { modelOverrides: overrides } : {}), sync: { ...(live.sync || {}), machineId: live.sync?.machineId || crypto.randomUUID(), lastRemote: { updatedAt, machineId: validId(machineId) ? machineId : null }, lastSyncAt: new Date().toISOString(), lastSyncPlatform: platformId } };
+    });
+  }
+
+  async function enableLan(port, token) {
+    if (!Number.isInteger(port) || port < 1 || port > 65535 || (token !== undefined && (typeof token !== 'string' || !token))) throw new Error('Invalid LAN enable');
+    return commitIntent('lan-enable', live => {
+      const sync = { ...(live.sync || {}) };
+      const lan = { ...(sync.lan || {}), enabled: true, port, ...(token ? { token } : {}) };
+      const platforms = { ...(sync.platforms || {}) };
+      if (!platforms.lan || /^http:\/\/(127\.0\.0\.1|localhost)(?::\d+)?$/i.test(platforms.lan.baseUrl || '')) platforms.lan = { baseUrl: `http://127.0.0.1:${port}`, token: lan.token, enabled: true };
+      return { ...live, sync: { ...sync, lan, platforms, syncPlatform: sync.syncPlatform || 'lan', autoSync: sync.autoSync || true } };
+    });
+  }
+  async function disableLan() {
+    return commitIntent('lan-disable', live => {
+      const sync = { ...(live.sync || {}) }; if (!sync.lan) return live;
+      const platforms = { ...(sync.platforms || {}) };
+      if (platforms.lan && /^http:\/\/(127\.0\.0\.1|localhost)(?::\d+)?$/i.test(platforms.lan.baseUrl || '')) platforms.lan = { ...platforms.lan, enabled: false };
+      return { ...live, sync: { ...sync, lan: { ...sync.lan, enabled: false }, platforms } };
+    });
+  }
+  async function rotateLanToken(token) {
+    if (typeof token !== 'string' || !token) throw new Error('Invalid LAN token');
+    return commitIntent('lan-token-rotate', live => {
+      if (!live.sync?.lan?.token) throw new Error('LAN is not enabled');
+      const sync = { ...live.sync, lan: { ...live.sync.lan, token } }; const platforms = { ...(sync.platforms || {}) };
+      if (platforms.lan && /^http:\/\/(127\.0\.0\.1|localhost)(?::\d+)?$/i.test(platforms.lan.baseUrl || '')) platforms.lan = { ...platforms.lan, token };
+      return { ...live, sync: { ...sync, platforms } };
+    });
+  }
+  async function pairLan(password, baseUrl, token) {
+    if (typeof password !== 'string' || !password || typeof token !== 'string' || !token) throw new Error('Invalid LAN pairing');
+    let url; try { url = new URL(baseUrl); } catch { throw new Error('Invalid LAN pairing'); }
+    if (url.protocol !== 'http:') throw new Error('Invalid LAN pairing');
+    return commitIntent('lan-pair', live => {
+      const sync = { ...(live.sync || {}) }; const platforms = { ...(sync.platforms || {}) };
+      if (sync.lan?.enabled && /^http:\/\/(127\.0\.0\.1|localhost)(?::\d+)?$/i.test(platforms.lan?.baseUrl || '')) sync.lan = { ...sync.lan, enabled: false };
+      platforms.lan = { baseUrl, token, enabled: true };
+      return { ...live, sync: { ...sync, password, platforms, syncPlatform: sync.syncPlatform || 'lan', autoSync: sync.autoSync || true } };
+    });
+  }
+
+  return { loadConfig, setPreference, setSyncField, setPlatformField, setLanField, replaceAgentState, applyLegacyMigration, initializeLegacyClaude, removeAgentSite, removeProviderConfiguration, recordLocalChange, recordSyncPush, acceptPulledDesired, enableLan, disableLan, rotateLanToken, pairLan };
 }
 
 module.exports = { createSyncConfigStore };

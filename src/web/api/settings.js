@@ -1,11 +1,9 @@
 const { appendLog } = require('./log-writer');
-const syncCore = require('./cloud-sync-core');
 
 const SENSITIVE_KEYS = ['accessKeySecret', 'password', 'token'];
 
-async function loadConfig() {
-  return syncCore.loadConfig();
-}
+const core = () => require('./cloud-sync-core');
+async function loadConfig() { return core().loadConfig(); }
 
 function maskConfig(sync) {
   if (!sync) return sync;
@@ -61,33 +59,45 @@ async function getSettings(req, res) {
 
 async function updateSettings(req, res) {
   try {
-    const { sync } = req.body;
-    if (!sync) return res.status(400).json({ error: 'sync is required' });
-    const previous = await loadConfig();
-    const autoSyncWasOn = !!previous.sync?.autoSync;
-    const prevLan = JSON.stringify(previous.sync?.lan || null);
-    // Only request-owned sync fields are handed to the semantic store entry;
-    // it reads the queue-fresh config before merging them.
-    const merged = mergeSensitive(previous.sync, sync);
-    for (const key of ['autoSync', 'password', 'syncPlatform']) {
-      if (Object.prototype.hasOwnProperty.call(merged, key)) await syncCore.setSyncSetting(key, merged[key]);
+    const operations = req.body?.operations;
+    if (!Array.isArray(operations) || operations.length === 0) return res.status(400).json({ error: 'operations are required' });
+    if (operations.length > 50) return res.status(400).json({ error: 'too many operations' });
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, 'sync')) return res.status(400).json({ error: 'snapshot sync updates are not accepted' });
+    // Structural pre-validation for the whole batch: nothing is applied unless
+    // every operation is at least shape-correct, so an invalid trailing item
+    // cannot leave the earlier ones partially committed.
+    const validValue = value => (['string', 'boolean', 'number'].includes(typeof value) && (typeof value !== 'number' || Number.isFinite(value)));
+    const validTarget = operation => (
+      operation.kind === 'platform'
+        ? typeof operation.platformId === 'string' && operation.platformId !== '' && typeof operation.field === 'string' && operation.field !== ''
+        : typeof operation.field === 'string' && operation.field !== ''
+    );
+    for (const operation of operations) {
+      if (!operation || typeof operation !== 'object' || Array.isArray(operation)) return res.status(400).json({ error: 'Invalid settings operation' });
+      if (!['sync', 'platform', 'lan'].includes(operation.kind)) return res.status(400).json({ error: 'Invalid settings operation' });
+      if (!validTarget(operation) || !validValue(operation.value)) return res.status(400).json({ error: 'Invalid settings operation' });
     }
-    for (const [platformId, fields] of Object.entries(merged.platforms || {})) {
-      for (const [field, value] of Object.entries(fields || {})) await syncCore.setSyncPlatformField(platformId, field, value);
+    const before = await loadConfig();
+    const autoSyncWasOn = !!before.sync?.autoSync;
+    const prevLan = JSON.stringify(before.sync?.lan || null);
+    for (const operation of operations) {
+      if (!operation || typeof operation !== 'object') throw new Error('Invalid settings operation');
+      if (operation.kind === 'sync') await core().setSyncField(operation.field, operation.value);
+      else if (operation.kind === 'platform') await core().setPlatformField(operation.platformId, operation.field, operation.value);
+      else if (operation.kind === 'lan') await core().setLanField(operation.field, operation.value);
+      else throw new Error('Invalid settings operation');
     }
-    for (const [field, value] of Object.entries(merged.lan || {})) await syncCore.setLanField(field, value);
     const config = await loadConfig();
-    const changes = [];
-    if (sync) changes.push(...Object.keys(sync.platforms || {}));
+    const changes = operations.filter(item => item.kind === 'platform').map(item => item.platformId);
     appendLog('settings-update', changes.join(',') || 'settings', true);
     res.json({ success: true, sync: maskConfig(config.sync) });
 
     // Toggling auto-sync on should adopt remote + flush pending without a restart
-    if (sync && typeof sync.autoSync === 'boolean' && sync.autoSync && !autoSyncWasOn) {
+    if (config.sync?.autoSync && !autoSyncWasOn) {
       require('./sync-scheduler').syncNow().catch(() => {});
     }
     // LAN listener follows sync.lan changes without a server restart
-    if (sync?.lan && JSON.stringify(config.sync?.lan || null) !== prevLan) {
+    if (JSON.stringify(config.sync?.lan || null) !== prevLan) {
       require('./lan-sync-server').applyConfig().catch(() => {});
     }
   } catch (error) {
@@ -164,7 +174,7 @@ async function getOnboarding(req, res) {
 
 async function dismissOnboarding(req, res) {
   try {
-    await syncCore.setOnboardingDismissed(true);
+    await core().setPreference('onboardingDone', true);
     appendLog('onboarding-dismiss', 'onboarding', true);
     res.json({ success: true });
   } catch (error) {
@@ -175,7 +185,7 @@ async function dismissOnboarding(req, res) {
 
 async function resetOnboarding(req, res) {
   try {
-    await syncCore.setOnboardingDismissed(false);
+    await core().setPreference('onboardingDone', false);
     appendLog('onboarding-reset', 'onboarding', true);
     res.json({ success: true });
   } catch (error) {

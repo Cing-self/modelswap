@@ -34,12 +34,22 @@ vi.mock('../../src/config/registry', () => ({
   CACHE_DIR: testRoot.CACHE_DIR,
 }));
 
-const { loadUserConfig, patchUserPreferences } = await import('../../src/config/user');
+const configCore = vi.hoisted(() => ({
+  setPreference: vi.fn(async () => ({})),
+  replaceAgentState: vi.fn(async () => ({})),
+  applyLegacyMigration: vi.fn(async () => ({})),
+  initializeLegacyClaude: vi.fn(async () => ({})),
+  loadConfig: vi.fn(async () => ({})),
+}));
+vi.mock('../../src/web/api/cloud-sync-core', () => configCore);
+
+const { loadUserConfig } = await import('../../src/config/user');
 
 const CONFIG_PATH = testRoot.CONFIG_PATH;
 
 beforeEach(() => {
   mocks.files.clear();
+  vi.clearAllMocks();
 });
 
 describe('loadUserConfig', () => {
@@ -58,31 +68,5 @@ describe('loadUserConfig', () => {
     mocks.files.set(CONFIG_PATH, 'not json');
     const config = await loadUserConfig();
     expect(config).toEqual({});
-  });
-});
-
-describe('user-owned patches', () => {
-  it('writes preferences without accepting a complete config replacement', async () => {
-    await patchUserPreferences({ language: 'zh' });
-    expect(mocks.ensureDir).toHaveBeenCalled();
-    const written = mocks.files.get(CONFIG_PATH);
-    expect(written).toBeTruthy();
-    expect(JSON.parse(written!)).toEqual({ language: 'zh' });
-  });
-});
-
-describe('ownership-scoped config patches', () => {
-  it('merges preferences into existing config', async () => {
-    mocks.files.set(CONFIG_PATH, JSON.stringify({ language: 'zh', hints: { old: true } }));
-    const result = await patchUserPreferences({ hints: { mainHelpShown: true } });
-    expect(result.hints!.mainHelpShown).toBe(true);
-    expect(result.language).toBe('zh');
-  });
-
-  it('merges independent preference fields without accepting sync snapshots', async () => {
-    mocks.files.set(CONFIG_PATH, JSON.stringify({ language: 'zh', hints: { old: true } }));
-    const result = await patchUserPreferences({ hints: { mainHelpShown: true } });
-    expect(result.hints!.old).toBe(true);
-    expect(result.hints!.mainHelpShown).toBe(true);
   });
 });

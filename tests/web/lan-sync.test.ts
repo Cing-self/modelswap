@@ -11,12 +11,12 @@ vi.spyOn(os, 'homedir').mockReturnValue(TMP_HOME);
 
 const mockCore = vi.hoisted(() => ({
   loadConfig: vi.fn(),
-  mutateConfig: vi.fn(),
-  patchSyncConfig: vi.fn(),
+  setLanField: vi.fn(),
+  setPlatformField: vi.fn(),
   enableLan: vi.fn(),
   disableLan: vi.fn(),
+  rotateLanToken: vi.fn(),
   pairLan: vi.fn(),
-  recordLanListenerPort: vi.fn(),
   appendLog: vi.fn(),
   resolveSyncKeys: vi.fn(),
   resolveVaultRefs: vi.fn(async (c: any) => c),
@@ -65,7 +65,7 @@ const syncHandlers = await import('../../src/web/api/sync.js');
 const TOKEN = 'a'.repeat(64);
 const OTHER_TOKEN = 'b'.repeat(64);
 
-// Simulate queue-internal mutations against the current in-memory config.
+// Simulate semantic config intents against the config visible to this test.
 let currentConfig: any = {};
 
 function freePort(): Promise<number> {
@@ -114,39 +114,25 @@ beforeEach(async () => {
   vi.clearAllMocks();
   currentConfig = { sync: { machineId: 'm-test' } };
   mockCore.loadConfig.mockImplementation(async () => currentConfig);
-  mockCore.mutateConfig.mockImplementation(async (_owner: string, mutator: any) => {
-    currentConfig = await mutator(currentConfig);
-    return currentConfig;
+  mockCore.setLanField.mockImplementation(async (field: string, value: any) => {
+    currentConfig.sync.lan = { ...(currentConfig.sync.lan || {}), [field]: value };
   });
-  mockCore.patchSyncConfig.mockImplementation(async (patch: any) => {
-    currentConfig = { ...currentConfig, sync: { ...currentConfig.sync, ...patch } };
-    return currentConfig;
+  mockCore.setPlatformField.mockImplementation(async (platform: string, field: string, value: any) => {
+    currentConfig.sync.platforms = { ...(currentConfig.sync.platforms || {}) };
+    currentConfig.sync.platforms[platform] = { ...(currentConfig.sync.platforms[platform] || {}), [field]: value };
   });
-  mockCore.enableLan.mockImplementation(async ({ port, token }: any) => {
-    const sync = currentConfig.sync || (currentConfig.sync = {});
-    sync.lan = { ...(sync.lan || {}), enabled: true, port, token };
-    if (!sync.platforms) sync.platforms = {};
-    if (!sync.platforms.lan || /^http:\/\/(127\.0\.0\.1|localhost)/.test(sync.platforms.lan.baseUrl || '')) {
-      sync.platforms.lan = { baseUrl: `http://127.0.0.1:${port}`, token, enabled: true };
+  mockCore.enableLan.mockImplementation(async (assignedPort: number, token: string) => {
+    currentConfig.sync.lan = { ...(currentConfig.sync.lan || {}), enabled: true, port: assignedPort, token };
+    const existing = currentConfig.sync.platforms?.lan;
+    if (!existing || /^http:\/\/(127\.0\.0\.1|localhost)/.test(existing.baseUrl || '')) {
+      currentConfig.sync.platforms = { ...(currentConfig.sync.platforms || {}), lan: { baseUrl: `http://127.0.0.1:${assignedPort}`, token, enabled: true } };
     }
-    if (!sync.syncPlatform) sync.syncPlatform = 'lan';
-    if (!sync.autoSync) sync.autoSync = true;
-    return currentConfig;
+    currentConfig.sync.syncPlatform ||= 'lan'; currentConfig.sync.autoSync = true;
   });
-  mockCore.disableLan.mockImplementation(async () => { currentConfig.sync.lan.enabled = false; return currentConfig; });
-  mockCore.pairLan.mockImplementation(async ({ password, baseUrl, token }: any) => {
-    const sync = currentConfig.sync || (currentConfig.sync = {});
-    sync.password = password; sync.platforms = { ...(sync.platforms || {}), lan: { baseUrl, token, enabled: true } };
-    if (!sync.syncPlatform) sync.syncPlatform = 'lan'; if (!sync.autoSync) sync.autoSync = true;
-    return currentConfig;
-  });
-  mockCore.recordLanListenerPort.mockImplementation(async ({ expectedToken, port: assignedPort }: any) => {
-    const lan = currentConfig.sync?.lan;
-    if (lan?.enabled && lan.token === expectedToken) {
-      lan.port = assignedPort;
-      if (/^http:\/\/(127\.0\.0\.1|localhost)/.test(currentConfig.sync.platforms?.lan?.baseUrl || '')) currentConfig.sync.platforms.lan.baseUrl = `http://127.0.0.1:${assignedPort}`;
-    }
-    return currentConfig;
+  mockCore.disableLan.mockImplementation(async () => { currentConfig.sync.lan = { ...(currentConfig.sync.lan || {}), enabled: false }; });
+  mockCore.rotateLanToken.mockImplementation(async (token: string) => { currentConfig.sync.lan = { ...(currentConfig.sync.lan || {}), token }; });
+  mockCore.pairLan.mockImplementation(async (password: string, baseUrl: string, token: string) => {
+    currentConfig.sync = { ...(currentConfig.sync || {}), password, platforms: { ...(currentConfig.sync?.platforms || {}), lan: { baseUrl, token, enabled: true } }, syncPlatform: currentConfig.sync?.syncPlatform || 'lan', autoSync: true };
   });
   mockCore.appendLog.mockResolvedValue(undefined);
   mockCore.resolveSyncKeys.mockResolvedValue({ userId: 'u1', encryptionKey: Buffer.alloc(32) });

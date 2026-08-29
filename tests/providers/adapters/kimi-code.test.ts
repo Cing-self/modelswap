@@ -37,7 +37,7 @@ vi.mock('../../../src/config/registry', () => ({
 
 vi.mock('../../../src/config/user', () => ({
   loadUserConfig: vi.fn(async function() { return {}; }),
-  patchAgentSelection: vi.fn(async function(_agentId: string, patch: any) { return patch; }),
+  updateUserConfig: vi.fn(async function(patch: any) { return patch; }),
 }));
 
 vi.mock('../../../src/vault/store', () => ({
@@ -47,7 +47,7 @@ vi.mock('../../../src/vault/store', () => ({
 }));
 
 const { KimiCodeAdapter } = await import('../../../src/providers/adapters/kimi-code');
-const { patchAgentSelection } = await import('../../../src/config/user');
+const { updateUserConfig } = await import('../../../src/config/user');
 
 const CONFIG_PATH = path.join(os.homedir(), '.kimi-code', 'config.toml');
 const ENV_PATH = path.join(os.homedir(), '.kimi-code', '.env');
@@ -86,7 +86,7 @@ const moonshotProvider = {
 
 beforeEach(() => {
   mocks.files.clear();
-  vi.mocked(patchAgentSelection).mockClear();
+  vi.mocked(updateUserConfig).mockClear();
 });
 
 describe('KimiCodeAdapter', () => {
@@ -372,11 +372,11 @@ describe('KimiCodeAdapter.applyConfig (v2 config format)', () => {
     expect(toml).toContain('default_model = "okit-custom-openai-my-model"');
   });
 
-  it('does not persist user config from the native adapter', async () => {
+  it('records selection in user.json under "kimi-code" key', async () => {
     const adapter = new KimiCodeAdapter();
     await adapter.applyConfig(customProvider, 'my-model');
 
-    expect(patchAgentSelection).not.toHaveBeenCalled();
+    expect(updateUserConfig).not.toHaveBeenCalled();
   });
 });
 

@@ -40,7 +40,7 @@ vi.mock('../../../src/config/registry', () => ({
 
 vi.mock('../../../src/config/user', () => ({
   loadUserConfig: vi.fn(async function() { return mocks.userConfig; }),
-  patchAgentSelection: vi.fn(async function(agentId: string, patch: any) {
+  updateUserConfig: vi.fn(async function(patch: any) {
     // Mirror the real per-agent-key merge under `providers`.
     if (patch?.providers) {
       mocks.userConfig.providers = mocks.userConfig.providers || {};
@@ -48,9 +48,8 @@ vi.mock('../../../src/config/user', () => ({
         mocks.userConfig.providers[key] = value;
       }
     }
-    if (agentId === 'workbuddy') {
-      const state = patch;
-      mocks.userConfig.agentProviders = { ...(mocks.userConfig.agentProviders || {}), workbuddy: state };
+    if (patch?.agentProviders?.workbuddy) {
+      const state = patch.agentProviders.workbuddy;
       const managedModels = Object.fromEntries(Object.entries(state.sites || {})
         .filter(([, site]: any) => site)
         .map(([providerId, site]: any) => [providerId, site.modelIds || []]));
@@ -75,7 +74,6 @@ const { WorkBuddyAdapter } = await import('../../../src/providers/adapters/workb
 
 const MODELS_PATH = path.join(os.homedir(), '.workbuddy', 'models.json');
 const OWNERSHIP_PATH = path.join(os.homedir(), '.workbuddy', '.okit-managed.json');
-const readOwnership = () => JSON.parse(mocks.files.get(OWNERSHIP_PATH) || '{}');
 
 const testProvider = {
   id: 'glm-coding',
@@ -121,6 +119,9 @@ const otherProvider = {
 
 function readModelsFile(): any[] {
   return JSON.parse(mocks.files.get(MODELS_PATH)!);
+}
+function readOwnership(): Record<string, string[]> {
+  return JSON.parse(mocks.files.get(OWNERSHIP_PATH) || '{}');
 }
 
 beforeEach(() => {
@@ -234,12 +235,11 @@ describe('WorkBuddyAdapter.applyConfig', () => {
     expect(written[0].url).toBe('https://open.bigmodel.cn/api/coding/chat/completions');
   });
 
-  it('records local ownership without writing user.json', async () => {
+  it('records local native ownership outside user.json', async () => {
     const adapter = new WorkBuddyAdapter();
     await adapter.applyConfig(testProvider, 'glm-4.7');
 
     expect(readOwnership()).toEqual({ 'glm-coding': ['glm-4.7'] });
-    expect(mocks.userConfig.providers.workbuddy).toBeUndefined();
   });
 
   it('REFUSES to overwrite an entry at a different endpoint (not written by OKIT)', async () => {
@@ -252,7 +252,7 @@ describe('WorkBuddyAdapter.applyConfig', () => {
 
     const written = readModelsFile();
     expect(written[0].vendor).toBe('WorkBuddy');
-    expect(mocks.userConfig.providers.workbuddy).toBeUndefined();
+    expect(mocks.files.has(OWNERSHIP_PATH)).toBe(false);
   });
 
   it('adopts an entry whose URL lacks the /chat/completions suffix (same endpoint base)', async () => {
@@ -311,7 +311,8 @@ describe('WorkBuddyAdapter.applyModels', () => {
     await adapter.applyConfig(testProvider, 'glm-4.7');
     await adapter.applyModels([{ provider: otherProvider, modelId: 'glm-x' }]);
 
-    expect(readOwnership()).toMatchObject({ 'glm-coding': ['glm-4.7'], 'glm-coding-alt': ['glm-x'] });
+    expect(mocks.userConfig.providers.workbuddy).toBeUndefined();
+    expect(readOwnership()).toEqual({ 'glm-coding': ['glm-4.7'], 'glm-coding-alt': ['glm-x'] });
   });
 
   it('skips foreign id collisions instead of overwriting them', async () => {
@@ -343,7 +344,6 @@ describe('WorkBuddyAdapter.removeProvider', () => {
     const written = readModelsFile();
     expect(written).toEqual([]);
     expect(readOwnership()).toEqual({});
-    expect(mocks.userConfig.providers.workbuddy).toBeUndefined();
   });
 
   it('keeps entries still claimed by another provider (shared model id)', async () => {
@@ -382,6 +382,6 @@ describe('WorkBuddyAdapter.removeProvider', () => {
     await adapter.removeProvider('never-added');
 
     expect(mocks.files.has(MODELS_PATH)).toBe(false);
-    expect(mocks.userConfig.providers.workbuddy).toBeUndefined();
+    expect(mocks.files.has(OWNERSHIP_PATH)).toBe(false);
   });
 });

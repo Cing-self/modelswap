@@ -154,7 +154,7 @@ export async function syncPassword(options?: { stdin?: boolean }): Promise<void>
     process.exitCode = 1;
     return;
   }
-  await core().setSyncSetting("password", password);
+  await core().setSyncField("password", password);
   console.log(kleur.green("✓ 同步密码已保存（用于云端加密与跨机解密）"));
 }
 
@@ -205,7 +205,8 @@ export async function syncEnable(
     return;
   }
 
-  for (const [field, value] of Object.entries({ ...values, enabled: true })) await core().setSyncPlatformField(platform, field, value);
+  for (const [field, value] of Object.entries(values)) await core().setPlatformField(platform, field, value);
+  await core().setPlatformField(platform, "enabled", true);
   console.log(kleur.green(`✓ ${PLATFORM_LABELS[platform] || platform} 已配置并启用`));
 
   if (options?.test !== false) {
@@ -228,7 +229,7 @@ export async function syncDisable(platform: string): Promise<void> {
     process.exitCode = 1;
     return;
   }
-  await core().setSyncPlatformField(platform, "enabled", false);
+  await core().setPlatformField(platform, "enabled", false);
   console.log(kleur.green(`✓ ${PLATFORM_LABELS[platform] || platform} 已停用（配置保留，可随时重新 enable）`));
 }
 

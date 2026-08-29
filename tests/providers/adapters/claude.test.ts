@@ -37,7 +37,7 @@ vi.mock('../../../src/config/registry', () => ({
 
 vi.mock('../../../src/config/user', () => ({
   loadUserConfig: vi.fn(async function() { return {}; }),
-  patchAgentSelection: vi.fn(async function(_agentId: string, patch: any) { return patch; }),
+  updateUserConfig: vi.fn(async function(patch: any) { return patch; }),
 }));
 
 vi.mock('../../../src/vault/store', () => ({
@@ -58,7 +58,7 @@ vi.mock('child_process', () => ({
 }));
 
 const { ClaudeAdapter } = await import('../../../src/providers/adapters/claude');
-const { patchAgentSelection } = await import('../../../src/config/user');
+const { updateUserConfig } = await import('../../../src/config/user');
 
 const SETTINGS_PATH = path.join(os.homedir(), '.claude', 'settings.json');
 
@@ -83,7 +83,7 @@ const anthropicProvider = {
 
 beforeEach(() => {
   mocks.files.clear();
-  vi.mocked(patchAgentSelection).mockClear();
+  vi.mocked(updateUserConfig).mockClear();
 });
 
 describe('ClaudeAdapter', () => {
@@ -254,10 +254,10 @@ describe('ClaudeAdapter.applyConfig', () => {
     expect(written.env.ANTHROPIC_BASE_URL).toBe('https://ark.cn-beijing.volces.com/api/coding');
   });
 
-  it('writes only Claude native config; desired state is application-owned', async () => {
+  it('updates the Claude site selection in user config', async () => {
     const adapter = new ClaudeAdapter();
     await adapter.applyConfig(testProvider, 'glm-4.7');
 
-    expect(patchAgentSelection).not.toHaveBeenCalled();
+    expect(updateUserConfig).not.toHaveBeenCalled();
   });
 });

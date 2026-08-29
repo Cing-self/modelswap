@@ -79,7 +79,7 @@ export class OpenCodeAdapter extends BaseAdapter {
     return {};
   }
 
-  private async saveConfig(data: Record<string, any>): Promise<void> {
+  private async writeNativeConfig(data: Record<string, any>): Promise<void> {
     await atomicWriteJSON(OPENCODE_CONFIG_PATH, data);
   }
 
@@ -178,10 +178,8 @@ export class OpenCodeAdapter extends BaseAdapter {
     // returns empty for additive apps). We only ensure this provider + its
     // models are present.
 
-    await this.saveConfig(data);
+    await this.writeNativeConfig(data);
     await this.syncDesktopModelVisibility(provider.id, provider.models.map(model => model.id));
-    // Desired state is persisted once by AgentConfigurationService after the
-    // native write succeeds; adapters remain native-file-only.
   }
 
   // Additive (multi-site): write one site's provider entry without touching
@@ -195,7 +193,7 @@ export class OpenCodeAdapter extends BaseAdapter {
       await this.writeProviderEntry(data, provider);
       written.push(modelId);
     }
-    await this.saveConfig(data);
+    await this.writeNativeConfig(data);
     const providers = new Map(entries.map(({ provider }) => [provider.id, provider]));
     for (const provider of providers.values()) {
       await this.syncDesktopModelVisibility(provider.id, provider.models.map(model => model.id));
@@ -225,6 +223,6 @@ export class OpenCodeAdapter extends BaseAdapter {
     if (typeof data.model === "string" && data.model.split("/")[0] === providerId) {
       delete data.model;
     }
-    await this.saveConfig(data);
+    await this.writeNativeConfig(data);
   }
 }

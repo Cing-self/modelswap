@@ -97,8 +97,8 @@ describe('sync pull orchestration', () => {
       secrets: [{ key: 'SYNC_KEY', value: 'value', group: 'AI' }],
       settings: {
         providers: [{ id: 'remote-site' }],
-        agentProviders: { codex: { activeProviderId: 'remote-site', sites: { 'remote-site': { modelIds: ['m'] } } } },
-        modelOverrides: { 'remote-site': { m: { context: 42 } } },
+        agentStates: [{ agentId: 'codex', activeProviderId: 'remote-site', sites: [{ providerId: 'remote-site', modelIds: ['m'] }] }],
+        modelOverrideFields: [{ providerId: 'remote-site', modelId: 'm', field: 'context', value: 42 }],
       },
     };
     const service = createSyncService({
@@ -135,18 +135,29 @@ describe('sync pull orchestration', () => {
         return [];
       },
       resolvePrimaryTarget: async () => ({ id: 'memory' }),
-      applyPulledSyncMetadata: async () => {
+      acceptPulledDesired: async (_updatedAt, _machineId, _platformId, agents, overrides) => {
+        config.agentProviders = Object.fromEntries(agents.map(({ agentId, activeProviderId, activeModelId, sites }) => [agentId, {
+          ...(activeProviderId ? { activeProviderId } : {}),
+          ...(activeModelId ? { activeModelId } : {}),
+          sites: Object.fromEntries(sites.map(site => [site.providerId, { modelIds: site.modelIds }])),
+        }]));
+        config.modelOverrides = {};
+        for (const { providerId, modelId, field, value } of overrides) {
+          config.modelOverrides[providerId] ||= {};
+          config.modelOverrides[providerId][modelId] ||= {};
+          config.modelOverrides[providerId][modelId][field] = value;
+        }
         order.push('config');
+        return config;
       },
-      applyPulledAgentSite: async ({ agentId, providerId, modelIds }) => { config.agentProviders[agentId] = { ...(config.agentProviders[agentId] || { sites: {} }), activeProviderId: providerId, activeModelId: modelIds[0], sites: { ...(config.agentProviders[agentId]?.sites || {}), [providerId]: { modelIds } } }; },
-      applyPulledAgentActive: async ({ agentId, providerId, modelId }) => { config.agentProviders[agentId] = { ...config.agentProviders[agentId], activeProviderId: providerId, activeModelId: modelId }; },
-      applyPulledModelOverrideField: async ({ providerId, modelId, field, value }) => { config.modelOverrides[providerId] = { ...(config.modelOverrides[providerId] || {}), [modelId]: { ...(config.modelOverrides[providerId]?.[modelId] || {}), [field]: value } }; },
-      recordSyncSuccess: async () => order.push('config'),
-      shouldApplyRemoteSection: () => true,
+      recordSyncPush: async () => {},
+      setSyncField: async () => {},
+      setPlatformField: async () => {},
+      shouldApplyRemoteSection,
     });
 
     const result = await service.syncPull();
-    expect(order).toEqual(['vault', 'config', 'providers', 'hydrate', 'agent']);
+    expect(order).toEqual(['providers', 'vault', 'config', 'hydrate', 'agent']);
     expect(result.agentModelHydration).toMatchObject({ warmed: ['remote-site'] });
   });
 });

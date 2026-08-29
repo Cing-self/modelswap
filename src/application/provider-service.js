@@ -202,8 +202,8 @@ async function loadUserConfig() {
   return syncCore.loadConfig();
 }
 
-async function applyAgentBinding(agentId, selection) {
-  await syncCore.applyAgentBinding(agentId, selection);
+async function persistAgentState(agentId, state) {
+  await syncCore.replaceAgentState(agentId, state);
   publishDataChanged(['agents']);
   require('../web/api/sync-scheduler').markDirty('agentProviders');
 }
@@ -232,7 +232,7 @@ const agentConfigService = createAgentConfigurationService({
   getAdapter: _getAdapter,
   loadProviders,
   loadUserConfig,
-  applyAgentBinding,
+  replaceAgentState: persistAgentState,
   captureSnapshot: capturePreSwitchSnapshot,
   restoreSnapshot,
   providerSupportsAdapter,

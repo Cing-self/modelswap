@@ -77,9 +77,7 @@ function createProviderLifecycleService(deps) {
         }
         agentProvidersChanged = true;
       }
-      if (agentProvidersChanged || config.modelOverrides?.[id]) {
-        await removeProviderConfiguration(id);
-      }
+      if (agentProvidersChanged || config.modelOverrides?.[id]) await removeProviderConfiguration(id);
       return { success: true };
   }
 

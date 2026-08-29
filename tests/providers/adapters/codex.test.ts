@@ -37,7 +37,7 @@ vi.mock('../../../src/config/registry', () => ({
 
 vi.mock('../../../src/config/user', () => ({
   loadUserConfig: vi.fn(async function() { return {}; }),
-  patchAgentSelection: vi.fn(async function(_agentId: string, patch: any) { return patch; }),
+  updateUserConfig: vi.fn(async function(patch: any) { return patch; }),
 }));
 
 vi.mock('../../../src/vault/store', () => ({
@@ -54,7 +54,7 @@ const logMocks = vi.hoisted(() => ({ appendLog: vi.fn() }));
 vi.mock('../../../src/web/api/log-writer.js', () => logMocks);
 
 const { CodexAdapter } = await import('../../../src/providers/adapters/codex');
-const { patchAgentSelection } = await import('../../../src/config/user');
+const { updateUserConfig } = await import('../../../src/config/user');
 
 const CODEX_DIR = path.join(os.homedir(), '.codex');
 const CODEX_CONFIG = path.join(CODEX_DIR, 'config.toml');
@@ -92,7 +92,7 @@ const resolvedModel = (id: string, context: number, output: number) => ({
 
 beforeEach(() => {
   mocks.files.clear();
-  vi.mocked(patchAgentSelection).mockClear();
+  vi.mocked(updateUserConfig).mockClear();
   logMocks.appendLog.mockClear();
 });
 
@@ -426,10 +426,10 @@ describe('CodexAdapter.applyConfig', () => {
     expect(toml).toContain('some_other = "value"');
   });
 
-  it('writes only Codex native config; desired state is application-owned', async () => {
+  it('updates user config with codex selection', async () => {
     const adapter = new CodexAdapter();
     await adapter.applyConfig(openaiProvider, 'gpt-5.5');
 
-    expect(patchAgentSelection).not.toHaveBeenCalled();
+    expect(updateUserConfig).not.toHaveBeenCalled();
   });
 });

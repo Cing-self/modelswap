@@ -408,14 +408,13 @@ describe('sync code', () => {
   });
 
   it('imports sync code by creating referenced vault secrets before saving platform config', async () => {
-    mockFs.readJson.mockResolvedValueOnce(VALID_CONFIG);
+    mockFs.readJson.mockResolvedValue(VALID_CONFIG);
     mockStore.exportAll.mockResolvedValue([
       { key: 'SUPABASE_API_TOKEN', value: 'sb-secret', desc: 'Sync token', group: 'Supabase', updatedAt: '2026-01-04T00:00:00Z' },
       ...SAMPLE_SECRETS,
     ]);
     const exported = await exportSyncCode('test-password');
 
-    mockFs.readJson.mockResolvedValueOnce({ sync: { platforms: {} } });
     mockStore.set.mockResolvedValue(undefined);
 
     const result = await importSyncCode(exported.code, 'test-password');
@@ -432,14 +431,15 @@ describe('sync code', () => {
   });
 
   it('rejects sync code import with a wrong password before writing vault or platform config', async () => {
-    mockFs.readJson.mockResolvedValueOnce(VALID_CONFIG);
+    mockFs.readJson.mockResolvedValue(VALID_CONFIG);
     mockStore.exportAll.mockResolvedValue([
       { key: 'SUPABASE_API_TOKEN', value: 'sb-secret', desc: 'Sync token', group: 'Supabase', updatedAt: '2026-01-04T00:00:00Z' },
     ]);
     const exported = await exportSyncCode('test-password');
+    const writesBeforeImport = mockFs.writeJson.mock.calls.length;
 
     await expect(importSyncCode(exported.code, 'wrong-password')).rejects.toThrow('同步密码不正确');
     expect(mockStore.set).not.toHaveBeenCalled();
-    expect(mockFs.writeJson).not.toHaveBeenCalled();
+    expect(mockFs.writeJson).toHaveBeenCalledTimes(writesBeforeImport);
   });
 });

@@ -128,13 +128,15 @@ export default function DeviceSyncSection() {
 
   async function saveSync(newPlatforms?: typeof platforms, newAutoSync?: boolean, password?: string) {
     try {
-      await updateSettings({
-        sync: {
-          autoSync: newAutoSync !== undefined ? newAutoSync : autoSync,
-          platforms: newPlatforms || platforms,
-          ...(password ? { password } : {}),
-        },
-      });
+      const nextPlatforms = newPlatforms || platforms;
+      const operations: any[] = [
+        { kind: 'sync', field: 'autoSync', value: newAutoSync !== undefined ? newAutoSync : autoSync },
+        ...Object.entries(nextPlatforms).flatMap(([platformId, fields]) => Object.entries(fields as Record<string, string | boolean>)
+          .filter(([, value]) => value !== '***')
+          .map(([field, value]) => ({ kind: 'platform', platformId, field, value }))),
+        ...(password ? [{ kind: 'sync', field: 'password', value: password }] : []),
+      ];
+      await updateSettings(operations);
       return true;
     } catch { showToast(t('settings.saveFail'), 'error'); }
     return false;

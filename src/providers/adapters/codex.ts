@@ -131,8 +131,6 @@ export class CodexAdapter extends BaseAdapter {
       await writeModelCatalog(provider);
     }
 
-    // Desired user.json state is owned by AgentConfigurationService. Adapters
-    // write native files only and must never persist a second stale snapshot.
   }
 
   async removeProvider(providerId: string): Promise<void> {

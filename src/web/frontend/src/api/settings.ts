@@ -18,12 +18,15 @@ export async function getSettings(): Promise<Settings> {
   return api('/api/settings');
 }
 
-export async function updateSettings(data: {
-  sync?: Partial<Settings['sync']>;
-}): Promise<{ ok: boolean }> {
+export type SettingsOperation =
+  | { kind: 'sync'; field: 'autoSync' | 'password' | 'syncPlatform'; value: string | boolean }
+  | { kind: 'platform'; platformId: string; field: string; value: string | boolean }
+  | { kind: 'lan'; field: 'enabled' | 'port' | 'token'; value: string | boolean | number };
+
+export async function updateSettings(operations: SettingsOperation[]): Promise<{ ok: boolean }> {
   return api('/api/settings', {
     method: 'POST',
-    body: JSON.stringify(data),
+    body: JSON.stringify({ operations }),
   });
 }
 

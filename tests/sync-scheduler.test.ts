@@ -3,7 +3,6 @@ import Module from 'module';
 
 const mockCore = vi.hoisted(() => ({
   loadConfig: vi.fn(),
-  patchSyncConfig: vi.fn(),
   recordLocalChange: vi.fn(),
   appendLog: vi.fn(),
   syncPush: vi.fn(),

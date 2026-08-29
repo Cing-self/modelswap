@@ -47,7 +47,8 @@ function defaultDependencies() {
     getAdapter: registry.getAdapter,
     loadProviders: store.loadProviders,
     loadUserConfig: user.loadUserConfig,
-    applyAgentBinding: user.applyAgentBinding,
+    replaceAgentState: user.replaceAgentProviderState,
+    removeAgentSite: async (agentId, providerId) => require('../web/api/cloud-sync-core').removeAgentSite(agentId, providerId),
     captureSnapshot: snapshots.capturePreSwitchSnapshot,
     restoreSnapshot: snapshots.restoreSnapshot,
     providerSupportsAdapter: routing.providerSupportsAdapter,
@@ -74,14 +75,13 @@ function createAgentConfigurationService(overrides = {}) {
   const d = { ...defaultDependencies(), ...overrides };
   const adapterMeta = id => (d.adapters || []).find(adapter => adapter.id === id);
 
-  async function persistAgentState(agentId, before, after, removedProviderId) {
-    const beforeState = getAgentState(before, agentId);
-    const selection = getAgentState(after, agentId);
-    if (removedProviderId) selection.sites[removedProviderId] = null;
-    for (const key of ['activeProviderId', 'activeModelId']) {
-      if (beforeState[key] && !selection[key]) selection[key] = null;
+  async function persistAgentState(agentId, before, after) {
+    const state = getAgentState(after, agentId);
+    const previous = getAgentState(before, agentId);
+    for (const providerId of Object.keys(previous.sites || {})) {
+      if (!state.sites?.[providerId]) await d.removeAgentSite(agentId, providerId);
     }
-    await d.applyAgentBinding(agentId, selection);
+    await d.replaceAgentState(agentId, state);
   }
 
   function prepareWrite(provider, agentId, modelId, selectedIds, config, { allowCataloglessModel = false, preserveProviderModels = false } = {}) {
@@ -227,7 +227,7 @@ function createAgentConfigurationService(overrides = {}) {
         next.activeModelId = fallback.modelId;
         replaceAgentState(before, agentId, next);
       }
-      if (persist) await persistAgentState(agentId, state, before, providerId);
+      if (persist) await persistAgentState(agentId, state, before);
     } catch (error) {
       if (snapshotId && typeof d.restoreSnapshot === 'function') await d.restoreSnapshot(agentId, snapshotId).catch(() => {});
       throw error;

@@ -1,74 +1,79 @@
 const fs = require('fs');
 const path = require('path');
 const ts = require('typescript');
-
-const root = path.resolve(__dirname, '..');
-const registry = require('../docs/testing/config-mutation-registry.json');
 const { createSyncConfigStore } = require('../src/infrastructure/sync-config-store');
+const registry = require('../docs/testing/config-mutation-registry.json');
 
-function files(dir) {
-  return fs.readdirSync(path.join(root, dir), { withFileTypes: true }).flatMap(entry =>
-    entry.isDirectory() ? files(path.join(dir, entry.name)) : [path.join(dir, entry.name)],
-  ).filter(file => /\.(?:js|ts)$/.test(file));
-}
-
-function calls(source) {
-  const found = [];
-  const visit = node => {
-    if (ts.isCallExpression(node)) found.push(node.getText(source));
-    ts.forEachChild(node, visit);
-  };
-  visit(source);
-  return found;
-}
-
-describe('configuration mutation contract', () => {
-  it('keeps registry writer/schema/race sets and selectors one-to-one', () => {
-    const writers = registry.entries.filter(entry => entry.kind === 'writer');
-    expect(new Set(writers.map(entry => entry.id)).size).toBe(writers.length);
-    expect(new Set(writers.map(entry => entry.schemaId)).size).toBe(writers.length);
-    expect(new Set(writers.map(entry => entry.raceId)).size).toBe(writers.length);
-    const selectorKeys = Object.entries(registry.astSelectors).map(([id, item]) =>
-      `${item.sourceSymbol}:${JSON.stringify(item.selector)}:${JSON.stringify(item.position)}`,
-    );
-    expect(new Set(selectorKeys).size).toBe(selectorKeys.length);
-  });
-
-  it('rejects deprecated snapshot writer APIs and adapter user-config persistence', () => {
-    const violations = [];
-    const contractFiles = [...new Set(registry.entries.map(entry => entry.sourceModule))]
-      .filter(relative => fs.existsSync(path.join(root, relative)));
-    for (const relative of contractFiles) {
-      const file = path.join(root, relative);
+describe('user.json mutation boundary', () => {
+  it('keeps the 41-writer AST inventory and 11 native-only rows one-to-one', () => {
+    expect(registry.entries).toHaveLength(41);
+    expect(new Set(registry.entries.map(([id]) => id)).size).toBe(41);
+    for (const [, relative, symbol] of registry.entries) {
+      const file = path.join(__dirname, '..', relative);
       const source = ts.createSourceFile(file, fs.readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
-      for (const text of calls(source)) {
-        if (relative !== 'src/infrastructure/sync-config-store.js' && /(?:\.|\b)(?:mutateConfig|patchSyncConfig)\s*\(/.test(text)) violations.push(`${relative}: ${text}`);
-      }
-      if (relative.startsWith('src/providers/adapters/') && /(?:patchAgentSelection|applyAgentBinding)\s*\(/.test(fs.readFileSync(file, 'utf8'))) {
-        violations.push(`${relative}: adapter persists user config`);
-      }
+      let found = false;
+      const visit = node => {
+        if (ts.isIdentifier(node) && node.text === symbol) found = true;
+        ts.forEachChild(node, visit);
+      };
+      visit(source);
+      expect(found, `${relative}:${symbol}`).toBe(true);
     }
-    expect(violations).toEqual([]);
+    expect(registry.nativeOnlyNoUserJsonWrite).toHaveLength(11);
+    const adapters = registry.nativeOnlyNoUserJsonWrite.filter(file => file.includes('/adapters/'));
+    expect(adapters).toHaveLength(10);
   });
 
-  it('rejects invalid semantic input before any config filesystem access', async () => {
-    let reads = 0;
-    let writes = 0;
+  it('exposes only semantic writer intents', () => {
+    const store = createSyncConfigStore({
+      fs: {}, configPath: '/isolated/user.json', backupImportantData: async () => {}, migrateAgentProviders: () => false,
+    });
+    expect(Object.keys(store).sort()).toEqual([
+      'acceptPulledDesired', 'applyLegacyMigration', 'disableLan', 'enableLan', 'initializeLegacyClaude', 'loadConfig',
+      'pairLan', 'recordLocalChange', 'recordSyncPush',
+      'removeAgentSite', 'removeProviderConfiguration', 'replaceAgentState',
+      'rotateLanToken', 'setLanField', 'setPlatformField', 'setPreference', 'setSyncField',
+    ].sort());
+  });
+
+  it('rejects malformed semantic intent before any filesystem access', async () => {
+    let accesses = 0;
     const store = createSyncConfigStore({
       fs: {
-        ensureDir: async () => { writes++; },
-        pathExists: async () => { reads++; return false; },
-        readFile: async () => { reads++; return '{}'; },
-        writeFile: async () => { writes++; },
-        rename: async () => { writes++; },
-        remove: async () => {},
+        ensureDir: async () => { accesses++; }, pathExists: async () => { accesses++; return false; },
+        readFile: async () => { accesses++; return '{}'; }, writeFile: async () => { accesses++; },
+        rename: async () => { accesses++; }, remove: async () => {},
       },
-      configPath: '/isolated/user.json',
-      backupImportantData: async () => { writes++; },
-      migrateAgentProviders: () => false,
+      configPath: '/isolated/user.json', backupImportantData: async () => { accesses++; }, migrateAgentProviders: () => false,
     });
-    await expect(store.setSyncPlatformField('webdav', 'unknownField', 'snapshot')).rejects.toThrow('Invalid sync platform field');
-    await expect(store.enableLan({ port: 0, token: 'x' })).rejects.toThrow('Invalid LAN port');
-    expect({ reads, writes }).toEqual({ reads: 0, writes: 0 });
+    await expect(store.setPlatformField('webdav', 'unknown', 'snapshot')).rejects.toThrow('Invalid sync platform field');
+    await expect(store.replaceAgentState('codex', { sites: { provider: { modelIds: ['bad model id'] } } })).rejects.toThrow('Invalid agent state');
+    await expect(store.acceptPulledDesired('not-a-date', 'remote', 'lan', [], [])).rejects.toThrow('Invalid pulled desired state');
+    expect(accesses).toBe(0);
+  });
+
+  it('serializes independent field writers against the live file', async () => {
+    let data = { sync: { platforms: {} } };
+    const store = createSyncConfigStore({
+      fs: {
+        ensureDir: async () => {}, pathExists: async () => true,
+        readFile: async () => JSON.stringify(data),
+        writeFile: async (_path, value) => { data = JSON.parse(value); },
+        rename: async () => {}, remove: async () => {},
+      },
+      configPath: '/isolated/user.json', backupImportantData: async () => {}, migrateAgentProviders: () => false,
+    });
+    await Promise.all([
+      store.setSyncField('autoSync', true),
+      store.setPlatformField('supabase', 'projectId', 'project'),
+      store.setPlatformField('supabase', 'apiKey', 'key'),
+    ]);
+    expect(data).toEqual({ sync: { autoSync: true, platforms: { supabase: { projectId: 'project', apiKey: 'key' } } } });
+  });
+
+  it('keeps every adapter native-only for user.json writes', () => {
+    const adapters = fs.readdirSync(path.join(__dirname, '../src/providers/adapters')).filter(name => name.endsWith('.ts'));
+    const offenders = adapters.filter(name => /(?:updateUserConfig|saveUserConfig|replaceAgentProviderState|replaceAgentState)\s*\(/.test(fs.readFileSync(path.join(__dirname, '../src/providers/adapters', name), 'utf8')));
+    expect(offenders).toEqual([]);
   });
 });

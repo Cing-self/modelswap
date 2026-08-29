@@ -17,9 +17,6 @@ function reservePort() {
 }
 
 function child(root: string, home: string, blob: string, script: string) {
-  // Runtime fixtures are already type-checked by the repository build. Avoid
-  // recompiling and type-checking the full TypeScript graph in each isolated
-  // child process: this test deliberately launches A and B sequentially.
   return execFileSync(process.execPath, ['-r', 'ts-node/register/transpile-only', '-e', script, root], {
     env: { ...process.env, HOME: home, USERPROFILE: home, OKIT_SYNC_BLOB: blob },
     encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
@@ -78,8 +75,7 @@ describe('sync provider vault-reference reconciliation', { timeout: 30000 }, () 
         const glmRef=(await store.getProvider('glm-coding')).vaultKey;
         await call(api.fetchModels,{body:{providerId:provider.id}});
         const config={sync:{password:'shared-secret',platforms:{supabase:{enabled:true,projectId:'project',apiToken:'token'}}},agentProviders:{codex:{activeProviderId:provider.id,activeModelId:remote,sites:{[provider.id]:{modelIds:[remote]}}}}};
-        await sync.setSyncSetting('password','shared-secret'); await sync.setSyncPlatformField('supabase','enabled',true); await sync.setSyncPlatformField('supabase','projectId','project'); await sync.setSyncPlatformField('supabase','apiToken','token');
-        for(const [agentId,selection] of Object.entries(config.agentProviders)) await sync.applyAgentBinding(agentId,selection);
+        fs.writeFileSync(path.join(process.env.HOME,'.okit','user.json'),JSON.stringify(config));
         await sync.syncPush();
         const projection=await store.loadProviderSitesForSync(); const payload=fs.readFileSync(process.env.OKIT_SYNC_BLOB,'utf8');
         await new Promise(resolve=>server.close(resolve));
@@ -90,10 +86,11 @@ describe('sync provider vault-reference reconciliation', { timeout: 30000 }, () 
       (async()=>{
         const server=await startDirectory(); const home=process.env.HOME;
         fs.mkdirSync(path.join(home,'.codex'),{recursive:true});
+        fs.mkdirSync(path.join(home,'.okit'),{recursive:true});
         // Reconciliation must actively remove this obsolete official-OAuth
         // flag from a third-party table and install only scoped Vault auth.
         fs.writeFileSync(path.join(home,'.codex','config.toml'),'[model_providers.okit-sync-vault-provider]\\nrequires_openai_auth = true\\n');
-        await sync.setSyncSetting('password','shared-secret'); await sync.setSyncPlatformField('supabase','enabled',true); await sync.setSyncPlatformField('supabase','projectId','project'); await sync.setSyncPlatformField('supabase','apiToken','token');
+        fs.writeFileSync(path.join(home,'.okit','user.json'),JSON.stringify({sync:{password:'shared-secret',platforms:{supabase:{enabled:true,projectId:'project',apiToken:'token'}}}}));
         const result=await sync.syncPull();
         const providerAfter=await store.getProvider(provider.id);
         const cache=await store.loadModelsCache();

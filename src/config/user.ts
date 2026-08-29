@@ -120,85 +120,33 @@ const LEGACY_CLAUDE_PATH = path.join(OKIT_DIR, "claude-current.json");
 export async function loadUserConfig(): Promise<UserConfig> {
   const config = await readJson(USER_CONFIG_PATH);
   if (config) {
-    if (migrateAgentProviders(config)) {
-      if (Object.prototype.hasOwnProperty.call(fs.writeFile as object, "mock")) {
-        await replaceUserConfigForTest(config);
-      } else {
-        // A legacy read may race a settings/sync write. Re-read and apply the
-        // migration in the shared mutation queue instead of saving this stale
-        // snapshot over unrelated user.json fields.
-        const syncCore = require("../web/api/cloud-sync-core");
-        return syncCore.applyLegacyMigration();
-      }
-    }
+    if (migrateAgentProviders(config)) return require("../web/api/cloud-sync-core").applyLegacyMigration();
     return config;
   }
 
   const migrated = await migrateLegacyConfig();
   if (migrated) {
-    if (Object.prototype.hasOwnProperty.call(fs.writeFile as object, "mock")) {
-      await replaceUserConfigForTest(migrated);
-      return migrated;
+    if (migrated.language) await require("../web/api/cloud-sync-core").setPreference("language", migrated.language);
+    const claude = migrated.agentProviders?.claude;
+    if (claude?.activeProviderId && claude.activeModelId) {
+      try {
+        await require("../web/api/cloud-sync-core").initializeLegacyClaude(claude.activeProviderId, claude.activeModelId);
+      } catch {
+        // A legacy provider name that fails today's identifier rules must not
+        // wedge every future loadUserConfig; skip the binding and continue.
+      }
     }
-    const syncCore = require("../web/api/cloud-sync-core");
-    if (migrated.language) await syncCore.updateUserPreferences({ language: migrated.language });
-    for (const [agentId, selection] of Object.entries(migrated.agentProviders || {})) {
-      await syncCore.applyAgentBinding(agentId, selection);
-    }
-    return syncCore.loadConfig();
+    return require("../web/api/cloud-sync-core").loadConfig();
   }
   return {};
 }
 
-async function replaceUserConfigForTest(config: UserConfig): Promise<void> {
-  if (!Object.prototype.hasOwnProperty.call(fs.writeFile as object, "mock")) {
-    throw new Error("replaceUserConfigForTest is unavailable in production");
-  }
-  await fs.ensureDir(OKIT_DIR);
-  await backupImportantData("user");
-  await atomicWriteJSON(USER_CONFIG_PATH, config);
+export async function setUserPreference(field: "language" | "mainHelpShown", value: string | boolean): Promise<UserConfig> {
+  return require("../web/api/cloud-sync-core").setPreference(field, value);
 }
 
-async function mergeTestPatch(patch: Partial<UserConfig>): Promise<UserConfig> {
-  const current = await loadUserConfig();
-  const merged = {
-    ...current,
-    ...patch,
-    hints: patch.hints ? { ...current.hints, ...patch.hints } : current.hints,
-    git: patch.git ? { ...current.git, ...patch.git } : current.git,
-    agentProviders: patch.agentProviders ? mergeAgentProviders(current.agentProviders, patch.agentProviders) : current.agentProviders,
-    modelOverrides: patch.modelOverrides ? mergeModelOverrides(current.modelOverrides, patch.modelOverrides) : current.modelOverrides,
-    repo: patch.repo ? { ...current.repo, ...patch.repo } : current.repo,
-    sync: patch.sync ? { ...current.sync, ...patch.sync, platforms: patch.sync.platforms ? { ...current.sync?.platforms, ...patch.sync.platforms } : current.sync?.platforms } : current.sync,
-  };
-  await replaceUserConfigForTest(merged);
-  return merged;
-}
-
-export async function patchUserPreferences(patch: Pick<UserConfig, "language" | "hints" | "git" | "repo">): Promise<UserConfig> {
-  if (!Object.prototype.hasOwnProperty.call(fs.writeFile as object, "mock")) {
-    return require("../web/api/cloud-sync-core").updateUserPreferences(patch);
-  }
-  return mergeTestPatch(patch);
-}
-
-export async function applyAgentBinding(agentId: string, selection: AgentProviderState | null): Promise<UserConfig> {
-  if (!Object.prototype.hasOwnProperty.call(fs.writeFile as object, "mock")) {
-    return require("../web/api/cloud-sync-core").applyAgentBinding(agentId, selection);
-  }
-  return mergeTestPatch({ agentProviders: { [agentId]: selection } as AgentProviders });
-}
-
-export async function patchModelOverrides(providerId: string, models: NonNullable<UserConfig["modelOverrides"]>[string]): Promise<UserConfig> {
-  if (!Object.prototype.hasOwnProperty.call(fs.writeFile as object, "mock")) {
-    for (const [modelId, fields] of Object.entries(models || {})) {
-      for (const [field, value] of Object.entries(fields || {})) {
-        await require("../web/api/cloud-sync-core").setModelOverrideField(providerId, modelId, field, value);
-      }
-    }
-    return loadUserConfig();
-  }
-  return mergeTestPatch({ modelOverrides: { [providerId]: models } });
+export async function replaceAgentProviderState(agentId: string, state: AgentProviderState): Promise<UserConfig> {
+  return require("../web/api/cloud-sync-core").replaceAgentState(agentId, state);
 }
 
 function mergeModelOverrides(

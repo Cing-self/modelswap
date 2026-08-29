@@ -276,8 +276,8 @@ export class ZCodeAdapter extends BaseAdapter {
   }
 
   private async readManaged(): Promise<ManagedModels> {
-    const local = await readOwnership();
-    if (local) return local;
+    const owned = await readOwnership();
+    if (owned) return owned;
     const config = await loadUserConfig();
     const sites = config.agentProviders?.zcode?.sites || {};
     if (Object.keys(sites).length > 0) {

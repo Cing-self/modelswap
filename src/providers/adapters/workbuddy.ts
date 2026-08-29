@@ -9,8 +9,8 @@ import { atomicWrite, atomicWriteJSON } from "../../utils/atomicWrite";
 
 const WORKBUDDY_DIR = path.join(os.homedir(), ".workbuddy");
 const WORKBUDDY_MODELS_PATH = path.join(WORKBUDDY_DIR, "models.json");
-// Local reconciliation ownership. This sidecar is intentionally not OKIT
-// user config and is never part of cloud sync payloads.
+// Local ownership prevents deletion from touching models created by WorkBuddy.
+// It is deliberately neither user.json nor sync payload state.
 const WORKBUDDY_OWNERSHIP_PATH = path.join(WORKBUDDY_DIR, ".okit-managed.json");
 
 // WorkBuddy models.json is a TOP-LEVEL ARRAY of custom model entries — the
@@ -106,8 +106,8 @@ export class WorkBuddyAdapter extends BaseAdapter {
   }
 
   private async readManaged(): Promise<ManagedModels> {
-    const local = await readOwnership();
-    if (local) return local;
+    const owned = await readOwnership();
+    if (owned) return owned;
     const config = await loadUserConfig();
     const sites = config.agentProviders?.workbuddy?.sites || {};
     if (Object.keys(sites).length > 0) {

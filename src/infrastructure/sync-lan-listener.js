@@ -316,9 +316,11 @@ function createLanListener({ core, homeDir = os.homedir }) {
     }
     const result = await startLanSyncServer(port, lan.token);
     if (result.running && result.port !== port) {
-      // The store rechecks the token against its queue-fresh LAN state, so a
-      // concurrently disabled or rotated listener cannot be resurrected.
-      await core.recordLanListenerPort({ expectedToken: lan.token, port: result.port });
+      await core.setLanField('port', result.port);
+      const localPlatform = config.sync.platforms?.lan;
+      if (localPlatform?.baseUrl && /^http:\/\/(127\.0\.0\.1|localhost)(?::\d+)?$/i.test(localPlatform.baseUrl)) {
+        await core.setPlatformField('lan', 'baseUrl', `http://127.0.0.1:${result.port}`);
+      }
     }
     return result;
   }

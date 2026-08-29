@@ -43,7 +43,7 @@ vi.mock('../../src/providers/registry', () => ({
 vi.mock('../../src/providers/auth', () => ({ checkAuthStatus: vi.fn() }));
 vi.mock('../../src/config/user', () => ({
   loadUserConfig: vi.fn(async () => ({ modelOverrides: { gateway: { 'canonical-model': { context: 64000 } } } })),
-  applyAgentBinding: vi.fn(async () => undefined),
+  replaceAgentProviderState: vi.fn(async () => undefined),
 }));
 vi.mock('../../src/providers/snapshots', () => ({ capturePreSwitchSnapshot: vi.fn(async () => undefined) }));
 vi.mock('../../src/vault/store', () => ({ VaultStore: vi.fn() }));

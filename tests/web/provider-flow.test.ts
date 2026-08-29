@@ -143,37 +143,34 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
       const fse=require('fs-extra');
       const api=require(path.join(process.argv[1], 'src/web/api/providers.js'));
       const settings=require(path.join(process.argv[1], 'src/web/api/settings.js'));
-      const user=require(path.join(process.argv[1], 'src/config/user.ts'));
       const sync=require(path.join(process.argv[1], 'src/web/api/cloud-sync-core.js'));
       const call=(handler, req)=>new Promise((resolve,reject)=>handler(req,{status(c){this.code=c;return this},json(v){(this.code||200)>=400?reject(new Error(v.error)):resolve(v)}}));
       (async()=>{
         const userPath=path.join(process.env.HOME,'.okit','user.json');
         await call(api.createProvider,{body:{id:'race-open',name:'Race Open',type:'openai',baseUrl:'https://race.test/v1',authMode:'none',models:[{id:'one'}]}});
         fs.mkdirSync(path.dirname(userPath),{recursive:true}); fs.writeFileSync(userPath,'{}');
-        const originalReadFile=fse.readFile;
+        const originalReadJson=fse.readJson;
         let reached; const reachedRead=new Promise(resolve=>{reached=resolve});
         let release; const allowRead=new Promise(resolve=>{release=resolve});
         let block=true;
-        fse.readFile=async (file,...args)=>{
+        fse.readJson=async (file,...args)=>{
           if(block&&file===userPath){block=false;reached();await allowRead;}
-          return originalReadFile(file,...args);
+          return originalReadJson(file,...args);
         };
-        const settingsSave=call(settings.updateSettings,{body:{sync:{platforms:{cloudflare:{enabled:true}}}}});
+        const settingsSave=call(settings.updateSettings,{body:{operations:[{kind:'platform',platformId:'cloudflare',field:'enabled',value:true}]}});
         await reachedRead;
-        const overridesWrite=user.patchModelOverrides('race-open',{one:{context:777,output:333}});
         const agentWrite=call(api.configureAgentProvider,{params:{agentId:'codex',providerId:'race-open'},body:{modelIds:['one'],primaryModelId:'one'}});
-        const syncWrite=sync.recordSyncSuccess({machineId:'race-machine',lastRemote:{},changedAt:'2026-08-29T01:00:00.000Z',lastSyncPlatform:'cloudflare'});
-        const networkWrite=Promise.all([sync.setLanField('enabled',true),sync.setLanField('port',3790),sync.setSyncPlatformField('webdav','enabled',true),sync.setSyncPlatformField('webdav','url','https://sync.example.test')]);
+        const syncWrite=sync.recordSyncPush('race-machine','2026-08-29T01:00:00.000Z','cloudflare');
+        const networkWrite=Promise.all([sync.setLanField('enabled',true),sync.setLanField('port',3790),sync.setPlatformField('webdav','enabled',true),sync.setPlatformField('webdav','url','https://sync.example.test')]);
         release();
-        await Promise.all([settingsSave,overridesWrite,agentWrite,syncWrite,networkWrite]);
-        fse.readFile=originalReadFile;
+        await Promise.all([settingsSave,agentWrite,syncWrite,networkWrite]);
+        fse.readJson=originalReadJson;
         console.log(JSON.stringify(JSON.parse(fs.readFileSync(userPath,'utf8'))));
       })().catch(error=>{console.error(error.stack);process.exit(1)});
     `;
-    const result = JSON.parse(execFileSync(process.execPath, ['-r', 'ts-node/register', '-e', script, root], {
+    const result = JSON.parse(execFileSync(process.execPath, ['-r', 'ts-node/register/transpile-only', '-e', script, root], {
       env: { ...process.env, HOME: home, USERPROFILE: home }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
     }).trim());
-    expect(result.modelOverrides['race-open'].one).toEqual({ context: 777, output: 333 });
     expect(result.agentProviders.codex.sites['race-open'].modelIds).toEqual(['one']);
     expect(result.sync.platforms.cloudflare.enabled).toBe(true);
     expect(result.sync.platforms.webdav).toEqual({ enabled: true, url: 'https://sync.example.test' });
@@ -192,19 +189,18 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
     const script = `
       const fs=require('fs'), path=require('path');
       const sync=require(path.join(process.argv[1], 'src/web/api/cloud-sync-core.js'));
-      const user=require(path.join(process.argv[1], 'src/config/user.ts'));
       (async()=>{
         const dir=path.join(process.env.HOME,'.okit'); fs.mkdirSync(dir,{recursive:true});
         const userPath=path.join(dir,'user.json');
         fs.writeFileSync(userPath,JSON.stringify({providers:{codex:{providerId:'legacy-site',modelId:'legacy-model'}},sync:{localChangedAt:{providers:'old'}}}));
         await Promise.all([
-          sync.recordSyncObservation({machineId:'legacy-machine',observedAt:'2026-08-29T02:00:00.000Z',lastSyncPlatform:'webdav'}),
-          user.patchModelOverrides('legacy-site',{'legacy-model':{context:123456}}),
+          sync.recordSyncPush('legacy-machine','2026-08-29T02:00:00.000Z','webdav'),
+          sync.replaceAgentState('codex',{activeProviderId:'legacy-site',activeModelId:'legacy-model',sites:{'legacy-site':{modelIds:['legacy-model']}}}),
         ]);
         console.log(fs.readFileSync(userPath,'utf8'));
       })().catch(error=>{console.error(error.stack);process.exit(1)});
     `;
-    const result = JSON.parse(execFileSync(process.execPath, ['-r', 'ts-node/register', '-e', script, root], {
+    const result = JSON.parse(execFileSync(process.execPath, ['-r', 'ts-node/register/transpile-only', '-e', script, root], {
       env: { ...process.env, HOME: home, USERPROFILE: home }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
     }));
     expect(result.providers).toBeUndefined();
@@ -212,9 +208,12 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
       activeProviderId: 'legacy-site', activeModelId: 'legacy-model',
       sites: { 'legacy-site': { modelIds: ['legacy-model'] } },
     });
-    expect(result.modelOverrides['legacy-site']['legacy-model'].context).toBe(123456);
+    expect(result.modelOverrides).toBeUndefined();
     expect(result.sync.lastSyncAt).toBe('2026-08-29T02:00:00.000Z');
-    expect(result.sync.localChangedAt.providers).toBe('old');
+    // The queued agent write legitimately refreshes the provider dirty marker
+    // past the legacy value; the writer must never roll it back to 'old'.
+    expect(result.sync.localChangedAt.providers).not.toBe('old');
+    expect(Number.isNaN(Date.parse(result.sync.localChangedAt.providers))).toBe(false);
   });
 
   it('uses real refresh, preview, home, tier-map, offline, and deletion API paths in a temporary HOME', () => {

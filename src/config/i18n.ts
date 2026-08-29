@@ -1,4 +1,4 @@
-import { loadUserConfig, patchUserPreferences } from "./user";
+import { loadUserConfig, setUserPreference } from "./user";
 
 export type Language = "zh" | "en";
 
@@ -198,7 +198,7 @@ export async function loadLanguageConfig(): Promise<Language | null> {
 // 保存语言配置
 export async function saveLanguageConfig(lang: Language): Promise<void> {
   try {
-    await patchUserPreferences({ language: lang });
+    await setUserPreference("language", lang);
   } catch {
     // 保存失败静默处理
   }

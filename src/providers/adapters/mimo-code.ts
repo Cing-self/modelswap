@@ -116,7 +116,7 @@ export class MimoCodeAdapter extends BaseAdapter {
     }
   }
 
-  private async saveConfig(data: Record<string, any>): Promise<void> {
+  private async writeNativeConfig(data: Record<string, any>): Promise<void> {
     await fs.ensureDir(MIMO_CODE_DIR);
     await atomicWrite(MIMO_CODE_CONFIG_PATH, JSON.stringify(data, null, 2) + "\n");
   }
@@ -148,7 +148,7 @@ export class MimoCodeAdapter extends BaseAdapter {
     (data.provider as Record<string, any>)[provider.id] = providerEntry;
     data.model = `${provider.id}/${modelId}`;
 
-    await this.saveConfig(data);
+    await this.writeNativeConfig(data);
   }
 
   // Additive (multi-site): write one site's provider entry without touching
@@ -189,7 +189,7 @@ export class MimoCodeAdapter extends BaseAdapter {
       written.push(modelId);
     }
 
-    await this.saveConfig(data);
+    await this.writeNativeConfig(data);
     return { written, skipped: [] };
   }
 
@@ -211,6 +211,6 @@ export class MimoCodeAdapter extends BaseAdapter {
     if (typeof data.model === "string" && data.model.split("/")[0] === providerId) {
       delete data.model;
     }
-    await this.saveConfig(data);
+    await this.writeNativeConfig(data);
   }
 }
