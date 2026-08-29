@@ -319,6 +319,22 @@ describe('CodexAdapter.applyConfig', () => {
     expect(removeStaleModelsTable('model = "glm-5.3"')).toBe('model = "glm-5.3"');
   });
 
+  it('strips the subscription-only service_tier when applying a third-party provider', async () => {
+    mocks.files.set(CODEX_CONFIG, [
+      'model = "old"',
+      'service_tier = "priority"',
+      '[model_providers.okit-custom-openai]',
+      'base_url = "https://custom.api.com/v1"',
+    ].join('\n'));
+    const adapter = new CodexAdapter();
+    await adapter.applyConfig(customProvider, 'my-model');
+    const toml = mocks.files.get(CODEX_CONFIG)!;
+    // `service_tier` only applies to the official subscription; keeping it on a
+    // third-party model makes Codex warn about an omitted tier every launch.
+    expect(toml).not.toContain('service_tier');
+    expect(toml).toContain('model = "my-model"');
+  });
+
   it('replaces legacy OpenAI-auth residue with scoped provider authentication', async () => {
     mocks.files.set(CODEX_CONFIG, [
       'model = "old"',

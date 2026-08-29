@@ -95,6 +95,9 @@ export class CodexAdapter extends BaseAdapter {
       toml = upsertTopLevelTomlKey(toml, "disable_response_storage", String(codexMapping.thirdPartyDefaults.disableResponseStorage));
       toml = upsertTopLevelTomlKey(toml, "web_search", tomlString(codexMapping.thirdPartyDefaults.webSearch));
       toml = removeTopLevelTomlKey(toml, "api_base");
+      // `service_tier` only applies to the official ChatGPT subscription; on a
+      // third-party model Codex warns it will omit the tier on every request.
+      toml = removeTopLevelTomlKey(toml, "service_tier");
 
       // Codex dropped support for wire_api = "chat" — "responses" is required.
       // base_url normalization appends /v1 for origin-only URLs. Authentication
