@@ -68,7 +68,15 @@ async function updateSettings(req, res) {
     const prevLan = JSON.stringify(previous.sync?.lan || null);
     // Only request-owned sync fields are handed to the semantic store entry;
     // it reads the queue-fresh config before merging them.
-    const config = await syncCore.updateSettingsSync(mergeSensitive(previous.sync, sync));
+    const merged = mergeSensitive(previous.sync, sync);
+    for (const key of ['autoSync', 'password', 'syncPlatform']) {
+      if (Object.prototype.hasOwnProperty.call(merged, key)) await syncCore.setSyncSetting(key, merged[key]);
+    }
+    for (const [platformId, fields] of Object.entries(merged.platforms || {})) {
+      for (const [field, value] of Object.entries(fields || {})) await syncCore.setSyncPlatformField(platformId, field, value);
+    }
+    for (const [field, value] of Object.entries(merged.lan || {})) await syncCore.setLanField(field, value);
+    const config = await loadConfig();
     const changes = [];
     if (sync) changes.push(...Object.keys(sync.platforms || {}));
     appendLog('settings-update', changes.join(',') || 'settings', true);

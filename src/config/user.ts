@@ -141,7 +141,11 @@ export async function loadUserConfig(): Promise<UserConfig> {
       return migrated;
     }
     const syncCore = require("../web/api/cloud-sync-core");
-    return syncCore.initializeLegacyConfig(migrated);
+    if (migrated.language) await syncCore.updateUserPreferences({ language: migrated.language });
+    for (const [agentId, selection] of Object.entries(migrated.agentProviders || {})) {
+      await syncCore.applyAgentBinding(agentId, selection);
+    }
+    return syncCore.loadConfig();
   }
   return {};
 }

@@ -163,7 +163,7 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
         const overridesWrite=user.patchModelOverrides('race-open',{one:{context:777,output:333}});
         const agentWrite=call(api.configureAgentProvider,{params:{agentId:'codex',providerId:'race-open'},body:{modelIds:['one'],primaryModelId:'one'}});
         const syncWrite=sync.recordSyncSuccess({machineId:'race-machine',lastRemote:{},changedAt:'2026-08-29T01:00:00.000Z',lastSyncPlatform:'cloudflare'});
-        const networkWrite=sync.updateSettingsSync({lan:{enabled:true,port:3790},platforms:{webdav:{enabled:true,url:'https://sync.example.test'}}});
+        const networkWrite=Promise.all([sync.setLanField('enabled',true),sync.setLanField('port',3790),sync.setSyncPlatformField('webdav','enabled',true),sync.setSyncPlatformField('webdav','url','https://sync.example.test')]);
         release();
         await Promise.all([settingsSave,overridesWrite,agentWrite,syncWrite,networkWrite]);
         fse.readFile=originalReadFile;

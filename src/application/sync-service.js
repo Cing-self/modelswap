@@ -18,9 +18,14 @@ function createSyncService({
   publishDataChanged,
   reconcilePulledAgentProviders,
   resolvePrimaryTarget,
-  applyPulledSyncState,
-  importSyncPlatform,
+  applyPulledSyncMetadata,
+  applyPulledAgentSite,
+  applyPulledAgentActive,
+  applyPulledModelOverrideField,
+  setSyncPlatformField,
+  setSyncSetting,
   recordSyncSuccess,
+  shouldApplyRemoteSection,
 }) {
   async function peekRemote() {
     const config = await loadConfig();
@@ -165,15 +170,23 @@ function createSyncService({
 
     // The wire payload is an intent only. The store re-evaluates conflict
     // timestamps after earlier queued writes have finished.
-    const applied = await applyPulledSyncState({
+    const localBefore = await loadConfig();
+    const providersApplied = shouldApplyRemoteSection(remoteUpdated, localBefore.sync?.localChangedAt?.providers);
+    const agentProvidersApplied = Boolean(remoteData.settings?.agentProviders) && shouldApplyRemoteSection(remoteUpdated, localBefore.sync?.localChangedAt?.agentProviders);
+    const modelOverridesApplied = Boolean(remoteData.settings?.modelOverrides) && shouldApplyRemoteSection(remoteUpdated, localBefore.sync?.localChangedAt?.modelOverrides);
+    await applyPulledSyncMetadata({
       remoteUpdated,
       remoteMachineId: remoteData.machineId,
       remoteFrom,
-      agentProviders: remoteData.settings?.agentProviders,
-      modelOverrides: remoteData.settings?.modelOverrides,
     });
-    const committedConfig = applied.config;
-    const { providersApplied, agentProvidersApplied, modelOverridesApplied } = applied;
+    if (agentProvidersApplied) {
+      for (const [agentId, selection] of Object.entries(remoteData.settings.agentProviders)) {
+        for (const [providerId, site] of Object.entries(selection?.sites || {})) await applyPulledAgentSite({ remoteUpdated, agentId, providerId, modelIds: site.modelIds || [], enabled: site.enabled, tierMap: site.tierMap });
+        if (selection?.activeProviderId && selection?.activeModelId) await applyPulledAgentActive({ remoteUpdated, agentId, providerId: selection.activeProviderId, modelId: selection.activeModelId });
+      }
+    }
+    if (modelOverridesApplied) for (const [providerId, models] of Object.entries(remoteData.settings.modelOverrides)) for (const [modelId, fields] of Object.entries(models || {})) for (const [field, value] of Object.entries(fields || {})) await applyPulledModelOverrideField({ remoteUpdated, providerId, modelId, field, value });
+    const committedConfig = await loadConfig();
     // Provider sites must exist before local discovery/reconciliation, but
     // their user.json conflict decision was made in the queued mutation above.
     const providers = providersApplied
@@ -268,11 +281,12 @@ function createSyncService({
       );
     }
 
-    await importSyncPlatform({
-      password,
-      platformId: payload.syncPlatform,
-      platformConfig: payload.platformConfig,
-    });
+    await setSyncSetting('password', password);
+    await setSyncSetting('syncPlatform', payload.syncPlatform);
+    for (const [field, value] of Object.entries(payload.platformConfig)) {
+      await setSyncPlatformField(payload.syncPlatform, field, value);
+    }
+    await setSyncPlatformField(payload.syncPlatform, 'enabled', true);
     appendLog('sync-code-import', payload.syncPlatform, true, `${secrets.length} secrets`);
     publishDataChanged(['config', 'secrets']);
     return { platform: payload.syncPlatform, secrets: secrets.length };

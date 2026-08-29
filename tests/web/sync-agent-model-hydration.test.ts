@@ -90,7 +90,7 @@ describe('sync pull agent model hydration', { timeout: 30000 }, () => {
         user.sync={password:'shared-secret',platforms:{supabase:{enabled:true,projectId:'project',apiToken:'token'}}};
         // Bootstrap through ownership-scoped queue writes; a direct fs write
         // can race a queued user-config migration in parallel Vitest files.
-        await sync.updateSettingsSync(user.sync);
+        await sync.setSyncSetting('password','shared-secret'); await sync.setSyncPlatformField('supabase','enabled',true); await sync.setSyncPlatformField('supabase','projectId','project'); await sync.setSyncPlatformField('supabase','apiToken','token');
         for(const [agentId,selection] of Object.entries(user.agentProviders)) await sync.applyAgentBinding(agentId,selection);
         await sync.syncPush();
       })().catch(error=>{console.error(error.stack);process.exit(1)});
@@ -123,7 +123,7 @@ describe('sync pull agent model hydration', { timeout: 30000 }, () => {
           const now=new Date().toISOString();
           fs.mkdirSync(path.dirname(catalogPath),{recursive:true});
           fs.writeFileSync(catalogPath,JSON.stringify({source:'models.dev',version:2,generation:1,sourceFetchedAt:now,cachedAt:now,status:'fresh',data:{'qianfan-coding':{api:'${origin}/v2',models:{'glm-5.1':{limit:{context:123456,output:8192},reasoning:true},'catalog-only':{limit:{context:999999}}}}}}));
-          await sync.updateSettingsSync({password:'shared-secret',platforms:{supabase:{enabled:true,projectId:'project',apiToken:'token'}}});
+          await sync.setSyncSetting('password','shared-secret'); await sync.setSyncPlatformField('supabase','enabled',true); await sync.setSyncPlatformField('supabase','projectId','project'); await sync.setSyncPlatformField('supabase','apiToken','token');
           const before={providers:fs.existsSync(providersPath),cache:fs.existsSync(cachePath)};
           const first=await sync.syncPull();
           const providersAfterFirst=fs.readFileSync(providersPath,'utf8');

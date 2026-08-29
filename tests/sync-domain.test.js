@@ -135,13 +135,14 @@ describe('sync pull orchestration', () => {
         return [];
       },
       resolvePrimaryTarget: async () => ({ id: 'memory' }),
-      applyPulledSyncState: async ({ agentProviders, modelOverrides }) => {
-        if (agentProviders) config.agentProviders = agentProviders;
-        if (modelOverrides) config.modelOverrides = modelOverrides;
+      applyPulledSyncMetadata: async () => {
         order.push('config');
-        return { config, providersApplied: true, agentProvidersApplied: true, modelOverridesApplied: true };
       },
+      applyPulledAgentSite: async ({ agentId, providerId, modelIds }) => { config.agentProviders[agentId] = { ...(config.agentProviders[agentId] || { sites: {} }), activeProviderId: providerId, activeModelId: modelIds[0], sites: { ...(config.agentProviders[agentId]?.sites || {}), [providerId]: { modelIds } } }; },
+      applyPulledAgentActive: async ({ agentId, providerId, modelId }) => { config.agentProviders[agentId] = { ...config.agentProviders[agentId], activeProviderId: providerId, activeModelId: modelId }; },
+      applyPulledModelOverrideField: async ({ providerId, modelId, field, value }) => { config.modelOverrides[providerId] = { ...(config.modelOverrides[providerId] || {}), [modelId]: { ...(config.modelOverrides[providerId]?.[modelId] || {}), [field]: value } }; },
       recordSyncSuccess: async () => order.push('config'),
+      shouldApplyRemoteSection: () => true,
     });
 
     const result = await service.syncPull();

@@ -177,11 +177,6 @@ function createSyncConfigStore({
     });
   }
 
-  async function initializeLegacyConfig(migrated) {
-    if (!migrated || typeof migrated !== 'object' || Array.isArray(migrated)) throw new Error('Invalid legacy config');
-    return commitMutation('legacy-init', live => ({ ...live, ...migrated }));
-  }
-
   async function setOnboardingDismissed(dismissed) {
     if (typeof dismissed !== 'boolean') throw new Error('Invalid onboarding state');
     return commitMutation('onboarding', live => {
@@ -192,27 +187,12 @@ function createSyncConfigStore({
     });
   }
 
-  async function updateSettingsSync(update) {
-    const allowed = new Set(['autoSync', 'password', 'syncPlatform', 'platforms', 'lan']);
-    if (!update || typeof update !== 'object' || Object.keys(update).some(key => !allowed.has(key))) {
-      throw new Error('Invalid settings update');
-    }
-    return commitMutation('settings-sync', live => {
-      const current = live.sync || {};
-      const sync = { ...current };
-      for (const key of ['autoSync', 'password', 'syncPlatform']) {
-        if (Object.prototype.hasOwnProperty.call(update, key)) sync[key] = update[key];
-      }
-      if (update.lan && typeof update.lan === 'object') sync.lan = { ...(current.lan || {}), ...update.lan };
-      if (update.platforms && typeof update.platforms === 'object') {
-        sync.platforms = { ...(current.platforms || {}) };
-        for (const [id, fieldPatch] of Object.entries(update.platforms)) {
-          if (!fieldPatch || typeof fieldPatch !== 'object') throw new Error('Invalid platform settings');
-          sync.platforms[id] = { ...(current.platforms?.[id] || {}), ...fieldPatch };
-        }
-      }
-      return { ...live, sync };
-    });
+  async function setLanField(field, value) {
+    const valid = field === 'enabled' ? typeof value === 'boolean'
+      : field === 'port' ? Number.isInteger(value) && value > 0 && value < 65536
+      : ['token'].includes(field) && typeof value === 'string' && value;
+    if (!valid) throw new Error('Invalid LAN field');
+    return commitMutation(`lan-field:${field}`, live => ({ ...live, sync: { ...(live.sync || {}), lan: { ...(live.sync?.lan || {}), [field]: value } } }));
   }
 
   async function enableLan({ port, token }) {
@@ -310,38 +290,33 @@ function createSyncConfigStore({
     }) }));
   }
 
-  async function importSyncPlatform({ password, platformId, platformConfig }) {
-    if (typeof password !== 'string' || !password || typeof platformId !== 'string' || !platformId || !platformConfig || typeof platformConfig !== 'object' || Array.isArray(platformConfig)) {
-      throw new Error('Invalid sync-code platform');
-    }
-    return commitMutation('sync-code-import', live => ({
-      ...live,
-      sync: {
-        ...(live.sync || {}),
-        password,
-        syncPlatform: platformId,
-        platforms: { ...(live.sync?.platforms || {}), [platformId]: { ...platformConfig, enabled: true } },
-      },
-    }));
+  function validRemoteMeta(remoteUpdated, remoteFrom) {
+    return Number.isFinite(Date.parse(remoteUpdated)) && typeof remoteFrom === 'string' && remoteFrom;
   }
-
-  async function applyPulledSyncState({ remoteUpdated, remoteMachineId, remoteFrom, agentProviders, modelOverrides }) {
-    if (!Number.isFinite(Date.parse(remoteUpdated)) || typeof remoteFrom !== 'string' || !remoteFrom) throw new Error('Invalid pulled sync state');
-    let applied = {};
-    const config = await commitMutation('sync-pull', live => {
-      const localChangedAt = live.sync?.localChangedAt || {};
-      const shouldApply = value => !value || !localChangedAt[value] || Date.parse(remoteUpdated) >= Date.parse(localChangedAt[value]);
-      const applyAgents = agentProviders && shouldApply('agentProviders');
-      const applyOverrides = modelOverrides && shouldApply('modelOverrides');
-      applied = { providersApplied: shouldApply('providers'), agentProvidersApplied: Boolean(applyAgents), modelOverridesApplied: Boolean(applyOverrides) };
-      return {
-        ...live,
-        ...(applyAgents ? { agentProviders } : {}),
-        ...(applyOverrides ? { modelOverrides } : {}),
-        sync: mergeSyncConfig(live.sync, { machineId: live.sync?.machineId || require('crypto').randomUUID(), lastRemote: { updatedAt: remoteUpdated, machineId: remoteMachineId || null }, lastSyncAt: new Date().toISOString(), lastSyncPlatform: remoteFrom }),
-      };
+  async function applyPulledSyncMetadata({ remoteUpdated, remoteMachineId, remoteFrom }) {
+    if (!validRemoteMeta(remoteUpdated, remoteFrom) || (remoteMachineId !== null && remoteMachineId !== undefined && typeof remoteMachineId !== 'string')) throw new Error('Invalid pulled sync metadata');
+    return commitMutation('sync-pull-metadata', live => ({ ...live, sync: mergeSyncConfig(live.sync, { machineId: live.sync?.machineId || require('crypto').randomUUID(), lastRemote: { updatedAt: remoteUpdated, machineId: remoteMachineId || null }, lastSyncAt: new Date().toISOString(), lastSyncPlatform: remoteFrom }) }));
+  }
+  async function applyPulledAgentSite({ remoteUpdated, agentId, providerId, modelIds, enabled, tierMap }) {
+    if (!Number.isFinite(Date.parse(remoteUpdated)) || ![agentId, providerId].every(value => typeof value === 'string' && value) || !Array.isArray(modelIds) || modelIds.some(id => typeof id !== 'string') || (enabled !== undefined && typeof enabled !== 'boolean') || (tierMap !== undefined && (!tierMap || typeof tierMap !== 'object' || Array.isArray(tierMap)))) throw new Error('Invalid pulled agent site');
+    return commitMutation('sync-pull-agent-site', live => {
+      if (Date.parse(remoteUpdated) < Date.parse(live.sync?.localChangedAt?.agentProviders || 0)) return live;
+      return { ...live, agentProviders: mergeAgentProviderSelections(live.agentProviders, { [agentId]: { sites: { [providerId]: { modelIds, ...(enabled === undefined ? {} : { enabled }), ...(tierMap === undefined ? {} : { tierMap }) } } } }) };
     });
-    return { config, ...applied };
+  }
+  async function applyPulledAgentActive({ remoteUpdated, agentId, providerId, modelId }) {
+    if (!Number.isFinite(Date.parse(remoteUpdated)) || ![agentId, providerId, modelId].every(value => typeof value === 'string' && value)) throw new Error('Invalid pulled agent active model');
+    return commitMutation('sync-pull-agent-active', live => {
+      if (Date.parse(remoteUpdated) < Date.parse(live.sync?.localChangedAt?.agentProviders || 0)) return live;
+      return { ...live, agentProviders: mergeAgentProviderSelections(live.agentProviders, { [agentId]: { activeProviderId: providerId, activeModelId: modelId, sites: {} } }) };
+    });
+  }
+  async function applyPulledModelOverrideField({ remoteUpdated, providerId, modelId, field, value }) {
+    if (!Number.isFinite(Date.parse(remoteUpdated)) || ![providerId, modelId, field].every(item => typeof item === 'string' && item) || value === undefined || (value && typeof value === 'object')) throw new Error('Invalid pulled model override');
+    return commitMutation('sync-pull-model-override', live => {
+      if (Date.parse(remoteUpdated) < Date.parse(live.sync?.localChangedAt?.modelOverrides || 0)) return live;
+      return { ...live, modelOverrides: mergeModelOverrides(live.modelOverrides, { [providerId]: { [modelId]: { [field]: value } } }) };
+    });
   }
 
   async function removeProviderConfiguration(providerId) {
@@ -371,9 +346,8 @@ function createSyncConfigStore({
     setModelOverrideField,
     updateUserPreferences,
     applyLegacyMigration,
-    initializeLegacyConfig,
     setOnboardingDismissed,
-    updateSettingsSync,
+    setLanField,
     enableLan,
     disableLan,
     rotateLanToken,
@@ -381,8 +355,10 @@ function createSyncConfigStore({
     recordLanListenerPort,
     recordSyncSuccess,
     recordSyncObservation,
-    importSyncPlatform,
-    applyPulledSyncState,
+    applyPulledSyncMetadata,
+    applyPulledAgentSite,
+    applyPulledAgentActive,
+    applyPulledModelOverrideField,
     removeProviderConfiguration,
   };
 }
