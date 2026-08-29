@@ -75,8 +75,8 @@ describe('sync provider vault-reference reconciliation', { timeout: 30000 }, () 
         const glmRef=(await store.getProvider('glm-coding')).vaultKey;
         await call(api.fetchModels,{body:{providerId:provider.id}});
         const config={sync:{password:'shared-secret',platforms:{supabase:{enabled:true,projectId:'project',apiToken:'token'}}},agentProviders:{codex:{activeProviderId:provider.id,activeModelId:remote,sites:{[provider.id]:{modelIds:[remote]}}}}};
-        await sync.patchSyncConfig(config.sync);
-        for(const [agentId,selection] of Object.entries(config.agentProviders)) await sync.patchAgentSelection(agentId,selection);
+        await sync.updateSettingsSync(config.sync);
+        for(const [agentId,selection] of Object.entries(config.agentProviders)) await sync.applyAgentBinding(agentId,selection);
         await sync.syncPush();
         const projection=await store.loadProviderSitesForSync(); const payload=fs.readFileSync(process.env.OKIT_SYNC_BLOB,'utf8');
         await new Promise(resolve=>server.close(resolve));
@@ -90,7 +90,7 @@ describe('sync provider vault-reference reconciliation', { timeout: 30000 }, () 
         // Reconciliation must actively remove this obsolete official-OAuth
         // flag from a third-party table and install only scoped Vault auth.
         fs.writeFileSync(path.join(home,'.codex','config.toml'),'[model_providers.okit-sync-vault-provider]\\nrequires_openai_auth = true\\n');
-        await sync.patchSyncConfig({password:'shared-secret',platforms:{supabase:{enabled:true,projectId:'project',apiToken:'token'}}});
+        await sync.updateSettingsSync({password:'shared-secret',platforms:{supabase:{enabled:true,projectId:'project',apiToken:'token'}}});
         const result=await sync.syncPull();
         const providerAfter=await store.getProvider(provider.id);
         const cache=await store.loadModelsCache();

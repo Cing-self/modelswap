@@ -372,17 +372,11 @@ describe('KimiCodeAdapter.applyConfig (v2 config format)', () => {
     expect(toml).toContain('default_model = "okit-custom-openai-my-model"');
   });
 
-  it('records selection in user.json under "kimi-code" key', async () => {
+  it('does not persist user config from the native adapter', async () => {
     const adapter = new KimiCodeAdapter();
     await adapter.applyConfig(customProvider, 'my-model');
 
-    expect(patchAgentSelection).toHaveBeenCalledWith(
-      'kimi-code',
-      expect.objectContaining({
-            activeProviderId: 'custom-openai', activeModelId: 'my-model',
-            sites: { 'custom-openai': { modelIds: ['my-model'] } },
-      }),
-    );
+    expect(patchAgentSelection).not.toHaveBeenCalled();
   });
 });
 

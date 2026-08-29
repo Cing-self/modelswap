@@ -162,8 +162,8 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
         await reachedRead;
         const overridesWrite=user.patchModelOverrides('race-open',{one:{context:777,output:333}});
         const agentWrite=call(api.configureAgentProvider,{params:{agentId:'codex',providerId:'race-open'},body:{modelIds:['one'],primaryModelId:'one'}});
-        const syncWrite=sync.patchSyncConfig({lastSyncAt:'2026-08-29T01:00:00.000Z',localChangedAt:{providers:'2026-08-29T01:00:00.000Z'}});
-        const networkWrite=user.patchSyncConfig({lan:{enabled:true,port:3790},platforms:{webdav:{enabled:true,url:'https://sync.example.test'}}});
+        const syncWrite=sync.recordSyncSuccess({machineId:'race-machine',lastRemote:{},changedAt:'2026-08-29T01:00:00.000Z',lastSyncPlatform:'cloudflare'});
+        const networkWrite=sync.updateSettingsSync({lan:{enabled:true,port:3790},platforms:{webdav:{enabled:true,url:'https://sync.example.test'}}});
         release();
         await Promise.all([settingsSave,overridesWrite,agentWrite,syncWrite,networkWrite]);
         fse.readFile=originalReadFile;
@@ -198,7 +198,7 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
         const userPath=path.join(dir,'user.json');
         fs.writeFileSync(userPath,JSON.stringify({providers:{codex:{providerId:'legacy-site',modelId:'legacy-model'}},sync:{localChangedAt:{providers:'old'}}}));
         await Promise.all([
-          sync.mutateConfig('test',config=>({...config,sync:{...config.sync,lastSyncAt:'2026-08-29T02:00:00.000Z'}})),
+          sync.recordSyncObservation({machineId:'legacy-machine',observedAt:'2026-08-29T02:00:00.000Z',lastSyncPlatform:'webdav'}),
           user.patchModelOverrides('legacy-site',{'legacy-model':{context:123456}}),
         ]);
         console.log(fs.readFileSync(userPath,'utf8'));

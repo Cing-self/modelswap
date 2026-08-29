@@ -76,6 +76,8 @@ const { ZCodeAdapter } = await import('../../../src/providers/adapters/zcode');
 const { loadUserConfig } = await import('../../../src/config/user');
 
 const CONFIG_PATH = path.join(os.homedir(), '.zcode', 'v2', 'config.json');
+const OWNERSHIP_PATH = path.join(os.homedir(), '.zcode', 'v2', '.okit-managed.json');
+const readOwnership = () => JSON.parse(mocks.files.get(OWNERSHIP_PATH) || '{}');
 
 const testProvider = {
   id: 'deepseek',
@@ -219,16 +221,12 @@ describe('ZCodeAdapter.applyConfig (v2 config schema)', () => {
     expect(written.provider.deepseek.options.apiKey).toBe('sk-test-123');
   });
 
-  it('records selection + managedModels in user.json', async () => {
+  it('records local ownership without writing user.json', async () => {
     const adapter = new ZCodeAdapter();
     await adapter.applyConfig(testProvider, 'deepseek-chat');
 
-    const config = await loadUserConfig();
-    expect(config.providers.zcode).toEqual({
-      providerId: 'deepseek',
-      modelId: 'deepseek-chat',
-      managedModels: { deepseek: ['deepseek-chat'] },
-    });
+    expect(readOwnership()).toEqual({ deepseek: ['deepseek-chat'] });
+    expect((await loadUserConfig()).providers?.zcode).toBeUndefined();
   });
 
   it('adds opencode UA headers for opencode.ai gateway endpoints', async () => {
@@ -348,7 +346,7 @@ describe('ZCodeAdapter.applyModels (additive home-site write)', () => {
     const config = await loadUserConfig();
     expect(config.providers.zcode.providerId).toBe('old');
     expect(config.providers.zcode.modelId).toBe('old-model');
-    expect(config.providers.zcode.managedModels.deepseek).toContain('deepseek-chat');
+    expect(readOwnership().deepseek).toContain('deepseek-chat');
   });
 });
 
@@ -381,10 +379,10 @@ describe('ZCodeAdapter.setProviderEnabled', () => {
     expect(written.provider.deepseek.models['deepseek-chat'].name).toBe('DeepSeek V4');
     expect(written.provider.deepseek.options.baseURL).toBe('https://api.deepseek.com');
 
-    // Current selection cleared (site no longer active) — managedModels kept.
+    // Desired selection is application-owned; native ownership remains local.
     const config = await loadUserConfig();
-    expect(config.providers.zcode.providerId).toBeUndefined();
-    expect(config.providers.zcode.managedModels.deepseek).toEqual(['deepseek-chat']);
+    expect(config.providers.zcode.providerId).toBe('deepseek');
+    expect(readOwnership().deepseek).toEqual(['deepseek-chat']);
   });
 
   it('re-enables by flipping enabled back to true', async () => {
@@ -485,8 +483,8 @@ describe('ZCodeAdapter.removeProvider', () => {
     expect(written.provider['builtin:bigmodel-coding-plan']).toBeDefined();
 
     const config = await loadUserConfig();
-    expect(config.providers.zcode.providerId).toBeUndefined();
-    expect(config.providers.zcode.managedModels.deepseek).toBeUndefined();
+    expect(config.providers.zcode.providerId).toBe('deepseek');
+    expect(readOwnership().deepseek).toBeUndefined();
   });
 
   it('is a no-op when the provider is not managed and not current', async () => {

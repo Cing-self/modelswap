@@ -34,7 +34,7 @@ vi.mock('../../src/config/registry', () => ({
   CACHE_DIR: testRoot.CACHE_DIR,
 }));
 
-const { loadUserConfig, patchUserPreferences, patchSyncConfig } = await import('../../src/config/user');
+const { loadUserConfig, patchUserPreferences } = await import('../../src/config/user');
 
 const CONFIG_PATH = testRoot.CONFIG_PATH;
 
@@ -79,12 +79,10 @@ describe('ownership-scoped config patches', () => {
     expect(result.language).toBe('zh');
   });
 
-  it('deep merges nested sync platforms', async () => {
-    mocks.files.set(CONFIG_PATH, JSON.stringify({
-      sync: { platforms: { supabase: { enabled: true } } },
-    }));
-    const result = await patchSyncConfig({ platforms: { cloudflare: { enabled: false } } } as any);
-    expect(result.sync!.platforms!.supabase!.enabled).toBe(true);
-    expect(result.sync!.platforms!.cloudflare!.enabled).toBe(false);
+  it('merges independent preference fields without accepting sync snapshots', async () => {
+    mocks.files.set(CONFIG_PATH, JSON.stringify({ language: 'zh', hints: { old: true } }));
+    const result = await patchUserPreferences({ hints: { mainHelpShown: true } });
+    expect(result.hints!.old).toBe(true);
+    expect(result.hints!.mainHelpShown).toBe(true);
   });
 });

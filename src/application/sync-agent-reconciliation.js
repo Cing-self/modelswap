@@ -56,7 +56,7 @@ function createPulledAgentReconciler({
       getAdapter: registry.getAdapter,
       loadProviders: providerStore.loadProviders,
       loadUserConfig: loadConfig,
-      patchAgentSelection: async () => {},
+      applyAgentBinding: async () => {},
       // Desired state was atomically committed by syncPull before hydration.
       // Reconciliation must not replay its earlier snapshot after native I/O.
       persistReconciledDesired: undefined,

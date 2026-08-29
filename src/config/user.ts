@@ -128,10 +128,7 @@ export async function loadUserConfig(): Promise<UserConfig> {
         // migration in the shared mutation queue instead of saving this stale
         // snapshot over unrelated user.json fields.
         const syncCore = require("../web/api/cloud-sync-core");
-        return syncCore.mutateConfig("legacy-migration", (live: UserConfig & Record<string, any>) => {
-          migrateAgentProviders(live);
-          return live;
-        });
+        return syncCore.applyLegacyMigration();
       }
     }
     return config;
@@ -144,7 +141,7 @@ export async function loadUserConfig(): Promise<UserConfig> {
       return migrated;
     }
     const syncCore = require("../web/api/cloud-sync-core");
-    return syncCore.mutateConfig("legacy-init", (live: UserConfig & Record<string, any>) => ({ ...live, ...migrated }));
+    return syncCore.initializeLegacyConfig(migrated);
   }
   return {};
 }
@@ -176,28 +173,26 @@ async function mergeTestPatch(patch: Partial<UserConfig>): Promise<UserConfig> {
 
 export async function patchUserPreferences(patch: Pick<UserConfig, "language" | "hints" | "git" | "repo">): Promise<UserConfig> {
   if (!Object.prototype.hasOwnProperty.call(fs.writeFile as object, "mock")) {
-    return require("../web/api/cloud-sync-core").patchUserPreferences(patch, "config-user");
+    return require("../web/api/cloud-sync-core").updateUserPreferences(patch);
   }
   return mergeTestPatch(patch);
 }
 
-export async function patchSyncConfig(patch: NonNullable<UserConfig["sync"]>): Promise<UserConfig> {
+export async function applyAgentBinding(agentId: string, selection: AgentProviderState | null): Promise<UserConfig> {
   if (!Object.prototype.hasOwnProperty.call(fs.writeFile as object, "mock")) {
-    return require("../web/api/cloud-sync-core").patchSyncConfig(patch, "config-user");
-  }
-  return mergeTestPatch({ sync: patch });
-}
-
-export async function patchAgentSelection(agentId: string, selection: AgentProviderState | null): Promise<UserConfig> {
-  if (!Object.prototype.hasOwnProperty.call(fs.writeFile as object, "mock")) {
-    return require("../web/api/cloud-sync-core").patchAgentSelection(agentId, selection, "config-user");
+    return require("../web/api/cloud-sync-core").applyAgentBinding(agentId, selection);
   }
   return mergeTestPatch({ agentProviders: { [agentId]: selection } as AgentProviders });
 }
 
 export async function patchModelOverrides(providerId: string, models: NonNullable<UserConfig["modelOverrides"]>[string]): Promise<UserConfig> {
   if (!Object.prototype.hasOwnProperty.call(fs.writeFile as object, "mock")) {
-    return require("../web/api/cloud-sync-core").patchModelOverrides(providerId, models, "config-user");
+    for (const [modelId, fields] of Object.entries(models || {})) {
+      for (const [field, value] of Object.entries(fields || {})) {
+        await require("../web/api/cloud-sync-core").setModelOverrideField(providerId, modelId, field, value);
+      }
+    }
+    return loadUserConfig();
   }
   return mergeTestPatch({ modelOverrides: { [providerId]: models } });
 }

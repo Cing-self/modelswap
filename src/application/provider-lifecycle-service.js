@@ -1,7 +1,7 @@
 // Provider persistence and removal orchestration. HTTP mapping remains with
 // the controller; this service owns the lifecycle mutations themselves.
 function createProviderLifecycleService(deps) {
-  const { loadProviders, saveProviders, loadUserConfig, mutateConfig, agentConfigService } = deps;
+  const { loadProviders, saveProviders, loadUserConfig, removeProviderConfiguration, agentConfigService } = deps;
 
   const fail = (message, status = 400) => Object.assign(new Error(message), { status });
 
@@ -78,21 +78,7 @@ function createProviderLifecycleService(deps) {
         agentProvidersChanged = true;
       }
       if (agentProvidersChanged || config.modelOverrides?.[id]) {
-        await mutateConfig('provider-delete', live => {
-          delete live.modelOverrides?.[id];
-          for (const [agentId, state] of Object.entries(live.agentProviders || {})) {
-            if (!state?.sites?.[id]) continue;
-            delete state.sites[id];
-            if (state.activeProviderId === id) {
-              delete state.activeProviderId;
-              delete state.activeModelId;
-            }
-            if (!Object.keys(state.sites || {}).length && !state.activeProviderId) {
-              delete live.agentProviders[agentId];
-            }
-          }
-          return live;
-        });
+        await removeProviderConfiguration(id);
       }
       return { success: true };
   }

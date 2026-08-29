@@ -47,7 +47,7 @@ function defaultDependencies() {
     getAdapter: registry.getAdapter,
     loadProviders: store.loadProviders,
     loadUserConfig: user.loadUserConfig,
-    patchAgentSelection: user.patchAgentSelection,
+    applyAgentBinding: user.applyAgentBinding,
     captureSnapshot: snapshots.capturePreSwitchSnapshot,
     restoreSnapshot: snapshots.restoreSnapshot,
     providerSupportsAdapter: routing.providerSupportsAdapter,
@@ -81,7 +81,7 @@ function createAgentConfigurationService(overrides = {}) {
     for (const key of ['activeProviderId', 'activeModelId']) {
       if (beforeState[key] && !selection[key]) selection[key] = null;
     }
-    await d.patchAgentSelection(agentId, selection);
+    await d.applyAgentBinding(agentId, selection);
   }
 
   function prepareWrite(provider, agentId, modelId, selectedIds, config, { allowCataloglessModel = false, preserveProviderModels = false } = {}) {

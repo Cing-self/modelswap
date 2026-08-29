@@ -21,7 +21,7 @@ Module.prototype.require = function (id) {
   return origRequire.apply(this, arguments);
 };
 
-const { loadConfig, patchSyncConfig } = await import('../src/web/api/cloud-sync-core.js');
+const { loadConfig, setSyncSetting } = await import('../src/web/api/cloud-sync-core.js');
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -54,9 +54,9 @@ describe('loadConfig', () => {
   });
 });
 
-describe('patchSyncConfig', () => {
+describe('setSyncSetting', () => {
   it('writes only the owned sync patch to disk', async () => {
-    await patchSyncConfig({ password: 'new' });
+    await setSyncSetting('password', 'new');
     expect(mockFs.ensureDir).toHaveBeenCalled();
     expect(mockFs.writeJson).toHaveBeenCalled();
     const [, writtenConfig] = mockFs.writeJson.mock.calls[0];

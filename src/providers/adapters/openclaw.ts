@@ -3,7 +3,7 @@ import path from "path";
 import os from "os";
 import { BaseAdapter } from "./base";
 import { AgentSelection, AuthStatus, Provider, ProviderType, ResolvedModel } from "../types";
-import { loadUserConfig, patchAgentSelection } from "../../config/user";
+import { loadUserConfig } from "../../config/user";
 import { atomicWrite, atomicWriteJSON } from "../../utils/atomicWrite";
 
 const OPENCLAW_CONFIG_PATH = path.join(os.homedir(), ".openclaw", "openclaw.json");
@@ -93,10 +93,5 @@ export class OpenClawAdapter extends BaseAdapter {
     };
 
     await atomicWriteJSON(OPENCLAW_CONFIG_PATH, data);
-    await patchAgentSelection("openclaw", {
-          activeProviderId: provider.id,
-          activeModelId: modelId,
-          sites: { [provider.id]: { modelIds: [...new Set([...(provider.models || []).map(item => item.id), modelId])] } },
-    });
   }
 }

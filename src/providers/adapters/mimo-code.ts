@@ -5,7 +5,7 @@ import { BaseAdapter } from "./base";
 import { gatewayHeadersFor } from "./gateway";
 import { modelTokenLimit } from "./model-facts";
 import { AgentSelection, AuthStatus, Provider, ProviderType } from "../types";
-import { loadUserConfig, patchAgentSelection } from "../../config/user";
+import { loadUserConfig } from "../../config/user";
 import { atomicWrite } from "../../utils/atomicWrite";
 
 // MiMo Code (Xiaomi, @mimo-ai/cli) is a fork of OpenCode, so its user config
@@ -149,11 +149,6 @@ export class MimoCodeAdapter extends BaseAdapter {
     data.model = `${provider.id}/${modelId}`;
 
     await this.saveConfig(data);
-    await patchAgentSelection("mimo-code", {
-          activeProviderId: provider.id,
-          activeModelId: modelId,
-          sites: { [provider.id]: { modelIds: [...new Set([...(provider.models || []).map(item => item.id), modelId])] } },
-    });
   }
 
   // Additive (multi-site): write one site's provider entry without touching

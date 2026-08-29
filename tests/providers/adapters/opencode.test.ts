@@ -257,17 +257,11 @@ describe('OpenCodeAdapter.applyConfig (cc-switch schema)', () => {
     expect(state.recent).toEqual([{ providerID: 'zai', modelID: 'glm-4.7' }]);
   });
 
-  it('records selection in user.json', async () => {
+  it('writes only OpenCode native config; desired state is application-owned', async () => {
     const adapter = new OpenCodeAdapter();
     await adapter.applyConfig(openaiProvider, 'deepseek-chat');
 
-    expect(patchAgentSelection).toHaveBeenCalledWith(
-      'opencode',
-      expect.objectContaining({
-            activeProviderId: 'deepseek', activeModelId: 'deepseek-chat',
-            sites: { deepseek: { modelIds: ['deepseek-chat'] } },
-      }),
-    );
+    expect(patchAgentSelection).not.toHaveBeenCalled();
   });
 });
 

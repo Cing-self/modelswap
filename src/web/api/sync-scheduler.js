@@ -42,9 +42,7 @@ function isBusy() {
 }
 
 async function persistLocalChanged(section) {
-  await core.patchSyncConfig({
-    localChangedAt: { [section]: new Date().toISOString() },
-  }, 'sync-scheduler');
+  await core.recordLocalChange(section, new Date().toISOString());
 }
 
 // Called by mutation handlers after their own state is written.

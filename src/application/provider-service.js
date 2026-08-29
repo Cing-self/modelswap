@@ -202,8 +202,8 @@ async function loadUserConfig() {
   return syncCore.loadConfig();
 }
 
-async function patchAgentSelection(agentId, selection) {
-  await syncCore.patchAgentSelection(agentId, selection, 'provider-service');
+async function applyAgentBinding(agentId, selection) {
+  await syncCore.applyAgentBinding(agentId, selection);
   publishDataChanged(['agents']);
   require('../web/api/sync-scheduler').markDirty('agentProviders');
 }
@@ -232,7 +232,7 @@ const agentConfigService = createAgentConfigurationService({
   getAdapter: _getAdapter,
   loadProviders,
   loadUserConfig,
-  patchAgentSelection,
+  applyAgentBinding,
   captureSnapshot: capturePreSwitchSnapshot,
   restoreSnapshot,
   providerSupportsAdapter,
@@ -586,7 +586,7 @@ const {
 } = providerAuthService;
 
 const providerLifecycleService = createProviderLifecycleService({
-  loadProviders, saveProviders, loadUserConfig, mutateConfig: syncCore.mutateConfig, agentConfigService,
+  loadProviders, saveProviders, loadUserConfig, removeProviderConfiguration: syncCore.removeProviderConfiguration, agentConfigService,
 });
 const { createProvider, updateProvider, deleteProvider } = providerLifecycleService;
 

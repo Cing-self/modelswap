@@ -218,16 +218,10 @@ describe('HermesAdapter.applyConfig (config.yaml schema)', () => {
     expect(written.model.default).toBe('deepseek-chat');
   });
 
-  it('records selection in user.json', async () => {
+  it('does not persist user config from the native adapter', async () => {
     const adapter = new HermesAdapter();
     await adapter.applyConfig(testProvider, 'deepseek-chat');
 
-    expect(patchAgentSelection).toHaveBeenCalledWith(
-      'hermes',
-      expect.objectContaining({
-            activeProviderId: 'deepseek', activeModelId: 'deepseek-chat',
-            sites: { deepseek: { modelIds: ['deepseek-chat'] } },
-      }),
-    );
+    expect(patchAgentSelection).not.toHaveBeenCalled();
   });
 });

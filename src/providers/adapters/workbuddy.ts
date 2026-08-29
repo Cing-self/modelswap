@@ -4,11 +4,14 @@ import os from "os";
 import { BaseAdapter } from "./base";
 import { modelFacts } from "./model-facts";
 import { AgentSelection, AuthStatus, ManagedModels, Provider, ProviderType } from "../types";
-import { loadUserConfig, patchAgentSelection } from "../../config/user";
+import { loadUserConfig } from "../../config/user";
 import { atomicWrite, atomicWriteJSON } from "../../utils/atomicWrite";
 
 const WORKBUDDY_DIR = path.join(os.homedir(), ".workbuddy");
 const WORKBUDDY_MODELS_PATH = path.join(WORKBUDDY_DIR, "models.json");
+// Local reconciliation ownership. This sidecar is intentionally not OKIT
+// user config and is never part of cloud sync payloads.
+const WORKBUDDY_OWNERSHIP_PATH = path.join(WORKBUDDY_DIR, ".okit-managed.json");
 
 // WorkBuddy models.json is a TOP-LEVEL ARRAY of custom model entries — the
 // format WorkBuddy's own UI writes. (A legacy {models: [...], availableModels:
@@ -68,6 +71,18 @@ async function writeModelsFile(models: WorkBuddyModelEntry[]): Promise<void> {
   await atomicWriteJSON(WORKBUDDY_MODELS_PATH, models);
 }
 
+async function readOwnership(): Promise<ManagedModels | null> {
+  try {
+    const value = JSON.parse(await fs.readFile(WORKBUDDY_OWNERSHIP_PATH, "utf-8"));
+    return value && typeof value === "object" && !Array.isArray(value) ? value : null;
+  } catch { return null; }
+}
+
+async function writeOwnership(models: ManagedModels): Promise<void> {
+  await fs.ensureDir(WORKBUDDY_DIR);
+  await atomicWriteJSON(WORKBUDDY_OWNERSHIP_PATH, models);
+}
+
 export class WorkBuddyAdapter extends BaseAdapter {
   readonly id = "workbuddy";
   readonly name = "WorkBuddy";
@@ -91,6 +106,8 @@ export class WorkBuddyAdapter extends BaseAdapter {
   }
 
   private async readManaged(): Promise<ManagedModels> {
+    const local = await readOwnership();
+    if (local) return local;
     const config = await loadUserConfig();
     const sites = config.agentProviders?.workbuddy?.sites || {};
     if (Object.keys(sites).length > 0) {
@@ -101,26 +118,8 @@ export class WorkBuddyAdapter extends BaseAdapter {
   }
 
   private async persistState(managed: ManagedModels, active?: AgentSelection | null): Promise<void> {
-    const config = await loadUserConfig();
-    const previous = config.agentProviders?.workbuddy || { sites: {} };
-    const sites: Record<string, any> = { ...previous.sites };
-    for (const providerId of Object.keys(sites)) {
-      if (!(providerId in managed)) sites[providerId] = null;
-    }
-    for (const [providerId, modelIds] of Object.entries(managed)) {
-      sites[providerId] = { ...sites[providerId], modelIds: [...new Set(modelIds)], enabled: true };
-    }
-    const next = {
-      ...previous,
-      ...(active?.providerId ? { activeProviderId: active.providerId } : {}),
-      ...(active?.modelId ? { activeModelId: active.modelId } : {}),
-      sites,
-    };
-    if (active === null) {
-      next.activeProviderId = undefined;
-      next.activeModelId = undefined;
-    }
-    await patchAgentSelection("workbuddy", next);
+    void active;
+    await writeOwnership(managed);
   }
 
   private upsertEntry(

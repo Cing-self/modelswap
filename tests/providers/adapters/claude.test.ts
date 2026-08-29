@@ -254,16 +254,10 @@ describe('ClaudeAdapter.applyConfig', () => {
     expect(written.env.ANTHROPIC_BASE_URL).toBe('https://ark.cn-beijing.volces.com/api/coding');
   });
 
-  it('updates the Claude site selection in user config', async () => {
+  it('writes only Claude native config; desired state is application-owned', async () => {
     const adapter = new ClaudeAdapter();
     await adapter.applyConfig(testProvider, 'glm-4.7');
 
-    expect(patchAgentSelection).toHaveBeenCalledWith(
-      'claude',
-      expect.objectContaining({
-            activeProviderId: 'volcengine', activeModelId: 'glm-4.7',
-            sites: { volcengine: { modelIds: ['glm-4.7'] } },
-      }),
-    );
+    expect(patchAgentSelection).not.toHaveBeenCalled();
   });
 });

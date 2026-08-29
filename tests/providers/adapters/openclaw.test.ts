@@ -182,16 +182,10 @@ describe('OpenClawAdapter.applyConfig (cc-switch schema)', () => {
     ]);
   });
 
-  it('records selection in user.json', async () => {
+  it('does not persist user config from the native adapter', async () => {
     const adapter = new OpenClawAdapter();
     await adapter.applyConfig(testProvider, 'deepseek-chat');
 
-    expect(patchAgentSelection).toHaveBeenCalledWith(
-      'openclaw',
-      expect.objectContaining({
-            activeProviderId: 'deepseek', activeModelId: 'deepseek-chat',
-            sites: { deepseek: { modelIds: ['deepseek-chat'] } },
-      }),
-    );
+    expect(patchAgentSelection).not.toHaveBeenCalled();
   });
 });

@@ -316,25 +316,9 @@ function createLanListener({ core, homeDir = os.homedir }) {
     }
     const result = await startLanSyncServer(port, lan.token);
     if (result.running && result.port !== port) {
-      await core.mutateConfig('lan-listener-port', live => {
-        const sync = { ...(live.sync || {}) };
-        const liveLan = sync.lan || {};
-        // Do not resurrect a LAN server that was disabled or rotated while
-        // this listener was binding its fallback port.
-        if (!liveLan.enabled || liveLan.token !== lan.token) return live;
-        sync.lan = { ...liveLan, port: result.port };
-        const localPlatform = sync.platforms?.lan;
-        if (
-          localPlatform?.baseUrl &&
-          /^http:\/\/(127\.0\.0\.1|localhost)(?::\d+)?$/i.test(localPlatform.baseUrl)
-        ) {
-          sync.platforms = {
-            ...sync.platforms,
-            lan: { ...localPlatform, baseUrl: `http://127.0.0.1:${result.port}` },
-          };
-        }
-        return { ...live, sync };
-      });
+      // The store rechecks the token against its queue-fresh LAN state, so a
+      // concurrently disabled or rotated listener cannot be resurrected.
+      await core.recordLanListenerPort({ expectedToken: lan.token, port: result.port });
     }
     return result;
   }

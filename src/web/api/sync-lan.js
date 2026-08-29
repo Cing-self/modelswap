@@ -180,23 +180,11 @@ async function handleLanEnable(req, res) {
         .json({ error: '请先设置同步密码，再开启局域网同步' });
     }
     const requestedPort = Number(req.body?.port) || lanServer.DEFAULT_PORT;
-    let autoSyncTurnedOn = false;
-    const committedConfig = await core.mutateConfig('lan-enable', live => {
-      const sync = { ...(live.sync || {}) };
-      const lan = { ...(sync.lan || {}) };
-      if (!lan.token) lan.token = crypto.randomBytes(32).toString('hex');
-      const port = Number(req.body?.port) || lan.port || requestedPort;
-      lan.enabled = true;
-      lan.port = port;
-      const platforms = { ...(sync.platforms || {}) };
-      const existing = platforms.lan;
-      if (!existing || isLoopbackUrl(existing.baseUrl)) {
-        platforms.lan = { baseUrl: `http://127.0.0.1:${port}`, token: lan.token, enabled: true };
-      }
-      if (!sync.syncPlatform) sync.syncPlatform = 'lan';
-      autoSyncTurnedOn = !sync.autoSync;
-      if (autoSyncTurnedOn) sync.autoSync = true;
-      return { ...live, sync: { ...sync, lan, platforms } };
+    const current = await core.loadConfig();
+    const autoSyncTurnedOn = !current.sync?.autoSync;
+    const committedConfig = await core.enableLan({
+      port: Number(req.body?.port) || current.sync?.lan?.port || requestedPort,
+      token: current.sync?.lan?.token || crypto.randomBytes(32).toString('hex'),
     });
     const port = committedConfig.sync.lan.port;
     await lanServer.applyConfig();
@@ -216,15 +204,7 @@ async function handleLanEnable(req, res) {
 
 async function handleLanDisable(req, res) {
   try {
-    await core.mutateConfig('lan-disable', live => {
-      if (!live.sync?.lan) return live;
-      const sync = { ...live.sync, lan: { ...live.sync.lan, enabled: false } };
-      const localPlatform = sync.platforms?.lan;
-      if (localPlatform && isLoopbackUrl(localPlatform.baseUrl)) {
-        sync.platforms = { ...sync.platforms, lan: { ...localPlatform, enabled: false } };
-      }
-      return { ...live, sync };
-    });
+    await core.disableLan();
     await lanServer.applyConfig();
     core.appendLog('lan-disable', 'lan', true);
     res.json({ success: true, ...(await buildLanStatus()) });
@@ -240,14 +220,7 @@ async function handleLanRegenerate(req, res) {
     if (!config.sync?.lan?.token) {
       return res.status(400).json({ error: '尚未开启局域网同步' });
     }
-    await core.mutateConfig('lan-regenerate', live => {
-      const lan = { ...live.sync.lan, token: crypto.randomBytes(32).toString('hex') };
-      const sync = { ...live.sync, lan };
-      if (sync.platforms?.lan && isLoopbackUrl(sync.platforms.lan.baseUrl)) {
-        sync.platforms = { ...sync.platforms, lan: { ...sync.platforms.lan, token: lan.token } };
-      }
-      return { ...live, sync };
-    });
+    await core.rotateLanToken(crypto.randomBytes(32).toString('hex'));
     await lanServer.applyConfig();
     core.appendLog(
       'lan-regenerate',
@@ -390,22 +363,10 @@ async function handleLanPair(req, res) {
         error: '两台设备的同步密码不一致，请先在两台设备上设置为相同的同步密码',
       });
     }
-    let hubDisabled = false;
-    let autoSyncTurnedOn = false;
-    await core.mutateConfig('lan-pair', live => {
-      const sync = { ...(live.sync || {}), password };
-      const platforms = { ...(sync.platforms || {}) };
-      if (sync.lan?.enabled && isLoopbackUrl(platforms.lan?.baseUrl)) {
-        sync.lan = { ...sync.lan, enabled: false };
-        hubDisabled = true;
-      }
-      platforms.lan = { baseUrl: parsed.baseUrl, token: info.token, enabled: true };
-      sync.platforms = platforms;
-      if (!sync.syncPlatform) sync.syncPlatform = 'lan';
-      autoSyncTurnedOn = !sync.autoSync;
-      if (autoSyncTurnedOn) sync.autoSync = true;
-      return { ...live, sync };
-    });
+    const beforePair = await core.loadConfig();
+    const hubDisabled = !!(beforePair.sync?.lan?.enabled && isLoopbackUrl(beforePair.sync?.platforms?.lan?.baseUrl));
+    const autoSyncTurnedOn = !beforePair.sync?.autoSync;
+    await core.pairLan({ password, baseUrl: parsed.baseUrl, token: info.token });
     if (hubDisabled) await lanServer.applyConfig();
     core.appendLog(
       'lan-pair',

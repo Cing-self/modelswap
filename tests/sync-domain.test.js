@@ -135,14 +135,13 @@ describe('sync pull orchestration', () => {
         return [];
       },
       resolvePrimaryTarget: async () => ({ id: 'memory' }),
-      mutateConfig: async (_owner, mutator) => {
-        const next = await mutator(config);
-        Object.assign(config, next);
+      applyPulledSyncState: async ({ agentProviders, modelOverrides }) => {
+        if (agentProviders) config.agentProviders = agentProviders;
+        if (modelOverrides) config.modelOverrides = modelOverrides;
         order.push('config');
-        return config;
+        return { config, providersApplied: true, agentProvidersApplied: true, modelOverridesApplied: true };
       },
-      patchSyncConfig: async () => order.push('config'),
-      shouldApplyRemoteSection,
+      recordSyncSuccess: async () => order.push('config'),
     });
 
     const result = await service.syncPull();

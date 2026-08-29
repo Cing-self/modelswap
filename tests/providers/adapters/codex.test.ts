@@ -426,16 +426,10 @@ describe('CodexAdapter.applyConfig', () => {
     expect(toml).toContain('some_other = "value"');
   });
 
-  it('updates user config with codex selection', async () => {
+  it('writes only Codex native config; desired state is application-owned', async () => {
     const adapter = new CodexAdapter();
     await adapter.applyConfig(openaiProvider, 'gpt-5.5');
 
-    expect(patchAgentSelection).toHaveBeenCalledWith(
-      'codex',
-      expect.objectContaining({
-            activeProviderId: 'openai', activeModelId: 'gpt-5.5',
-            sites: { openai: { modelIds: ['gpt-5.5'] } },
-      }),
-    );
+    expect(patchAgentSelection).not.toHaveBeenCalled();
   });
 });

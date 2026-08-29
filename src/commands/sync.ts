@@ -2,7 +2,7 @@ import os from "os";
 import path from "path";
 import kleur from "kleur";
 import prompts from "prompts";
-import { loadUserConfig, patchSyncConfig } from "../config/user";
+import { loadUserConfig } from "../config/user";
 
 /**
  * `okit sync` — CLI surface for the sync stack (previously web-only config).
@@ -154,7 +154,7 @@ export async function syncPassword(options?: { stdin?: boolean }): Promise<void>
     process.exitCode = 1;
     return;
   }
-  await patchSyncConfig({ password });
+  await core().setSyncSetting("password", password);
   console.log(kleur.green("✓ 同步密码已保存（用于云端加密与跨机解密）"));
 }
 
@@ -205,9 +205,7 @@ export async function syncEnable(
     return;
   }
 
-  const platformsPatch: Record<string, any> = {};
-  platformsPatch[platform] = { ...existing, ...values, enabled: true };
-  await patchSyncConfig({ platforms: platformsPatch });
+  for (const [field, value] of Object.entries({ ...values, enabled: true })) await core().setSyncPlatformField(platform, field, value);
   console.log(kleur.green(`✓ ${PLATFORM_LABELS[platform] || platform} 已配置并启用`));
 
   if (options?.test !== false) {
@@ -230,9 +228,7 @@ export async function syncDisable(platform: string): Promise<void> {
     process.exitCode = 1;
     return;
   }
-  const platformsPatch: Record<string, any> = {};
-  platformsPatch[platform] = { ...existing, enabled: false };
-  await patchSyncConfig({ platforms: platformsPatch });
+  await core().setSyncPlatformField(platform, "enabled", false);
   console.log(kleur.green(`✓ ${PLATFORM_LABELS[platform] || platform} 已停用（配置保留，可随时重新 enable）`));
 }
 

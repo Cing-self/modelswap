@@ -18,9 +18,9 @@ function createSyncService({
   publishDataChanged,
   reconcilePulledAgentProviders,
   resolvePrimaryTarget,
-  mutateConfig,
-  patchSyncConfig,
-  shouldApplyRemoteSection,
+  applyPulledSyncState,
+  importSyncPlatform,
+  recordSyncSuccess,
 }) {
   async function peekRemote() {
     const config = await loadConfig();
@@ -87,18 +87,12 @@ function createSyncService({
       throw new Error(`推送失败（${failed.join('; ')}）`);
     }
 
-    await patchSyncConfig({
+    await recordSyncSuccess({
       machineId,
       lastRemote: { updatedAt: syncData.updatedAt, machineId },
-      localChangedAt: {
-        secrets: syncData.updatedAt,
-        agentProviders: syncData.updatedAt,
-        modelOverrides: syncData.updatedAt,
-        providers: syncData.updatedAt,
-      },
-      lastSyncAt: new Date().toISOString(),
+      changedAt: syncData.updatedAt,
       lastSyncPlatform: pushed.join(','),
-    }, 'sync-push');
+    });
 
     if (failed.length > 0) {
       throw new Error(
@@ -169,35 +163,17 @@ function createSyncService({
       }
     }
 
-    let providersApplied = false;
-    let agentProvidersApplied = false;
-    let modelOverridesApplied = false;
-    // Re-evaluate every conflict guard against the queue-fresh local state.
-    // `remoteData` is a decrypted wire intent, never a saved local snapshot.
-    const committedConfig = await mutateConfig('sync-pull', live => {
-      const localChangedAt = live.sync?.localChangedAt || {};
-      providersApplied = Boolean(remoteData.settings && shouldApplyRemoteSection(
-        remoteUpdated, localChangedAt.providers,
-      ));
-      agentProvidersApplied = Boolean(remoteData.settings?.agentProviders && shouldApplyRemoteSection(
-        remoteUpdated, localChangedAt.agentProviders,
-      ));
-      modelOverridesApplied = Boolean(remoteData.settings?.modelOverrides && shouldApplyRemoteSection(
-        remoteUpdated, localChangedAt.modelOverrides,
-      ));
-      return {
-        ...live,
-        ...(agentProvidersApplied ? { agentProviders: remoteData.settings.agentProviders } : {}),
-        ...(modelOverridesApplied ? { modelOverrides: remoteData.settings.modelOverrides } : {}),
-        sync: {
-          ...(live.sync || {}),
-          machineId: live.sync?.machineId || crypto.randomUUID(),
-          lastRemote: { updatedAt: remoteUpdated, machineId: remoteData.machineId || null },
-          lastSyncAt: new Date().toISOString(),
-          lastSyncPlatform: remoteFrom,
-        },
-      };
+    // The wire payload is an intent only. The store re-evaluates conflict
+    // timestamps after earlier queued writes have finished.
+    const applied = await applyPulledSyncState({
+      remoteUpdated,
+      remoteMachineId: remoteData.machineId,
+      remoteFrom,
+      agentProviders: remoteData.settings?.agentProviders,
+      modelOverrides: remoteData.settings?.modelOverrides,
     });
+    const committedConfig = applied.config;
+    const { providersApplied, agentProvidersApplied, modelOverridesApplied } = applied;
     // Provider sites must exist before local discovery/reconciliation, but
     // their user.json conflict decision was made in the queued mutation above.
     const providers = providersApplied
@@ -292,11 +268,11 @@ function createSyncService({
       );
     }
 
-    await patchSyncConfig({
+    await importSyncPlatform({
       password,
-      syncPlatform: payload.syncPlatform,
-      platforms: { [payload.syncPlatform]: { ...payload.platformConfig, enabled: true } },
-    }, 'sync-code-import');
+      platformId: payload.syncPlatform,
+      platformConfig: payload.platformConfig,
+    });
     appendLog('sync-code-import', payload.syncPlatform, true, `${secrets.length} secrets`);
     publishDataChanged(['config', 'secrets']);
     return { platform: payload.syncPlatform, secrets: secrets.length };

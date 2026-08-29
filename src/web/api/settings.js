@@ -63,21 +63,12 @@ async function updateSettings(req, res) {
   try {
     const { sync } = req.body;
     if (!sync) return res.status(400).json({ error: 'sync is required' });
-    let autoSyncWasOn = false;
-    let prevLan = null;
-    const config = await syncCore.mutateConfig('settings', live => {
-      autoSyncWasOn = !!live.sync?.autoSync;
-      prevLan = JSON.stringify(live.sync?.lan || null);
-      const merged = mergeSensitive(live.sync, sync);
-      return {
-        ...live,
-        sync: {
-          ...live.sync,
-          ...merged,
-          platforms: { ...live.sync?.platforms, ...merged.platforms },
-        },
-      };
-    });
+    const previous = await loadConfig();
+    const autoSyncWasOn = !!previous.sync?.autoSync;
+    const prevLan = JSON.stringify(previous.sync?.lan || null);
+    // Only request-owned sync fields are handed to the semantic store entry;
+    // it reads the queue-fresh config before merging them.
+    const config = await syncCore.updateSettingsSync(mergeSensitive(previous.sync, sync));
     const changes = [];
     if (sync) changes.push(...Object.keys(sync.platforms || {}));
     appendLog('settings-update', changes.join(',') || 'settings', true);
@@ -165,10 +156,7 @@ async function getOnboarding(req, res) {
 
 async function dismissOnboarding(req, res) {
   try {
-    await syncCore.mutateConfig('settings', config => ({
-      ...config,
-      hints: { ...config.hints, onboardingDone: true },
-    }));
+    await syncCore.setOnboardingDismissed(true);
     appendLog('onboarding-dismiss', 'onboarding', true);
     res.json({ success: true });
   } catch (error) {
@@ -179,11 +167,7 @@ async function dismissOnboarding(req, res) {
 
 async function resetOnboarding(req, res) {
   try {
-    await syncCore.mutateConfig('settings', config => {
-      const hints = { ...config.hints };
-      delete hints.onboardingDone;
-      return { ...config, hints };
-    });
+    await syncCore.setOnboardingDismissed(false);
     appendLog('onboarding-reset', 'onboarding', true);
     res.json({ success: true });
   } catch (error) {

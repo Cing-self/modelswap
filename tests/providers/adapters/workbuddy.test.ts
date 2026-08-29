@@ -74,6 +74,8 @@ vi.mock('../../../src/vault/store', () => ({
 const { WorkBuddyAdapter } = await import('../../../src/providers/adapters/workbuddy');
 
 const MODELS_PATH = path.join(os.homedir(), '.workbuddy', 'models.json');
+const OWNERSHIP_PATH = path.join(os.homedir(), '.workbuddy', '.okit-managed.json');
+const readOwnership = () => JSON.parse(mocks.files.get(OWNERSHIP_PATH) || '{}');
 
 const testProvider = {
   id: 'glm-coding',
@@ -232,15 +234,12 @@ describe('WorkBuddyAdapter.applyConfig', () => {
     expect(written[0].url).toBe('https://open.bigmodel.cn/api/coding/chat/completions');
   });
 
-  it('records selection and managedModels in user.json', async () => {
+  it('records local ownership without writing user.json', async () => {
     const adapter = new WorkBuddyAdapter();
     await adapter.applyConfig(testProvider, 'glm-4.7');
 
-    expect(mocks.userConfig.providers.workbuddy).toEqual({
-      providerId: 'glm-coding',
-      modelId: 'glm-4.7',
-      managedModels: { 'glm-coding': ['glm-4.7'] },
-    });
+    expect(readOwnership()).toEqual({ 'glm-coding': ['glm-4.7'] });
+    expect(mocks.userConfig.providers.workbuddy).toBeUndefined();
   });
 
   it('REFUSES to overwrite an entry at a different endpoint (not written by OKIT)', async () => {
@@ -269,7 +268,7 @@ describe('WorkBuddyAdapter.applyConfig', () => {
     expect(written).toHaveLength(1);
     expect(written[0].vendor).toBe('GLM Coding Plan');
     expect(written[0].url).toBe('https://open.bigmodel.cn/api/coding/chat/completions');
-    expect(mocks.userConfig.providers.workbuddy.managedModels).toEqual({ 'glm-coding': ['glm-4.7'] });
+    expect(readOwnership()).toEqual({ 'glm-coding': ['glm-4.7'] });
   });
 
   it('updates a managed entry in place (idempotent upsert)', async () => {
@@ -279,7 +278,7 @@ describe('WorkBuddyAdapter.applyConfig', () => {
 
     const written = readModelsFile();
     expect(written).toHaveLength(1);
-    expect(mocks.userConfig.providers.workbuddy.managedModels).toEqual({ 'glm-coding': ['glm-4.7'] });
+    expect(readOwnership()).toEqual({ 'glm-coding': ['glm-4.7'] });
   });
 });
 
@@ -301,8 +300,8 @@ describe('WorkBuddyAdapter.applyModels', () => {
       expect(typeof entry.supportsImages).toBe('boolean');
       expect(typeof entry.supportsReasoning).toBe('boolean');
     }
-    expect(mocks.userConfig.providers.workbuddy.providerId).toBeUndefined();
-    expect(mocks.userConfig.providers.workbuddy.managedModels).toEqual({
+    expect(mocks.userConfig.providers.workbuddy).toBeUndefined();
+    expect(readOwnership()).toEqual({
       'glm-coding': ['glm-4.7', 'glm-4.6'],
     });
   });
@@ -312,8 +311,7 @@ describe('WorkBuddyAdapter.applyModels', () => {
     await adapter.applyConfig(testProvider, 'glm-4.7');
     await adapter.applyModels([{ provider: otherProvider, modelId: 'glm-x' }]);
 
-    expect(mocks.userConfig.providers.workbuddy.providerId).toBe('glm-coding');
-    expect(mocks.userConfig.providers.workbuddy.modelId).toBe('glm-4.7');
+    expect(readOwnership()).toMatchObject({ 'glm-coding': ['glm-4.7'], 'glm-coding-alt': ['glm-x'] });
   });
 
   it('skips foreign id collisions instead of overwriting them', async () => {
@@ -344,8 +342,8 @@ describe('WorkBuddyAdapter.removeProvider', () => {
 
     const written = readModelsFile();
     expect(written).toEqual([]);
-    expect(mocks.userConfig.providers.workbuddy.managedModels).toEqual({});
-    expect(mocks.userConfig.providers.workbuddy.providerId).toBeUndefined();
+    expect(readOwnership()).toEqual({});
+    expect(mocks.userConfig.providers.workbuddy).toBeUndefined();
   });
 
   it('keeps entries still claimed by another provider (shared model id)', async () => {
@@ -360,10 +358,10 @@ describe('WorkBuddyAdapter.removeProvider', () => {
 
     const written = readModelsFile();
     expect(written.map(m => m.id).sort()).toEqual(['glm-4.7', 'glm-x']);
-    expect(mocks.userConfig.providers.workbuddy.managedModels).toEqual({
+    expect(readOwnership()).toEqual({
       'glm-coding-alt': ['glm-4.7', 'glm-x'],
     });
-    expect(mocks.userConfig.providers.workbuddy.providerId).toBeUndefined();
+    expect(mocks.userConfig.providers.workbuddy).toBeUndefined();
   });
 
   it('does not touch foreign entries when removing', async () => {
