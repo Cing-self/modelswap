@@ -7,13 +7,6 @@ async function loadConfig() {
   return syncCore.loadConfig();
 }
 
-async function saveConfig(config) {
-  // Settings and Agent selection both mutate user.json. The shared config
-  // store serializes and merges their partitions; direct writeJson here used
-  // a stale settings snapshot and could erase modelOverrides during a save.
-  await syncCore.saveConfig(config);
-}
-
 function maskConfig(sync) {
   if (!sync) return sync;
   const masked = JSON.parse(JSON.stringify(sync));
@@ -70,24 +63,21 @@ async function updateSettings(req, res) {
   try {
     const { sync } = req.body;
     if (!sync) return res.status(400).json({ error: 'sync is required' });
-
-    const config = await loadConfig();
-    const autoSyncWasOn = !!config.sync?.autoSync;
-    const prevLan = JSON.stringify(config.sync?.lan || null);
-
-    if (sync) {
-      const merged = mergeSensitive(config.sync, sync);
-      config.sync = {
-        ...config.sync,
-        ...merged,
-        platforms: {
-          ...config.sync?.platforms,
-          ...merged.platforms,
+    let autoSyncWasOn = false;
+    let prevLan = null;
+    const config = await syncCore.mutateConfig(live => {
+      autoSyncWasOn = !!live.sync?.autoSync;
+      prevLan = JSON.stringify(live.sync?.lan || null);
+      const merged = mergeSensitive(live.sync, sync);
+      return {
+        ...live,
+        sync: {
+          ...live.sync,
+          ...merged,
+          platforms: { ...live.sync?.platforms, ...merged.platforms },
         },
       };
-    }
-
-    await saveConfig(config);
+    }, { reason: 'settings' });
     const changes = [];
     if (sync) changes.push(...Object.keys(sync.platforms || {}));
     appendLog('settings-update', changes.join(',') || 'settings', true);
@@ -175,10 +165,10 @@ async function getOnboarding(req, res) {
 
 async function dismissOnboarding(req, res) {
   try {
-    const config = await loadConfig();
-    if (!config.hints) config.hints = {};
-    config.hints.onboardingDone = true;
-    await saveConfig(config);
+    await syncCore.mutateConfig(config => ({
+      ...config,
+      hints: { ...config.hints, onboardingDone: true },
+    }), { reason: 'settings' });
     appendLog('onboarding-dismiss', 'onboarding', true);
     res.json({ success: true });
   } catch (error) {
@@ -189,9 +179,11 @@ async function dismissOnboarding(req, res) {
 
 async function resetOnboarding(req, res) {
   try {
-    const config = await loadConfig();
-    if (config.hints) delete config.hints.onboardingDone;
-    await saveConfig(config);
+    await syncCore.mutateConfig(config => {
+      const hints = { ...config.hints };
+      delete hints.onboardingDone;
+      return { ...config, hints };
+    }, { reason: 'settings' });
     appendLog('onboarding-reset', 'onboarding', true);
     res.json({ success: true });
   } catch (error) {

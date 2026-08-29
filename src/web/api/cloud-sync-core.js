@@ -117,7 +117,9 @@ module.exports = {
   resolveSyncKeys: platforms.resolveSyncKeys,
   resolveVaultRefs: platforms.resolveVaultRefs,
   saveConfig: configStore.saveConfig,
+  mutateConfig: configStore.mutateConfig,
   saveUserConfig: configStore.saveUserConfig,
+  updateUserConfig: configStore.updateUserConfig,
   testConnection,
   __testing: {
     shouldApplyRemoteSection,

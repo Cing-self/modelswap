@@ -135,7 +135,7 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
     expect(Object.keys(result.opencode.provider['flow-open'].models)).toEqual(['one', 'two']);
   });
 
-  it('keeps model overrides when a settings save overlaps an Agent provider save', () => {
+  it('atomically retains settings, Agent, and sync partitions during queued config mutations', () => {
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-provider-config-race-'));
     const root = path.resolve(__dirname, '../..');
     const script = `
@@ -144,27 +144,29 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
       const api=require(path.join(process.argv[1], 'src/web/api/providers.js'));
       const settings=require(path.join(process.argv[1], 'src/web/api/settings.js'));
       const user=require(path.join(process.argv[1], 'src/config/user.ts'));
+      const sync=require(path.join(process.argv[1], 'src/web/api/cloud-sync-core.js'));
       const call=(handler, req)=>new Promise((resolve,reject)=>handler(req,{status(c){this.code=c;return this},json(v){(this.code||200)>=400?reject(new Error(v.error)):resolve(v)}}));
       (async()=>{
         const userPath=path.join(process.env.HOME,'.okit','user.json');
         await call(api.createProvider,{body:{id:'race-open',name:'Race Open',type:'openai',baseUrl:'https://race.test/v1',authMode:'none',models:[{id:'one'}]}});
         fs.mkdirSync(path.dirname(userPath),{recursive:true}); fs.writeFileSync(userPath,'{}');
-        const originalReadJson=fse.readJson;
+        const originalReadFile=fse.readFile;
         let reached; const reachedRead=new Promise(resolve=>{reached=resolve});
         let release; const allowRead=new Promise(resolve=>{release=resolve});
         let block=true;
-        fse.readJson=async file=>{
-          const value=await originalReadJson(file);
+        fse.readFile=async (file,...args)=>{
           if(block&&file===userPath){block=false;reached();await allowRead;}
-          return value;
+          return originalReadFile(file,...args);
         };
         const settingsSave=call(settings.updateSettings,{body:{sync:{platforms:{cloudflare:{enabled:true}}}}});
         await reachedRead;
-        await user.updateUserConfig({modelOverrides:{'race-open':{one:{context:777,output:333}}}});
-        await call(api.configureAgentProvider,{params:{agentId:'codex',providerId:'race-open'},body:{modelIds:['one'],primaryModelId:'one'}});
+        const overridesWrite=user.updateUserConfig({modelOverrides:{'race-open':{one:{context:777,output:333}}}});
+        const agentWrite=call(api.configureAgentProvider,{params:{agentId:'codex',providerId:'race-open'},body:{modelIds:['one'],primaryModelId:'one'}});
+        const syncWrite=sync.saveConfig({sync:{lastSyncAt:'2026-08-29T01:00:00.000Z',localChangedAt:{providers:'2026-08-29T01:00:00.000Z'}}});
+        const networkWrite=user.updateUserConfig({sync:{lan:{enabled:true,port:3790},platforms:{webdav:{enabled:true,url:'https://sync.example.test'}}}});
         release();
-        await settingsSave;
-        fse.readJson=originalReadJson;
+        await Promise.all([settingsSave,overridesWrite,agentWrite,syncWrite,networkWrite]);
+        fse.readFile=originalReadFile;
         console.log(JSON.stringify(JSON.parse(fs.readFileSync(userPath,'utf8'))));
       })().catch(error=>{console.error(error.stack);process.exit(1)});
     `;
@@ -174,6 +176,41 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
     expect(result.modelOverrides['race-open'].one).toEqual({ context: 777, output: 333 });
     expect(result.agentProviders.codex.sites['race-open'].modelIds).toEqual(['one']);
     expect(result.sync.platforms.cloudflare.enabled).toBe(true);
+    expect(result.sync.platforms.webdav).toEqual({ enabled: true, url: 'https://sync.example.test' });
+    expect(result.sync.lan).toEqual({ enabled: true, port: 3790 });
+    expect(result.sync.lastSyncAt).toBe('2026-08-29T01:00:00.000Z');
+    expect(result.sync.localChangedAt.providers).toBe('2026-08-29T01:00:00.000Z');
+  });
+
+  it('migrates legacy Agent selections through the atomic writer without dropping a queued patch', () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-config-migration-race-'));
+    const root = path.resolve(__dirname, '../..');
+    const script = `
+      const fs=require('fs'), path=require('path');
+      const sync=require(path.join(process.argv[1], 'src/web/api/cloud-sync-core.js'));
+      const user=require(path.join(process.argv[1], 'src/config/user.ts'));
+      (async()=>{
+        const dir=path.join(process.env.HOME,'.okit'); fs.mkdirSync(dir,{recursive:true});
+        const userPath=path.join(dir,'user.json');
+        fs.writeFileSync(userPath,JSON.stringify({providers:{codex:{providerId:'legacy-site',modelId:'legacy-model'}},sync:{localChangedAt:{providers:'old'}}}));
+        await Promise.all([
+          sync.mutateConfig(config=>({...config,sync:{...config.sync,lastSyncAt:'2026-08-29T02:00:00.000Z'}}),{reason:'sync'}),
+          user.updateUserConfig({modelOverrides:{'legacy-site':{'legacy-model':{context:123456}}}}),
+        ]);
+        console.log(fs.readFileSync(userPath,'utf8'));
+      })().catch(error=>{console.error(error.stack);process.exit(1)});
+    `;
+    const result = JSON.parse(execFileSync(process.execPath, ['-r', 'ts-node/register', '-e', script, root], {
+      env: { ...process.env, HOME: home, USERPROFILE: home }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    }));
+    expect(result.providers).toBeUndefined();
+    expect(result.agentProviders.codex).toMatchObject({
+      activeProviderId: 'legacy-site', activeModelId: 'legacy-model',
+      sites: { 'legacy-site': { modelIds: ['legacy-model'] } },
+    });
+    expect(result.modelOverrides['legacy-site']['legacy-model'].context).toBe(123456);
+    expect(result.sync.lastSyncAt).toBe('2026-08-29T02:00:00.000Z');
+    expect(result.sync.localChangedAt.providers).toBe('old');
   });
 
   it('uses real refresh, preview, home, tier-map, offline, and deletion API paths in a temporary HOME', () => {

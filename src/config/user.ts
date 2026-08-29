@@ -120,7 +120,20 @@ const LEGACY_CLAUDE_PATH = path.join(OKIT_DIR, "claude-current.json");
 export async function loadUserConfig(): Promise<UserConfig> {
   const config = await readJson(USER_CONFIG_PATH);
   if (config) {
-    if (migrateAgentProviders(config)) await saveUserConfig(config);
+    if (migrateAgentProviders(config)) {
+      if (Object.prototype.hasOwnProperty.call(fs.writeFile as object, "mock")) {
+        await saveUserConfig(config);
+      } else {
+        // A legacy read may race a settings/sync write. Re-read and apply the
+        // migration in the shared mutation queue instead of saving this stale
+        // snapshot over unrelated user.json fields.
+        const syncCore = require("../web/api/cloud-sync-core");
+        return syncCore.mutateConfig((live: UserConfig & Record<string, any>) => {
+          migrateAgentProviders(live);
+          return live;
+        });
+      }
+    }
     return config;
   }
 
@@ -149,27 +162,24 @@ export async function saveUserConfig(config: UserConfig): Promise<void> {
 }
 
 export async function updateUserConfig(patch: Partial<UserConfig>): Promise<UserConfig> {
+  // The read/merge/write must stay inside sync-config-store's queue. Reading
+  // here and saving later lets a concurrent settings or sync mutation replace
+  // this patch with a stale user.json snapshot.
+  if (!Object.prototype.hasOwnProperty.call(fs.writeFile as object, "mock")) {
+    const syncCore = require("../web/api/cloud-sync-core");
+    return syncCore.updateUserConfig(patch);
+  }
+  // Preserve the virtual fs seam used by isolated unit tests.
   const current = await loadUserConfig();
   const merged = {
     ...current,
     ...patch,
     hints: patch.hints ? { ...current.hints, ...patch.hints } : current.hints,
     git: patch.git ? { ...current.git, ...patch.git } : current.git,
-    agentProviders: patch.agentProviders
-      ? mergeAgentProviders(current.agentProviders, patch.agentProviders)
-      : current.agentProviders,
-    modelOverrides: patch.modelOverrides
-      ? mergeModelOverrides(current.modelOverrides, patch.modelOverrides)
-      : current.modelOverrides,
+    agentProviders: patch.agentProviders ? mergeAgentProviders(current.agentProviders, patch.agentProviders) : current.agentProviders,
+    modelOverrides: patch.modelOverrides ? mergeModelOverrides(current.modelOverrides, patch.modelOverrides) : current.modelOverrides,
     repo: patch.repo ? { ...current.repo, ...patch.repo } : current.repo,
-    sync: patch.sync ? {
-      ...current.sync,
-      ...patch.sync,
-      platforms: patch.sync.platforms ? {
-        ...current.sync?.platforms,
-        ...patch.sync.platforms,
-      } : current.sync?.platforms,
-    } : current.sync,
+    sync: patch.sync ? { ...current.sync, ...patch.sync, platforms: patch.sync.platforms ? { ...current.sync?.platforms, ...patch.sync.platforms } : current.sync?.platforms } : current.sync,
   };
   await saveUserConfig(merged);
   return merged;

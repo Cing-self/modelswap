@@ -3,10 +3,18 @@ function mergeAgentProviderSelections(live, incoming) {
   const merged = { ...(live || {}) };
   for (const [agentId, state] of Object.entries(incoming || {})) {
     const previous = merged[agentId] || { sites: {} };
+    const sites = { ...(previous.sites || {}) };
+    for (const [providerId, site] of Object.entries(state?.sites || {})) {
+      // Additive adapters use null as an intentional delete marker. Retaining
+      // it in user.json turns a valid selection into a later null.modelIds
+      // crash during reconciliation.
+      if (site === null) delete sites[providerId];
+      else sites[providerId] = { ...(sites[providerId] || {}), ...site };
+    }
     merged[agentId] = {
       ...previous,
       ...state,
-      sites: { ...(previous.sites || {}), ...(state?.sites || {}) },
+      sites,
     };
   }
   return merged;
