@@ -216,6 +216,29 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
     expect(Number.isNaN(Date.parse(result.sync.localChangedAt.providers))).toBe(false);
   });
 
+  it('persists site deletion to user.json through the tombstone op', () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-site-delete-'));
+    const root = path.resolve(__dirname, '../..');
+    const script = `
+      const fs=require('fs'), path=require('path');
+      const api=require(path.join(process.argv[1], 'src/web/api/providers.js'));
+      const call=(handler, req)=>new Promise((resolve,reject)=>handler(req,{status(c){this.code=c;return this},json(v){(this.code||200)>=400?reject(new Error(v.error)):resolve(v)}}));
+      (async()=>{
+        await call(api.createProvider,{body:{id:'del-reg',name:'Del Reg',type:'openai',baseUrl:'https://example.com/v1',authMode:'none',models:[{id:'m1'}]}});
+        await call(api.configureAgentProvider,{params:{agentId:'codex',providerId:'del-reg'},body:{modelIds:['m1'],primaryModelId:'m1'}});
+        await call(api.removeAgentProvider,{params:{agentId:'codex',providerId:'del-reg'}});
+        console.log(fs.readFileSync(path.join(process.env.HOME,'.okit','user.json'),'utf8'));
+      })().catch(error=>{console.error(error.stack);process.exit(1)});
+    `;
+    const result = JSON.parse(execFileSync(process.execPath, ['-r', 'ts-node/register/transpile-only', '-e', script, root], {
+      env: { ...process.env, HOME: home, USERPROFILE: home }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim());
+    // replaceAgentState merges per-site, so a deletion that only omits the
+    // site from the incoming state silently keeps it; the removal must flow
+    // through the dedicated tombstone op.
+    expect(result.agentProviders.codex.sites['del-reg']).toBeUndefined();
+  });
+
   it('uses real refresh, preview, home, tier-map, offline, and deletion API paths in a temporary HOME', () => {
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-provider-lifecycle-'));
     const root = path.resolve(__dirname, '../..');

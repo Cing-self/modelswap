@@ -216,6 +216,10 @@ function createAgentConfigurationService(overrides = {}) {
     try {
       if (typeof adapter?.removeProvider === 'function') await adapter.removeProvider(providerId);
       removeSite(before, agentId, providerId);
+      // The store's replaceAgentState merges per-site: a site merely missing
+      // from the incoming state stays alive in user.json. Removal must go
+      // through the dedicated tombstone op or the deletion never persists.
+      if (persist) await d.removeAgentSite(agentId, providerId);
       const providers = suppliedProviders || await d.loadProviders();
       const fallbackProvider = fallback && (providers.find(provider => provider.id === fallback.providerId)
         || { id: fallback.providerId, name: fallback.providerId, type: agentId === 'claude' ? 'anthropic' : 'openai', baseUrl: '', authMode: 'none', nativeAgentIds: [agentId], models: [] });
