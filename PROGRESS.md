@@ -11,6 +11,20 @@
 7. Matrix: settings, scheduler, sync push/pull, LAN/listener, provider/Agent/reconciler and migration interleave against one fresh HOME.
 8. Gate only: no implementation is committed before CEO approves this inventory and API; then run focused red→green, full ×3, build and diff.
 
+## DEV-ESCAPE-CONFIG-001 self-certification (2026-08-29)
+
+1. Status: development in progress; prior test/build evidence is insufficient for QA handoff.
+2. Required evidence: root-cause graph, zero-pending writer matrix, red→green plus bypass proof, live guard failure, real concurrency integration matrix, and explicit residual bounds.
+3. Hold: do not label this P0 complete or request release/QA sign-off until the evidence package is committed and sent to CEO + QA.
+
+## Final semantic-config API design gate (2026-08-29)
+
+1. Status: implementation paused; `fbe5143` is a failed experiment and must not merge.
+2. Public business/composition API may expose only field-validated semantic operations; no generic mutation, config/sync snapshot patch, callback or compatibility alias.
+3. `writeTail` mutation is infrastructure-private; pull conflict checks consume a remote intent and re-evaluate live state internally.
+4. The detailed writer map, schemas, ownership/deletion/timestamp rules, boundaries and negative tests are in `docs/testing/config-mutation-architecture-gate.md`.
+5. Wait for QA review of this design revision before source implementation or verification resumes.
+
 ## Sync/Agent release batch start (2026-08-28)
 
 1. Scope: only the frozen sync/model discovery/Agent release acceptance, including e378 and QA-P0-GAP-001/002.
