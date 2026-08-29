@@ -11,6 +11,14 @@ const MIMO_CONSOLE_URL = 'https://platform.xiaomimimo.com/console/plan-manage';
 const MIMO_BALANCE_CONSOLE_URL = 'https://platform.xiaomimimo.com/console/balance';
 const MIMO_BALANCE_URL = 'https://platform.xiaomimimo.com/api/v1/balance';
 const MIMO_SESSION_VAULT_KEY = 'XIAOMI_MIMO_TOKEN_PLAN_SESSION_COOKIE';
+// Both MiMo cards use the browser bridge to establish the Xiaomi SSO session.
+// Keep the route selection here, next to the HTTP boundary, so an extension
+// action emitted by either card can never be accepted by the UI then rejected
+// by the controller as an unsupported provider.
+const XIAOMI_LOGIN_URLS = Object.freeze({
+  'xiaomi-coding': MIMO_CONSOLE_URL,
+  xiaomi: MIMO_BALANCE_CONSOLE_URL,
+});
 const SUPPORTED = new Set([
   'anthropic',        // Anthropic API (console-only billing)
   'openai-codex',    // Codex (ChatGPT subscription)
@@ -112,6 +120,30 @@ const registry = createUsageProviderRegistry({ api, browser, cloud });
 async function getUsage(req, res) { const providerId = req.params.providerId; if (!providerId) return res.status(400).json({ error: 'providerId required' }); try { const result = await registry.queryUsage(providerId); if (result && result.supported !== false) result.kind = PROVIDER_KIND[providerId] || UsageKind.SUBSCRIPTION; return res.json(result); } catch (error) { return res.json({ supported: false, error: error.message }); } }
 const MANUAL_ONLY_USAGE = ['opencode-go'];
 function getSupportedUsageProviders(_req, res) { return res.json({ providers: Array.from(SUPPORTED), manualOnly: MANUAL_ONLY_USAGE }); }
-async function openXiaomiLogin(req, res) { if (req.params.providerId !== 'xiaomi-coding') return res.status(400).json({ success: false, error: '该 Provider 不支持浏览器登录' }); try { const { sendCommand, isExtensionConnected } = require('./ws-extension'); if (!isExtensionConnected()) return res.status(503).json({ success: false, error: 'OKIT 浏览器插件未连接，请先启动插件' }); const navigation = await sendCommand('navigate', { url: MIMO_CONSOLE_URL, workspace: 'okit' }, 30000); if (!navigation?.ok) return res.status(502).json({ success: false, error: navigation?.error || '无法打开 MiMo 控制台' }); await sendCommand('focus-window', { workspace: 'okit', hold: true }, 10000).catch(() => {}); return res.json({ success: true, tabId: navigation.data?.tabId, url: MIMO_CONSOLE_URL }); } catch (error) { return res.status(503).json({ success: false, error: error.message || String(error) }); } }
-async function closeXiaomiLoginWindow(req, res) { if (req.params.providerId !== 'xiaomi-coding') return res.status(400).json({ success: false, error: '该 Provider 不支持此操作' }); try { const { sendCommand, isExtensionConnected } = require('./ws-extension'); if (!isExtensionConnected()) return res.status(503).json({ success: false, error: 'OKIT 浏览器插件未连接' }); const closed = await sendCommand('close-window', { workspace: 'okit' }, 10000); if (!closed?.ok) return res.status(502).json({ success: false, error: closed?.error || '无法关闭控制台窗口' }); return res.json({ success: true }); } catch (error) { return res.status(503).json({ success: false, error: error.message || String(error) }); } }
+async function openXiaomiLogin(req, res) {
+  const url = XIAOMI_LOGIN_URLS[req.params.providerId];
+  if (!url) return res.status(400).json({ success: false, error: '该 Provider 不支持浏览器登录' });
+  try {
+    const { sendCommand, isExtensionConnected } = require('./ws-extension');
+    if (!isExtensionConnected()) return res.status(503).json({ success: false, error: 'OKIT 浏览器插件未连接，请先启动插件' });
+    const navigation = await sendCommand('navigate', { url, workspace: 'okit' }, 30000);
+    if (!navigation?.ok) return res.status(502).json({ success: false, error: navigation?.error || '无法打开 MiMo 控制台' });
+    await sendCommand('focus-window', { workspace: 'okit', hold: true }, 10000).catch(() => {});
+    return res.json({ success: true, tabId: navigation.data?.tabId, url });
+  } catch (error) {
+    return res.status(503).json({ success: false, error: error.message || String(error) });
+  }
+}
+async function closeXiaomiLoginWindow(req, res) {
+  if (!XIAOMI_LOGIN_URLS[req.params.providerId]) return res.status(400).json({ success: false, error: '该 Provider 不支持此操作' });
+  try {
+    const { sendCommand, isExtensionConnected } = require('./ws-extension');
+    if (!isExtensionConnected()) return res.status(503).json({ success: false, error: 'OKIT 浏览器插件未连接' });
+    const closed = await sendCommand('close-window', { workspace: 'okit' }, 10000);
+    if (!closed?.ok) return res.status(502).json({ success: false, error: closed?.error || '无法关闭控制台窗口' });
+    return res.json({ success: true });
+  } catch (error) {
+    return res.status(503).json({ success: false, error: error.message || String(error) });
+  }
+}
 module.exports = { getUsage, getSupportedUsageProviders, queryUsage: registry.queryUsage, ...parsers, openXiaomiLogin, closeXiaomiLoginWindow };
