@@ -88,10 +88,10 @@ describe('sync pull agent model hydration', { timeout: 30000 }, () => {
           opencode:{sites:{'sync-open':{modelIds:['sync-open-live']},'qianfan-coding':{modelIds:['glm-5.1','glm-5.2']},'third-coding':{modelIds:['third-coding-live']},'third-token':{modelIds:['third-token-live']},'sync-offline':{modelIds:['sync-offline-model']}}}
         };
         user.sync={password:'shared-secret',platforms:{supabase:{enabled:true,projectId:'project',apiToken:'token'}}};
-        // Use the same serialized config-store writer as syncPush. A direct
-        // fs write can race a queued user-config migration from another
-        // loaded application module when Vitest runs files concurrently.
-        await sync.saveConfig(user,{applyAgentProviders:true,applyModelOverrides:true});
+        // Bootstrap through ownership-scoped queue writes; a direct fs write
+        // can race a queued user-config migration in parallel Vitest files.
+        await sync.patchSyncConfig(user.sync);
+        for(const [agentId,selection] of Object.entries(user.agentProviders)) await sync.patchAgentSelection(agentId,selection);
         await sync.syncPush();
       })().catch(error=>{console.error(error.stack);process.exit(1)});
     `;
@@ -123,7 +123,7 @@ describe('sync pull agent model hydration', { timeout: 30000 }, () => {
           const now=new Date().toISOString();
           fs.mkdirSync(path.dirname(catalogPath),{recursive:true});
           fs.writeFileSync(catalogPath,JSON.stringify({source:'models.dev',version:2,generation:1,sourceFetchedAt:now,cachedAt:now,status:'fresh',data:{'qianfan-coding':{api:'${origin}/v2',models:{'glm-5.1':{limit:{context:123456,output:8192},reasoning:true},'catalog-only':{limit:{context:999999}}}}}}));
-          await sync.saveConfig({sync:{password:'shared-secret',platforms:{supabase:{enabled:true,projectId:'project',apiToken:'token'}}}});
+          await sync.patchSyncConfig({password:'shared-secret',platforms:{supabase:{enabled:true,projectId:'project',apiToken:'token'}}});
           const before={providers:fs.existsSync(providersPath),cache:fs.existsSync(cachePath)};
           const first=await sync.syncPull();
           const providersAfterFirst=fs.readFileSync(providersPath,'utf8');

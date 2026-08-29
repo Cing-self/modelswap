@@ -5,7 +5,7 @@ import { BaseAdapter } from "./base";
 import { gatewayHeadersFor } from "./gateway";
 import { modelTokenLimit } from "./model-facts";
 import { AgentSelection, AuthStatus, Provider, ProviderType, ResolvedModel } from "../types";
-import { loadUserConfig, updateUserConfig } from "../../config/user";
+import { loadUserConfig, patchAgentSelection } from "../../config/user";
 import { atomicWrite, atomicWriteJSON } from "../../utils/atomicWrite";
 
 // OpenCode reads ~/.config/opencode/opencode.json (NOT ~/.opencode/config.json).
@@ -180,14 +180,10 @@ export class OpenCodeAdapter extends BaseAdapter {
 
     await this.saveConfig(data);
     await this.syncDesktopModelVisibility(provider.id, provider.models.map(model => model.id));
-    await updateUserConfig({
-      agentProviders: {
-        opencode: {
+    await patchAgentSelection("opencode", {
           activeProviderId: provider.id,
           activeModelId: modelId,
           sites: { [provider.id]: { modelIds: [...new Set([...(provider.models || []).map(item => item.id), modelId])] } },
-        },
-      },
     });
   }
 

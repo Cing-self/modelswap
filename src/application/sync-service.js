@@ -18,7 +18,8 @@ function createSyncService({
   publishDataChanged,
   reconcilePulledAgentProviders,
   resolvePrimaryTarget,
-  saveConfig,
+  mutateConfig,
+  patchSyncConfig,
   shouldApplyRemoteSection,
 }) {
   async function peekRemote() {
@@ -55,7 +56,7 @@ function createSyncService({
       config,
     );
 
-    if (!config.sync.machineId) config.sync.machineId = crypto.randomUUID();
+    const machineId = config.sync.machineId || crypto.randomUUID();
 
     const secrets = await getVaultStore().exportAll();
     const syncData = {
@@ -66,7 +67,7 @@ function createSyncService({
         providers: await loadProviderSites(),
       },
       updatedAt: new Date().toISOString(),
-      machineId: config.sync.machineId,
+      machineId,
     };
     const encryptedBlob = encryptPayload(syncData, encryptionKey);
 
@@ -86,19 +87,18 @@ function createSyncService({
       throw new Error(`推送失败（${failed.join('; ')}）`);
     }
 
-    config.sync.lastRemote = {
-      updatedAt: syncData.updatedAt,
-      machineId: config.sync.machineId,
-    };
-    config.sync.localChangedAt = {
-      secrets: syncData.updatedAt,
-      agentProviders: syncData.updatedAt,
-      modelOverrides: syncData.updatedAt,
-      providers: syncData.updatedAt,
-    };
-    config.sync.lastSyncAt = new Date().toISOString();
-    config.sync.lastSyncPlatform = pushed.join(',');
-    await saveConfig(config);
+    await patchSyncConfig({
+      machineId,
+      lastRemote: { updatedAt: syncData.updatedAt, machineId },
+      localChangedAt: {
+        secrets: syncData.updatedAt,
+        agentProviders: syncData.updatedAt,
+        modelOverrides: syncData.updatedAt,
+        providers: syncData.updatedAt,
+      },
+      lastSyncAt: new Date().toISOString(),
+      lastSyncPlatform: pushed.join(','),
+    }, 'sync-push');
 
     if (failed.length > 0) {
       throw new Error(
@@ -136,17 +136,6 @@ function createSyncService({
     if (!remoteData) throw new Error('远端没有同步数据');
 
     const remoteUpdated = remoteData.updatedAt || '';
-    const localChangedAt = config.sync.localChangedAt || {};
-    // Providers have to exist locally before the desired Agent selection is
-    // replayed. This keeps a pull on a new machine on the same service path
-    // as an ordinary dashboard or CLI save.
-    const providersApplied = Boolean(
-      remoteData.settings &&
-        shouldApplyRemoteSection(remoteUpdated, localChangedAt.providers),
-    );
-    const providers = providersApplied
-      ? await mergeRemoteProviderSites(remoteData.settings.providers)
-      : 0;
 
     const store = getVaultStore();
     const localMap = new Map(
@@ -180,42 +169,50 @@ function createSyncService({
       }
     }
 
-    const agentProvidersApplied = Boolean(
-      remoteData.settings?.agentProviders &&
-        shouldApplyRemoteSection(remoteUpdated, localChangedAt.agentProviders),
-    );
-    const modelOverridesApplied = Boolean(
-      remoteData.settings?.modelOverrides &&
-        shouldApplyRemoteSection(remoteUpdated, localChangedAt.modelOverrides),
-    );
-    if (agentProvidersApplied) {
-      config.agentProviders = remoteData.settings.agentProviders;
-    }
-    if (modelOverridesApplied) {
-      config.modelOverrides = remoteData.settings.modelOverrides;
-    }
-
-    if (!config.sync.machineId) config.sync.machineId = crypto.randomUUID();
-    config.sync.lastRemote = {
-      updatedAt: remoteUpdated,
-      machineId: remoteData.machineId || null,
-    };
-    config.sync.lastSyncAt = new Date().toISOString();
-    config.sync.lastSyncPlatform = remoteFrom;
-    await saveConfig(config, {
-      applyAgentProviders: agentProvidersApplied,
-      applyModelOverrides: modelOverridesApplied,
+    let providersApplied = false;
+    let agentProvidersApplied = false;
+    let modelOverridesApplied = false;
+    // Re-evaluate every conflict guard against the queue-fresh local state.
+    // `remoteData` is a decrypted wire intent, never a saved local snapshot.
+    const committedConfig = await mutateConfig('sync-pull', live => {
+      const localChangedAt = live.sync?.localChangedAt || {};
+      providersApplied = Boolean(remoteData.settings && shouldApplyRemoteSection(
+        remoteUpdated, localChangedAt.providers,
+      ));
+      agentProvidersApplied = Boolean(remoteData.settings?.agentProviders && shouldApplyRemoteSection(
+        remoteUpdated, localChangedAt.agentProviders,
+      ));
+      modelOverridesApplied = Boolean(remoteData.settings?.modelOverrides && shouldApplyRemoteSection(
+        remoteUpdated, localChangedAt.modelOverrides,
+      ));
+      return {
+        ...live,
+        ...(agentProvidersApplied ? { agentProviders: remoteData.settings.agentProviders } : {}),
+        ...(modelOverridesApplied ? { modelOverrides: remoteData.settings.modelOverrides } : {}),
+        sync: {
+          ...(live.sync || {}),
+          machineId: live.sync?.machineId || crypto.randomUUID(),
+          lastRemote: { updatedAt: remoteUpdated, machineId: remoteData.machineId || null },
+          lastSyncAt: new Date().toISOString(),
+          lastSyncPlatform: remoteFrom,
+        },
+      };
     });
+    // Provider sites must exist before local discovery/reconciliation, but
+    // their user.json conflict decision was made in the queued mutation above.
+    const providers = providersApplied
+      ? await mergeRemoteProviderSites(remoteData.settings.providers)
+      : 0;
 
     // Desired Agent state is durable before this local-only step. Hydration
     // discovers membership from B's authenticated endpoint/CLI and writes
     // only B's models-cache; it never imports A's rebuildable cache or marks
     // a sync section dirty. Reconciliation remains the single writer path.
     const agentModelHydration = agentProvidersApplied
-      ? await hydratePulledAgentModels(config)
+      ? await hydratePulledAgentModels(committedConfig)
       : { warmed: [], pending: [], results: [] };
     const agentReconciliation = agentProvidersApplied
-      ? await reconcilePulledAgentProviders(config)
+      ? await reconcilePulledAgentProviders(committedConfig)
       : [];
     const changedSections = [];
     if (added > 0 || updated > 0) changedSections.push('secrets');
@@ -295,20 +292,11 @@ function createSyncService({
       );
     }
 
-    const config = await loadConfig();
-    config.sync = {
-      ...(config.sync || {}),
+    await patchSyncConfig({
       password,
       syncPlatform: payload.syncPlatform,
-      platforms: {
-        ...(config.sync?.platforms || {}),
-        [payload.syncPlatform]: {
-          ...payload.platformConfig,
-          enabled: true,
-        },
-      },
-    };
-    await saveConfig(config);
+      platforms: { [payload.syncPlatform]: { ...payload.platformConfig, enabled: true } },
+    }, 'sync-code-import');
     appendLog('sync-code-import', payload.syncPlatform, true, `${secrets.length} secrets`);
     publishDataChanged(['config', 'secrets']);
     return { platform: payload.syncPlatform, secrets: secrets.length };

@@ -5,7 +5,7 @@ import { BaseAdapter } from "./base";
 import { gatewayHeadersFor } from "./gateway";
 import { modelFacts, modelTokenLimit } from "./model-facts";
 import { AgentSelection, AuthStatus, ManagedModels, Provider, ProviderType } from "../types";
-import { loadUserConfig, updateUserConfig } from "../../config/user";
+import { loadUserConfig, patchAgentSelection } from "../../config/user";
 import { atomicWriteJSON } from "../../utils/atomicWrite";
 
 // ZCode (zcode.z.ai, the GLM desktop coding agent) reads ~/.zcode/v2/config.json
@@ -296,7 +296,7 @@ export class ZCodeAdapter extends BaseAdapter {
       next.activeProviderId = undefined;
       next.activeModelId = undefined;
     }
-    await updateUserConfig({ agentProviders: { zcode: next } } as any);
+    await patchAgentSelection("zcode", next);
   }
 
   async applyConfig(provider: Provider, modelId: string): Promise<void> {

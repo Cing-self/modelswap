@@ -179,26 +179,26 @@ async function handleLanEnable(req, res) {
         .status(400)
         .json({ error: '请先设置同步密码，再开启局域网同步' });
     }
-    const lan = { ...(config.sync.lan || {}) };
-    if (!lan.token) lan.token = crypto.randomBytes(32).toString('hex');
-    const port = Number(req.body?.port) || lan.port || lanServer.DEFAULT_PORT;
-    lan.enabled = true;
-    lan.port = port;
-    config.sync = { ...(config.sync || {}), lan };
-    config.sync.platforms = { ...(config.sync.platforms || {}) };
-    const existing = config.sync.platforms.lan;
-    if (!existing || isLoopbackUrl(existing.baseUrl)) {
-      config.sync.platforms.lan = {
-        baseUrl: `http://127.0.0.1:${port}`,
-        token: lan.token,
-        enabled: true,
-      };
-    }
-    if (!config.sync.syncPlatform) config.sync.syncPlatform = 'lan';
-    const autoSyncTurnedOn = !config.sync.autoSync;
-    if (autoSyncTurnedOn) config.sync.autoSync = true;
-
-    await core.saveConfig(config);
+    const requestedPort = Number(req.body?.port) || lanServer.DEFAULT_PORT;
+    let autoSyncTurnedOn = false;
+    const committedConfig = await core.mutateConfig('lan-enable', live => {
+      const sync = { ...(live.sync || {}) };
+      const lan = { ...(sync.lan || {}) };
+      if (!lan.token) lan.token = crypto.randomBytes(32).toString('hex');
+      const port = Number(req.body?.port) || lan.port || requestedPort;
+      lan.enabled = true;
+      lan.port = port;
+      const platforms = { ...(sync.platforms || {}) };
+      const existing = platforms.lan;
+      if (!existing || isLoopbackUrl(existing.baseUrl)) {
+        platforms.lan = { baseUrl: `http://127.0.0.1:${port}`, token: lan.token, enabled: true };
+      }
+      if (!sync.syncPlatform) sync.syncPlatform = 'lan';
+      autoSyncTurnedOn = !sync.autoSync;
+      if (autoSyncTurnedOn) sync.autoSync = true;
+      return { ...live, sync: { ...sync, lan, platforms } };
+    });
+    const port = committedConfig.sync.lan.port;
     await lanServer.applyConfig();
     core.appendLog('lan-enable', 'lan', true, `port ${port}`);
     scheduler.syncNow().catch(() => {});
@@ -216,20 +216,15 @@ async function handleLanEnable(req, res) {
 
 async function handleLanDisable(req, res) {
   try {
-    const config = await core.loadConfig();
-    if (config.sync?.lan) {
-      config.sync.lan = { ...config.sync.lan, enabled: false };
-      if (
-        config.sync.platforms?.lan &&
-        isLoopbackUrl(config.sync.platforms.lan.baseUrl)
-      ) {
-        config.sync.platforms.lan = {
-          ...config.sync.platforms.lan,
-          enabled: false,
-        };
+    await core.mutateConfig('lan-disable', live => {
+      if (!live.sync?.lan) return live;
+      const sync = { ...live.sync, lan: { ...live.sync.lan, enabled: false } };
+      const localPlatform = sync.platforms?.lan;
+      if (localPlatform && isLoopbackUrl(localPlatform.baseUrl)) {
+        sync.platforms = { ...sync.platforms, lan: { ...localPlatform, enabled: false } };
       }
-      await core.saveConfig(config);
-    }
+      return { ...live, sync };
+    });
     await lanServer.applyConfig();
     core.appendLog('lan-disable', 'lan', true);
     res.json({ success: true, ...(await buildLanStatus()) });
@@ -245,18 +240,14 @@ async function handleLanRegenerate(req, res) {
     if (!config.sync?.lan?.token) {
       return res.status(400).json({ error: '尚未开启局域网同步' });
     }
-    const lan = {
-      ...config.sync.lan,
-      token: crypto.randomBytes(32).toString('hex'),
-    };
-    config.sync.lan = lan;
-    if (
-      config.sync.platforms?.lan &&
-      isLoopbackUrl(config.sync.platforms.lan.baseUrl)
-    ) {
-      config.sync.platforms.lan = { ...config.sync.platforms.lan, token: lan.token };
-    }
-    await core.saveConfig(config);
+    await core.mutateConfig('lan-regenerate', live => {
+      const lan = { ...live.sync.lan, token: crypto.randomBytes(32).toString('hex') };
+      const sync = { ...live.sync, lan };
+      if (sync.platforms?.lan && isLoopbackUrl(sync.platforms.lan.baseUrl)) {
+        sync.platforms = { ...sync.platforms, lan: { ...sync.platforms.lan, token: lan.token } };
+      }
+      return { ...live, sync };
+    });
     await lanServer.applyConfig();
     core.appendLog(
       'lan-regenerate',
@@ -399,26 +390,22 @@ async function handleLanPair(req, res) {
         error: '两台设备的同步密码不一致，请先在两台设备上设置为相同的同步密码',
       });
     }
-    config.sync = { ...(config.sync || {}), password };
-    config.sync.platforms = { ...(config.sync.platforms || {}) };
     let hubDisabled = false;
-    if (
-      config.sync.lan?.enabled &&
-      isLoopbackUrl(config.sync.platforms.lan?.baseUrl)
-    ) {
-      config.sync.lan = { ...config.sync.lan, enabled: false };
-      hubDisabled = true;
-    }
-    config.sync.platforms.lan = {
-      baseUrl: parsed.baseUrl,
-      token: info.token,
-      enabled: true,
-    };
-    if (!config.sync.syncPlatform) config.sync.syncPlatform = 'lan';
-    const autoSyncTurnedOn = !config.sync.autoSync;
-    if (autoSyncTurnedOn) config.sync.autoSync = true;
-
-    await core.saveConfig(config);
+    let autoSyncTurnedOn = false;
+    await core.mutateConfig('lan-pair', live => {
+      const sync = { ...(live.sync || {}), password };
+      const platforms = { ...(sync.platforms || {}) };
+      if (sync.lan?.enabled && isLoopbackUrl(platforms.lan?.baseUrl)) {
+        sync.lan = { ...sync.lan, enabled: false };
+        hubDisabled = true;
+      }
+      platforms.lan = { baseUrl: parsed.baseUrl, token: info.token, enabled: true };
+      sync.platforms = platforms;
+      if (!sync.syncPlatform) sync.syncPlatform = 'lan';
+      autoSyncTurnedOn = !sync.autoSync;
+      if (autoSyncTurnedOn) sync.autoSync = true;
+      return { ...live, sync };
+    });
     if (hubDisabled) await lanServer.applyConfig();
     core.appendLog(
       'lan-pair',

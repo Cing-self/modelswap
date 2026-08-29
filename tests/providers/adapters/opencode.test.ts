@@ -36,7 +36,7 @@ vi.mock('../../../src/config/registry', () => ({
 
 vi.mock('../../../src/config/user', () => ({
   loadUserConfig: vi.fn(async function() { return {}; }),
-  updateUserConfig: vi.fn(async function(patch: any) { return patch; }),
+  patchAgentSelection: vi.fn(async function(_agentId: string, patch: any) { return patch; }),
 }));
 
 vi.mock('../../../src/vault/store', () => ({
@@ -46,7 +46,7 @@ vi.mock('../../../src/vault/store', () => ({
 }));
 
 const { OpenCodeAdapter, openCodeDesktopStorePaths } = await import('../../../src/providers/adapters/opencode');
-const { updateUserConfig } = await import('../../../src/config/user');
+const { patchAgentSelection } = await import('../../../src/config/user');
 
 // OpenCode reads ~/.config/opencode/opencode.json (NOT ~/.opencode/config.json).
 const CONFIG_PATH = path.join(os.homedir(), '.config', 'opencode', 'opencode.json');
@@ -88,7 +88,7 @@ const resolvedModel = (id: string, context: number, output: number) => ({
 
 beforeEach(() => {
   mocks.files.clear();
-  vi.mocked(updateUserConfig).mockClear();
+  vi.mocked(patchAgentSelection).mockClear();
 });
 
 describe('OpenCodeAdapter', () => {
@@ -261,14 +261,11 @@ describe('OpenCodeAdapter.applyConfig (cc-switch schema)', () => {
     const adapter = new OpenCodeAdapter();
     await adapter.applyConfig(openaiProvider, 'deepseek-chat');
 
-    expect(updateUserConfig).toHaveBeenCalledWith(
+    expect(patchAgentSelection).toHaveBeenCalledWith(
+      'opencode',
       expect.objectContaining({
-        agentProviders: {
-          opencode: {
             activeProviderId: 'deepseek', activeModelId: 'deepseek-chat',
             sites: { deepseek: { modelIds: ['deepseek-chat'] } },
-          },
-        },
       }),
     );
   });

@@ -3,7 +3,7 @@ import Module from 'module';
 
 const mockCore = vi.hoisted(() => ({
   loadConfig: vi.fn(),
-  saveConfig: vi.fn(),
+  patchSyncConfig: vi.fn(),
   appendLog: vi.fn(),
   syncPush: vi.fn(),
   syncPull: vi.fn(),
@@ -31,7 +31,7 @@ const ENABLED_SYNC = {
 beforeEach(() => {
   vi.clearAllMocks();
   mockCore.loadConfig.mockResolvedValue(ENABLED_SYNC);
-  mockCore.saveConfig.mockResolvedValue(undefined);
+  mockCore.patchSyncConfig.mockResolvedValue(undefined);
   mockCore.syncPush.mockResolvedValue({ secrets: 2, platform: 'iCloud' });
 });
 
@@ -76,9 +76,9 @@ describe('markDirty', () => {
     expect(mockCore.syncPush).toHaveBeenCalledTimes(1);
     expect(mockCore.appendLog).toHaveBeenCalledWith('auto-sync-push', 'scheduler', true, '2 secrets');
 
-    const saved = mockCore.saveConfig.mock.calls[0][0];
-    expect(saved.sync.localChangedAt.secrets).toBeTruthy();
-    expect(saved.sync.localChangedAt.providers).toBeTruthy();
+    const patches = mockCore.patchSyncConfig.mock.calls.map(call => call[0]);
+    expect(patches.some(patch => patch.localChangedAt.secrets)).toBe(true);
+    expect(patches.some(patch => patch.localChangedAt.providers)).toBe(true);
   });
 
   it('does nothing when auto-sync is disabled', async () => {

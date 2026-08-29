@@ -5,7 +5,7 @@ import { BaseAdapter } from "./base";
 import { gatewayHeadersFor } from "./gateway";
 import { modelFacts } from "./model-facts";
 import { AgentSelection, AuthStatus, Provider, ProviderType, ResolvedModel } from "../types";
-import { loadUserConfig, updateUserConfig } from "../../config/user";
+import { loadUserConfig, patchAgentSelection } from "../../config/user";
 import { atomicWrite } from "../../utils/atomicWrite";
 import { loadProviders } from "../store";
 import { tomlInlineTable } from "./toml-utils";
@@ -81,14 +81,10 @@ export class KimiCodeAdapter extends BaseAdapter {
     await atomicWrite(KIMI_CODE_CONFIG_PATH, toml);
     await this.healModelFields();
 
-    await updateUserConfig({
-      agentProviders: {
-        "kimi-code": {
+    await patchAgentSelection("kimi-code", {
           activeProviderId: provider.id,
           activeModelId: modelId,
           sites: { [provider.id]: { modelIds: [...new Set([...(provider.models || []).map(item => item.id), modelId])] } },
-        },
-      },
     });
   }
 

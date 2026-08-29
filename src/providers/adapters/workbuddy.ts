@@ -4,7 +4,7 @@ import os from "os";
 import { BaseAdapter } from "./base";
 import { modelFacts } from "./model-facts";
 import { AgentSelection, AuthStatus, ManagedModels, Provider, ProviderType } from "../types";
-import { loadUserConfig, updateUserConfig } from "../../config/user";
+import { loadUserConfig, patchAgentSelection } from "../../config/user";
 import { atomicWrite, atomicWriteJSON } from "../../utils/atomicWrite";
 
 const WORKBUDDY_DIR = path.join(os.homedir(), ".workbuddy");
@@ -120,7 +120,7 @@ export class WorkBuddyAdapter extends BaseAdapter {
       next.activeProviderId = undefined;
       next.activeModelId = undefined;
     }
-    await updateUserConfig({ agentProviders: { workbuddy: next } } as any);
+    await patchAgentSelection("workbuddy", next);
   }
 
   private upsertEntry(

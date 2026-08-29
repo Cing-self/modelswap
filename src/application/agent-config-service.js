@@ -47,7 +47,7 @@ function defaultDependencies() {
     getAdapter: registry.getAdapter,
     loadProviders: store.loadProviders,
     loadUserConfig: user.loadUserConfig,
-    saveUserConfig: user.saveUserConfig,
+    patchAgentSelection: user.patchAgentSelection,
     captureSnapshot: snapshots.capturePreSwitchSnapshot,
     restoreSnapshot: snapshots.restoreSnapshot,
     providerSupportsAdapter: routing.providerSupportsAdapter,
@@ -73,6 +73,16 @@ function createAgentConfigurationService(overrides = {}) {
   // fully functional default implementation.
   const d = { ...defaultDependencies(), ...overrides };
   const adapterMeta = id => (d.adapters || []).find(adapter => adapter.id === id);
+
+  async function persistAgentState(agentId, before, after, removedProviderId) {
+    const beforeState = getAgentState(before, agentId);
+    const selection = getAgentState(after, agentId);
+    if (removedProviderId) selection.sites[removedProviderId] = null;
+    for (const key of ['activeProviderId', 'activeModelId']) {
+      if (beforeState[key] && !selection[key]) selection[key] = null;
+    }
+    await d.patchAgentSelection(agentId, selection);
+  }
 
   function prepareWrite(provider, agentId, modelId, selectedIds, config, { allowCataloglessModel = false, preserveProviderModels = false } = {}) {
     const meta = adapterMeta(agentId);
@@ -161,7 +171,7 @@ function createAgentConfigurationService(overrides = {}) {
           next.activeModelId = primaryModelId;
           replaceAgentState(config, agentId, next);
         }
-        await d.saveUserConfig(config);
+        await persistAgentState(agentId, before, config);
       }
     } catch (error) {
       if (snapshotId && typeof d.restoreSnapshot === 'function') {
@@ -182,7 +192,7 @@ function createAgentConfigurationService(overrides = {}) {
     setSite(config, 'claude', providerId, { ...site, tierMap: Object.keys(normalized).length ? normalized : undefined });
     // Persist the desired map first. If native reconciliation fails it remains
     // explicit and may be retried by a later sync pull/manual selection.
-    await d.saveUserConfig(config);
+    await persistAgentState('claude', state, config);
     if (state.activeProviderId !== providerId || !state.activeModelId) return { success: true, providerId, tierMap: normalized };
     return applySelection({ agentId: 'claude', providerId, modelIds: site.modelIds, primaryModelId: state.activeModelId, tierMap: normalized, source, activate: true });
   }
@@ -217,10 +227,9 @@ function createAgentConfigurationService(overrides = {}) {
         next.activeModelId = fallback.modelId;
         replaceAgentState(before, agentId, next);
       }
-      if (persist) await d.saveUserConfig(before, { removeSite: { agentId, providerId } });
+      if (persist) await persistAgentState(agentId, state, before, providerId);
     } catch (error) {
       if (snapshotId && typeof d.restoreSnapshot === 'function') await d.restoreSnapshot(agentId, snapshotId).catch(() => {});
-      if (persist) await d.saveUserConfig(suppliedConfig || before).catch(() => {});
       throw error;
     }
     d.appendLog(source, `${agentId}:${providerId}`, true);
@@ -240,7 +249,7 @@ function createAgentConfigurationService(overrides = {}) {
       else if (typeof adapter?.removeProvider === 'function') await adapter.removeProvider(providerId);
       else throw asError(`${agentId} adapter 不支持停用站点`, 400);
       setSite(config, agentId, providerId, { ...site, enabled: false });
-      await d.saveUserConfig(config);
+      await persistAgentState(agentId, getAgentState(config, agentId), config);
     } catch (error) {
       if (snapshotId && typeof d.restoreSnapshot === 'function') await d.restoreSnapshot(agentId, snapshotId).catch(() => {});
       throw error;

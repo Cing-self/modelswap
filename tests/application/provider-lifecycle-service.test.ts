@@ -20,7 +20,10 @@ describe('provider lifecycle application service', () => {
       loadProviders: async () => providers,
       saveProviders: async () => undefined,
       loadUserConfig: async () => config,
-      saveUserConfig: async (value: any) => { savedConfig = value; },
+      mutateConfig: async (_owner: string, mutator: any) => {
+        savedConfig = await mutator(config);
+        return savedConfig;
+      },
       agentConfigService: {
         removeConfiguredSite: async ({ agentId, providerId }: any) => {
           removed.push(`${agentId}:${providerId}`);

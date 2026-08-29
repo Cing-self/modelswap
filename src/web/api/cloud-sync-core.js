@@ -71,7 +71,6 @@ const reconciler = createPulledAgentReconciler({
   providerStore,
   loadProviderRuntime,
   loadConfig: configStore.loadConfig,
-  saveConfig: configStore.saveConfig,
   appendLog,
 });
 async function hydratePulledAgentModels(config) {
@@ -101,7 +100,8 @@ const syncService = createSyncService({
   publishDataChanged,
   reconcilePulledAgentProviders: reconciler.reconcilePulledAgentProviders,
   resolvePrimaryTarget: platforms.resolvePrimaryTarget,
-  saveConfig: configStore.saveConfig,
+  mutateConfig: configStore.mutateConfig,
+  patchSyncConfig: configStore.patchSyncConfig,
   shouldApplyRemoteSection,
 });
 
@@ -116,10 +116,11 @@ module.exports = {
   mergeSyncedProviderSites: providerSites.mergeSyncedProviderSites,
   resolveSyncKeys: platforms.resolveSyncKeys,
   resolveVaultRefs: platforms.resolveVaultRefs,
-  saveConfig: configStore.saveConfig,
   mutateConfig: configStore.mutateConfig,
-  saveUserConfig: configStore.saveUserConfig,
-  updateUserConfig: configStore.updateUserConfig,
+  patchSyncConfig: configStore.patchSyncConfig,
+  patchUserPreferences: configStore.patchUserPreferences,
+  patchAgentSelection: configStore.patchAgentSelection,
+  patchModelOverrides: configStore.patchModelOverrides,
   testConnection,
   __testing: {
     shouldApplyRemoteSection,

@@ -122,7 +122,8 @@ describe('sync pull reconciles every registered Agent through local discovery', 
         const state={sync:{password:'shared-secret',platforms:{supabase:{enabled:true,projectId:'project',apiToken:'token'}}},agentProviders:{}};
         for(const id of ${JSON.stringify(EXPECTED_AGENT_IDS)}) state.agentProviders[id]={activeProviderId:provider.id,activeModelId:remote,sites:{[provider.id]:{modelIds:[remote]}}};
         state.agentProviders.claude.sites[provider.id].tierMap={haiku:remote,sonnet:remote,opus:remote};
-        await sync.saveConfig(state,{applyAgentProviders:true,applyModelOverrides:true});
+        await sync.patchSyncConfig(state.sync);
+        for(const [agentId,selection] of Object.entries(state.agentProviders)) await sync.patchAgentSelection(agentId,selection);
         await sync.syncPush(); await new Promise(resolve=>server.close(resolve));
       })().catch(error=>{console.error(error.stack||error);process.exit(1)});
     `;
@@ -136,7 +137,7 @@ describe('sync pull reconciles every registered Agent through local discovery', 
         // second model row and allows tier/token mappings to be asserted.
         const now=new Date().toISOString(); fs.mkdirSync(path.join(okit,'cache'),{recursive:true});
         fs.writeFileSync(path.join(okit,'cache','models-dev.json'),JSON.stringify({source:'models.dev',version:2,generation:1,sourceFetchedAt:now,cachedAt:now,status:'fresh',data:{'sync-all-adapters':{models:{[remote]:{name:'Sync All Remote',limit:{context:123456,output:8192},reasoning:true,modalities:{input:['text'],output:['text']}}}}}}));
-        await sync.saveConfig({sync:{password:'shared-secret',platforms:{supabase:{enabled:true,projectId:'project',apiToken:'token'}}}});
+        await sync.patchSyncConfig({password:'shared-secret',platforms:{supabase:{enabled:true,projectId:'project',apiToken:'token'}}});
         const result=await sync.syncPull();
         const read=(...parts)=>fs.readFileSync(path.join(home,...parts),'utf8');
         const claude=JSON.parse(read('.claude','settings.json'));

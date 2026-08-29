@@ -122,13 +122,13 @@ export async function loadUserConfig(): Promise<UserConfig> {
   if (config) {
     if (migrateAgentProviders(config)) {
       if (Object.prototype.hasOwnProperty.call(fs.writeFile as object, "mock")) {
-        await saveUserConfig(config);
+        await replaceUserConfigForTest(config);
       } else {
         // A legacy read may race a settings/sync write. Re-read and apply the
         // migration in the shared mutation queue instead of saving this stale
         // snapshot over unrelated user.json fields.
         const syncCore = require("../web/api/cloud-sync-core");
-        return syncCore.mutateConfig((live: UserConfig & Record<string, any>) => {
+        return syncCore.mutateConfig("legacy-migration", (live: UserConfig & Record<string, any>) => {
           migrateAgentProviders(live);
           return live;
         });
@@ -139,37 +139,26 @@ export async function loadUserConfig(): Promise<UserConfig> {
 
   const migrated = await migrateLegacyConfig();
   if (migrated) {
-    await saveUserConfig(migrated);
-    return migrated;
+    if (Object.prototype.hasOwnProperty.call(fs.writeFile as object, "mock")) {
+      await replaceUserConfigForTest(migrated);
+      return migrated;
+    }
+    const syncCore = require("../web/api/cloud-sync-core");
+    return syncCore.mutateConfig("legacy-init", (live: UserConfig & Record<string, any>) => ({ ...live, ...migrated }));
   }
   return {};
 }
 
-export async function saveUserConfig(config: UserConfig): Promise<void> {
-  // Keep the documented filesystem seam for embedders that supply a virtual
-  // fs-extra implementation. Production writes use the shared sync queue.
-  if (Object.prototype.hasOwnProperty.call(fs.writeFile as object, "mock")) {
-    await fs.ensureDir(OKIT_DIR);
-    await backupImportantData("user");
-    await atomicWriteJSON(USER_CONFIG_PATH, config);
-    return;
+async function replaceUserConfigForTest(config: UserConfig): Promise<void> {
+  if (!Object.prototype.hasOwnProperty.call(fs.writeFile as object, "mock")) {
+    throw new Error("replaceUserConfigForTest is unavailable in production");
   }
-  // Web API, adapters, and CLI all write the same user-owned partitions.
-  // The sync core serializes these commits with dirty-marker metadata writes;
-  // bypassing it here reintroduced a lost-update race through adapter calls.
-  const syncCore = require("../web/api/cloud-sync-core");
-  await syncCore.saveUserConfig(config);
+  await fs.ensureDir(OKIT_DIR);
+  await backupImportantData("user");
+  await atomicWriteJSON(USER_CONFIG_PATH, config);
 }
 
-export async function updateUserConfig(patch: Partial<UserConfig>): Promise<UserConfig> {
-  // The read/merge/write must stay inside sync-config-store's queue. Reading
-  // here and saving later lets a concurrent settings or sync mutation replace
-  // this patch with a stale user.json snapshot.
-  if (!Object.prototype.hasOwnProperty.call(fs.writeFile as object, "mock")) {
-    const syncCore = require("../web/api/cloud-sync-core");
-    return syncCore.updateUserConfig(patch);
-  }
-  // Preserve the virtual fs seam used by isolated unit tests.
+async function mergeTestPatch(patch: Partial<UserConfig>): Promise<UserConfig> {
   const current = await loadUserConfig();
   const merged = {
     ...current,
@@ -181,8 +170,36 @@ export async function updateUserConfig(patch: Partial<UserConfig>): Promise<User
     repo: patch.repo ? { ...current.repo, ...patch.repo } : current.repo,
     sync: patch.sync ? { ...current.sync, ...patch.sync, platforms: patch.sync.platforms ? { ...current.sync?.platforms, ...patch.sync.platforms } : current.sync?.platforms } : current.sync,
   };
-  await saveUserConfig(merged);
+  await replaceUserConfigForTest(merged);
   return merged;
+}
+
+export async function patchUserPreferences(patch: Pick<UserConfig, "language" | "hints" | "git" | "repo">): Promise<UserConfig> {
+  if (!Object.prototype.hasOwnProperty.call(fs.writeFile as object, "mock")) {
+    return require("../web/api/cloud-sync-core").patchUserPreferences(patch, "config-user");
+  }
+  return mergeTestPatch(patch);
+}
+
+export async function patchSyncConfig(patch: NonNullable<UserConfig["sync"]>): Promise<UserConfig> {
+  if (!Object.prototype.hasOwnProperty.call(fs.writeFile as object, "mock")) {
+    return require("../web/api/cloud-sync-core").patchSyncConfig(patch, "config-user");
+  }
+  return mergeTestPatch({ sync: patch });
+}
+
+export async function patchAgentSelection(agentId: string, selection: AgentProviderState | null): Promise<UserConfig> {
+  if (!Object.prototype.hasOwnProperty.call(fs.writeFile as object, "mock")) {
+    return require("../web/api/cloud-sync-core").patchAgentSelection(agentId, selection, "config-user");
+  }
+  return mergeTestPatch({ agentProviders: { [agentId]: selection } as AgentProviders });
+}
+
+export async function patchModelOverrides(providerId: string, models: NonNullable<UserConfig["modelOverrides"]>[string]): Promise<UserConfig> {
+  if (!Object.prototype.hasOwnProperty.call(fs.writeFile as object, "mock")) {
+    return require("../web/api/cloud-sync-core").patchModelOverrides(providerId, models, "config-user");
+  }
+  return mergeTestPatch({ modelOverrides: { [providerId]: models } });
 }
 
 function mergeModelOverrides(

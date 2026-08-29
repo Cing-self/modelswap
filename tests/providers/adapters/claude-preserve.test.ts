@@ -36,7 +36,7 @@ vi.mock('../../../src/config/registry', () => ({
 
 vi.mock('../../../src/config/user', () => ({
   loadUserConfig: vi.fn(async function() { return {}; }),
-  updateUserConfig: vi.fn(async function(patch: any) { return patch; }),
+  patchAgentSelection: vi.fn(async function(_agentId: string, patch: any) { return patch; }),
 }));
 
 vi.mock('../../../src/vault/store', () => ({
@@ -54,7 +54,7 @@ vi.mock('child_process', () => ({
 }));
 
 const { ClaudeAdapter } = await import('../../../src/providers/adapters/claude');
-const { updateUserConfig } = await import('../../../src/config/user');
+const { patchAgentSelection } = await import('../../../src/config/user');
 
 const SETTINGS_PATH = path.join(os.homedir(), '.claude', 'settings.json');
 
@@ -70,7 +70,7 @@ const thirdPartyProvider = {
 
 beforeEach(() => {
   mocks.files.clear();
-  vi.mocked(updateUserConfig).mockClear();
+  vi.mocked(patchAgentSelection).mockClear();
 });
 
 describe('ClaudeAdapter.applyConfig preserves custom top-level fields', () => {

@@ -5,7 +5,7 @@ import { BaseAdapter } from "./base";
 import { gatewayHeadersFor } from "./gateway";
 import { modelFacts } from "./model-facts";
 import { AgentSelection, AuthStatus, Provider, ProviderType, ResolvedModel } from "../types";
-import { loadUserConfig, updateUserConfig } from "../../config/user";
+import { loadUserConfig, patchAgentSelection } from "../../config/user";
 import { checkCodexOAuth } from "../auth";
 import { atomicWrite, atomicWriteJSON } from "../../utils/atomicWrite";
 import {
@@ -131,16 +131,12 @@ export class CodexAdapter extends BaseAdapter {
       await writeModelCatalog(provider);
     }
 
-    await updateUserConfig({
-      agentProviders: {
-        codex: {
+    await patchAgentSelection("codex", {
           activeProviderId: provider.id,
           activeModelId: modelId,
           sites: {
             [provider.id]: { modelIds: [...new Set([...(provider.models || []).map(item => item.id), modelId])] },
           },
-        },
-      },
     });
   }
 

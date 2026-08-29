@@ -34,7 +34,7 @@ vi.mock('../../src/config/registry', () => ({
   CACHE_DIR: testRoot.CACHE_DIR,
 }));
 
-const { loadUserConfig, saveUserConfig, updateUserConfig } = await import('../../src/config/user');
+const { loadUserConfig, patchUserPreferences, patchSyncConfig } = await import('../../src/config/user');
 
 const CONFIG_PATH = testRoot.CONFIG_PATH;
 
@@ -61,23 +61,21 @@ describe('loadUserConfig', () => {
   });
 });
 
-describe('saveUserConfig', () => {
-  it('writes config to disk', async () => {
-    const config = { language: 'zh', claude: { name: 'test' } };
-    await saveUserConfig(config);
+describe('user-owned patches', () => {
+  it('writes preferences without accepting a complete config replacement', async () => {
+    await patchUserPreferences({ language: 'zh' });
     expect(mocks.ensureDir).toHaveBeenCalled();
     const written = mocks.files.get(CONFIG_PATH);
     expect(written).toBeTruthy();
-    expect(JSON.parse(written!)).toEqual(config);
+    expect(JSON.parse(written!)).toEqual({ language: 'zh' });
   });
 });
 
-describe('updateUserConfig', () => {
-  it('merges patch into existing config', async () => {
-    mocks.files.set(CONFIG_PATH, JSON.stringify({ language: 'zh', claude: { name: 'old' } }));
-    const result = await updateUserConfig({ claude: { name: 'new', model: 'gpt-4' } });
-    expect(result.claude!.name).toBe('new');
-    expect(result.claude!.model).toBe('gpt-4');
+describe('ownership-scoped config patches', () => {
+  it('merges preferences into existing config', async () => {
+    mocks.files.set(CONFIG_PATH, JSON.stringify({ language: 'zh', hints: { old: true } }));
+    const result = await patchUserPreferences({ hints: { mainHelpShown: true } });
+    expect(result.hints!.mainHelpShown).toBe(true);
     expect(result.language).toBe('zh');
   });
 
@@ -85,9 +83,7 @@ describe('updateUserConfig', () => {
     mocks.files.set(CONFIG_PATH, JSON.stringify({
       sync: { platforms: { supabase: { enabled: true } } },
     }));
-    const result = await updateUserConfig({
-      sync: { platforms: { cloudflare: { enabled: false } } } as any,
-    });
+    const result = await patchSyncConfig({ platforms: { cloudflare: { enabled: false } } } as any);
     expect(result.sync!.platforms!.supabase!.enabled).toBe(true);
     expect(result.sync!.platforms!.cloudflare!.enabled).toBe(false);
   });

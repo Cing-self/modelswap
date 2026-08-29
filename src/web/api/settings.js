@@ -65,7 +65,7 @@ async function updateSettings(req, res) {
     if (!sync) return res.status(400).json({ error: 'sync is required' });
     let autoSyncWasOn = false;
     let prevLan = null;
-    const config = await syncCore.mutateConfig(live => {
+    const config = await syncCore.mutateConfig('settings', live => {
       autoSyncWasOn = !!live.sync?.autoSync;
       prevLan = JSON.stringify(live.sync?.lan || null);
       const merged = mergeSensitive(live.sync, sync);
@@ -77,7 +77,7 @@ async function updateSettings(req, res) {
           platforms: { ...live.sync?.platforms, ...merged.platforms },
         },
       };
-    }, { reason: 'settings' });
+    });
     const changes = [];
     if (sync) changes.push(...Object.keys(sync.platforms || {}));
     appendLog('settings-update', changes.join(',') || 'settings', true);
@@ -165,10 +165,10 @@ async function getOnboarding(req, res) {
 
 async function dismissOnboarding(req, res) {
   try {
-    await syncCore.mutateConfig(config => ({
+    await syncCore.mutateConfig('settings', config => ({
       ...config,
       hints: { ...config.hints, onboardingDone: true },
-    }), { reason: 'settings' });
+    }));
     appendLog('onboarding-dismiss', 'onboarding', true);
     res.json({ success: true });
   } catch (error) {
@@ -179,11 +179,11 @@ async function dismissOnboarding(req, res) {
 
 async function resetOnboarding(req, res) {
   try {
-    await syncCore.mutateConfig(config => {
+    await syncCore.mutateConfig('settings', config => {
       const hints = { ...config.hints };
       delete hints.onboardingDone;
       return { ...config, hints };
-    }, { reason: 'settings' });
+    });
     appendLog('onboarding-reset', 'onboarding', true);
     res.json({ success: true });
   } catch (error) {

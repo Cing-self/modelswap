@@ -14,7 +14,7 @@ import {
   vaultEnv,
 } from "./commands/vault";
 import { setLanguage, getLanguage, t, Language, initLanguage, loadLanguageConfig, saveLanguageConfig } from "./config/i18n";
-import { loadUserConfig, updateUserConfig } from "./config/user";
+import { loadUserConfig, patchUserPreferences } from "./config/user";
 import {
   providerList,
   providerCurrent,
@@ -536,7 +536,7 @@ async function showMainHelpHintOnce(): Promise<void> {
   const config = await loadUserConfig();
   if (config.hints?.mainHelpShown) return;
   console.log(kleur.gray(t("mainHelpHint")));
-  await updateUserConfig({ hints: { mainHelpShown: true } });
+  await patchUserPreferences({ hints: { mainHelpShown: true } });
 }
 
 program.parseAsync().catch((error: unknown) => {

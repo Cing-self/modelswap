@@ -1,8 +1,6 @@
 const {
   mergeAgentProviderSelections,
   mergeModelOverrides,
-  removeProviderSelection,
-  removeAgentProviderSite,
 } = require('../application/sync-config-state');
 
 function createSyncConfigStore({
@@ -37,12 +35,27 @@ function createSyncConfigStore({
 
   async function readLiveConfig(fallback = {}) {
     try {
+      if (fs.writeJson && Object.prototype.hasOwnProperty.call(fs.writeJson, 'mock')) {
+        const live = await fs.readJson(configPath);
+        migrateAgentProviders(live);
+        return live;
+      }
       const live = JSON.parse(await fs.readFile(configPath, 'utf-8'));
       migrateAgentProviders(live);
       return live;
     } catch {
       return { ...fallback };
     }
+  }
+
+  function laterTimestamp(liveValue, incomingValue) {
+    const liveTime = typeof liveValue === 'string' ? Date.parse(liveValue) : NaN;
+    const incomingTime = typeof incomingValue === 'string' ? Date.parse(incomingValue) : NaN;
+    if (Number.isFinite(liveTime) && Number.isFinite(incomingTime)) {
+      return incomingTime >= liveTime ? incomingValue : liveValue;
+    }
+    if (Number.isFinite(incomingTime)) return incomingValue;
+    return liveValue;
   }
 
   function mergeSyncConfig(live, patch) {
@@ -58,7 +71,13 @@ function createSyncConfigStore({
     }
     if (patch.lan && typeof patch.lan === 'object') next.lan = { ...(live?.lan || {}), ...patch.lan };
     if (patch.localChangedAt && typeof patch.localChangedAt === 'object') {
-      next.localChangedAt = { ...(live?.localChangedAt || {}), ...patch.localChangedAt };
+      next.localChangedAt = { ...(live?.localChangedAt || {}) };
+      for (const [section, timestamp] of Object.entries(patch.localChangedAt)) {
+        next.localChangedAt[section] = laterTimestamp(live?.localChangedAt?.[section], timestamp);
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(patch, 'lastSyncAt')) {
+      next.lastSyncAt = laterTimestamp(live?.lastSyncAt, patch.lastSyncAt);
     }
     return next;
   }
@@ -71,10 +90,10 @@ function createSyncConfigStore({
         // Re-read and persist the migration inside the same queue as every
         // other user.json mutation. A direct write here could otherwise
         // replace a concurrent Agent or sync update with this stale snapshot.
-        return mutateConfig(live => {
+        return mutateConfig('legacy-migration', live => {
           migrateAgentProviders(live);
           return live;
-        }, { reason: 'user' });
+        });
       }
       return config;
     } catch {
@@ -87,89 +106,72 @@ function createSyncConfigStore({
    * owned fields in a mutator; the current file is read only after earlier
    * writes finish, then atomically replaced as part of that same queue item.
    */
-  async function mutateConfig(mutator, { reason = 'user' } = {}) {
+  async function mutateConfig(owner, mutator) {
+    if (typeof owner !== 'string' || !owner) throw new Error('Config mutation owner is required');
+    if (typeof mutator !== 'function') throw new Error('Config mutator is required');
     return enqueue(async () => {
       await fs.ensureDir(require('path').dirname(configPath));
       const live = await readLiveConfig({});
-      const next = await mutator(live);
-      if (!next || typeof next !== 'object') throw new Error('Config mutator must return an object');
-      await backupImportantData(reason);
+      const proposed = await mutator(live);
+      if (!proposed || typeof proposed !== 'object') throw new Error('Config mutator must return an object');
+      // Even conditional mutations share the canonical sync normalization.
+      // A mutator can choose which sync keys it owns, but cannot roll a newer
+      // timestamp/platform/lan field back with an older value.
+      const next = {
+        ...proposed,
+        ...(proposed.sync ? { sync: mergeSyncConfig(live.sync, proposed.sync) } : {}),
+      };
+      await backupImportantData(owner);
       await atomicWriteJson(configPath, next);
       return next;
     });
   }
 
-  async function saveConfig(config, options = {}) {
-    return mutateConfig(live => {
-      // Sync producers only own fields inside sync. Merge their patch against
-      // the live queued value so lastSyncAt/localChangedAt cannot be rolled
-      // back by an earlier settings snapshot.
-      const next = { ...live, sync: mergeSyncConfig(live.sync, config.sync) };
-      const virtualFs =
-        fs.writeJson && Object.prototype.hasOwnProperty.call(fs.writeJson, 'mock');
-      if (
-        options.applyAgentProviders ||
-        (virtualFs && Object.prototype.hasOwnProperty.call(config, 'agentProviders'))
-      ) {
-        next.agentProviders = config.agentProviders || {};
-      }
-      if (
-        options.applyModelOverrides ||
-        (virtualFs && Object.prototype.hasOwnProperty.call(config, 'modelOverrides'))
-      ) {
-        next.modelOverrides = config.modelOverrides || {};
-      }
-      return next;
-    }, { reason: 'sync' });
-  }
-
-  async function saveUserConfig(config, options = {}) {
-    return mutateConfig(live => {
-      const next = {
-        ...live,
-        ...config,
-        sync: live.sync === undefined ? config.sync : live.sync,
-      };
-      next.agentProviders = mergeAgentProviderSelections(
-        live.agentProviders,
-        config.agentProviders,
-      );
-      next.modelOverrides = mergeModelOverrides(
-        live.modelOverrides,
-        config.modelOverrides,
-      );
-      if (options.deleteProviderId) {
-        removeProviderSelection(next, options.deleteProviderId);
-      }
-      if (options.removeSite?.agentId && options.removeSite?.providerId) {
-        removeAgentProviderSite(
-          next,
-          options.removeSite.agentId,
-          options.removeSite.providerId,
-        );
-      }
-      return next;
-    });
-  }
-
-  async function updateUserConfig(patch) {
-    return mutateConfig(live => ({
+  async function patchSyncConfig(patch, owner = 'sync') {
+    return mutateConfig(owner, live => ({
       ...live,
-      ...patch,
-      hints: patch.hints ? { ...live.hints, ...patch.hints } : live.hints,
-      git: patch.git ? { ...live.git, ...patch.git } : live.git,
-      agentProviders: patch.agentProviders
-        ? mergeAgentProviderSelections(live.agentProviders, patch.agentProviders)
-        : live.agentProviders,
-      modelOverrides: patch.modelOverrides
-        ? mergeModelOverrides(live.modelOverrides, patch.modelOverrides)
-        : live.modelOverrides,
-      repo: patch.repo ? { ...live.repo, ...patch.repo } : live.repo,
-      sync: patch.sync ? mergeSyncConfig(live.sync, patch.sync) : live.sync,
+      sync: mergeSyncConfig(live.sync, patch),
     }));
   }
 
-  return { loadConfig, mutateConfig, saveConfig, saveUserConfig, updateUserConfig };
+  async function patchUserPreferences(preferences, owner = 'user-preferences') {
+    const allowed = new Set(['language', 'hints', 'git', 'repo']);
+    for (const key of Object.keys(preferences || {})) {
+      if (!allowed.has(key)) throw new Error(`Unsupported user preference patch: ${key}`);
+    }
+    return mutateConfig(owner, live => ({
+      ...live,
+      ...preferences,
+      hints: preferences.hints ? { ...live.hints, ...preferences.hints } : live.hints,
+      git: preferences.git ? { ...live.git, ...preferences.git } : live.git,
+      repo: preferences.repo ? { ...live.repo, ...preferences.repo } : live.repo,
+    }));
+  }
+
+  async function patchAgentSelection(agentId, selection, owner = 'agent-selection') {
+    if (typeof agentId !== 'string' || !agentId) throw new Error('Agent id is required');
+    return mutateConfig(owner, live => ({
+      ...live,
+      agentProviders: mergeAgentProviderSelections(live.agentProviders, { [agentId]: selection }),
+    }));
+  }
+
+  async function patchModelOverrides(providerId, models, owner = 'model-overrides') {
+    if (typeof providerId !== 'string' || !providerId) throw new Error('Provider id is required');
+    return mutateConfig(owner, live => ({
+      ...live,
+      modelOverrides: mergeModelOverrides(live.modelOverrides, { [providerId]: models }),
+    }));
+  }
+
+  return {
+    loadConfig,
+    mutateConfig,
+    patchSyncConfig,
+    patchUserPreferences,
+    patchAgentSelection,
+    patchModelOverrides,
+  };
 }
 
 module.exports = { createSyncConfigStore };

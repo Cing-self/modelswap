@@ -42,13 +42,9 @@ function isBusy() {
 }
 
 async function persistLocalChanged(section) {
-  const config = await core.loadConfig();
-  config.sync = config.sync || {};
-  config.sync.localChangedAt = {
-    ...(config.sync.localChangedAt || {}),
-    [section]: new Date().toISOString(),
-  };
-  await core.saveConfig(config);
+  await core.patchSyncConfig({
+    localChangedAt: { [section]: new Date().toISOString() },
+  }, 'sync-scheduler');
 }
 
 // Called by mutation handlers after their own state is written.

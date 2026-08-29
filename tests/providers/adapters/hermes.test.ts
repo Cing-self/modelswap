@@ -38,7 +38,7 @@ vi.mock('../../../src/config/registry', () => ({
 
 vi.mock('../../../src/config/user', () => ({
   loadUserConfig: vi.fn(async function() { return {}; }),
-  updateUserConfig: vi.fn(async function(patch: any) { return patch; }),
+  patchAgentSelection: vi.fn(async function(_agentId: string, patch: any) { return patch; }),
 }));
 
 vi.mock('../../../src/vault/store', () => ({
@@ -48,7 +48,7 @@ vi.mock('../../../src/vault/store', () => ({
 }));
 
 const { HermesAdapter } = await import('../../../src/providers/adapters/hermes');
-const { updateUserConfig } = await import('../../../src/config/user');
+const { patchAgentSelection } = await import('../../../src/config/user');
 
 // Hermes keeps everything in ~/.hermes/config.yaml (never config.json).
 const CONFIG_PATH = path.join(os.homedir(), '.hermes', 'config.yaml');
@@ -70,7 +70,7 @@ function readWritten(): Record<string, any> {
 
 beforeEach(() => {
   mocks.files.clear();
-  vi.mocked(updateUserConfig).mockClear();
+  vi.mocked(patchAgentSelection).mockClear();
 });
 
 describe('HermesAdapter', () => {
@@ -222,14 +222,11 @@ describe('HermesAdapter.applyConfig (config.yaml schema)', () => {
     const adapter = new HermesAdapter();
     await adapter.applyConfig(testProvider, 'deepseek-chat');
 
-    expect(updateUserConfig).toHaveBeenCalledWith(
+    expect(patchAgentSelection).toHaveBeenCalledWith(
+      'hermes',
       expect.objectContaining({
-        agentProviders: {
-          hermes: {
             activeProviderId: 'deepseek', activeModelId: 'deepseek-chat',
             sites: { deepseek: { modelIds: ['deepseek-chat'] } },
-          },
-        },
       }),
     );
   });

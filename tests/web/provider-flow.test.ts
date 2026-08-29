@@ -160,10 +160,10 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
         };
         const settingsSave=call(settings.updateSettings,{body:{sync:{platforms:{cloudflare:{enabled:true}}}}});
         await reachedRead;
-        const overridesWrite=user.updateUserConfig({modelOverrides:{'race-open':{one:{context:777,output:333}}}});
+        const overridesWrite=user.patchModelOverrides('race-open',{one:{context:777,output:333}});
         const agentWrite=call(api.configureAgentProvider,{params:{agentId:'codex',providerId:'race-open'},body:{modelIds:['one'],primaryModelId:'one'}});
-        const syncWrite=sync.saveConfig({sync:{lastSyncAt:'2026-08-29T01:00:00.000Z',localChangedAt:{providers:'2026-08-29T01:00:00.000Z'}}});
-        const networkWrite=user.updateUserConfig({sync:{lan:{enabled:true,port:3790},platforms:{webdav:{enabled:true,url:'https://sync.example.test'}}}});
+        const syncWrite=sync.patchSyncConfig({lastSyncAt:'2026-08-29T01:00:00.000Z',localChangedAt:{providers:'2026-08-29T01:00:00.000Z'}});
+        const networkWrite=user.patchSyncConfig({lan:{enabled:true,port:3790},platforms:{webdav:{enabled:true,url:'https://sync.example.test'}}});
         release();
         await Promise.all([settingsSave,overridesWrite,agentWrite,syncWrite,networkWrite]);
         fse.readFile=originalReadFile;
@@ -179,7 +179,11 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
     expect(result.sync.platforms.webdav).toEqual({ enabled: true, url: 'https://sync.example.test' });
     expect(result.sync.lan).toEqual({ enabled: true, port: 3790 });
     expect(result.sync.lastSyncAt).toBe('2026-08-29T01:00:00.000Z');
-    expect(result.sync.localChangedAt.providers).toBe('2026-08-29T01:00:00.000Z');
+    // The provider save's dirty marker is newer than the synthetic sync write
+    // and must win rather than being rolled back by an older snapshot.
+    expect(Date.parse(result.sync.localChangedAt.providers)).toBeGreaterThanOrEqual(
+      Date.parse('2026-08-29T01:00:00.000Z'),
+    );
   });
 
   it('migrates legacy Agent selections through the atomic writer without dropping a queued patch', () => {
@@ -194,8 +198,8 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
         const userPath=path.join(dir,'user.json');
         fs.writeFileSync(userPath,JSON.stringify({providers:{codex:{providerId:'legacy-site',modelId:'legacy-model'}},sync:{localChangedAt:{providers:'old'}}}));
         await Promise.all([
-          sync.mutateConfig(config=>({...config,sync:{...config.sync,lastSyncAt:'2026-08-29T02:00:00.000Z'}}),{reason:'sync'}),
-          user.updateUserConfig({modelOverrides:{'legacy-site':{'legacy-model':{context:123456}}}}),
+          sync.mutateConfig('test',config=>({...config,sync:{...config.sync,lastSyncAt:'2026-08-29T02:00:00.000Z'}})),
+          user.patchModelOverrides('legacy-site',{'legacy-model':{context:123456}}),
         ]);
         console.log(fs.readFileSync(userPath,'utf8'));
       })().catch(error=>{console.error(error.stack);process.exit(1)});

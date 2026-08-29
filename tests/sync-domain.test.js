@@ -135,12 +135,18 @@ describe('sync pull orchestration', () => {
         return [];
       },
       resolvePrimaryTarget: async () => ({ id: 'memory' }),
-      saveConfig: async () => order.push('config'),
+      mutateConfig: async (_owner, mutator) => {
+        const next = await mutator(config);
+        Object.assign(config, next);
+        order.push('config');
+        return config;
+      },
+      patchSyncConfig: async () => order.push('config'),
       shouldApplyRemoteSection,
     });
 
     const result = await service.syncPull();
-    expect(order).toEqual(['providers', 'vault', 'config', 'hydrate', 'agent']);
+    expect(order).toEqual(['vault', 'config', 'providers', 'hydrate', 'agent']);
     expect(result.agentModelHydration).toMatchObject({ warmed: ['remote-site'] });
   });
 });

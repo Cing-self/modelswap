@@ -40,7 +40,7 @@ vi.mock('../../../src/config/registry', () => ({
 
 vi.mock('../../../src/config/user', () => ({
   loadUserConfig: vi.fn(async function() { return mocks.userConfig; }),
-  updateUserConfig: vi.fn(async function(patch: any) {
+  patchAgentSelection: vi.fn(async function(agentId: string, patch: any) {
     // Mirror the real per-agent-key merge under `providers`.
     if (patch?.providers) {
       mocks.userConfig.providers = mocks.userConfig.providers || {};
@@ -48,8 +48,9 @@ vi.mock('../../../src/config/user', () => ({
         mocks.userConfig.providers[key] = value;
       }
     }
-    if (patch?.agentProviders?.workbuddy) {
-      const state = patch.agentProviders.workbuddy;
+    if (agentId === 'workbuddy') {
+      const state = patch;
+      mocks.userConfig.agentProviders = { ...(mocks.userConfig.agentProviders || {}), workbuddy: state };
       const managedModels = Object.fromEntries(Object.entries(state.sites || {})
         .filter(([, site]: any) => site)
         .map(([providerId, site]: any) => [providerId, site.modelIds || []]));

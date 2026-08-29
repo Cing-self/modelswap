@@ -38,7 +38,7 @@ const userConfigStore: Record<string, any> = {};
 
 vi.mock('../../../src/config/user', () => ({
   loadUserConfig: vi.fn(async function() { return userConfigStore; }),
-  updateUserConfig: vi.fn(async function(patch: any) {
+  patchAgentSelection: vi.fn(async function(agentId: string, patch: any) {
     if (patch.providers && typeof patch.providers === 'object') {
       userConfigStore.providers = {
         ...(userConfigStore.providers || {}),
@@ -48,8 +48,8 @@ vi.mock('../../../src/config/user', () => ({
       })),
       };
     }
-    if (patch.agentProviders?.zcode) {
-      const state = patch.agentProviders.zcode;
+    if (agentId === 'zcode') {
+      const state = patch;
       userConfigStore.agentProviders = { ...(userConfigStore.agentProviders || {}), zcode: state };
       userConfigStore.providers = {
         ...(userConfigStore.providers || {}),

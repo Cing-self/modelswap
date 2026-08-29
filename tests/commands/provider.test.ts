@@ -32,7 +32,7 @@ vi.mock("../../src/providers/auth", () => ({ checkAuthStatus: vi.fn() }));
 const loadUserConfig = vi.fn(async () => ({
   modelOverrides: { gateway: { canonical: { name: "User override", context: 64000 } } },
 }));
-vi.mock("../../src/config/user", () => ({ loadUserConfig, updateUserConfig: vi.fn(async () => undefined) }));
+vi.mock("../../src/config/user", () => ({ loadUserConfig, patchAgentSelection: vi.fn(async () => undefined) }));
 vi.mock("../../src/providers/routing", () => ({
   providerSupportsAdapter: vi.fn(() => true),
   resolveModelRoute: vi.fn(() => ({ provider: fixture.routedProvider, remoteModelId: "remote-canonical" })),

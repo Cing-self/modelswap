@@ -11,7 +11,8 @@ vi.spyOn(os, 'homedir').mockReturnValue(TMP_HOME);
 
 const mockCore = vi.hoisted(() => ({
   loadConfig: vi.fn(),
-  saveConfig: vi.fn(),
+  mutateConfig: vi.fn(),
+  patchSyncConfig: vi.fn(),
   appendLog: vi.fn(),
   resolveSyncKeys: vi.fn(),
   resolveVaultRefs: vi.fn(async (c: any) => c),
@@ -60,7 +61,7 @@ const syncHandlers = await import('../../src/web/api/sync.js');
 const TOKEN = 'a'.repeat(64);
 const OTHER_TOKEN = 'b'.repeat(64);
 
-// Simulate config round-trips: saveConfig mutates the object loadConfig returns.
+// Simulate queue-internal mutations against the current in-memory config.
 let currentConfig: any = {};
 
 function freePort(): Promise<number> {
@@ -109,7 +110,14 @@ beforeEach(async () => {
   vi.clearAllMocks();
   currentConfig = { sync: { machineId: 'm-test' } };
   mockCore.loadConfig.mockImplementation(async () => currentConfig);
-  mockCore.saveConfig.mockImplementation(async (c: any) => { currentConfig = c; });
+  mockCore.mutateConfig.mockImplementation(async (_owner: string, mutator: any) => {
+    currentConfig = await mutator(currentConfig);
+    return currentConfig;
+  });
+  mockCore.patchSyncConfig.mockImplementation(async (patch: any) => {
+    currentConfig = { ...currentConfig, sync: { ...currentConfig.sync, ...patch } };
+    return currentConfig;
+  });
   mockCore.appendLog.mockResolvedValue(undefined);
   mockCore.resolveSyncKeys.mockResolvedValue({ userId: 'u1', encryptionKey: Buffer.alloc(32) });
   mockCore.peekRemote.mockResolvedValue(null);

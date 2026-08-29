@@ -37,7 +37,7 @@ vi.mock('../../../src/config/registry', () => ({
 
 vi.mock('../../../src/config/user', () => ({
   loadUserConfig: vi.fn(async function() { return {}; }),
-  updateUserConfig: vi.fn(async function(patch: any) { return patch; }),
+  patchAgentSelection: vi.fn(async function(_agentId: string, patch: any) { return patch; }),
 }));
 
 vi.mock('../../../src/vault/store', () => ({
@@ -47,7 +47,7 @@ vi.mock('../../../src/vault/store', () => ({
 }));
 
 const { OpenClawAdapter } = await import('../../../src/providers/adapters/openclaw');
-const { updateUserConfig } = await import('../../../src/config/user');
+const { patchAgentSelection } = await import('../../../src/config/user');
 
 const CONFIG_PATH = path.join(os.homedir(), '.openclaw', 'openclaw.json');
 
@@ -63,7 +63,7 @@ const testProvider = {
 
 beforeEach(() => {
   mocks.files.clear();
-  vi.mocked(updateUserConfig).mockClear();
+  vi.mocked(patchAgentSelection).mockClear();
 });
 
 describe('OpenClawAdapter', () => {
@@ -186,14 +186,11 @@ describe('OpenClawAdapter.applyConfig (cc-switch schema)', () => {
     const adapter = new OpenClawAdapter();
     await adapter.applyConfig(testProvider, 'deepseek-chat');
 
-    expect(updateUserConfig).toHaveBeenCalledWith(
+    expect(patchAgentSelection).toHaveBeenCalledWith(
+      'openclaw',
       expect.objectContaining({
-        agentProviders: {
-          openclaw: {
             activeProviderId: 'deepseek', activeModelId: 'deepseek-chat',
             sites: { deepseek: { modelIds: ['deepseek-chat'] } },
-          },
-        },
       }),
     );
   });

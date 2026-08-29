@@ -2,6 +2,10 @@
 function mergeAgentProviderSelections(live, incoming) {
   const merged = { ...(live || {}) };
   for (const [agentId, state] of Object.entries(incoming || {})) {
+    if (state === null) {
+      delete merged[agentId];
+      continue;
+    }
     const previous = merged[agentId] || { sites: {} };
     const sites = { ...(previous.sites || {}) };
     for (const [providerId, site] of Object.entries(state?.sites || {})) {
@@ -11,11 +15,15 @@ function mergeAgentProviderSelections(live, incoming) {
       if (site === null) delete sites[providerId];
       else sites[providerId] = { ...(sites[providerId] || {}), ...site };
     }
-    merged[agentId] = {
+    const next = {
       ...previous,
       ...state,
       sites,
     };
+    for (const key of ['activeProviderId', 'activeModelId']) {
+      if (state && state[key] === null) delete next[key];
+    }
+    merged[agentId] = next;
   }
   return merged;
 }
