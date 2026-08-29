@@ -19,6 +19,7 @@ const { randomUUID } = require('crypto');
 const { exec } = require('child_process');
 const { Readable, Transform } = require('stream');
 const { pipeline } = require('stream/promises');
+const { normalizedReleaseNotes } = require('../../application/release-notes');
 
 const GITHUB_REPO = 'Cing-self/okit';
 const LATEST_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
@@ -66,10 +67,25 @@ async function fetchLatestRelease() {
   const data = {
     tag: release.tag_name || '',
     htmlUrl: release.html_url || '',
+    publishedAt: release.published_at || null,
     assets: (release.assets || []).map((a) => ({ name: a.name, url: a.browser_download_url, size: a.size })),
   };
   cache = { at: Date.now(), data };
   return data;
+}
+
+async function fetchReleaseNotes(assets, tag) {
+  const asset = assets.find(item => item.name === 'release-notes.json');
+  if (!asset?.url || !asset.url.startsWith(ASSET_URL_PREFIX)) return null;
+  try {
+    const response = await fetch(asset.url, { headers: githubHeaders() });
+    if (!response.ok) return null;
+    return normalizedReleaseNotes(await response.json(), tag);
+  } catch {
+    // A release can still be installed when its optional structured notes
+    // asset is unavailable; the UI presents a neutral missing-notes state.
+    return null;
+  }
 }
 
 function pickAssets(assets) {
@@ -151,12 +167,15 @@ async function getUpdateCheck(req, res) {
     }
     const latestVersion = String(latest.tag || '').replace(/^v/, '');
     const upToDate = !latestVersion || compareVersions(latestVersion, currentVersion) <= 0;
+    const releaseNotes = await fetchReleaseNotes(latest.assets, latest.tag);
     res.json({
       upToDate,
       currentVersion,
       latestVersion,
       tag: latest.tag,
       releaseUrl: latest.htmlUrl,
+      publishedAt: releaseNotes?.publishedAt || latest.publishedAt,
+      releaseNotes,
       assets: pickAssets(latest.assets),
     });
   } catch (error) {
@@ -192,4 +211,4 @@ function getUpdateDownloadStatus(req, res) {
   res.json(publicDownloadJob(job));
 }
 
-module.exports = { getUpdateCheck, downloadUpdate, getUpdateDownloadStatus, compareVersions, pickAssets, downloadTarget };
+module.exports = { getUpdateCheck, downloadUpdate, getUpdateDownloadStatus, compareVersions, pickAssets, downloadTarget, fetchReleaseNotes };

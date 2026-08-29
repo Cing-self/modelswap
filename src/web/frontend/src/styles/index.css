@@ -13,6 +13,7 @@
 @import './themes.css';
 @import './usage.css';
 @import './snapshots.css';
+@import './update.css';
 
 /* Keep scrolling available but remove native scrollbar chrome. */
 * {

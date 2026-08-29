@@ -2,46 +2,28 @@
 set -euo pipefail
 
 if [[ $# -lt 1 ]]; then
-  echo "Usage: scripts/publish-release.sh <version> [--auto-notes] [--notes \"text\"] [--notes-file path] [asset...]"
-  echo "Example: scripts/publish-release.sh v1.2.3 --auto-notes"
+  echo "Usage: scripts/publish-release.sh <version> [asset...]"
+  echo "Release notes must exist in release-notes/<version>.json."
   exit 1
 fi
 
 version="$1"
 shift
 assets=()
-auto_notes="false"
-manual_notes=""
-notes_file_path=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --auto-notes)
-      auto_notes="true"
-      shift
-      ;;
-    --notes)
-      if [[ $# -lt 2 ]]; then
-        echo "Error: --notes requires a value."
-        exit 1
-      fi
-      manual_notes="$2"
-      shift 2
-      ;;
-    --notes-file)
-      if [[ $# -lt 2 ]]; then
-        echo "Error: --notes-file requires a path."
-        exit 1
-      fi
-      notes_file_path="$2"
-      shift 2
-      ;;
     *)
       assets+=("$1")
       shift
       ;;
   esac
 done
+
+# Never derive user-facing release notes from commit titles. The reviewed,
+# versioned record is the single source for both this GitHub Release body and
+# the structured asset read by the desktop update sheet.
+node scripts/release-notes.js validate "$version"
 
 if ! command -v gh >/dev/null 2>&1; then
   echo "Error: gh (GitHub CLI) is not installed."
@@ -90,79 +72,18 @@ if [[ ${#assets[@]} -eq 0 ]]; then
     assets+=("$release_dir/$(basename "$dmg")" "$release_dir/$(basename "$dmg").sha256")
   done
 
+  node scripts/release-notes.js copy "$version" "$release_dir/release-notes.json"
+  node scripts/release-notes.js render "$version" "$release_dir/release-notes.md"
+  assets+=("$release_dir/release-notes.json")
+
   if [[ ${#assets[@]} -eq 0 ]]; then
     echo "Error: no dmg found in release/. Run the electron-builder step first."
     exit 1
   fi
 fi
 
-notes_file=""
-if [[ -n "$notes_file_path" ]]; then
-  if [[ ! -f "$notes_file_path" ]]; then
-    echo "Error: notes file not found: $notes_file_path"
-    exit 1
-  fi
-  notes_file="$notes_file_path"
-elif [[ -n "$manual_notes" ]]; then
-  notes_file="$(mktemp)"
-  printf "%s\n" "$manual_notes" > "$notes_file"
-elif [[ "$auto_notes" == "true" ]]; then
-  base_tag=""
-  if git rev-parse "$version" >/dev/null 2>&1; then
-    base_tag="$(git describe --tags --abbrev=0 "${version}^" 2>/dev/null || true)"
-  else
-    base_tag="$(git describe --tags --abbrev=0 2>/dev/null || true)"
-  fi
-
-  if [[ -n "$base_tag" ]]; then
-    range="${base_tag}..HEAD"
-    header="Changes since ${base_tag}:"
-  else
-    range="HEAD"
-    header="Initial release:"
-  fi
-
-  notes_file="$(mktemp)"
-  python3 - <<'PY' "$range" "$header" > "$notes_file"
-import re, subprocess, sys
-
-range_spec = sys.argv[1]
-header = sys.argv[2]
-pattern = re.compile(r"^(feat|fix|docs|chore|refactor|perf|test|build|ci|style)(\([^)]+\))?:\s*(.+)$", re.I)
-
-def run_git_log(rng):
-    out = subprocess.check_output(["git", "log", rng, "--pretty=format:%s"], text=True)
-    return [line.strip() for line in out.splitlines() if line.strip()]
-
-commits = run_git_log(range_spec)
-order = ["Feat", "Fix", "Docs", "Refactor", "Perf", "Test", "Build", "Ci", "Style", "Chore", "Other"]
-groups = {k: [] for k in order}
-seen = set()
-
-for raw in commits:
-    m = pattern.match(raw)
-    if m:
-        cat = m.group(1).capitalize()
-        msg = m.group(3).strip()
-    else:
-        cat = "Other"
-        msg = raw
-    if msg in seen:
-        continue
-    seen.add(msg)
-    groups[cat].append(msg)
-
-print(header)
-print()
-for cat in order:
-    if not groups[cat]:
-        continue
-    print(f"{cat}:")
-    for msg in groups[cat]:
-        print(f"- {msg}")
-    print()
-PY
-fi
+notes_file="$(mktemp)"
+node scripts/release-notes.js render "$version" "$notes_file"
 
 if git rev-parse "$version" >/dev/null 2>&1; then
   echo "Tag $version already exists."
@@ -173,18 +94,12 @@ fi
 
 if gh release view "$version" >/dev/null 2>&1; then
   gh release upload "$version" "${assets[@]}" --clobber
-  if [[ -n "$notes_file" ]]; then
-    gh release edit "$version" --notes-file "$notes_file"
-  fi
+  gh release edit "$version" --notes-file "$notes_file"
   # If the matched release is a draft (e.g. left behind by an earlier run),
   # publishing the assets is not enough — flip it to a real release.
   gh release edit "$version" --draft=false
 else
-  if [[ -n "$notes_file" ]]; then
-    gh release create "$version" "${assets[@]}" --title "$version" --notes-file "$notes_file"
-  else
-    gh release create "$version" "${assets[@]}" --title "$version" --notes "Release $version"
-  fi
+  gh release create "$version" "${assets[@]}" --title "$version" --notes-file "$notes_file"
 fi
 
 echo "Release $version updated."

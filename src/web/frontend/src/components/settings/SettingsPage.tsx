@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Activity, ArrowDownToLine, CheckCircle2, CircleAlert, Copy, FolderOpen, Globe2, Loader2, Package, Palette, Puzzle, RefreshCw, RotateCcw } from 'lucide-react';
+import { Activity, CheckCircle2, CircleAlert, Copy, FolderOpen, Globe2, Loader2, Package, Palette, Puzzle } from 'lucide-react';
 import { getSettings } from '../../api/settings';
 import { useApp } from '../Layout/AppContext';
 import { useI18n } from '../../i18n';
@@ -9,8 +9,8 @@ import DeviceSyncSection from './DeviceSyncSection';
 import SnapshotsSection from './SnapshotsSection';
 import packageInfo from '../../../../../../package.json';
 import { useTransientFeedback } from '../../hooks/useTransientFeedback';
-import { useAppUpdate, formatFileSize } from '../../hooks/useAppUpdate';
 import BrowserExtensionSection from './BrowserExtensionSection';
+import { UpdateDetailsEntry } from '../update/UpdateDetails';
 
 /* 界面风格包：id 对应 <html data-style>，swatch 为 [暗色面板色, 强调色, 亮色面板色] */
 const UI_STYLES = [
@@ -26,18 +26,6 @@ export default function SettingsPage() {
   const { t, lang, setLang } = useI18n();
   const [serviceReady, setServiceReady] = useState<boolean | null>(null);
   const { activeKey: copiedAction, showFeedback: showCopied } = useTransientFeedback();
-  // Update check (Plan A): the shared useAppUpdate hook also drives the
-  // desktop titlebar indicator; here it is manual-check only (the titlebar
-  // performs the silent auto-check on app open). CLI installs upgrade via
-  // `okit upgrade`; this UI targets the desktop app.
-  const isDesktop = Boolean((window as any).okitDesktop);
-  const {
-    update, download, downloading, downloadProgress,
-    check: runUpdateCheck, startDownload: startUpdateDownload, restart: restartForUpdate, restarting: updateRestarting,
-  } = useAppUpdate({ autoCheck: false });
-  const handleCheckUpdate = () => runUpdateCheck(false);
-  const handleDownloadUpdate = () => { void startUpdateDownload(); };
-
   useEffect(() => { loadData(); }, []);
 
   async function loadData() {
@@ -297,56 +285,7 @@ export default function SettingsPage() {
           <footer className="settings-system-actions">
             <span><CheckCircle2 size={14} />{t('settings.diagnosticsPrivacy')}</span>
             <div className="settings-system-utilities">
-              <div className="settings-system-update" aria-live="polite">
-                {update.status === 'available' ? (
-                  <>
-                    <span className="settings-update-info">{packageInfo.version} → <strong>{update.latest}</strong></span>
-                    {update.dmgUrl && (
-                      <button className="settings-system-download" type="button" onClick={handleDownloadUpdate} disabled={downloading}>
-                        {downloading ? <Loader2 size={14} className="home-config-save-spin" /> : <ArrowDownToLine size={14} />}
-                        {downloading ? t('settings.updateDownloading') : t('settings.updateDownload')}
-                      </button>
-                    )}
-                    {update.releaseUrl && (
-                      <a className="settings-system-icon-button" href={update.releaseUrl} target="_blank" rel="noreferrer" title={t('settings.updateNotes')} aria-label={t('settings.updateNotes')}>
-                        <ArrowDownToLine size={15} />
-                      </a>
-                    )}
-                    {downloading && <span className="settings-update-info settings-update-progress">
-                      {downloadProgress === null
-                        ? t('settings.updateDownloadingBytes', { received: formatFileSize(download?.received || 0) })
-                        : t('settings.updateDownloadingProgress', { progress: downloadProgress, received: formatFileSize(download?.received || 0), total: formatFileSize(download?.total || 0) })}
-                    </span>}
-                    {download?.status === 'completed' && (
-                      <>
-                        <span className="settings-update-info ok">{isDesktop ? t('settings.updateDownloadedRestart') : t('settings.updateDownloaded')}</span>
-                        {isDesktop && (
-                          <button className="settings-system-download" type="button" onClick={restartForUpdate} disabled={updateRestarting}>
-                            {updateRestarting ? <Loader2 size={14} className="home-config-save-spin" /> : <RotateCcw size={14} />}
-                            {updateRestarting ? t('update.restarting') : t('settings.updateRestart')}
-                          </button>
-                        )}
-                      </>
-                    )}
-                    {download?.status === 'failed' && <span className="settings-update-info err">{download.error || t('common.failed')}</span>}
-                  </>
-                ) : (
-                  <>
-                    {update.status === 'upToDate' && <span className="settings-update-info ok">{t('settings.updateUpToDate')}</span>}
-                    {update.status === 'error' && <span className="settings-update-info err">{update.error}</span>}
-                    <button
-                      className="settings-system-icon-button"
-                      type="button"
-                      onClick={handleCheckUpdate}
-                      disabled={update.status === 'checking'}
-                      title={t('settings.updateCheck')}
-                      aria-label={t('settings.updateCheck')}
-                    >
-                      {update.status === 'checking' ? <Loader2 size={15} className="home-config-save-spin" /> : <RefreshCw size={15} />}
-                    </button>
-                  </>
-                )}
-              </div>
+              <div className="settings-system-update" aria-live="polite"><UpdateDetailsEntry /></div>
 
               <button
                 className={`settings-system-icon-button${copiedAction === 'diagnostics' ? ' is-copied' : ''}`}

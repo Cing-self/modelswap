@@ -1,13 +1,13 @@
 import { Routes, Route, Navigate, useLocation, useSearchParams } from 'react-router-dom';
-import { useState, useEffect, useCallback, useLayoutEffect, lazy, Suspense } from 'react';
-import { ArrowDownToLine, CircleAlert, Loader2, PanelLeftClose, PanelLeftOpen, RotateCcw } from 'lucide-react';
+import { useState, useEffect, useCallback, useLayoutEffect, useRef, lazy, Suspense } from 'react';
+import { ArrowDownToLine, Loader2, PanelLeftClose, PanelLeftOpen, RotateCcw } from 'lucide-react';
 import { getOnboarding } from './api/settings';
 import { primeOnboardingFromSession, getOnboardingDoneCache, setOnboardingDone } from './lib/onboardingGate';
 import Sidebar from './components/Layout/Sidebar';
 import ProviderImportModal from './components/shared/ProviderImportModal';
 import { useI18n } from './i18n';
-import { useAppUpdate } from './hooks/useAppUpdate';
 import { useApp } from './components/Layout/AppContext';
+import { UpdateDetailsProvider, useUpdateDetails } from './components/update/UpdateDetails';
 import { invalidateProvidersCache, warmupMissingModels } from './api/providers';
 import { startModelCacheWarmup } from './lib/modelCacheWarmup';
 
@@ -312,6 +312,20 @@ function DesktopWindowFrame({
   onToggleSidebar?: () => void;
   showSidebarToggle?: boolean;
 }) {
+  return <UpdateDetailsProvider><DesktopWindowFrameInner children={children} sidebarCollapsed={sidebarCollapsed} onToggleSidebar={onToggleSidebar} showSidebarToggle={showSidebarToggle} /></UpdateDetailsProvider>;
+}
+
+function DesktopWindowFrameInner({
+  children,
+  sidebarCollapsed = true,
+  onToggleSidebar,
+  showSidebarToggle = false,
+}: {
+  children: React.ReactNode;
+  sidebarCollapsed?: boolean;
+  onToggleSidebar?: () => void;
+  showSidebarToggle?: boolean;
+}) {
   const isDesktop = typeof window !== 'undefined' && Boolean((window as any).okitDesktop);
   const { t } = useI18n();
   if (!isDesktop) return <>{children}</>;
@@ -338,14 +352,15 @@ function DesktopWindowFrame({
 
 /**
  * Compact update indicator in the desktop titlebar: silent auto-check on app
- * open → "有新版本" download chip → spinning progress → "重启安装" once the
- * installer lands. Hidden entirely when up to date; a no-op in the browser.
+ * open → update-details entry → spinning progress → restart once the installer
+ * lands. It remains compact and opens the shared sheet instead of downloading.
  */
 function TitlebarUpdateIndicator() {
   const isDesktop = typeof window !== 'undefined' && Boolean((window as any).okitDesktop);
   const { t } = useI18n();
   const { showToast } = useApp() as any;
-  const { update, download, downloading, downloadProgress, check, startDownload, restart, restarting } = useAppUpdate({ autoCheck: isDesktop });
+  const { update, download, downloading, downloadProgress, check, open } = useUpdateDetails();
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   // macOS app-menu "检查更新…" → explicit check with a spoken result.
   useEffect(() => {
@@ -364,24 +379,24 @@ function TitlebarUpdateIndicator() {
 
   if (downloading) {
     return (
-      <span className="titlebar-update is-downloading" role="status">
+      <button ref={triggerRef} type="button" className="titlebar-update is-downloading" role="status" onClick={() => open(triggerRef.current)}>
         <Loader2 size={14} className="spin" aria-hidden="true" />
         <span>{downloadProgress === null ? t('update.downloading') : `${downloadProgress}%`}</span>
-      </span>
+      </button>
     );
   }
   if (download?.status === 'completed') {
     return (
-      <button type="button" className="titlebar-update is-ready" onClick={restart} disabled={restarting}>
-        <RotateCcw size={14} className={restarting ? 'spin' : undefined} aria-hidden="true" />
-        <span>{restarting ? t('update.restarting') : t('update.restartToInstall')}</span>
+      <button ref={triggerRef} type="button" className="titlebar-update is-ready" onClick={() => open(triggerRef.current)}>
+        <RotateCcw size={14} aria-hidden="true" />
+        <span>{t('update.restartToInstall')}</span>
       </button>
     );
   }
   if (download?.status === 'failed') {
     return (
-      <button type="button" className="titlebar-update is-failed" onClick={startDownload} title={download.error || t('update.failedTooltip')}>
-        <CircleAlert size={14} aria-hidden="true" />
+      <button ref={triggerRef} type="button" className="titlebar-update is-failed" onClick={() => open(triggerRef.current)} title={download.error || t('update.failedTooltip')}>
+        <ArrowDownToLine size={14} aria-hidden="true" />
         <span>{t('update.retryDownload')}</span>
       </button>
     );
@@ -390,8 +405,10 @@ function TitlebarUpdateIndicator() {
     <button
       type="button"
       className="titlebar-update is-available"
-      onClick={startDownload}
-      title={t('update.availableTooltip', { version: update.latest ?? '' })}
+      ref={triggerRef}
+      onClick={() => open(triggerRef.current)}
+      title={t('update.details')}
+      aria-label={t('update.details')}
     >
       <ArrowDownToLine size={14} aria-hidden="true" />
       <span>{t('update.found', { version: update.latest ?? '' })}</span>
