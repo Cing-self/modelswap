@@ -4,7 +4,7 @@
 
 1. Scope: eliminate every production user.json read→full-snapshot save path; no unrelated product work.
 2. Full call graph, target API, ownership rules and deterministic test matrix: `docs/testing/config-mutation-architecture-gate.md`.
-3. Contract: external code gets read-only snapshots; writes are queue-internal atomic mutations or separate sync/Agent/override/preference patches only.
+3. Contract: external code gets read-only snapshots; all production writes are registry-defined, closed-schema semantic operations only. Queue mutation remains store-private.
 4. Risk: sync payload, Agent desired state and LAN credentials have independent ownership; merge/delete/timestamp semantics must remain explicit.
 5. Migration: remove every production generic/full patch API; replacement is initialization/test-only/private and guarded by name and source scan.
 6. Guard: production-source rule plus an injected violating fixture must fail before any runtime race is required.
@@ -24,6 +24,13 @@
 3. `writeTail` mutation is infrastructure-private; pull conflict checks consume a remote intent and re-evaluate live state internally.
 4. The detailed writer map, schemas, ownership/deletion/timestamp rules, boundaries and negative tests are in `docs/testing/config-mutation-architecture-gate.md`.
 5. Wait for QA review of this design revision before source implementation or verification resumes.
+
+## Registry-driven design gate v3 (2026-08-29)
+
+1. Status: paused; no source implementation until QA design PASS.
+2. `docs/testing/config-write-operation-registry.md` is the sole implementation definition: every writer has one closed-schema operation and one matrix participant; the earlier `fbe5143` API is explicitly rejected.
+3. Registry/test participant counts must match; unregistered writers, generic callbacks/maps, aliases and byte-changing invalid requests fail the gate.
+4. The DEV-ESCAPE evidence package now references registry-generated negative and concurrency evidence, not area-level claims.
 
 ## Sync/Agent release batch start (2026-08-28)
 

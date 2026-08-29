@@ -22,16 +22,18 @@ The root fix is not a writer-specific merge: all durable `user.json` changes mus
 
 ## Production writer migration checklist
 
+The checklist is now driven by the v3 operation registry. The failed `fbe5143` experiment satisfies none of these rows. “Migrated” may only be set after that row's schema negative tests and independent real-disk race participant pass; area summaries are not evidence.
+
 | Area | Required target | Status | Evidence still required |
 | --- | --- | --- | --- |
-| config store + legacy migration | queue-internal mutation, temp+rename | migrated | direct migration versus competing writer integration |
-| settings/onboarding | sync/preference mutation | migrated | settings paused-read competitor |
-| scheduler markDirty | sync localChangedAt patch | migrated | scheduled markDirty competitor |
-| sync push/pull/import | live re-evaluation / sync patch | migrated | real push and pull competitors, including stale remote guard |
-| LAN controllers + listener | queue-fresh LAN intent | migrated | listener assigned-port and pair competitors |
-| provider lifecycle | live delete intent | migrated | provider delete versus Agent/override competitor |
-| Agent config service/reconciler | per-Agent patch, no snapshot restore | migrated | native write/reconcile competitor |
-| CLI/config-user/i18n/adapters | preferences/sync/Agent scoped patches | migrated | one CLI and every adapter persisted-state check |
+| config store + legacy migration | queue-internal semantic operation, temp+rename | design target | direct migration versus competing writer integration |
+| settings/onboarding | individually registered sync/preference operation | design target | settings paused-read competitor |
+| scheduler markDirty | `recordLocalChange` narrow operation | design target | scheduled markDirty competitor |
+| sync push/pull/import | decoded per-action operations with live re-evaluation | design target | real push and pull competitors, including stale remote guard |
+| LAN controllers + listener | one closed LAN action per entrypoint | design target | listener assigned-port and pair competitors |
+| provider lifecycle | one-provider deletion operation | design target | provider delete versus Agent/override competitor |
+| Agent config service/reconciler | one binding/action operation, no snapshot restore | design target | native write/reconcile competitor |
+| CLI/config-user/i18n/adapters | individually registered preference/sync/Agent operations | design target | one CLI and every adapter persisted-state check |
 | direct user.json writers | config store only; test private replacement | pending audit proof | source guard plus injected direct-write fixture |
 
 No item is eligible for “complete” until its final column has executable evidence. Any exception must be explicitly approved by CEO and listed here.
