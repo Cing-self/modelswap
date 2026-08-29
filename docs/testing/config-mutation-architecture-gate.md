@@ -4,7 +4,7 @@ Status: design gate for the P0 lost-update repair. This document inventories eve
 
 ## Invariant
 
-A production business layer must never submit a complete `user.json` object obtained from `loadConfig()`/`loadUserConfig()` for persistence. The only durable production write is a `writeTail` item in `sync-config-store`: it re-reads the live file, applies a narrowly owned mutation or patch, normalizes it, backs it up, and writes with temp-plus-rename. Full replacement is initialization/test-only, has an explicit `ForTest` name, and is not exported through the application/web composition root.
+A production business layer must never submit a complete `user.json` object obtained from `loadConfig()`/`loadUserConfig()` for persistence. The only durable production write is a `writeTail` item in `sync-config-store`: it re-reads the live file, applies a narrowly owned mutation or patch, normalizes it, backs it up, and writes with temp-plus-rename. Full replacement is initialization/test-only, has an explicit `ForTest` name, is private to test construction, and is not exported through the application/web composition root.
 
 ## Current call graph and classification
 
@@ -31,22 +31,23 @@ A production business layer must never submit a complete `user.json` object obta
 `sync-config-store` exposes only these production methods through `cloud-sync-core`:
 
 ```js
-readConfig()                         // immutable/read-only snapshot
-mutateConfig(owner, live => next)   // runs read → normalize → atomic write inside writeTail
-patchSyncConfig(syncPatch, owner)   // owns sync; deep-merges platforms, lan, localChangedAt
-patchUserConfig(userPatch, owner)   // owns hints/git/repo/modelOverrides/agentProviders/sync
-patchAgentSelection(agentId, patch) // owns one Agent selection; site:null is an explicit delete
+readConfig()                                  // immutable/read-only snapshot
+mutateConfig(owner, live => next)            // conditional live-state intent inside writeTail
+patchSyncConfig(syncPatch, owner)            // owns sync only
+patchAgentSelection(agentId, selection, owner) // owns exactly one Agent state; site:null deletes
+patchModelOverrides(providerId, models, owner) // owns exactly one provider's override map
+patchUserPreferences(preferences, owner)     // owns non-sync hints/git/repo/language only
 ```
 
-`owner` is a stable producer label for backups/logging. `mutateConfig` is reserved for operations that need conditional live state (sync pull conflict guards, paired LAN updates, migration); the callback receives the queue-fresh object and must return an object derived from that `live` value. `saveConfig`, `saveUserConfig`, and any generic full replacement are removed from production composition. A `replaceConfigForTest` helper is available only through test construction and throws/is absent in production.
+`owner` is a stable producer label for backups/logging. There is deliberately no generic `patchUserConfig`: it cannot accept `sync`, Agent selection, model overrides, or a whole config object. `mutateConfig` is reserved for operations that need conditional live state (sync-pull conflict guards, paired LAN updates and migration). Its callback receives the queue-fresh value and must return an object derived from that `live` value; it receives a named intent object rather than any external snapshot. Sync pull recomputes `shouldApplyRemoteSection` against `live.sync.localChangedAt` in that callback. `saveConfig`, `saveUserConfig`, generic `updateUserConfig`, and any production full replacement are removed from composition. A `replaceConfigForTest` helper is private to test construction and throws/is absent in production.
 
-Normalization is centralized: `sync.platforms`, `sync.lan`, and `sync.localChangedAt` deep merge; independently owned timestamp keys keep the later value; Agent/model override maps deep merge; an Agent `sites[providerId] === null` means delete and is never persisted as a null site. Sync-pull's replacement semantics are explicit per remote-owned section and re-evaluate `shouldApplyRemoteSection` against live queued timestamps.
+Normalization is centralized: `sync.platforms`, `sync.lan`, and `sync.localChangedAt` deep merge; valid ISO timestamp keys retain the later instant, an invalid incoming timestamp never replaces a valid one, and two invalid values retain the live value. Agent/model override maps deep merge; an Agent `sites[providerId] === null` means delete and is never persisted as a null site. Explicit deletion is only accepted through an ownership-scoped intent; an omitted key never deletes. Sync-pull's replacement semantics are explicit per remote-owned section and re-evaluate `shouldApplyRemoteSection` against live queued timestamps.
 
 ## Guard design
 
 Add a source-contract test/script that recursively scans production `src` (excluding frontend, tests, generated output and the test-only replacement helper) and fails on:
 
-1. imports/exports/calls of deprecated `saveConfig` or `saveUserConfig` production APIs;
+1. imports/exports/calls of deprecated `saveConfig`, `saveUserConfig`, generic `updateUserConfig` or generic `patchUserConfig` production APIs;
 2. a `loadConfig`/`loadUserConfig` binding subsequently passed as a complete argument to any config persistence call; and
 3. direct `user.json` `writeJson`/`writeFile` outside `sync-config-store`.
 
