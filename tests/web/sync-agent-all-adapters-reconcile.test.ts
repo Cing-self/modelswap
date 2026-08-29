@@ -23,7 +23,7 @@ function reservePort() {
 
 function run(root: string, home: string, script: string, blob: string) {
   try {
-    return execFileSync(process.execPath, ['-r', 'ts-node/register', '-e', script, root], {
+    return execFileSync(process.execPath, ['-r', 'ts-node/register/transpile-only', '-e', script, root], {
       env: { ...process.env, HOME: home, USERPROFILE: home, OKIT_SYNC_BLOB: blob },
       encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
     });

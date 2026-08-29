@@ -17,7 +17,10 @@ function reservePort() {
 }
 
 function child(root: string, home: string, blob: string, script: string) {
-  return execFileSync(process.execPath, ['-r', 'ts-node/register', '-e', script, root], {
+  // Runtime fixtures are already type-checked by the repository build. Avoid
+  // recompiling and type-checking the full TypeScript graph in each isolated
+  // child process: this test deliberately launches A and B sequentially.
+  return execFileSync(process.execPath, ['-r', 'ts-node/register/transpile-only', '-e', script, root], {
     env: { ...process.env, HOME: home, USERPROFILE: home, OKIT_SYNC_BLOB: blob },
     encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
   });
