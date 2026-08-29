@@ -35,9 +35,9 @@
 ## Final machine-readable design gate v4 (2026-08-29)
 
 1. Status: paused; this replaces v3's Markdown table as the sole implementation definition.
-2. `docs/testing/config-mutation-registry.json` has 52 writer entries plus one explicit native-only reconciler entry; writer IDs, schema IDs and race IDs are required to be equal sets.
-3. An AST inventory (imports, CommonJS/ESM aliases, re-exports and direct file writes) must discover every user-config mutation and reject unregistered or unresolved targets.
-4. The JSON registry contains closed per-operation schemas and A01–A10 B-side payload→decode→local-hydrate→native-file acceptance; no model cache crosses A→B.
+2. `docs/testing/config-mutation-registry.json` has 42 user-config writers and 11 native-only entries (reconciler + ten adapters); only writer/schema/race IDs are required to be equal sets.
+3. Every entry is joined to a stable source symbol and machine-parsed AST selector/position; inventory resolves CommonJS/ESM aliases and re-exports, and rejects unregistered or unresolved targets.
+4. The JSON registry contains closed per-operation schemas, retired-key scalar/enum migration rules, and A01–A10 dependency/participant B-side payload→decode→local-hydrate→native-file acceptance; no model cache crosses A→B.
 5. `docs/testing/config-mutation-architecture-gate.md` maps all five QA blockers to future runnable acceptance. No production source or test implementation resumes before QA design PASS.
 
 ## Sync/Agent release batch start (2026-08-28)
