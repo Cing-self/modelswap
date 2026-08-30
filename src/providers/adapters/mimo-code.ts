@@ -86,8 +86,16 @@ export class MimoCodeAdapter extends BaseAdapter {
     const modelsMap: Record<string, any> = {};
     for (const m of provider.models) {
       const limit = modelTokenLimit(provider, m);
-      modelsMap[m.id] = limit
-        && Object.keys(limit).length ? { name: m.name || m.id, limit } : { name: m.name || m.id };
+      // mimocode's config schema requires both limit numbers when `limit` is
+      // present; model facts that only carry a context window would produce
+      // an invalid config that crashes the agent at startup.
+      const complete = limit.context !== undefined || limit.output !== undefined
+        ? {
+            context: limit.context ?? limit.output!,
+            output: limit.output ?? Math.min(limit.context ?? 131072, 32768),
+          }
+        : null;
+      modelsMap[m.id] = complete ? { name: m.name || m.id, limit: complete } : { name: m.name || m.id };
     }
     return modelsMap;
   }

@@ -134,6 +134,25 @@ describe('MimoCodeAdapter', () => {
     });
   });
 
+  it('always emits both limit numbers so mimocode schema validation passes', async () => {
+    const provider = {
+      ...openAIProvider,
+      models: [
+        // Resolved facts carrying a context window but no output window.
+        { id: 'ctx-only', name: 'Ctx Only', resolved: { ...resolvedModel('ctx-only', 1179648, undefined as any), output: undefined } },
+        { id: 'no-facts', name: 'No Facts' },
+      ],
+    };
+    const adapter = new MimoCodeAdapter();
+    await adapter.applyConfig(provider, 'ctx-only');
+    const config = JSON.parse(mocks.files.get(CONFIG_PATH)!);
+    const models = config.provider['custom-openai'].models;
+    // Facts without an output window must not produce a context-only limit —
+    // mimocode's zod schema requires limit.output to be a number.
+    expect(models['ctx-only'].limit).toEqual({ context: 1179648, output: 32768 });
+    expect(models['no-facts'].limit).toBeUndefined();
+  });
+
   it('writes OpenRouter model-directory limits without UA headers', async () => {
     const orProvider = {
       ...openAIProvider,
