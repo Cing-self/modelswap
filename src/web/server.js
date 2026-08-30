@@ -283,6 +283,9 @@ function startServer(port = 3780, onStarted) {
     console.log(`  Press Ctrl+C to stop\n`);
     // Auto-sync scheduler: debounced push + periodic pull check.
     require('./api/sync-scheduler').startAutoSync();
+    // Update watcher: fixed 15-minute silent latest-release refresh that
+    // broadcasts 'update-available' over /api/events once per new version.
+    require('./api/update-check').startUpdateWatcher();
     // LAN peer sync listener: separate port, only if enabled in config.
     require('./api/lan-sync-server').applyConfig().catch((err) => {
       console.error('LAN sync listener startup failed:', err.message);

@@ -25,3 +25,25 @@ describe('UI data-change events', () => {
     req.emit('close');
   });
 });
+
+describe('UI data-change events: update-available section', () => {
+  it('streams the update-available section to SSE subscribers verbatim', async () => {
+    const req = new EventEmitter();
+    const writes: string[] = [];
+    const res: any = {
+      status: () => res,
+      set: () => res,
+      flushHeaders: () => {},
+      write: (chunk: string) => writes.push(chunk),
+    };
+    subscribeUiEvents(req, res);
+
+    publishDataChanged(['update-available']);
+    await new Promise(resolve => setTimeout(resolve, 350));
+
+    const events = writes.filter(chunk => chunk.startsWith('event: data-changed'));
+    expect(events).toHaveLength(1);
+    expect(events[0]).toContain('"sections":["update-available"]');
+    req.emit('close');
+  });
+});

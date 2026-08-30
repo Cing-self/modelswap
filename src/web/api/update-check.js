@@ -74,6 +74,124 @@ async function fetchLatestRelease() {
   return data;
 }
 
+// ---------------------------------------------------------------------------
+// Update watcher: keeps a long-running desktop app aware of new releases.
+//
+// A fixed 15-minute cadence (only the startup PHASE is randomized, so a fleet
+// of instances never synchronizes on one boundary) refreshes the latest
+// release, bypassing the endpoint's 60s cache. GitHub rate limits (403/429)
+// switch to exponential backoff capped at 2h; network failures only warn and
+// keep the previous data. Each successful refresh stores the response ETag
+// and the next request sends If-None-Match, so an unchanged release costs a
+// bodyless 304 instead of quota. The FIRST result only establishes a
+// baseline; afterwards a tag that differs from the already-seen one AND is
+// newer than the running version publishes 'update-available' over the SSE
+// event stream exactly once per change.
+const WATCH_INTERVAL_MS = 15 * 60 * 1000;
+const WATCH_BACKOFF_CAP_MS = 2 * 60 * 60 * 1000;
+let latestEtag = null;
+const watcher = { started: false, timer: null, deps: null, hasBaseline: false, lastSeenTag: null, backoffMs: null };
+
+function defaultWatcherDeps() {
+  return {
+    fetchImpl: (url, init) => fetch(url, init),
+    now: () => Date.now(),
+    random: Math.random,
+    intervalMs: WATCH_INTERVAL_MS,
+    publish: (sections) => require('./ui-events').publishDataChanged(sections),
+    logger: console,
+    currentVersion: () => require('../../../package.json').version,
+  };
+}
+
+function watcherSchedule(deps, delayMs) {
+  watcher.timer = setTimeout(() => { void watcherTick(deps); }, delayMs);
+  watcher.timer.unref?.();
+}
+
+async function watcherTick(deps) {
+  let nextDelayMs = deps.intervalMs;
+  try {
+    const headers = githubHeaders();
+    if (latestEtag) headers['If-None-Match'] = latestEtag;
+    const res = await deps.fetchImpl(LATEST_URL, { headers });
+    if (res.status === 304) {
+      // Unchanged release: keep cache and baseline as-is. A 304 still proves
+      // the quota is fine, so any pending backoff is released.
+      watcher.backoffMs = null;
+    } else if (res.status === 403 || res.status === 429) {
+      watcher.backoffMs = watcher.backoffMs
+        ? Math.min(watcher.backoffMs * 2, WATCH_BACKOFF_CAP_MS)
+        : deps.intervalMs * 2;
+      nextDelayMs = watcher.backoffMs;
+      deps.logger.warn(`[update-watcher] GitHub rate-limited (HTTP ${res.status}); next refresh in ${Math.round(nextDelayMs / 60000)} min`);
+    } else if (res.status === 404) {
+      // No releases published: a valid, empty result — baseline it.
+      watcher.backoffMs = null;
+      if (!watcher.hasBaseline) watcher.hasBaseline = true;
+      watcher.lastSeenTag = null;
+    } else if (!res.ok) {
+      throw new Error(`GitHub API HTTP ${res.status}`);
+    } else {
+      watcher.backoffMs = null;
+      const release = await res.json();
+      latestEtag = res.headers.get('etag') || latestEtag;
+      const data = {
+        tag: release.tag_name || '',
+        htmlUrl: release.html_url || '',
+        publishedAt: release.published_at || null,
+        assets: (release.assets || []).map((a) => ({ name: a.name, url: a.browser_download_url, size: a.size })),
+      };
+      // Share the fresh result with /api/update-check so the UI's follow-up
+      // check after the SSE event hits a warm, consistent cache.
+      cache = { at: deps.now(), data };
+      const tag = data.tag || null;
+      if (!watcher.hasBaseline) {
+        watcher.hasBaseline = true;
+        watcher.lastSeenTag = tag;
+      } else if (tag !== watcher.lastSeenTag) {
+        watcher.lastSeenTag = tag;
+        if (tag && compareVersions(tag, deps.currentVersion()) > 0) {
+          deps.publish(['update-available']);
+        }
+      }
+    }
+  } catch (error) {
+    // Transient network failure: warn, keep the previous data and baseline,
+    // and retry on the normal cadence.
+    deps.logger.warn(`[update-watcher] latest-release refresh failed: ${error.message}`);
+  }
+  if (watcher.started) watcherSchedule(deps, nextDelayMs);
+}
+
+/**
+ * Start the periodic latest-release watcher. Idempotent: a second call while
+ * running returns false and schedules nothing extra. Dependency injection is
+ * for tests only (time, randomness, HTTP, publishing, logging).
+ */
+function startUpdateWatcher(deps = {}) {
+  if (watcher.started) return false;
+  const merged = { ...defaultWatcherDeps(), ...deps };
+  watcher.started = true;
+  watcher.deps = merged;
+  watcher.hasBaseline = false;
+  watcher.lastSeenTag = null;
+  watcher.backoffMs = null;
+  // Random startup phase only — the steady-state cadence stays exactly one
+  // interval so the "next 15-minute cycle" convergence bound holds.
+  watcherSchedule(merged, Math.max(0, Math.floor(merged.random() * merged.intervalMs)));
+  return true;
+}
+
+/** Stop the watcher and clear its timer. Returns false when not running. */
+function stopUpdateWatcher() {
+  if (!watcher.started) return false;
+  watcher.started = false;
+  if (watcher.timer) clearTimeout(watcher.timer);
+  watcher.timer = null;
+  return true;
+}
+
 async function fetchReleaseNotes(assets, tag) {
   const asset = assets.find(item => item.name === 'release-notes.json');
   if (!asset?.url || !asset.url.startsWith(ASSET_URL_PREFIX)) return null;
@@ -211,4 +329,4 @@ function getUpdateDownloadStatus(req, res) {
   res.json(publicDownloadJob(job));
 }
 
-module.exports = { getUpdateCheck, downloadUpdate, getUpdateDownloadStatus, compareVersions, pickAssets, downloadTarget, fetchReleaseNotes };
+module.exports = { getUpdateCheck, downloadUpdate, getUpdateDownloadStatus, compareVersions, pickAssets, downloadTarget, fetchReleaseNotes, startUpdateWatcher, stopUpdateWatcher };

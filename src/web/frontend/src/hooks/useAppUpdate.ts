@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useDataChanged } from './useDataChanged';
 
 /**
  * App-update state machine shared by the desktop titlebar indicator and the
@@ -15,6 +16,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  * Electron desktop build — it mounts the downloaded DMG, replaces
  * /Applications/OKIT.app, and relaunches; in a browser it falls back to the
  * already-opened installer.
+ *
+ * Beyond the startup check, two silent paths keep a long-running app aware:
+ * the server-side update watcher publishes the 'update-available' SSE section
+ * when it observes a new release (received via useDataChanged), and regaining
+ * window focus re-checks once the focus cooldown has elapsed.
  */
 
 export type UpdateState = {
@@ -50,6 +56,22 @@ export function formatFileSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(bytes >= 100 * 1024 * 1024 ? 0 : 1)} MB`;
 }
 
+/** Focus re-check cooldown: a returning user re-checks at most every 5 min. */
+export const FOCUS_RECHECK_COOLDOWN_MS = 5 * 60 * 1000;
+
+/**
+ * Pure focus-recheck policy: check when the window becomes visible again
+ * only if the last SUCCESSFUL check is older than the cooldown (or never
+ * happened). Extracted so the cooldown logic is testable without a DOM.
+ */
+export function shouldCheckOnFocus(
+  lastSuccessfulCheckAt: number | null,
+  now: number,
+  cooldownMs: number = FOCUS_RECHECK_COOLDOWN_MS,
+): boolean {
+  return lastSuccessfulCheckAt === null || now - lastSuccessfulCheckAt > cooldownMs;
+}
+
 export function useAppUpdate(options?: { autoCheck?: boolean }) {
   const autoCheck = options?.autoCheck !== false;
   // Desktop owns installation after an explicit restart action. Browsers keep
@@ -59,6 +81,7 @@ export function useAppUpdate(options?: { autoCheck?: boolean }) {
   const [download, setDownload] = useState<UpdateDownload | null>(null);
   const [restarting, setRestarting] = useState(false);
   const [lastCheckedAt, setLastCheckedAt] = useState<number | null>(null);
+  const lastSuccessfulCheckRef = useRef<number | null>(null);
   const dmgPathRef = useRef<string | null>(null);
 
   const downloading = download?.status === 'queued' || download?.status === 'downloading';
@@ -83,6 +106,9 @@ export function useAppUpdate(options?: { autoCheck?: boolean }) {
           releaseNotes: data.releaseNotes || null,
         };
       setUpdate(next);
+      if (next.status === 'upToDate' || next.status === 'available') {
+        lastSuccessfulCheckRef.current = Date.now();
+      }
       setLastCheckedAt(Date.now());
       return next;
     } catch (err: any) {
@@ -152,6 +178,26 @@ export function useAppUpdate(options?: { autoCheck?: boolean }) {
   useEffect(() => {
     if (autoCheck) void check(true);
   }, [autoCheck, check]);
+
+  // Server-side update watcher: it publishes 'update-available' over the SSE
+  // event stream once per observed new release. Re-check silently — the
+  // watcher already refreshed the server cache, so this costs no extra
+  // GitHub request, and a failed silent check keeps any known-good state.
+  useDataChanged(['update-available'], () => { void check(true); });
+
+  // Focus re-check: a long-running app that slept through SSE heartbeats (or
+  // dropped the stream) converges when the user returns to the window, gated
+  // by the cooldown so tab-switching never hammers the endpoint.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible' && shouldCheckOnFocus(lastSuccessfulCheckRef.current, Date.now())) {
+        void check(true);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [check]);
 
   return {
     update, download, downloading, downloadProgress, lastCheckedAt, isDesktop,

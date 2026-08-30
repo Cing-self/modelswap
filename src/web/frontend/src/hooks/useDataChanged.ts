@@ -2,7 +2,9 @@ import { useEffect, useRef } from 'react';
 
 // 'extension' fires when the browser extension (re)connects — not a data
 // section, but a signal for pages to retry extension-dependent queries.
-export type DataSection = 'providers' | 'secrets' | 'agents' | 'config' | 'extension';
+// 'update-available' is published by the server-side update watcher when it
+// observes a new release; pages re-check for updates silently.
+export type DataSection = 'providers' | 'secrets' | 'agents' | 'config' | 'extension' | 'update-available';
 
 type DataChangedDetail = { type: 'data-changed'; sections: DataSection[] };
 
