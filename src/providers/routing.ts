@@ -119,7 +119,8 @@ export function resolveModelRoute(provider: Provider, modelId: string, adapter: 
   const byId = new Map(endpoints.map(entry => [entry.id, entry.endpoint]));
   const hasRecordedEndpointSource = allAvailability.some(item =>
     item.executionMode === "http_endpoint"
-    && Boolean(item.endpointId)
+    && typeof item.endpointId === "string"
+    && byId.has(item.endpointId)
     && item.source !== "legacy_unknown",
   );
   const explicit = availability.find(item => {
