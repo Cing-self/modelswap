@@ -81,6 +81,14 @@ jobs:
           echo "Current: $CURRENT → Next: v$NEXT"
           echo "version=$NEXT" >> "$GITHUB_OUTPUT"
 
+      # Gate BEFORE any external side effect: the next version's reviewed
+      # release notes must exist and validate before the bump commit is
+      # created, pushed, tagged, published to npm, or released on GitHub.
+      # A failure here leaves the repository and registries untouched —
+      # no half-released version can be left behind.
+      - name: Validate reviewed release notes
+        run: node scripts/release-notes.js validate "v${{ steps.bump.outputs.version }}"
+
       - name: Commit version bump and tag
         run: |
           git config user.name "github-actions[bot]"
@@ -96,9 +104,6 @@ jobs:
           # CI-approved SHA; "push origin main" has no local branch to match.
           git push origin HEAD:main
           git push origin "refs/tags/v${{ steps.bump.outputs.version }}"
-
-      - name: Validate reviewed release notes
-        run: node scripts/release-notes.js validate "v${{ steps.bump.outputs.version }}"
 
       # ---- Everything below only runs on the bumped, tagged tree: a broken
       # build fails BEFORE npm/Release ever see it. ----
