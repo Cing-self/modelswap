@@ -313,14 +313,14 @@ async function switchProvider(input = {}) {
 // the Agent's native config *and* atomically replaces the selected model list
 // for that one site.  The home page then renders the same list verbatim.
 
-async function configureAgentProvider({ agentId, providerId, modelIds, primaryModelId } = {}) {
+async function configureAgentProvider({ agentId, providerId, modelIds, primaryModelId, enabled } = {}) {
   if (!agentId || !providerId || !Array.isArray(modelIds)) {
     throw Object.assign(new Error('Missing agentId, providerId or modelIds'), { status: 400 });
   }
 
   try {
     const result = await agentConfigService.applySelection({
-      agentId, providerId, modelIds, primaryModelId, source: 'agent-provider-save', activate: true,
+      agentId, providerId, modelIds, primaryModelId, enabled, source: 'agent-provider-save', activate: true,
     });
     return result;
   } catch (error) {
@@ -346,7 +346,10 @@ async function setAgentProviderEnabled({ agentId, providerId, enabled } = {}) {
   if (enabled) {
     const config = await loadUserConfig();
     const site = getAgentState(config, agentId).sites[providerId];
-    return configureAgentProvider({ agentId, providerId, modelIds: site?.modelIds || [] });
+    // Pass enabled: true explicitly — applySelection preserves the stored
+    // flag when it is undefined, so a disabled site would stay disabled and
+    // the dashboard toggle would look like a no-op.
+    return configureAgentProvider({ agentId, providerId, modelIds: site?.modelIds || [], enabled: true });
   }
   try {
     return await agentConfigService.disableConfiguredSite({ agentId, providerId });

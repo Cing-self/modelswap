@@ -216,6 +216,33 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
     expect(Number.isNaN(Date.parse(result.sync.localChangedAt.providers))).toBe(false);
   });
 
+  it('flips the stored enabled flag when re-enabling an additive site', () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-site-enable-'));
+    const root = path.resolve(__dirname, '../..');
+    const script = `
+      const fs=require('fs'), path=require('path');
+      const api=require(path.join(process.argv[1], 'src/web/api/providers.js'));
+      const call=(handler, req)=>new Promise((resolve,reject)=>handler(req,{status(c){this.code=c;return this},json(v){(this.code||200)>=400?reject(new Error(v.error)):resolve(v)}}));
+      (async()=>{
+        await call(api.createProvider,{body:{id:'en-reg',name:'Enable Reg',type:'openai',baseUrl:'https://example.com/v1',authMode:'none',models:[{id:'m1'}]}});
+        await call(api.configureAgentProvider,{params:{agentId:'kimi-code',providerId:'en-reg'},body:{modelIds:['m1'],primaryModelId:'m1'}});
+        await call(api.setAgentProviderEnabled,{params:{agentId:'kimi-code',providerId:'en-reg'},body:{enabled:false}});
+        let user=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.okit','user.json'),'utf8'));
+        if(user.agentProviders['kimi-code'].sites['en-reg'].enabled!==false) throw new Error('disable did not persist');
+        await call(api.setAgentProviderEnabled,{params:{agentId:'kimi-code',providerId:'en-reg'},body:{enabled:true}});
+        user=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.okit','user.json'),'utf8'));
+        console.log(JSON.stringify({enabled:user.agentProviders['kimi-code'].sites['en-reg'].enabled}));
+      })().catch(error=>{console.error(error.stack);process.exit(1)});
+    `;
+    const result = JSON.parse(execFileSync(process.execPath, ['-r', 'ts-node/register/transpile-only', '-e', script, root], {
+      env: { ...process.env, HOME: home, USERPROFILE: home }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim());
+    // applySelection preserves the stored flag when `enabled` is undefined, so
+    // the enable path must pass enabled: true explicitly or the dashboard
+    // toggle looks like a no-op.
+    expect(result.enabled).toBe(true);
+  });
+
   it('persists site deletion to user.json through the tombstone op', () => {
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-site-delete-'));
     const root = path.resolve(__dirname, '../..');

@@ -467,12 +467,13 @@ export default function HomePage() {
                     onClick={(e) => {
                       e.stopPropagation();
                       if (!siteEnabled) {
-                        // Re-enable an additive site by writing its exact saved
-                        // model selection back to the native Agent config.
+                        // Re-enable an additive site through the dedicated
+                        // enabled endpoint: it flips the stored enabled flag,
+                        // which a plain model save would preserve as false.
                         if (visibleAfterExclude.length === 0) {
                           openHomeModels(p.id);
                         } else if (activeAgent.additive) {
-                          saveAgentProviderSite(activeAgent.id, p.id, visibleAfterExclude.map(model => model.id))
+                          setAgentProviderSiteEnabled(activeAgent.id, p.id, true)
                             .then(() => load())
                             .catch(err => showToast(err.message, 'error'));
                         } else {
