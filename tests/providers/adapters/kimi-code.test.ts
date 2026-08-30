@@ -250,6 +250,40 @@ describe('KimiCodeAdapter.applyConfig (v2 config format)', () => {
     expect(toml).toContain('sk-other');
   });
 
+  it('drops stale model entries that cannot be healed and their dangling default_model', async () => {
+    // Kimi re-serialization strips `model` from non-default entries; a model
+    // that has since left the provider list can never be healed back. Kimi
+    // 0.38 crashes at startup when default_model points at such an entry.
+    mocks.files.set(CONFIG_PATH, [
+      'default_model = "okit-custom-openai-gone-model"',
+      '',
+      '[providers.okit-custom-openai]',
+      'type = "openai"',
+      'base_url = "https://custom.api.com/v1"',
+      'api_key = "sk-test"',
+      '',
+      '[models.okit-custom-openai-gone-model]',
+      'provider = "okit-custom-openai"',
+      'protocol = "openai"',
+      '',
+      '[models.okit-custom-openai-healable]',
+      'provider = "okit-custom-openai"',
+      'display_name = "heal me"',
+    ].join('\n'));
+
+    const adapter = new KimiCodeAdapter();
+    // Re-apply the current site: heal runs and must remove the unresolvable
+    // entry plus the default_model that pointed at it.
+    await adapter.applyConfig(customProvider, 'my-model');
+
+    const toml = mocks.files.get(CONFIG_PATH)!;
+    expect(toml).not.toContain('gone-model');
+    // A healable entry (model still in the provider list) gets its model field
+    // restored rather than dropped.
+    expect(toml).toContain('model = "my-model"');
+    expect(toml).toContain('default_model = "okit-custom-openai-my-model"');
+  });
+
   it('does not write .env (api key lives inline in config.toml)', async () => {
     const adapter = new KimiCodeAdapter();
     await adapter.applyConfig(customProvider, 'my-model');

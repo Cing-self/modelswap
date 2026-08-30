@@ -109,10 +109,18 @@ export class KimiCodeAdapter extends BaseAdapter {
       }
       return null;
     };
+    // True only when the alias belongs to a provider OKIT still registers:
+    // an unresolvable model under a KNOWN provider is stale and safe to drop,
+    // while an unknown provider's entries are not ours to manage.
+    const belongsToKnownProvider = (alias: string): boolean => {
+      const ids = [...byId.keys()].sort((a, b) => b.length - a.length);
+      return ids.some(pid => alias.startsWith(`okit-${sanitizeTomlKey(pid)}-`));
+    };
 
     const source = toml.split("\n");
     const out: string[] = [];
     let changed = false;
+    const droppedAliases: string[] = [];
     let i = 0;
     while (i < source.length) {
       const line = source[i];
@@ -134,10 +142,29 @@ export class KimiCodeAdapter extends BaseAdapter {
         if (modelId) {
           out.push(`model = ${tomlString(modelId)}`);
           changed = true;
+        } else if (belongsToKnownProvider(header[1])) {
+          // An OKIT-registered alias that no longer resolves to any model in
+          // the provider store is stale. Kimi 0.38 crashes at startup when
+          // default_model points at an entry without a `model` field, so drop
+          // the entry (and later the default) instead of leaving the trap.
+          out.pop();
+          changed = true;
+          droppedAliases.push(header[1]);
+          i = j;
+          continue;
         }
       }
       out.push(...body);
       i = j;
+    }
+
+    for (const alias of droppedAliases) {
+      const defaultModel = getTopLevelTomlValue(out.join("\n"), "default_model");
+      if (defaultModel === alias) {
+        const withoutDefault = removeTopLevelTomlKey(out.join("\n"), "default_model");
+        out.length = 0;
+        out.push(...withoutDefault.split("\n"));
+      }
     }
 
     if (!changed) return false;
