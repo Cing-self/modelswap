@@ -493,6 +493,20 @@ describe('CodexAdapter.applyConfig', () => {
     );
   });
 
+  it('official OpenAI strips a leftover openai_base_url hijack', async () => {
+    mocks.files.set(CODEX_CONFIG, [
+      'model = "old"',
+      'openai_base_url = "https://open.bigmodel.cn/api/v1"',
+    ].join('\n'));
+    const adapter = new CodexAdapter();
+    await adapter.applyConfig(openaiProvider, 'gpt-5.5');
+    const toml = mocks.files.get(CODEX_CONFIG)!;
+    // A manual base-url override must never redirect official-subscription
+    // requests to a third-party gateway.
+    expect(toml).not.toContain('openai_base_url');
+    expect(toml).toContain('model = "gpt-5.5"');
+  });
+
   it('official OpenAI: clears the active override but preserves registered providers for old conversations', async () => {
     // Start with a config that has third-party gunk from a previous provider.
     mocks.files.set(CODEX_CONFIG, [

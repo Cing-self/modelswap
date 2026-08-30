@@ -66,6 +66,10 @@ export class CodexAdapter extends BaseAdapter {
       toml = removeTopLevelTomlKey(toml, "model_context_window");
       toml = removeTopLevelTomlKey(toml, "model_supports_reasoning_summaries");
       toml = removeTopLevelTomlKey(toml, "api_base");
+      // A leftover openai_base_url override (manual hacks for old desktop
+      // threads) would hijack official-subscription requests to a third-party
+      // gateway; the official path must always reach the real backend.
+      toml = removeTopLevelTomlKey(toml, "openai_base_url");
       // model_reasoning_effort is harmless for official too — keep it so
       // reasoning models behave the same across subscription and API modes.
       // toml = upsertTopLevelTomlKey(toml, "model_reasoning_effort", tomlString("high"));
