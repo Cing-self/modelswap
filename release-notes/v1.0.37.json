@@ -1,0 +1,41 @@
+{
+  "version": "v1.0.37",
+  "publishedAt": "2026-08-30",
+  "summary": {
+    "zh": "本次更新全面适配新版 Codex 的接口协议，修复了多个站点配置与 Agent 启动问题，并加固配置写入与发布流程的可靠性。",
+    "en": "This update adapts OKIT to the latest Codex protocol, fixes several site-configuration and agent startup issues, and hardens configuration writes and the release pipeline."
+  },
+  "highlights": [
+    {
+      "category": "new",
+      "zh": "Codex 站点自动适配 Responses 协议端点；新增 responses 端点类型，智谱等双协议平台可显式配置。",
+      "en": "Codex sites now adapt to the Responses protocol automatically; a responses endpoint type is available for dual-protocol providers such as Zhipu."
+    },
+    {
+      "category": "improved",
+      "zh": "不兼容 Codex 的站点在添加列表中直接过滤，站点卡片按添加顺序排列。",
+      "en": "Codex-incompatible sites are filtered out of the add-site list, and site cards now follow the order they were added."
+    },
+    {
+      "category": "improved",
+      "zh": "发布流程现在先校验发布说明再执行任何推送或发布，杜绝只有版本号而没有更新内容的半成品版本。",
+      "en": "Releases now validate their notes before any push or publish, eliminating half-released versions with a bumped version but no release content."
+    },
+    {
+      "category": "fixed",
+      "zh": "修复删除站点不生效的问题——删除现在立即写入并持久保留。",
+      "en": "Fixed site deletion not taking effect — removals now persist immediately."
+    },
+    {
+      "category": "fixed",
+      "zh": "修复打包桌面端内置 CLI 无法读取密钥导致的鉴权失败，以及多个 Agent（MiMo、OpenCode、Kimi）配置损坏引起的启动失败。",
+      "en": "Fixed authentication failures caused by the packaged CLI key lookup, and startup failures in MiMo, OpenCode, and Kimi caused by invalid generated configs."
+    },
+    {
+      "category": "fixed",
+      "zh": "修复配置文件并发写入互相覆盖的问题，多进程同时改动配置不再丢失数据。",
+      "en": "Fixed concurrent configuration writes overwriting each other; parallel changes no longer lose data."
+    }
+  ],
+  "releaseUrl": "https://github.com/Cing-self/okit/releases/tag/v1.0.37"
+}

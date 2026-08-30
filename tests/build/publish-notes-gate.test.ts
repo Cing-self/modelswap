@@ -1,4 +1,4 @@
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import path from 'path';
 import { describe, expect, it } from 'vitest';
 
@@ -50,6 +50,29 @@ describe('publish workflow release-notes gate', () => {
     const { validateReleaseNotes } = require('../../src/application/release-notes');
     const result = validateReleaseNotes(notes, version);
     expect(result.errors, `invalid release notes for ${version}`).toEqual([]);
+    expect(result.valid).toBe(true);
+  });
+
+  // The publish workflow validates notes for the version it is ABOUT to
+  // release, computed from package.json at run time. The default dispatch
+  // bump is 'patch', so the repository must carry valid notes for the next
+  // patch version at all times — otherwise the release (correctly) stops
+  // with zero side effects and the release premise is missing. Mirror the
+  // workflow's bump arithmetic so a missing next-version file fails here,
+  // in CI, instead of at publish time.
+  it("ships reviewed notes for the workflow's default next version (patch)", () => {
+    expect(workflow, "dispatch default must stay 'patch' for this guard to track the real default path").toContain('default: patch');
+
+    const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
+    const [major, minor, patch] = pkg.version.split('.').map(Number);
+    const next = `v${major}.${minor}.${patch + 1}`;
+    const notesPath = path.join(root, 'release-notes', `${next}.json`);
+    expect(existsSync(notesPath), `expected release-notes/${next}.json for the default patch release path`).toBe(true);
+    const notes = JSON.parse(readFileSync(notesPath, 'utf8'));
+
+    const { validateReleaseNotes } = require('../../src/application/release-notes');
+    const result = validateReleaseNotes(notes, next);
+    expect(result.errors, `invalid release notes for ${next}`).toEqual([]);
     expect(result.valid).toBe(true);
   });
 });
