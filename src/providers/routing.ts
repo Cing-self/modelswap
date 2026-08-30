@@ -117,10 +117,19 @@ export function resolveModelRoute(provider: Provider, modelId: string, adapter: 
 
   const endpoints = providerEndpointEntries(provider);
   const byId = new Map(endpoints.map(entry => [entry.id, entry.endpoint]));
+  // The recorded-source gate exists so a model is never claimed on an
+  // endpoint where it was never observed. But records usually come from
+  // discovery over ONE protocol (e.g. the OpenAI-compatible /models route),
+  // while the provider legitimately mirrors its catalog on a dual-protocol
+  // endpoint (deepseek, glm, minimax ...). Only treat the records as
+  // authoritative when at least one of them sits on an endpoint the
+  // requesting adapter can actually use; otherwise allow the compatibility
+  // fallback to the provider's adapter-supported endpoint.
   const hasRecordedEndpointSource = allAvailability.some(item =>
     item.executionMode === "http_endpoint"
     && typeof item.endpointId === "string"
     && byId.has(item.endpointId)
+    && adapter.supportedTypes.includes(byId.get(item.endpointId)!.type)
     && item.source !== "legacy_unknown",
   );
   const explicit = availability.find(item => {

@@ -123,30 +123,65 @@ describe('provider routing', () => {
     ]);
   });
 
-  it('never falls back to an endpoint where a sourced model was not observed', () => {
+  it('falls back to the adapter-supported endpoint when records only exist on another protocol endpoint', () => {
+    // deepseek-style vendor: discovery can only observe the OpenAI-compatible
+    // side (the anthropic endpoint exposes no /models), yet the provider
+    // legitimately mirrors its catalog on the dual-protocol endpoint.
     const provider: Provider = {
-      id: 'gateway',
-      name: 'Gateway',
+      id: 'deepseek',
+      name: 'DeepSeek',
       type: 'openai',
-      baseUrl: 'https://gateway.example/v1',
+      baseUrl: 'https://api.deepseek.com',
       endpoints: [
-        { id: 'gateway:openai', type: 'openai', baseUrl: 'https://gateway.example/v1' },
-        { id: 'gateway:anthropic', type: 'anthropic', baseUrl: 'https://gateway.example/anthropic' },
+        { id: 'deepseek:openai', type: 'openai', baseUrl: 'https://api.deepseek.com' },
+        { id: 'deepseek:anthropic', type: 'anthropic', baseUrl: 'https://api.deepseek.com/anthropic' },
       ],
       authMode: 'api_key',
       models: [{
-        id: 'anthropic-only',
+        id: 'deepseek-v4-flash',
         availability: [{
           executionMode: 'http_endpoint',
-          endpointId: 'gateway:anthropic',
-          remoteModelId: 'anthropic-only',
+          endpointId: 'deepseek:openai',
+          remoteModelId: 'deepseek-v4-flash',
           status: 'available',
           source: 'remote',
         }],
       }],
     };
+    const claude = { id: 'claude', supportedTypes: ['anthropic'] };
 
-    expect(() => resolveModelRoute(provider, 'anthropic-only', codex as any))
-      .toThrow('没有适用于 codex 的模型来源端点');
+    const route = resolveModelRoute(provider, 'deepseek-v4-flash', claude as any);
+    expect(route.endpointId).toBe('deepseek:anthropic');
+    expect(route.remoteModelId).toBe('deepseek-v4-flash');
+  });
+
+  it('keeps strict matching while any record sits on an adapter-usable endpoint', () => {
+    // Same-protocol multi-endpoint providers stay strict: a model observed on
+    // one openai endpoint must not silently resolve to another openai endpoint.
+    const provider: Provider = {
+      id: 'gateway',
+      name: 'Gateway',
+      type: 'openai',
+      baseUrl: 'https://one.example/v1',
+      endpoints: [
+        { id: 'gateway:one', type: 'openai', baseUrl: 'https://one.example/v1' },
+        { id: 'gateway:two', type: 'openai', baseUrl: 'https://two.example/v1' },
+      ],
+      authMode: 'api_key',
+      models: [{
+        id: 'one-only',
+        availability: [{
+          executionMode: 'http_endpoint',
+          endpointId: 'gateway:one',
+          remoteModelId: 'one-only',
+          status: 'available',
+          source: 'remote',
+        }],
+      }],
+    };
+    const { opencode } = { opencode: { id: 'opencode', supportedTypes: ['anthropic', 'openai'] } };
+
+    const route = resolveModelRoute(provider, 'one-only', opencode as any);
+    expect(route.endpointId).toBe('gateway:one');
   });
 });
