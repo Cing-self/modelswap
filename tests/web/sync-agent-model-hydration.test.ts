@@ -81,14 +81,21 @@ describe('sync pull agent model hydration', { timeout: 30000 }, () => {
         await vault.set('THIRD_TOKEN_KEY','third-token-secret');
         await vault.set('SYNC_OFFLINE_KEY','offline-secret');
         for (const provider of [syncOpen,syncClaude,qianfan,thirdCoding,thirdToken,unavailable]) await call(api.createProvider,{body:provider});
-        const user=JSON.parse(fs.readFileSync(userPath,'utf8'));
-        user.agentProviders={
-          codex:{activeProviderId:'openai-codex',activeModelId:'gpt-5.6-sol',sites:{'openai-codex':{modelIds:['gpt-5.6-sol']}}},
-          claude:{activeProviderId:'sync-claude',activeModelId:'sync-claude-live',sites:{'sync-claude':{modelIds:['sync-claude-live']}}},
-          opencode:{sites:{'sync-open':{modelIds:['sync-open-live']},'qianfan-coding':{modelIds:['glm-5.1','glm-5.2']},'third-coding':{modelIds:['third-coding-live']},'third-token':{modelIds:['third-token-live']},'sync-offline':{modelIds:['sync-offline-model']}}}
-        };
-        user.sync={password:'shared-secret',platforms:{supabase:{enabled:true,projectId:'project',apiToken:'token'}}};
-        fs.writeFileSync(userPath,JSON.stringify(user));
+        // Write machine A's desired state through the semantic store API.
+        // Provider creation fires fire-and-forget queued writes (saveProviders
+        // -> markDirty -> recordLocalChanged), so a raw fs read-modify-write of
+        // user.json here races those in-flight queue commits: a queued write
+        // whose read predated the raw write lands after it and restores the
+        // pre-write snapshot, dropping the sync section — syncPush then fails
+        // with 请先设置同步密码. Store ops serialize on that same write queue,
+        // which closes the window by construction.
+        await sync.setSyncField('password','shared-secret');
+        await sync.setPlatformField('supabase','enabled',true);
+        await sync.setPlatformField('supabase','projectId','project');
+        await sync.setPlatformField('supabase','apiToken','token');
+        await sync.replaceAgentState('codex',{activeProviderId:'openai-codex',activeModelId:'gpt-5.6-sol',sites:{'openai-codex':{modelIds:['gpt-5.6-sol']}}});
+        await sync.replaceAgentState('claude',{activeProviderId:'sync-claude',activeModelId:'sync-claude-live',sites:{'sync-claude':{modelIds:['sync-claude-live']}}});
+        await sync.replaceAgentState('opencode',{sites:{'sync-open':{modelIds:['sync-open-live']},'qianfan-coding':{modelIds:['glm-5.1','glm-5.2']},'third-coding':{modelIds:['third-coding-live']},'third-token':{modelIds:['third-token-live']},'sync-offline':{modelIds:['sync-offline-model']}}});
         await sync.syncPush();
       })().catch(error=>{console.error(error.stack);process.exit(1)});
     `;
