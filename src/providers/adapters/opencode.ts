@@ -3,7 +3,7 @@ import path from "path";
 import os from "os";
 import { BaseAdapter } from "./base";
 import { gatewayHeadersFor } from "./gateway";
-import { modelTokenLimit } from "./model-facts";
+import { completeTokenLimit, modelTokenLimit } from "./model-facts";
 import { AgentSelection, AuthStatus, Provider, ProviderType, ResolvedModel } from "../types";
 import { loadUserConfig } from "../../config/user";
 import { atomicWrite, atomicWriteJSON } from "../../utils/atomicWrite";
@@ -151,9 +151,8 @@ export class OpenCodeAdapter extends BaseAdapter {
     // resolved model facts (live API → directory → user override).
     const modelsMap: Record<string, any> = {};
     for (const m of provider.models) {
-      const limit = modelTokenLimit(provider, m);
-      modelsMap[m.id] = limit
-        && Object.keys(limit).length ? { name: m.name || m.id, limit } : { name: m.name || m.id };
+      const complete = completeTokenLimit(modelTokenLimit(provider, m));
+      modelsMap[m.id] = complete ? { name: m.name || m.id, limit: complete } : { name: m.name || m.id };
     }
     providerEntry.models = modelsMap;
 

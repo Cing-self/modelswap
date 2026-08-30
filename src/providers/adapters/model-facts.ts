@@ -44,3 +44,15 @@ export function modelTokenLimit(provider: Provider, model: ProviderModel | strin
     ...(Number.isFinite(facts.output) ? { output: facts.output } : {}),
   };
 }
+
+// Several agents (opencode, mimocode, zcode) validate `limit` as a pair of
+// required numbers. Model facts that only carry a context window would
+// produce a half limit those agents refuse to load, so complete the missing
+// member with a conservative fallback instead.
+export function completeTokenLimit(limit: { context?: number; output?: number }): { context: number; output: number } | null {
+  if (limit.context === undefined && limit.output === undefined) return null;
+  return {
+    context: limit.context ?? limit.output!,
+    output: limit.output ?? Math.min(limit.context ?? 131072, 32768),
+  };
+}

@@ -3,7 +3,7 @@ import path from "path";
 import os from "os";
 import { BaseAdapter } from "./base";
 import { gatewayHeadersFor } from "./gateway";
-import { modelTokenLimit } from "./model-facts";
+import { completeTokenLimit, modelTokenLimit } from "./model-facts";
 import { AgentSelection, AuthStatus, Provider, ProviderType } from "../types";
 import { loadUserConfig } from "../../config/user";
 import { atomicWrite } from "../../utils/atomicWrite";
@@ -85,16 +85,7 @@ export class MimoCodeAdapter extends BaseAdapter {
   private buildModelsMap(provider: Provider): Record<string, any> {
     const modelsMap: Record<string, any> = {};
     for (const m of provider.models) {
-      const limit = modelTokenLimit(provider, m);
-      // mimocode's config schema requires both limit numbers when `limit` is
-      // present; model facts that only carry a context window would produce
-      // an invalid config that crashes the agent at startup.
-      const complete = limit.context !== undefined || limit.output !== undefined
-        ? {
-            context: limit.context ?? limit.output!,
-            output: limit.output ?? Math.min(limit.context ?? 131072, 32768),
-          }
-        : null;
+      const complete = completeTokenLimit(modelTokenLimit(provider, m));
       modelsMap[m.id] = complete ? { name: m.name || m.id, limit: complete } : { name: m.name || m.id };
     }
     return modelsMap;

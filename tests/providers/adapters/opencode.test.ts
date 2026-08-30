@@ -139,6 +139,24 @@ describe('OpenCodeAdapter.applyConfig (cc-switch schema)', () => {
     expect(written.provider.deepseek.options.apiKey).toBe('sk-test-123');
   });
 
+  it('always emits both limit numbers so opencode schema validation passes', async () => {
+    const provider = {
+      ...openaiProvider,
+      models: [
+        { id: 'ctx-only', name: 'Ctx Only', resolved: { ...resolvedModel('ctx-only', 1179648, undefined as any), output: undefined } },
+        { id: 'no-facts', name: 'No Facts' },
+      ],
+    };
+    const adapter = new OpenCodeAdapter();
+    await adapter.applyConfig(provider, 'ctx-only');
+    const data = JSON.parse(mocks.files.get(CONFIG_PATH)!);
+    const models = data.provider['deepseek'].models;
+    // Facts without an output window must not produce a context-only limit —
+    // opencode refuses to start ("Missing key ...limit.output").
+    expect(models['ctx-only'].limit).toEqual({ context: 1179648, output: 32768 });
+    expect(models['no-facts'].limit).toBeUndefined();
+  });
+
   it('writes models as object keyed by model id', async () => {
     const adapter = new OpenCodeAdapter();
     await adapter.applyConfig(openaiProvider, 'deepseek-chat');

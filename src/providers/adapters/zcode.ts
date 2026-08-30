@@ -3,7 +3,7 @@ import path from "path";
 import os from "os";
 import { BaseAdapter } from "./base";
 import { gatewayHeadersFor } from "./gateway";
-import { modelFacts, modelTokenLimit } from "./model-facts";
+import { completeTokenLimit, modelFacts, modelTokenLimit } from "./model-facts";
 import { AgentSelection, AuthStatus, ManagedModels, Provider, ProviderType } from "../types";
 import { loadUserConfig } from "../../config/user";
 import { atomicWriteJSON } from "../../utils/atomicWrite";
@@ -105,10 +105,8 @@ function buildProviderEntry(
 ): Record<string, any> {
   const models: Record<string, any> = {};
   for (const [modelId, name] of modelNames) {
-    const limit = modelTokenLimit(provider, modelId);
-    models[modelId] = Object.keys(limit).length
-      ? { name: name || modelId, limit }
-      : { name: name || modelId };
+    const complete = completeTokenLimit(modelTokenLimit(provider, modelId));
+    models[modelId] = complete ? { name: name || modelId, limit: complete } : { name: name || modelId };
   }
   const options: Record<string, any> = { baseURL: format.baseURL };
   if (apiKey) options.apiKey = apiKey;
