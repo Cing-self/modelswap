@@ -99,15 +99,16 @@ export function finalizeReport(report) {
   return report;
 }
 
-// 1 = failed / cleanup_failed / rejected / unverified_extension_identity
-//     (real defects, redesign cases, and unprovable dangerous-mode identity)
+// 1 = failed / cleanup_failed / rejected / unverified_extension_identity /
+//     disabled (real defects, redesign cases, unprovable identity, and the
+//     leadership-ruled hard disable of real key creation)
 // 2 = waiting_for_user / blocked_prerequisite / not_run (honest non-passes)
 // 0 = everything passed (or dry_run plan validation)
 export function exitCodeFromResults(results) {
   let sawHonestBlock = false;
   for (const result of results || []) {
     const status = result?.status;
-    if (['failed', 'cleanup_failed', 'rejected', 'unverified_extension_identity'].includes(status)) return 1;
+    if (['failed', 'cleanup_failed', 'rejected', 'unverified_extension_identity', 'disabled'].includes(status)) return 1;
     if (['waiting_for_user', 'blocked_prerequisite', 'not_run'].includes(status)) sawHonestBlock = true;
   }
   return sawHonestBlock ? 2 : 0;

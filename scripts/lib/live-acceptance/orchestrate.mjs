@@ -110,6 +110,7 @@ export async function runAcceptance(options) {
     sessionId = '',
     identityDeps = null,
     witnessTimeoutMs = 45000,
+    createCleanupRealRunEnabled = false,
   } = options;
 
   // Mode default: auth-verify keeps the dedicated Chrome open so the user can
@@ -144,7 +145,7 @@ export async function runAcceptance(options) {
         platformConfig: platformConfigs[0] || null,
         dryRun, allowCreateAndCleanup, push, fetchImpl, baseUrl,
         delegateScriptPath, repoRoot, spawnImpl, env, logger,
-        sessionId, root, identityDeps, witnessTimeoutMs,
+        sessionId, root, identityDeps, witnessTimeoutMs, createCleanupRealRunEnabled,
       });
     } else if (dryRun) {
       for (const platform of platformConfigs) {
@@ -363,6 +364,7 @@ async function runCreateCleanupMode({
   platformConfig, dryRun, allowCreateAndCleanup, push, fetchImpl, baseUrl,
   delegateScriptPath, repoRoot, spawnImpl, env, logger,
   sessionId = '', root = '', identityDeps = null, witnessTimeoutMs = 45000,
+  createCleanupRealRunEnabled = false,
 }) {
   if (!platformConfig) {
     push({ platform: 'all', stage: 'validate', status: 'rejected', reason: 'create-cleanup 必须恰好指定一个平台' });
@@ -397,6 +399,25 @@ async function runCreateCleanupMode({
       ],
     });
     return 0;
+  }
+
+  if (!dryRun && !createCleanupRealRunEnabled) {
+    // HARD DISABLE (leadership ruling 2026-08-31): the single-extension WS
+    // slot means the witness can only prove the dedicated extension was
+    // online *just now*; a later re-auth by the daily Chrome's extension
+    // replaces extWs and the delegated create could land in the daily
+    // browser. Commands are not session-bound in the product protocol, so
+    // without changing the extension/server this cannot be eliminated on
+    // one machine. Real runs stay disabled; only dry-run plans execute.
+    push({
+      platform: platformConfig.id,
+      label: platformConfig.label,
+      mode: platformConfig.mode,
+      stage: 'disabled',
+      status: 'disabled',
+      reason: 'create-cleanup 真实创建当前禁用（裁定 2026-08-31）：单扩展槽位竞态未消除——witness 只能证明专用扩展“刚刚在线”，日常 Chrome 扩展随后重新认证即可替换服务端的 extWs，而自动创建命令不按 session 绑定，仍可能落到日常 Chrome。解禁二选一：① 在隔离 VM/独立机器运行专用 OKIT 服务与专用 Chrome；② 改产品 WS 协议（服务端记录 acceptanceSession、命令按 session 发送、连接被替换即拒绝）。当前仅 dry-run 可用。',
+    });
+    return 1;
   }
 
   // Real run: the OKIT server + its extension must be alive first.

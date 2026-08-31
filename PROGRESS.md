@@ -291,3 +291,9 @@
 - P1（guest 信号清理）：signals.mjs registerSignalCleanup——SIGINT/SIGTERM 尽力（3s 预算）driver.dispose（关本次启动的 Chrome + 删临时 profile）后 130/143 退出；SIGKILL 不可捕获已如实写入文档（残留 tmp 手工清理）。CLI 在驱动创建后注册、runAcceptance 结束后注销。
 - 关键工程点：extension/dist 被 .gitignore（CI checkout 无产物）→ 提交真实产物快照夹具 tests/fixtures/extension-dist-sample/ 驱动补丁测试（node --check 语法校验），真实 dist 存在时跑逐字节一致性锚点漂移检测；vitest 4 移除 it 第三参 timeout（改二参）。
 - 实跑证据：普通扩展在线（本地假 cdp-status available=true）+ 无会话证明 → unverified_extension_identity/exit 1/委托哨兵未触发（tests/fixtures/live-identity-reverse-harness.mjs）；CLI 有危险确认但无 --session → exit 2 拒绝；dry-run 计划含 verify-extension-session 步骤。测试：定向 71/71；全量 `npm test -- --run` 104 文件/936 测试全过零退化（基线 921+15 新增）；`npm run build` exit 0。未真实创建任何第三方 Key，未 push。
+
+# create-cleanup 真实执行硬禁用（2026-08-31 深夜，裁定落地，基于 a354471）
+- 裁定确认根因未消除：服务端单扩展槽位（后认证者替换 extWs）+ 自动创建命令不按 session 绑定 → witness 只能证明专用扩展“刚刚在线”，同机无法证明真实创建不落日常 Chrome。属约束冲突（不改产品扩展/WS 协议即无解），P0 仅被缩小。
+- 落地：orchestrate 真实分支前置硬禁用——`disabled` 状态（exit 1，零 fetch/零委托/零网络），三重门槛+身份证明全过也拒绝；`createCleanupRealRunEnabled` 选项仅测试注入（CLI 永不传），委托管道逻辑保留并用注入验证。dry-run 计划不变。
+- 定位调整：guest/auth-verify = 发布前巡检能力（保留）；create-cleanup = 已实现但禁用，不作为可执行真实验收能力宣传。文档写明解禁二选一：① 隔离 VM/独立机器跑专用服务+专用 Chrome；② 改产品 WS 协议（服务端记录 acceptanceSession、命令按 session 发送、被替换即拒绝）。P1 信号清理保留（独立有效改进）。
+- 测试：73/73（新增默认硬禁用反例=身份全过仍拒绝零 fetch 零委托；CLI 全参数 exit 1 disabled；既有身份/委托用例改注入解禁，语义不变）；全量与 build 见提交信息。未 push。

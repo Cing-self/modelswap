@@ -12,7 +12,7 @@ export const USAGE = [
   '  --mode <m>              guest=全新临时会话验证登录墙；auth-verify=专用已登录 profile 验证安全入口；create-cleanup=单平台真实创建+清理（默认禁止）',
   '  --platform <id>         平台 ID，可重复或逗号分隔（--list 查看全部）。guest/auth-verify 省略时默认全部 browser 平台；create-cleanup 必须恰好一个',
   '  --dry-run               只生成计划与报告格式，不启动浏览器、不访问任何外部资源',
-  '  --allow-create-and-cleanup  create-cleanup 的危险确认开关，必须与 --platform 同时给出',
+  '  --allow-create-and-cleanup  create-cleanup 的危险确认开关（注意：真实创建当前被硬禁用，仅 dry-run 可用；解禁条件见 docs/testing/provider-live-acceptance.md）',
   '  --session <id>          create-cleanup 真实运行必需：provider-live-chrome --with-extension 生成的一次性验收会话标识（用于证明扩展连接来自专用 Chrome）',
   '  --profile <name>        专用 profile 名（仅 auth-verify；纯标识符，不是路径）',
   '  --screenshots <p>       off | login-only | all（默认 guest=all，auth-verify=login-only，create-cleanup=off）',

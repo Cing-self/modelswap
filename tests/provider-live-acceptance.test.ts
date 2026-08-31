@@ -615,12 +615,34 @@ describe('provider-live-acceptance create-cleanup mode', () => {
     expect(steps).toEqual(['verify-server', 'verify-dedicated-chrome', 'verify-extension-session', 'create', 'read', 'delete', 'confirm-gone']);
   });
 
+  it('hard-disabled by default: a fully verified session still refuses with zero fetch and zero delegation', async () => {
+    const root = tmpRoot();
+    let fetched = 0;
+    let spawned = 0;
+    const result = await runAcceptance({
+      ...baseOptions, root,
+      allowCreateAndCleanup: true,
+      // NOTE: no createCleanupRealRunEnabled here — the CLI never passes it.
+      fetchImpl: async () => { fetched += 1; return healthy(); },
+      spawnImpl: () => { spawned += 1; throw new Error('不得 spawn'); },
+      identityDeps: okIdentityDeps(),
+    } as never);
+    expect(result.exitCode).toBe(1);
+    expect(fetched).toBe(0);
+    expect(spawned).toBe(0);
+    const report = JSON.parse(fs.readFileSync(result.reportPath, 'utf8'));
+    expect(report.results[0].status).toBe('disabled');
+    expect(report.results[0].reason).toContain('单扩展槽位竞态未消除');
+    expect(report.results[0].reason).toContain('隔离 VM');
+  });
+
   it('blocked_prerequisite when the OKIT server/extension is not reachable', async () => {
     const root = tmpRoot();
     let spawned = 0;
     const result = await runAcceptance({
       ...baseOptions, root,
       allowCreateAndCleanup: true,
+      createCleanupRealRunEnabled: true,
       fetchImpl: async () => { throw new Error('connection refused'); },
       spawnImpl: () => { spawned += 1; throw new Error('不得 spawn'); },
     } as never);
@@ -636,6 +658,7 @@ describe('provider-live-acceptance create-cleanup mode', () => {
     const result = await runAcceptance({
       ...baseOptions, root, sessionId: '',
       allowCreateAndCleanup: true,
+      createCleanupRealRunEnabled: true,
       fetchImpl: healthy,
       spawnImpl: () => { spawned += 1; throw new Error('不得 spawn'); },
       identityDeps: okIdentityDeps(),
@@ -653,6 +676,7 @@ describe('provider-live-acceptance create-cleanup mode', () => {
     const result = await runAcceptance({
       ...baseOptions, root,
       allowCreateAndCleanup: true,
+      createCleanupRealRunEnabled: true,
       fetchImpl: healthy,
       spawnImpl: () => { spawned += 1; throw new Error('不得 spawn'); },
       identityDeps: okIdentityDeps({ readRecord: async () => null }),
@@ -670,6 +694,7 @@ describe('provider-live-acceptance create-cleanup mode', () => {
     const result = await runAcceptance({
       ...baseOptions, root,
       allowCreateAndCleanup: true,
+      createCleanupRealRunEnabled: true,
       fetchImpl: healthy,
       spawnImpl: () => { spawned += 1; throw new Error('不得 spawn'); },
       identityDeps: okIdentityDeps({ validateRecord: async () => ({ ok: false, reason: '会话记录的 profile 目录未通过隔离校验' }) }),
@@ -686,6 +711,7 @@ describe('provider-live-acceptance create-cleanup mode', () => {
     const result = await runAcceptance({
       ...baseOptions, root,
       allowCreateAndCleanup: true,
+      createCleanupRealRunEnabled: true,
       fetchImpl: healthy,
       spawnImpl: () => { spawned += 1; throw new Error('不得 spawn'); },
       identityDeps: okIdentityDeps({ probeCdp: async () => false }),
@@ -702,6 +728,7 @@ describe('provider-live-acceptance create-cleanup mode', () => {
     const result = await runAcceptance({
       ...baseOptions, root,
       allowCreateAndCleanup: true,
+      createCleanupRealRunEnabled: true,
       fetchImpl: healthy,
       spawnImpl: () => { spawned += 1; throw new Error('不得 spawn'); },
       identityDeps: okIdentityDeps({ awaitReport: async () => null }),
@@ -741,6 +768,7 @@ describe('provider-live-acceptance create-cleanup mode', () => {
     const result = await runAcceptance({
       ...baseOptions, root,
       allowCreateAndCleanup: true,
+      createCleanupRealRunEnabled: true,
       fetchImpl: healthy,
       spawnImpl,
       identityDeps: okIdentityDeps(),
@@ -772,6 +800,7 @@ describe('provider-live-acceptance create-cleanup mode', () => {
     const result = await runAcceptance({
       ...baseOptions, root,
       allowCreateAndCleanup: true,
+      createCleanupRealRunEnabled: true,
       fetchImpl: healthy,
       spawnImpl,
       identityDeps: okIdentityDeps(),
@@ -995,6 +1024,18 @@ describe('provider live-acceptance CLI subprocess', { timeout: 30000 }, () => {
     expect(run.status).not.toBe(0);
     expect(run.stderr).toContain('--session');
     expect(run.stderr).toContain('专用 Chrome');
+  });
+
+  it('refuses create-cleanup with every parameter supplied — real creation is hard-disabled (exit 1)', () => {
+    const run = runNode(CLI_SCRIPT, [
+      '--mode', 'create-cleanup', '--platform', 'zhipu',
+      '--allow-create-and-cleanup', '--session', '12345678-abcd-1234-abcd-1234567890ab',
+    ]);
+    expect(run.status).toBe(1);
+    expect(run.stdout).toContain('disabled\tzhipu');
+    expect(run.stdout).toContain('禁用');
+    // no delegation happened: no delegate exit line was printed
+    expect(run.stdout).not.toContain('delegate-exit');
   });
 
   it('refuses raw --user-data-dir attempts (non-zero exit)', () => {
