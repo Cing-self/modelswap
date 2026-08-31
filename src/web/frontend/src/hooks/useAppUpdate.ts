@@ -72,6 +72,30 @@ export function shouldCheckOnFocus(
   return lastSuccessfulCheckAt === null || now - lastSuccessfulCheckAt > cooldownMs;
 }
 
+/**
+ * Pure state transitions for check(), extracted so the silent/failure
+ * semantics are testable without mounting the hook.
+ */
+export function beginUpdateCheck(prev: UpdateState, silent: boolean): UpdateState {
+  // Re-entry: a check already in flight keeps its state.
+  if (prev.status === 'checking') return prev;
+  // A silent background check must not tear down a known-good state while
+  // the request is running — the titlebar badge, release info, and download
+  // entry stay until a definitive result replaces them. (Tearing it down
+  // here would also make the failure path below see 'checking' instead of
+  // 'available', silently regressing the badge to error.)
+  if (silent && (prev.status === 'available' || prev.status === 'upToDate')) return prev;
+  return { status: 'checking' };
+}
+
+export function failUpdateCheck(prev: UpdateState, silent: boolean, error: string): UpdateState {
+  const next: UpdateState = { status: 'error', error };
+  // A silent background check must not clobber a known-good state on a
+  // transient network failure — only explicit checks surface the error.
+  if (silent && (prev.status === 'available' || prev.status === 'upToDate')) return prev;
+  return next;
+}
+
 export function useAppUpdate(options?: { autoCheck?: boolean }) {
   const autoCheck = options?.autoCheck !== false;
   // Desktop owns installation after an explicit restart action. Browsers keep
@@ -90,7 +114,7 @@ export function useAppUpdate(options?: { autoCheck?: boolean }) {
     : null;
 
   const check = useCallback(async (silent = true): Promise<UpdateState> => {
-    setUpdate(prev => (prev.status === 'checking' ? prev : { status: 'checking' }));
+    setUpdate(prev => beginUpdateCheck(prev, silent));
     try {
       const res = await fetch('/api/update-check');
       const data = await res.json();
@@ -112,11 +136,10 @@ export function useAppUpdate(options?: { autoCheck?: boolean }) {
       setLastCheckedAt(Date.now());
       return next;
     } catch (err: any) {
-      const next: UpdateState = { status: 'error', error: err.message };
-      // A silent background check must not clobber a known-good state on a
-      // transient network failure — only explicit checks surface the error.
-      setUpdate(prev => (silent && prev.status === 'available' ? prev : next));
-      return next;
+      setUpdate(prev => failUpdateCheck(prev, silent, err.message));
+      // The awaited value stays diagnostically true; only the explicit path
+      // consumes it (toast) and explicit failures are always surfaced.
+      return { status: 'error', error: err.message };
     }
   }, []);
 

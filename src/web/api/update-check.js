@@ -119,6 +119,15 @@ async function watcherTick(deps) {
       // Unchanged release: keep cache and baseline as-is. A 304 still proves
       // the quota is fine, so any pending backoff is released.
       watcher.backoffMs = null;
+      // A 304 after a restart is a valid observation: the etag (and the
+      // shared cache) survived the restart but the baseline flag did not.
+      // Re-establish the baseline from the cached release so the NEXT new
+      // tag is detected — otherwise it would be swallowed as "first sight".
+      // Baseline establishment never broadcasts for an existing release.
+      if (!watcher.hasBaseline && cache.data) {
+        watcher.hasBaseline = true;
+        watcher.lastSeenTag = cache.data.none ? null : (cache.data.tag || null);
+      }
     } else if (res.status === 403 || res.status === 429) {
       watcher.backoffMs = watcher.backoffMs
         ? Math.min(watcher.backoffMs * 2, WATCH_BACKOFF_CAP_MS)

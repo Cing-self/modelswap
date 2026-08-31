@@ -192,6 +192,43 @@ describe('update watcher', () => {
     expect(h.published).toEqual([['update-available']]);
   });
 
+  it('a 304 right after stop/start re-baselines from the cache so the next new tag broadcasts exactly once', async () => {
+    // QA P0-1 exact sequence: 200 (baseline v1.0.37 + etag) → stop → start →
+    // 304 (release unchanged, etag survived the restart) → 200 v1.0.38.
+    let status = 200;
+    let tag = 'v1.0.37';
+    let etag = 'W/"a"';
+    const h = makeHarness(mod, {
+      responses: [() => githubResponse({ status, tag, etag })],
+    });
+    await baselineTick(); // 1. first tick: 200, baseline v1.0.37, etag stored
+    expect(h.requests).toHaveLength(1);
+    expect(h.published).toHaveLength(0);
+
+    mod.stopUpdateWatcher(); // 2.
+    mod.startUpdateWatcher({ // 3. restart: hasBaseline resets, latestEtag survives
+      fetchImpl: h.fetchImpl,
+      now: () => Date.now(),
+      random: () => 0,
+      intervalMs: INTERVAL,
+      publish: (sections) => h.published.push(sections),
+      logger: { warn: () => {} },
+      currentVersion: () => '1.0.37',
+    });
+
+    status = 304; // 4. first restart tick: unchanged release → 304
+    await baselineTick();
+    expect(h.requests).toHaveLength(2);
+    expect(h.published).toHaveLength(0); // no broadcast for the existing release
+
+    status = 200; tag = 'v1.0.38'; etag = 'W/"b"'; // 5. the new release lands
+    await nextTick();
+    expect(h.published).toEqual([['update-available']]); // EXACTLY once
+
+    await vi.advanceTimersByTimeAsync(INTERVAL * 3);
+    expect(h.published).toHaveLength(1);
+  });
+
   it('start is idempotent, stop halts scheduling, and a restart re-baselines', async () => {
     const h = makeHarness(mod, {
       responses: [githubResponse({ tag: 'v1.0.38' })], // newer than running 1.0.37

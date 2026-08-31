@@ -1,13 +1,263 @@
-# 目标
-常开桌面端在 GitHub latest 传播后的下一个 15 分钟周期内静默显示更新徽章（SSE `update-available` + 前端静默复查 + 聚焦 5min 冷却复查）。
+# OKIT data architecture progress
 
-# 顺序
-1. 后端 watcher：update-check.js 可启停/幂等/可注入（时间/请求/随机相位），server 监听成功后启动；15min 固定 setTimeout 自调度 unref；403/429 指数退避至 2h；网络失败仅 warn 保留旧数据；ETag/304 复用缓存；首刷建基线，仅"新 tag > 运行版本且相对已见 tag 变化"时 publishDataChanged(['update-available']) 恰一次。
-2. 前端：DataSection 增 update-available；useAppUpdate 经 useDataChanged 触发 silent check(true)；visibilitychange visible 且距上次成功检查 >5min 静默查；失败不覆盖 available。
-3. 证明：后端 fake-timers 红绿测试 + 前端可测证据（无 DOM 环境则以导出纯逻辑测试 + SSE 断言替代，必要时 BLOCKED.md 记录）。
+## Config mutation architecture closure (2026-08-29)
 
-# 最大风险
-前端 hook 无法在现有 node 测试环境挂载（禁新增依赖）→ 事件→检查链路缺直接测试证据，用导出纯函数 + SSE section 端到端断言补偿。
+1. Scope: eliminate every production user.json read→full-snapshot save path; no unrelated product work.
+2. Full call graph, target API, ownership rules and deterministic test matrix: `docs/testing/config-mutation-architecture-gate.md`.
+3. Contract: external code gets read-only snapshots; all production writes are registry-defined, closed-schema semantic operations only. Queue mutation remains store-private.
+4. Risk: sync payload, Agent desired state and LAN credentials have independent ownership; merge/delete/timestamp semantics must remain explicit.
+5. Migration: remove every production generic/full patch API; replacement is initialization/test-only/private and guarded by name and source scan.
+6. Guard: production-source rule plus an injected violating fixture must fail before any runtime race is required.
+7. Matrix: settings, scheduler, sync push/pull, LAN/listener, provider/Agent/reconciler and migration interleave against one fresh HOME.
+8. Gate only: no implementation is committed before CEO approves this inventory and API; then run focused red→green, full ×3, build and diff.
 
-# 基线（2026-08-30，de396cf）
-809/810 pass；唯一失败 = publish-notes-gate 要求 v1.0.38 notes（任务书声明已知、禁改）。
+## DEV-ESCAPE-CONFIG-001 self-certification (2026-08-29)
+
+1. Status: development in progress; prior test/build evidence is insufficient for QA handoff.
+2. Required evidence: root-cause graph, zero-pending writer matrix, red→green plus bypass proof, live guard failure, real concurrency integration matrix, and explicit residual bounds.
+3. Hold: do not label this P0 complete or request release/QA sign-off until the evidence package is committed and sent to CEO + QA.
+
+## Final semantic-config API design gate (2026-08-29)
+
+1. Status: implementation paused; `fbe5143` is a failed experiment and must not merge.
+2. Public business/composition API may expose only field-validated semantic operations; no generic mutation, config/sync snapshot patch, callback or compatibility alias.
+3. `writeTail` mutation is infrastructure-private; pull conflict checks consume a remote intent and re-evaluate live state internally.
+4. The detailed writer map, schemas, ownership/deletion/timestamp rules, boundaries and negative tests are in `docs/testing/config-mutation-architecture-gate.md`.
+5. Wait for QA review of this design revision before source implementation or verification resumes.
+
+## Registry-driven design gate v3 (2026-08-29)
+
+1. Status: paused; no source implementation until QA design PASS.
+2. `docs/testing/config-write-operation-registry.md` is the sole implementation definition: every writer has one closed-schema operation and one matrix participant; the earlier `fbe5143` API is explicitly rejected.
+3. Registry/test participant counts must match; unregistered writers, generic callbacks/maps, aliases and byte-changing invalid requests fail the gate.
+4. The DEV-ESCAPE evidence package now references registry-generated negative and concurrency evidence, not area-level claims.
+
+## Final machine-readable design gate v4 (2026-08-29)
+
+1. Status: paused; this replaces v3's Markdown table as the sole implementation definition.
+2. `docs/testing/config-mutation-registry.json` has 42 user-config writers and 11 native-only entries (reconciler + ten adapters); only writer/schema/race IDs are required to be equal sets.
+3. Every entry is joined to a stable source symbol and machine-parsed AST selector/position; inventory resolves CommonJS/ESM aliases and re-exports, and rejects unregistered or unresolved targets.
+4. The JSON registry contains closed per-operation schemas, retired-key scalar/enum migration rules, and A01–A10 dependency/participant B-side payload→decode→local-hydrate→native-file acceptance; no model cache crosses A→B.
+5. `docs/testing/config-mutation-architecture-gate.md` maps all five QA blockers to future runnable acceptance. No production source or test implementation resumes before QA design PASS.
+
+## Sync/Agent release batch start (2026-08-28)
+
+1. Scope: only the frozen sync/model discovery/Agent release acceptance, including e378 and QA-P0-GAP-001/002.
+2. Boundary: add the two required P0 A→B temporary-HOME integration tests and their necessary production fixes; no feature/UI/release work.
+3. Maximum risk: a fixture can falsely pass without exercising a real adapter file or can leak a Vault secret; every child uses fresh HOME+USERPROFILE and asserts files/ref names only.
+4. Plan: dynamic 10-adapter sync reconcile matrix → Vault/auth lifecycle matrix → frozen P0 commands → package/build → three default-parallel full runs.
+5. Failure rule: after three identical failures, record it here and change diagnostic path; never retry/skip/serialize the suite to hide it.
+6. R2 reopening: replace all truthy credential checks with per-adapter non-secret reference/auth-shape evidence using two isolated Vault bindings; retain the dynamic ten-adapter gate.
+7. R2 plan: audit final native credential forms → make a two-reference fixture red → add shared comparison helper → rerun frozen P0/R1/runtime/package/full ×3.
+
+## Independent acceptance (2026-08-27)
+
+1. Scope: test only the 10 registered adapters through real API/CLI routes, always with a temporary HOME.
+2. Order: baseline evidence → dynamically derived matrix → native-file assertions → CLI path → deliberate red/green mutation → full verification.
+3. Maximum risk: static fixtures or adapter mocks could conceal a canonical-ID / routed-ID / model-facts mix-up; derive candidate combinations from registry and provider data instead.
+4. Constraint recorded: baseline test runner is unavailable (`vitest: command not found`); do not install or modify dependencies.
+5. Matrix execution: 348 dynamic Agent×built-in-HTTP-site combinations / 696 model writes; 14 explicit exclusions; all 10 CLI `provider use` writes used the real adapters.
+6. Result: the initial 72 OpenCode switch failures (36 sites × A/B) are resolved; the rerun has zero routed-ID failures.
+7. Claude GLM Tier: HAIKU/OPUS route to GLM 5.3, SONNET to GLM 5.3 Flash, with individual name/description/capability assertions; mutation produced red remote-ID and description errors, restoration green.
+8. Fixed unified Agent write preparation: every selected canonical model resolves once to route/remote ID/facts; adapters receive a single endpoint-pinned provider whose models are all remote-ID keyed.
+9. OpenCode regression: two selected canonical models now persist only as their two remote keys while retaining distinct resolved context/output limits; mixed endpoint selections reject before a config write.
+10. Hermes Web file view now exposes `~/.hermes/config.yaml`; full temporary isolated run passed 68 files / 724 tests, skipped 0, after build.
+
+## ResolvedModel adapter/CLI alignment (2026-08-27)
+
+1. Goal: Claude, OpenClaw, Hermes and the `provider switch`/`provider use` CLI paths pass the same resolved model facts to adapter writes.
+2. Order: establish baseline → verify official schemas → update adapters/CLI → add isolated regressions → reverse-check and build.
+3. Maximum risk: undocumented capability fields could create silently ignored Agent config; only documented fields will be emitted.
+
+### Verified configuration-field mapping
+
+| Agent | ResolvedModel → written field | Evidence / deliberately omitted |
+| --- | --- | --- |
+| Claude Code | `id` → `ANTHROPIC_MODEL` and `ANTHROPIC_DEFAULT_*_MODEL`; `name`/`description` and `reasoning`/effort/interleaving → documented `*_NAME`, `*_DESCRIPTION`, `*_SUPPORTED_CAPABILITIES` | Official Claude Code Model Configuration / Environment Variables docs (read 2026-08-27). No numeric context/output or modalities field is documented, so none is written. |
+| OpenClaw | `id`/`name`, `reasoning`, input modalities, `context`, `output` → model `id`/`name`, `reasoning`, `input`, `contextWindow`, `maxTokens` | Official Model providers docs (read 2026-08-27). Output modalities have no documented model-entry key, so are not written. |
+| Hermes | `id`, `context`, `output`, image input → `model.default`, `model.context_length`, `model.max_tokens`, `model.supports_vision` and named provider `default_model`, per-model `context_length`/`supports_vision` | Official Hermes Providers docs (read 2026-08-27). `reasoning` needs provider-specific `extra_body`; no generic field is written. |
+
+### Completion record
+
+- Correction in progress (2026-08-27): review established that `ResolvedModel.id` is canonical while `route.remoteModelId` is the provider-native request ID. Claude, OpenClaw, and Hermes now preserve the latter as their written model ID; resolved facts supply capabilities only.
+- Regression coverage: canonical `canonical-model` → `remote-model-v2` routing now exercises actual Claude/OpenClaw/Hermes configuration files, and real OpenClaw files written through CLI `switch`/`use`; synthetic context/reasoning/modality facts remain locked to documented fields.
+- Contract check: every adapter now preserves `applyConfig`'s second routed-ID parameter; the third `ResolvedModel` is primary canonical capability metadata, and the optional fourth map carries separately selected canonical facts when an Agent needs more than one model.
+- Web-path correction (2026-08-27): Codex/OpenCode now follow the same permanent second-argument contract as every other adapter, and the CLI-only compatibility branch was removed. Web additive writes transform each selected catalog entry to its route's remote ID before OpenCode persists it.
+- Web verification: a temporary-HOME real API regression calls Codex `switchProvider` and multi-model OpenCode `configureAgentProvider`; `canonical-model` writes `remote-model-v2` in both native configurations.
+- Claude tier-map correction (2026-08-27): `resolvedAgentWrite` is now the shared Web reapply path for tier-map and fallback writes. It resolves catalog facts with user overrides while preserving `resolveModelRoute(...).remoteModelId`; catalog-less built-in fallback entries retain their native model ID without inventing facts.
+- Claude tier-map verification: a temporary-HOME API regression configures GLM-like primary and flash canonical models with separate routed IDs, posts `setTierMap`, and reads `~/.claude/settings.json`. HAIKU/OPUS retain primary facts while SONNET writes the flash ID, name, description, and its own capabilities; switching to the official fallback clears all companion metadata variables.
+- Reverse check: removing both CLI third arguments made `tests/commands/provider.test.ts` fail 2/2 with missing third-argument diffs; restoration passed 2/2.
+- Correction verification: focused Web/adapter/CLI suite 9 files / 92 tests passed; full `npm test -- --run` 67 / 718 passed, skipped 0; `npm run build` and `git diff --check` passed.
+- Baseline recovery: initial `npx`/`npm ci` could not install local dependencies because of a corrupt npm cache; a verified existing workspace dependency tree enabled the final successful checks. No source dependency or lockfile changed.
+
+## Return-work plan (2026-08-26)
+
+1. Goal: `providers.json` contains only sites; `models-cache.json` contains every rebuildable model fact.
+2. Order: store/migration → route every Web/sync write through store → real resolution into adapters → integration tests → reverse verification.
+3. Maximum migration risk: a combined v1 file can contain unknown site/model fields; write a timestamped backup first and retain unknown fields in the independent cache.
+4. Baseline: 5 fixed files/53 tests; 62 files/618 tests; build passed; existing working-tree changes are the prior failed implementation.
+5. The prior in-file `modelCache` design is rejected because it grows `providers.json` and Web/sync bypass the store.
+6. Sync must transfer only sites, selection, and overrides; it must never write or clear another machine's local cache.
+7. Completed storage rewrite: `models-cache.json` is independently atomic; `providers.json` strips models/modelCache/platforms; Web and sync now call the shared store rather than serializing provider JSON.
+8. Completed resolution wiring: selected models carry `ResolvedModel` into Codex, Claude, and OpenCode configuration; overrides deep-merge per site/model and are removed with a deleted site.
+9. Historical state superseded: the earlier sync compatibility failure was repaired during return work; see the final verification entries below.
+10. Sync compatibility is green again: old provider files now merge in one v2 write; a temporary-HOME compiled list request returned HTTP 200 with 40 providers after fixing the `id` ReferenceError and restored derived display platforms.
+11. Real temporary-HOME API→store→Codex/Claude/OpenCode test now verifies a two-model selection and actual three-Agent files. Reverse verification deliberately restored the Web legacy `{providers,platforms}` write: this test failed, then passed after restoring `_store.saveProviders`.
+
+1. Goal: make one user selection the source of truth for the dashboard and every Agent adapter.
+2. Order: baseline → failing acceptance tests → data layers/migration → refresh/resolve → adapters/API/UI → sync → verification.
+3. Maximum migration risk: legacy `providers.json` combines user instances with mutable model/catalog data; preserve every unknown field and back up before atomically writing.
+4. Baseline 2026-08-26: `git status --short` was clean.
+5. Baseline mismatch: `npm test -- --run` failed before discovery because `vitest` is not installed (`sh: vitest: command not found`); build was therefore not run in the chained baseline command.
+6. Upstream reread: models.dev documents provider-agnostic model facts and provider overrides; this matches the proposed metadata-cache precedence.
+7. Upstream reread: OpenCode documents explicit provider/model configuration; this supports deriving visible models solely from selection.
+8. Source variance: models.dev API and DeepSeek script could not be fetched by the browser (safe-URL/content-type errors); their supplied URLs remain the reference and implementation will not infer undocumented fields from them.
+9. Implemented v2 providers persistence: site records only; model facts move into local `modelCache`; derived `platforms` are never persisted.
+10. Legacy v1 files are atomically upgraded after a timestamped pre-migration backup; unknown root/site/model fields survive in cache `raw`; the obsolete Claude-profile import stays v1 for one release and upgrades on first normal read.
+11. Runtime callers remain compatible through materialized providers; `ResolvedModel` applies user override > profile > models.dev > remote/default facts.
+12. Refresh marks directory-only models unavailable, retains remote-only models, and never changes data for a failed fetch; model cache and models.dev cache keep provenance/version/fetchedAt.
+13. Cloud payload now contains only site records, agent selection and user overrides; it excludes model cache and platform projections. Deleting an active exclusive site falls back before clearing its Agent state.
+14. Source variance remains: browser could not fetch models.dev API or DeepSeek script; implementation uses only their supplied contract and the fetched models.dev repository schema.
+15. Verification: fixed suite 5 files/53 tests passed; full `npm test -- --run` passed 62 files/618 tests, skipped 0; `npm run build` passed.
+16. Reverse verification: deliberately changed unavailable-model route detection to inspect filtered availability; data-architecture test failed as expected, then passed after restoring the check.
+17. Return-work race repair: Web, CLI adapters, and sync dirty metadata now serialize user.json commits; stale snapshots merge by Agent/site and override field, while explicit deletion carries a deletion intent.
+18. Real temporary-HOME acceptance now covers on-disk migration backup/size/cache split; preview-without-selection-change; refresh remote-only/directory-only/offline; two-model home + Codex/Claude/OpenCode files; tier map; deletion cleanup; and A→B site sync retaining B's cache.
+19. Reverse verification (this run): restoring Web's legacy `{providers, platforms}` save made provider-flow fail at expected v2, then restoring `_store.saveProviders` returned the fixed suite green.
+20. Final verification (2026-08-26): fixed 5 files/57 tests, full 62 files/622 tests (skipped 0), build, and `git diff --check` all pass; provider-flow passed ten consecutive full-file runs.
+21. Independent upgrade-loss regression repaired: syncing into a legacy receiver now backs up its v1 file, merges embedded models into (without replacing) local models-cache facts, then performs one v2 sites write. Temporary-HOME regression verifies legacy-only and pre-existing cached models both survive alongside the remote site; fixed/full/build/diff verification remains green.
+22. Sync compatibility regression repaired: an empty legacy receiver has no model facts to preserve, so it is converted directly to the merged v2 sites document without creating a competing legacy backup write. This retains the established fs.writeFile sync compatibility path and its vaultKey assertion. `sync.test.js` passed 5 consecutive runs; fixed suite passed; full suite passed twice; build and diff-check passed.
+23. Codex switch regression repaired in the shared c12a worktree: `switchProvider()` now saves its updated Agent state normally rather than passing the deletion intent. The temporary-HOME provider-flow regression switches Codex from one of two selected models to the other and asserts the site plus both models remain while activeModel changes. Reported verification: targeted 2 files/13 tests, full 62 files/622 tests, build, and diff-check passed; real Codex→DeepSeek four-model state survived the auto-sync window in disk/API/UI.
+
+
+## Agent configuration orchestration (2026-08-27)
+
+- Baseline matched `f49edca`; dependency absence was resolved using an isolated npm cache.
+- Added one CommonJS service for model routing, vault authorization, snapshots, Adapter writes, desired-state persistence and operation logs.
+- Web save/switch/tier, CLI switch/use, and sync-pull reconciliation delegate to it.
+- Sync commits accepted remote desired state first; each site reconciles independently and failures remain local diagnostics/retryable.
+- A→B temporary-HOME test verifies Codex, Claude, OpenCode remote IDs plus an unavailable-site retention failure and repeat pull.
+- Reverse test: temporarily removing reconciliation made the A→B test fail because native Codex config was absent; restoring made it pass.
+- Full verification: 70 files / 726 tests, skipped 0; build and diff check passed.
+
+## Review follow-up (2026-08-27)
+
+- Moved the service to `src/application`; API/CLI/sync now depend on this application boundary rather than another HTTP module.
+- Native remove, fallback and additive disable paths are service operations; catalog-less official fallback now completes instead of restoring the removed snapshot.
+- Added temporary-HOME tests for default/injected dependencies and precise Codex provider deletion; 72 files / 729 tests, build and diff check pass.
+
+## Migration cleanup (2026-08-27)
+
+- Removed the stale API-layer service and duplicate TypeScript copy; `src/application/agent-config-service.js` is the sole CommonJS source.
+- Verified zero source/test references to the old API path; focused 18-test suite, full 72-file/729-test suite, build and diff check pass.
+
+## Provider API layering phase 1 (2026-08-27)
+
+| Old HTTP export/handler | Application owner |
+| --- | --- |
+| CRUD / provider deletion | `provider-service` |
+| auth, Vault binding, connection checks | `provider-service` |
+| model discovery, preview, cache merge | `provider-service` |
+| Agent selection/configuration | existing `agent-config-service` |
+- Baseline `126a7fa`: 72 files / 729 tests passed; controller delegation preserves the existing exported handler surface.
+
+## Provider API layering phase 2 (2026-08-27)
+
+| Module | Lines | Responsibility |
+| --- | ---: | --- |
+| `provider-service` | 819 | compatibility exports and HTTP entry mapping for provider flows |
+| `provider-lifecycle-service` | 100 | provider create/update/delete and Agent-site cleanup orchestration |
+| `provider-auth-service` | 535 | Vault binding repair, authentication and OAuth checks |
+| `model-discovery-service` | 497 | endpoint/CLI discovery, preview and model-cache merge |
+| `provider-status-service` | 432 | provider/Agent status projection and launch support |
+
+- Module handoff repair: status receives `sortProviders`; discovery receives `findCommand`; auth receives both `loadProviders` and `providerEndpointEntries` through explicit dependencies.
+- Lifecycle deletion still delegates native Agent cleanup exclusively to `agent-config-service`; it retains other providers and uses the existing response semantics.
+- Focused verification after the lifecycle extraction: 5 files / 108 tests passed.
+
+## Provider HTTP boundary correction (2026-08-27)
+
+- `src/web/api/providers-controller.js` is now the sole Express transport adapter; `providers.js` only exposes that controller for the historical route module.
+- Lifecycle operations are pure `createProvider(input)`, `updateProvider(id, patch)`, and `deleteProvider(id)` calls that return result values or throw errors carrying the established status/code.
+- Discovery, authentication, status, launch, Agent selection and config-file operations now likewise return values/throw domain errors; no application Provider service reads Express `req`/`res` or calls `status/json`.
+- Added direct application lifecycle coverage for vault-key preservation and scoped Agent-site cleanup. Existing temporary-HOME `provider-flow` coverage verifies offline empty discovery preserves cache.
+- Boundary check: `rg` found no Express `req/res` or `status/json` usage under the Provider application services. Focused 5 files / 101 tests and full 73 files / 730 tests passed; build and diff-check passed.
+
+## Auto-create split baseline (2026-08-27)
+
+1. HEAD `199d382`, worktree clean; `auto-create.js` is 5734 lines.
+2. Existing scope: credential resolver, form state and platform directory tests.
+3. Sequence: pure extractors/scoring/catalogue → run state machine → browser runtime/flows → thin controller.
+4. Maximum risk: browser capture/verification flow is timing-sensitive; preserve URLs, protocol calls and response shapes exactly.
+5. No baseline mismatch observed; begin with dependency-free modules and focused tests.
+6. In progress: added pure extraction/action/directory modules, DI run lifecycle and browser runtime; route status/resume/interactive execution now use the lifecycle service.
+7. Focused auto-create suite: 4 files / 115 tests passed; full suite: 74 files / 734 tests passed; build and diff-check passed.
+8. Not ready to commit: `auto-create.js` is still above the controller line target while remaining browser platform flows are being separated.
+9. Further split in progress: Zhipu (540 lines), Volcengine/MiniMax (451), specialized delete (294), generic delete (751), capture extraction (355), and static platform catalogue (191) are now separate modules; `auto-create.js` is 3277 lines.
+10. `sync.test.js` 的超时已在干净当前树和独立子集复现，落在远端 Agent 选择 reconciliation 与 fake timers 的交界；不是 Auto-create 异步句柄，不作为本阶段 BLOCKED。
+11. 通用 browser create 已实拆为 navigation 470 行、form 862 行、result 483 行；创建/恢复编排 289 行，浏览器状态 248 行，所有模块均低于 900 行。
+12. `auto-create.js` 现为 421 行，仅保留 HTTP 映射、依赖装配与兼容导出；Cloudflare REST 与 key parser 已移到 application。
+13. 复核：4 个 Auto-create 聚焦文件 / 115 测试通过，`npm run build` 与 `git diff --check` 通过；全量为 73 files/733 tests 通过，唯一 `sync.test.js` 既有 fake-timer 超时（按任务要求非本工作阻塞）。
+
+## Usage split baseline (2026-08-27)
+
+1. HEAD `5fc54e4`, clean worktree; `usage.js` is 2122 lines and exports HTTP routes plus parsers/signers/provider queries.
+2. Existing focused coverage is `tests/usage.test.ts`; preserve return shapes, provider endpoints, Vault keys and browser-session boundaries.
+3. Order: pure parsers/signers → Vault/session access → injected provider registry → thin HTTP controller.
+4. Maximum risk: Xiaomi browser session isolation and provider-specific fallback text; preserve current error paths exactly.
+5. Completed: `usage.js` is now a 2-line compatibility controller entry; `usage-controller.js` is 111 lines and is the only Express transport mapping.
+6. Strategies: API/local credentials 864 lines, browser/session 804, cloud control-plane 154, parsers/signers 366, provider registry 30, Vault service 31; each is below 900.
+7. Verification: `tests/usage.test.ts` 14 tests, full `npm test -- --run` 74 files/736 tests, build and diff-check all passed.
+8. Sync stabilization: fake-timer timeout came from reconciling remote sites absent from local provider sites through full model-catalog hydration. `syncPull` now records those as retryable per-site `PROVIDER_NOT_FOUND` results before hydration; desired remote state is still persisted and real local sites still use Agent service reconciliation.
+9. Evidence: `tests/sync.test.js` passed 5 consecutive times (0.36–0.42s); full suite passed twice consecutively (74 files / 736 tests); Usage 14/14, build and diff-check passed.
+
+## ModelsPage split baseline (2026-08-27)
+
+1. HEAD `30a271f`, clean worktree; `ModelsPage.tsx` is 2225 lines.
+2. Existing page contains page state/API calls (lines 160–1086), detail/grid/action components, and a 500+ line provider editor.
+3. Split order: shared types/filter utilities → API/state hook → list/detail/editor components → ≤400-line orchestration page.
+4. Maximum risk: preserve editor connection/Vault/OAuth callbacks and the existing Paper Cutout design tokens exactly.
+5. Completed: `ModelsPage.tsx` is now a six-line composition root. API calls and page state live in `useModelsPageState`; the editor connection probe and model fetch lifecycle live in `useProviderConnectionTest`.
+6. Presentation is split by responsibility into workspace, platform cards, platform/model details, action menu, and provider form components. Existing CSS class names and callbacks were preserved.
+7. Removed the two state values which had no writer/reader path (`endpointResults` and the unused card authentication-method map). Cross-view authentication and endpoint normalization now share `modelsCatalog` rather than copying rules.
+8. Added pure catalog regression coverage for protocol filtering, endpoint normalization, and authentication readiness. Focused test: 4/4. Full suite: 75 files / 740 tests. Frontend and root builds plus `git diff --check` pass.
+
+## Sync domain end-to-end split (2026-08-28)
+
+### Dependency and migration plan
+
+1. Existing transport modules depended on `cloud-sync-core` for encrypted cloud payloads, LAN pairing/listener state, config persistence, provider-site merges and direct post-pull Agent application. The risk was that a successful pull could persist UI desired state without applying the native Agent file.
+2. Preserve the public `cloud-sync-core` and `sync.js` exports for scheduler, settings, platform adapters and server route registration. Move application decisions behind injected boundaries; do not alter payload/encryption formats or user data schema.
+3. Pull order is explicit: merge portable provider sites → merge vault secrets → persist timestamp-accepted Agent selection/overrides → invoke only `agent-config-service` for native configuration → publish UI event and structured diagnostics.
+
+### Resulting responsibilities
+
+| Module | Responsibility |
+| --- | --- |
+| `src/web/api/cloud-sync-core.js` | Compatibility composition facade; no cloud merge business logic. |
+| `src/web/api/sync.js` | Cloud HTTP responses and scheduler locking only. |
+| `src/web/api/sync-lan.js` | LAN HTTP/pairing protocol validation and responses. |
+| `src/web/api/lan-sync-server.js` | Thin listener facade. |
+| `src/application/sync-service.js` | Push/pull/sync-code use cases, conflict ordering and observable result. |
+| `src/application/sync-agent-reconciliation.js` | Desired-state diagnostics and sole delegation to `agent-config-service`. |
+| `src/application/sync-config-state.js` | Pure nested user-state merge/removal and timestamp comparison. |
+| `src/infrastructure/sync-*.js` | Config atomic-write queue, encrypted wire codec, remote platform/Vault references, portable provider sites, LAN socket/blob/pairing state. |
+
+### Acceptance evidence to date
+
+1. Static boundaries: `cloud-sync-core.js` is 115 lines, `sync.js` 141, `lan-sync-server.js` 14. Application sync modules have no Express `req`/`res`/`status`/`json` calls.
+2. Temporary-HOME A→B integration starts B without local provider sites or Agent selection. B first accepts desired state but intentionally holds the provider partition back; it reports per-site `PROVIDER_NOT_FOUND` and writes no native configuration. When sites become eligible, B rebuilds model facts from its own models.dev snapshot, retries, and writes real Codex, Claude and OpenCode files. The remaining unresolvable site stays desired state with `MODEL_NOT_FOUND` diagnostic.
+3. Controlled red→green: temporarily replacing the reconciler's `agent-config-service.reconcile()` call with `return []` made the isolated A→B integration fail with absent `~/.codex/config.toml` (expected red). The line was restored and the same integration passed (green).
+4. Pure regressions cover nested selection/override merges, strict timestamp conflict policy, per-agent/per-site desired diagnostics, portable provider payload projection, and provider→vault→config→Agent pull ordering.
+5. Focused current result: `npx vitest run tests/sync.test.js tests/sync-domain.test.js tests/sync-scheduler.test.ts tests/web/lan-sync.test.ts tests/web/agent-config-sync-reconciliation.test.ts` — 5 files / 65 tests passed in five consecutive runs.
+6. Final verification: `npm test -- --run` passed twice consecutively — 77 files / 750 tests, skipped 0 both times. `npm run build` and `git diff --check` passed after the final test change.
+
+---
+
+# Update watcher（2026-08-30，分支 codex/feat/update-watcher @ 5ebc9ec）
+目标：常开桌面端在 GitHub latest 传播后的下一个 15 分钟周期内静默显示更新徽章。实现：后端 watcher（15min 固定间隔+启动随机相位、ETag/304、403/429 指数退避封顶 2h、新 tag>运行版本且变化时 SSE 广播 update-available 恰一次）+ 前端（SSE section 触发静默 check、visibilitychange 5min 冷却复查）。fake-timer 后端 7 测试 + SSE section 测试 + 聚焦策略测试；全量 821/822（唯一失败=已知 v1.0.38 notes 门禁）。
+
+# QA P0 修复（2026-08-31，基于 5ebc9ec）
+- P0-1：stop/start 后 304 吞通知——latestEtag 跨重启保留但 hasBaseline 重置，304 不重建基线，后续新 tag 被当首次。修复：304 在无基线时从共享 cache 重建基线（绝不为既有 release 广播）。精确序列反证测试先红后绿（update-watcher.test.js 第 8 用例）。
+- P0-2：silent check 先把 available 改 checking，失败时守卫失效→回退 error。修复：抽出 beginUpdateCheck/failUpdateCheck 纯函数——silent 且 available/upToDate 时进行中与失败后均保留原状态（含 release 信息）；显式检查错误照常上浮。转换语义 9 用例先红后绿（useAppUpdate.policy.test.ts）。
+状态：定向三文件全绿；fresh 全量除已知 v1.0.38 门禁基线失败外无新增失败。
+
