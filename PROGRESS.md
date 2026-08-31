@@ -302,3 +302,8 @@
 - 根因：报告文件名精度只到秒。修复：① uniqueRunStamp=毫秒(17位)+随机4位hex，orchestrate 默认 stamp、CLI guest 临时目录、截图目录统一改用该 runKey（同秒 guest 双跑也不再共享临时 profile/截图目录）；② writeReportFile 改独占创建（flag:'wx'，EEXIST 重试追加随机后缀，上限8次）——即使调用方传入完全相同 stamp 也绝不覆盖，只会改名落盘。
 - 实跑复现修复：同秒两次 `--mode create-cleanup --platform zhipu --dry-run` → 20260831160132871-eafd-…json 与 20260831160133458-3943-…json 两份并存。
 - 测试：新增3例（同秒双跑两份报告互不覆盖、writeReportFile 独占反例、默认 stamp 唯一性+格式），定向 76/76；全量 104 文件/941 测试零退化；build exit 0。仅提交于 integration-refactor-suite（e93e worktree 有他人已暂存删除，未触碰）；未 push。
+
+# 报告碰撞测试缺口修正（2026-09-01，验收方指出 44dc5ba 的"双跑"测试用两个 tmpRoot()，路径冲突从未发生）
+- 修正：双跑用例改为共享同一 root + 相同秒级 stamp，且读取两份报告内容断言各自完好（requestedPlatforms 分别为 zhipu/openai，共享 reports/ 目录中恰有两份文件，第一份未被第二份覆盖）。
+- 红→绿实证：将 report.mjs+orchestrate.mjs 临时回退到修复前（f0bf6fb）后，新测试以"两次 reportPath 完全相同"变红（AssertionError: expected … not to be …，即覆盖症状本体）；恢复修复后转绿——测试现在是真实回归护栏而非空转。
+- 定向 76/76；全量 104 文件/941 测试零退化；build exit 0。仅提交于 integration-refactor-suite；未 push。

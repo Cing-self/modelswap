@@ -956,13 +956,18 @@ function okIdentityStub() {
 }
 
 describe('provider live-acceptance report collision (P1)', () => {
-  it('two runs with the same second-precision stamp produce two separate reports', async () => {
-    const sharedStamp = '20260831155122'; // reproduces the overwrite scenario
+  it('two same-stamp runs into the SAME root produce two intact reports (no overwrite)', async () => {
+    // Reproduces the reviewer's scenario exactly: one shared root (one
+    // reports/ directory) and one shared second-precision stamp. Separate
+    // tmpRoot()s would never collide at all and prove nothing about the fix.
+    const sharedStamp = '20260831155122';
+    const root = tmpRoot();
+    const openaiPlatform = { ...ZHIPU_PLATFORM, id: 'openai', label: 'OpenAI', expectedTexts: [] };
     const first = await runAcceptance({
       mode: 'guest',
       dryRun: true,
       platformConfigs: [ZHIPU_PLATFORM] as never,
-      root: tmpRoot(),
+      root,
       checkout: { revision: 'deadbeefcafe1234', dirty: false },
       logger: { log: () => undefined },
       runStamp: sharedStamp,
@@ -970,17 +975,25 @@ describe('provider live-acceptance report collision (P1)', () => {
     const second = await runAcceptance({
       mode: 'guest',
       dryRun: true,
-      platformConfigs: [ZHIPU_PLATFORM] as never,
-      root: tmpRoot(),
+      platformConfigs: [openaiPlatform] as never,
+      root,
       checkout: { revision: 'deadbeefcafe1234', dirty: false },
       logger: { log: () => undefined },
       runStamp: sharedStamp,
     } as never);
     // the exclusive-create retry must have renamed the second write instead
-    // of overwriting the first — both files survive with their own content
+    // of overwriting the first — both files survive with their OWN content
     expect(second.reportPath).not.toBe(first.reportPath);
-    expect(fs.existsSync(first.reportPath)).toBe(true);
-    expect(fs.existsSync(second.reportPath)).toBe(true);
+    const firstReport = JSON.parse(fs.readFileSync(first.reportPath, 'utf8'));
+    const secondReport = JSON.parse(fs.readFileSync(second.reportPath, 'utf8'));
+    expect(firstReport.requestedPlatforms).toEqual(['zhipu']);
+    expect(secondReport.requestedPlatforms).toEqual(['openai']);
+    // exactly two guest reports exist in the shared directory — run 1's
+    // evidence was not clobbered by run 2
+    const reportFiles = fs.readdirSync(path.join(root, 'reports')).filter((name) => name.endsWith('-live-guest.json'));
+    expect(reportFiles).toHaveLength(2);
+    expect(reportFiles).toContain(path.basename(first.reportPath));
+    expect(reportFiles).toContain(path.basename(second.reportPath));
   });
 
   it('writeReportFile never overwrites an existing report (exclusive create + retry)', async () => {
