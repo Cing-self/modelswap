@@ -49,7 +49,7 @@ npm run test:providers:live -- --mode create-cleanup --platform zhipu \
 
 - `passed_login_gate`（guest 登录墙识别）/ `passed_entry_found`（auth-verify 入口命中）/ `passed_console_reached`（弱通过：无入口配置的平台仅验证到达已登录控制台）/ `passed`、`passed_existing_reuse`（create-cleanup 委托）→ 通过。
 - `waiting_for_user`（登录/人机验证等外部前置）与 `blocked_prerequisite`（前置缺失）→ **如实报告、不算通过**，退出码 2。
-- `failed` / `safe_entry_missing`（疑似改版）/ `cleanup_failed` / `rejected` → 退出码 1。
+- `failed` / `safe_entry_missing`（疑似改版）/ `cleanup_failed` / `rejected` / `disabled`（真实 create-cleanup 的硬禁用）→ 退出码 1。
 
 **没有已登录专用 profile 的真实 auth-verify 巡检，不得声称平台已验收通过。**
 
@@ -96,11 +96,15 @@ npm run test:providers:live -- --mode create-cleanup --platform zhipu \
 真实运行修复了三个只有真实验收才能暴露的缺陷：新版 Chrome `/json/new` 忽略 `?url=`（改为 `Page.navigate` 显式导航）、SPA 正文晚于 `readyState=complete`（改为等正文出现再采样）、探针模板转义回归（新增“可编译”离线测试）。三轮矩阵：
 
 - **稳定通过 14**：tencent、tencent-token-plan、zhipu、minimax×4、siliconflow、xiaomi、xiaomi-coding、xai-management、mistral、openrouter、openrouter-management。
-- **波动 13（至少一轮通过）**：openai、anthropic、volcengine-agent、zai-global、deepseek、moonshot、kimi-coding、kimi-coding-plan、qwen、qwen-coding、qianfan、qianfan-coding、opencode-go——来源是渲染时序与第三方风控对全新临时 profile 的抖动（重跑可复现通过）。
+- **波动 13（至少一轮通过）**：openai、anthropic、volcengine-agent、zai-global、deepseek、moonshot、kimi-coding、kimi-coding-plan、qwen、qwen-coding、qianfan、qianfan-coding、opencode-go。三轮原始报告中观察到的失败表现分三类：
+  - **页面空白或尚未给出可识别内容**：openai、deepseek、moonshot、kimi-coding、qwen、qwen-coding、qianfan-coding。报告只能确认探针当时读不到正文/按钮；可能是 SPA 渲染延迟、网络失败或反自动化拦截，不能仅凭这一结果断言某一种原因。
+  - **落在营销页或中间页，既不像登录墙也不像控制台**：anthropic、opencode-go、zai-global。重跑后能识别登录墙，说明这是页面落点/加载状态的波动。
+  - **未登录仍可见控制台外壳**：volcengine-agent、kimi-coding-plan、qianfan。此类页面把登录动作放到后续操作，而不是页面入口；guest 的“页面级登录墙”判据因此不稳定。
+  这些都是 **guest 登录墙检查** 的波动，不等于平台自动创建已通过或已失败；需用 auth-verify 在专用已登录 profile 中复核。
 - **从未通过 4（真发现：未登录可浏览控制台，登录面只在动作时出现）**：`volcengine`（shell+裸“登录”按钮，产品本就有 volcengine 专用登录探测器佐证）、`qwen-token-plan`（阿里云控制台可匿名浏览）、`stepfun`（未登录即显示“创建新的密钥”入口）、`xai`（Welcome 页 + Sign in 链接）。这四家的自动创建不能依赖页面级登录墙识别，需在动作时交接登录——属于产品侧已知行为的实证，不是本工具缺陷。
 
 判读约定：guest 通过 ≠ 平台验收通过，只证明“未登录会被识别为可交接登录”。波动平台建议重跑单平台复核（`--platform <id>`）；从未通过平台按 failed 人工核对。**auth-verify 级验收仍待专用 profile 人工登录后执行。**
 
 ## 离线回归
 
-`tests/provider-live-acceptance.test.ts`（73 用例）覆盖：三模式参数与安全拒绝；日常 profile / Cookie 迁移 / 无平台批量创建拒绝；guest 与 auth-verify 动作白名单（无创建/确认/删除原子）；create-cleanup 缺双确认、缺 `--session`、**默认硬禁用（身份全过也 exit 1、零 fetch、零委托）**、服务未就绪、身份闸门五种拒绝路径（无会话/记录缺失/校验失败/CDP 失活/witness 超时——注入解禁后仍 exit 1 且零委托）、委托清理失败即停（注入解禁验证管道）；补丁器（快照夹具 + `node --check` 语法 + 锚点漂移 fail closed + dist 缺失 fail closed）；启动记录校验（隔离/时效/副本完整性）；witness 协议与新鲜度过滤（stale/关态/错端口）；信号清理子进程测试（真实 SIGINT/SIGTERM → dispose + 临时目录删除 + 130/143；Windows 无法按 POSIX 语义送达信号，仅 POSIX 腿运行）；报告含 commit SHA 与诊断且敏感字段脱敏；假浏览器“页面改版、入口消失”反向用例非零退出并产出可定位报告。`tests/fixtures/live-acceptance-reverse-harness.mjs`（改版反例）与 `tests/fixtures/live-identity-reverse-harness.mjs`（普通扩展在线→拒绝）可手动复演，均 exit 1。
+`tests/provider-live-acceptance.test.ts`（76 用例）覆盖：三模式参数与安全拒绝；日常 profile / Cookie 迁移 / 无平台批量创建拒绝；guest 与 auth-verify 动作白名单（无创建/确认/删除原子）；create-cleanup 缺双确认、缺 `--session`、**默认硬禁用（身份全过也 exit 1、零 fetch、零委托）**、服务未就绪、身份闸门五种拒绝路径（无会话/记录缺失/校验失败/CDP 失活/witness 超时——注入解禁后仍 exit 1 且零委托）、委托清理失败即停（注入解禁验证管道）；补丁器（快照夹具 + `node --check` 语法 + 锚点漂移 fail closed + dist 缺失 fail closed）；启动记录校验（隔离/时效/副本完整性）；witness 协议与新鲜度过滤（stale/关态/错端口）；信号清理子进程测试（真实 SIGINT/SIGTERM → dispose + 临时目录删除 + 130/143；Windows 无法按 POSIX 语义送达信号，仅 POSIX 腿运行）；报告含 commit SHA 与诊断且敏感字段脱敏；同 root、同 stamp 的报告碰撞反例（两份内容都保留）；假浏览器“页面改版、入口消失”反向用例非零退出并产出可定位报告。`tests/fixtures/live-acceptance-reverse-harness.mjs`（改版反例）与 `tests/fixtures/live-identity-reverse-harness.mjs`（普通扩展在线→拒绝）可手动复演，均 exit 1。
