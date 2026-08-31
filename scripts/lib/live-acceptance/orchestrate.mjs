@@ -13,7 +13,7 @@ import {
 } from './report.mjs';
 import { classifyLoginState, classifyVerification } from './probe.mjs';
 
-const DEFAULT_SETTLE = { attempts: 40, intervalMs: 300, spaSettleMs: 800 };
+const DEFAULT_SETTLE = { attempts: 60, intervalMs: 500, spaSettleMs: 800 };
 
 function pageSummary(state) {
   return {
@@ -203,13 +203,19 @@ async function probePlatform({ platform, mode, driver, settle, sleep, push, scre
 
   let state = null;
   try {
+    // Heavy SPA shells (openai/deepseek/moonshot/qwen...) render long after
+    // readyState flips to complete. Keep polling until the page exposes real
+    // content (body text or any visible action/nav text), not just completion.
     for (let attempt = 0; attempt < Math.max(1, settle.attempts); attempt += 1) {
       state = await driver.probe(tab, {
         platformId: platform.id,
         expectedTexts: platform.expectedTexts || [],
         maskedPrefix: platform.maskedPrefix || '',
       });
-      if (state?.readyState === 'complete') break;
+      const hasContent = (state?.bodyChars || 0) > 0
+        || (state?.buttons?.length || 0) > 0
+        || (state?.links?.length || 0) > 0;
+      if (state?.readyState === 'complete' && !state?.aboutBlank && hasContent) break;
       await sleep(settle.intervalMs);
     }
     if (settle.spaSettleMs > 0) await sleep(settle.spaSettleMs);

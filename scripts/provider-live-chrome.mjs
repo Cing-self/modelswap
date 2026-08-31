@@ -19,7 +19,7 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 import { findUnsafeArg, isSimpleProfileName, assertSafeProfileDir } from './lib/live-acceptance/safety.mjs';
-import { findChromeBinary, launchDedicatedChrome, probeDebugPort, openCdpTab, DEFAULT_DEBUG_PORT } from './lib/live-acceptance/browser.mjs';
+import { findChromeBinary, launchDedicatedChrome, probeDebugPort, openTabAtUrl, DEFAULT_DEBUG_PORT } from './lib/live-acceptance/browser.mjs';
 import { loadBrowserPlatforms } from './lib/live-acceptance/platforms.mjs';
 
 const USAGE = [
@@ -124,7 +124,7 @@ async function main() {
         continue;
       }
       try {
-        await openCdpTab(parsed.debugPort, platform.url);
+        await openTabAtUrl(parsed.debugPort, platform.url);
         console.log(`opened\t${id}\t${platform.url}`);
       } catch (error) {
         console.log(`warn\t无法打开 ${id}：${error?.message || error}`);

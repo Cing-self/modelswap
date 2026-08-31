@@ -279,3 +279,9 @@
 - 安全边界实证：日常 profile/Cookie 迁移/无平台批量创建均拒绝（反向验证#1/#2 exit 1/2）；假浏览器"页面改版入口消失"走真实编排管线 exit 1 且产出可定位报告（tests/fixtures/live-acceptance-reverse-harness.mjs）；报告脱敏（key/JWT/query 串）有测试断言；产物只写 ~/.okit/provider-live-acceptance/。
 - 旧 auto-create-key-check.mjs 收紧：真实创建需显式平台+危险确认开关，--list/--cleanup/dry-run 保留。
 - 测试结果：新增 tests/provider-live-acceptance.test.ts 54/54；定向 4 文件 57/57；全量 `npm test -- --run` 104 文件/919 测试全过零 skip；`npm run build` exit 0。本阶段未真实创建任何第三方 Key（create-cleanup 仅 dry-run 验证）。
+
+# Provider 真实验收工具·guest 真实巡检回执（2026-08-31，续 35e3340）
+- 应用户要求继续推进不越界的部分：真实 guest 巡检（无需登录、不创建任何 Key、一次性临时 profile）。首轮单平台即暴露真 bug：新版 Chrome /json/new 忽略 ?url= → 探针停在 about:blank（报告 loginUrl=nullblank）；修复=Page.navigate 显式导航 + about:blank 信号 + 内容感知结算（等正文出现，上限 30s）。
+- 二轮暴露镜像偏差并修复（均有产品侧既有逻辑对应）：anthropic「Continue with Google」、kimi「注册/登录」、volcengine-agent「立即登录使用」入显式登录动作族（对应 isLoginFailure/detectVolcengineLoginSurface）；auth.* host 入登录页判定（opencode-go 跳 auth.opencode.ai）；登录动作检测并入锚链接（产品原版扫描 a+button 合集，xai 的 Sign in 是 <a>）。另修探针模板转义回归（\/ 提前闭合正则致页面脚本报错），新增 new Function 可编译离线测试防复发。
+- 三轮全量 31 平台矩阵：稳定通过 14；波动 13（渲染时序/第三方风控抖动，重跑可过）；从未通过 4 = volcengine/qwen-token-plan/stepfun/xai——未登录可浏览控制台的真发现（登录面仅在动作时出现），按 failed 如实报告，未做超产品语义的假修。报告/截图均落 ~/.okit/provider-live-acceptance/，全程零创建动作。
+- 离线测试 56/56（新增可编译+显式动作族断言）；全量与 build 见提交前验证。auth-verify 真实巡检仍待人工在专用 profile 登录后执行（外部前置，未声称任何平台验收通过）。

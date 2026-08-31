@@ -40,10 +40,11 @@ export function buildProbeScript({ expectedTexts = [], maskedPrefix = '', platfo
   const norm = (text) => String(text || '').replace(/\\s+/g, '').toLowerCase();
   const squash = (text) => String(text || '').replace(/\\s+/g, ' ').trim().slice(0, 48);
   const labelOf = (el) => squash(el.textContent) || squash(el.getAttribute('aria-label')) || squash(el.getAttribute('title'));
-  const url = location.origin + location.pathname;
+  const aboutBlank = location.href === 'about:blank';
+  const url = aboutBlank ? 'about:blank' : location.origin + location.pathname;
   const pathOnly = location.pathname || '/';
   const loginRoute = /(?:login|signin|sign-in|auth|servicelogin|identifier\\/show|oauth\\/v2)(?:[/?]|$)/i.test(pathOnly);
-  const hostIsLoginPage = /(^|\\.)login\\.|^accounts\\.|^passport\\.|login\\.microsoftonline\\.com$|^account\\.xiaomi\\.com$/i.test(location.hostname);
+  const hostIsLoginPage = /(^|\\.)(login|auth|signin|passport|accounts)\\.|^login\\.microsoftonline\\.com$|^account\\.xiaomi\\.com$/i.test(location.hostname);
   const inputs = [...document.querySelectorAll('input')].filter(visible);
   const passwordFields = inputs.filter((el) => el.type === 'password' || el.getAttribute('autocomplete') === 'current-password').length;
   const hasLoginInput = inputs.some((el) => /账号名|账号ID|用户名|邮箱|手机号|手机号码|phone|password|密码/i.test(
@@ -56,6 +57,16 @@ export function buildProbeScript({ expectedTexts = [], maskedPrefix = '', platfo
   const actionTexts = actionEls.map(labelOf).filter(Boolean);
   const navTexts = navEls.map(labelOf).filter(Boolean);
   const hasLoginAction = actionTexts.some((text) => /(?:登录|登入|sign in|log in)/i.test(text));
+  // Product parity: detectLoginRequired scans anchors together with buttons
+  // (xai's “Sign in” is an <a>), so login detection uses the combined list.
+  const loginActionTexts = [...actionTexts, ...navTexts];
+  const hasAnchorLoginAction = loginActionTexts.some((text) => /(?:登录|登入|sign in|log in)/i.test(text));
+  // Explicit signed-out-only action phrasings. A bare “登录” nav item survives
+  // in signed-in shells (product parity), but combined/explicit forms like
+  // “注册/登录”、“立即登录使用”、“Continue with Google” only exist when the
+  // session is gone — mirror of isLoginFailure / detectVolcengineLoginSurface
+  // in auto-create-browser-state.js.
+  const hasExplicitLoginAction = loginActionTexts.some((text) => /立即登录|请(?:先)?登录|登录\\s*\\/\\s*注册|注册\\s*\\/\\s*登录|continue with (?:google|email|sso|github|microsoft|apple)|使用[^,，。]{0,8}登录/i.test(text));
   const hasSmsLoginSurface = actionTexts.some((text) => /获取验证码|发送验证码/i.test(text))
     && actionTexts.some((text) => /登录\\s*\\/\\s*注册|登录|注册/i.test(text));
   const publicRootLoginSurface = ${JSON.stringify(platformId === 'kimi-coding-plan')}
@@ -98,6 +109,7 @@ export function buildProbeScript({ expectedTexts = [], maskedPrefix = '', platfo
   const unique = (list) => [...new Set(list)];
   return JSON.stringify({
     url,
+    aboutBlank,
     title: String(document.title || '').slice(0, 120),
     readyState: document.readyState,
     bodyChars: bodyText.length,
@@ -106,7 +118,8 @@ export function buildProbeScript({ expectedTexts = [], maskedPrefix = '', platfo
     passwordFields,
     hasLoginInput,
     hasLoginPrompt,
-    hasLoginAction,
+    hasLoginAction: hasAnchorLoginAction,
+    hasExplicitLoginAction,
     hasSmsLoginSurface,
     publicRootLoginSurface,
     verificationDialog,
@@ -127,8 +140,9 @@ export function buildProbeScript({ expectedTexts = [], maskedPrefix = '', platfo
 }
 
 // Mirror of classifyLoginRequiredState in auto-create-browser-state.js, plus
-// the OAuth host signal (accounts.google.com, passport.baidu.com, ...) that
-// guest sessions hit before any password field renders.
+// the OAuth host signal (accounts.google.com, auth.opencode.ai, ...) and the
+// explicit signed-out action family (Continue with Google, 注册/登录, 立即登录…)
+// that guest sessions hit before any password field renders.
 export function classifyLoginState(state = {}) {
   return Boolean(
     state.loginRoute
@@ -136,6 +150,7 @@ export function classifyLoginState(state = {}) {
     || state.passwordFields > 0
     || (state.hasLoginInput && state.hasLoginAction)
     || (state.hasLoginPrompt && state.hasLoginAction)
+    || state.hasExplicitLoginAction
     || state.hasSmsLoginSurface
     || state.publicRootLoginSurface,
   );

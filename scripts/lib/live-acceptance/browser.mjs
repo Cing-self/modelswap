@@ -81,18 +81,28 @@ export async function probeDebugPort(port, timeoutMs = 8000, intervalMs = 300) {
   throw new Error(`专用 Chrome 的 CDP 调试端口 127.0.0.1:${port} 在 ${timeoutMs}ms 内未就绪`);
 }
 
-export async function openCdpTab(port, url) {
-  // /json/new requires PUT on modern Chrome; older builds accept GET only.
+export async function openCdpTab(port) {
+  // Modern Chrome ignores ?url= on /json/new (security change); create a
+  // blank target here and navigate it explicitly via Page.navigate.
   let target;
   try {
-    target = await cdpFetch(port, `/json/new?${new URLSearchParams({ url })}`, 'PUT');
+    target = await cdpFetch(port, '/json/new', 'PUT');
   } catch {
-    target = await cdpFetch(port, `/json/new?${new URLSearchParams({ url })}`);
+    target = await cdpFetch(port, '/json/new');
   }
   if (!target?.id || !target?.webSocketDebuggerUrl) {
     throw new Error('CDP 未返回新标签页的调试端点');
   }
   return { id: target.id, wsUrl: target.webSocketDebuggerUrl };
+}
+
+/** Create a tab and navigate it to the URL (see openCdpTab for why the URL
+ *  cannot ride on /json/new). Returns the tab with its session attached. */
+export async function openTabAtUrl(port, url) {
+  const tab = await openCdpTab(port);
+  const session = await connectTargetWs(tab.wsUrl);
+  await session.send('Page.navigate', { url });
+  return { tab, session };
 }
 
 export async function closeCdpTab(port, tabId) {
@@ -262,16 +272,31 @@ export function createReadOnlyDriver({
     async openTab(url) {
       guard('open-tab');
       await ensureLaunched();
-      const tab = await openCdpTab(debugPort, url);
+      const { tab, session } = await openTabAtUrl(debugPort, url);
       openedTabs.push(tab.id);
+      sessions.set(tab.id, session);
       return tab;
     },
     async probe(tab, probeOptions) {
       guard('probe');
-      const session = await sessionFor(tab);
-      const expression = buildProbeScript(probeOptions);
-      const raw = await evaluateExpression(session, expression);
-      return typeof raw === 'string' ? JSON.parse(raw) : raw;
+      const run = async () => {
+        const session = await sessionFor(tab);
+        const expression = buildProbeScript(probeOptions);
+        return evaluateExpression(session, expression);
+      };
+      try {
+        const raw = await run();
+        return typeof raw === 'string' ? JSON.parse(raw) : raw;
+      } catch (error) {
+        // Cross-process navigations can invalidate a target session; one
+        // reconnect-and-retry keeps long sweeps alive.
+        const message = String(error?.message || error);
+        if (!/session|target closed|websocket/i.test(message)) throw error;
+        sessions.get(tab.id)?.close();
+        sessions.delete(tab.id);
+        const raw = await run();
+        return typeof raw === 'string' ? JSON.parse(raw) : raw;
+      }
     },
     async screenshot(tab, filePath) {
       guard('screenshot');

@@ -78,6 +78,16 @@ npm run test:providers:live -- --mode create-cleanup --platform zhipu \
 3. 日常 Chrome 如也启用了 OKIT 扩展，先停用其一（单扩展连接模型，会互相争抢/驱逐）。
 4. Cloudflare 走 API 模式，需 `OKIT_AUTOCHECK_CLOUDFLARE_PARENT_TOKEN` 专用父 Token（不得复用生产 Vault Token）。
 
+## 真实 guest 巡检结果（2026-08-31，三轮全量 31 平台）
+
+真实运行修复了三个只有真实验收才能暴露的缺陷：新版 Chrome `/json/new` 忽略 `?url=`（改为 `Page.navigate` 显式导航）、SPA 正文晚于 `readyState=complete`（改为等正文出现再采样）、探针模板转义回归（新增“可编译”离线测试）。三轮矩阵：
+
+- **稳定通过 14**：tencent、tencent-token-plan、zhipu、minimax×4、siliconflow、xiaomi、xiaomi-coding、xai-management、mistral、openrouter、openrouter-management。
+- **波动 13（至少一轮通过）**：openai、anthropic、volcengine-agent、zai-global、deepseek、moonshot、kimi-coding、kimi-coding-plan、qwen、qwen-coding、qianfan、qianfan-coding、opencode-go——来源是渲染时序与第三方风控对全新临时 profile 的抖动（重跑可复现通过）。
+- **从未通过 4（真发现：未登录可浏览控制台，登录面只在动作时出现）**：`volcengine`（shell+裸“登录”按钮，产品本就有 volcengine 专用登录探测器佐证）、`qwen-token-plan`（阿里云控制台可匿名浏览）、`stepfun`（未登录即显示“创建新的密钥”入口）、`xai`（Welcome 页 + Sign in 链接）。这四家的自动创建不能依赖页面级登录墙识别，需在动作时交接登录——属于产品侧已知行为的实证，不是本工具缺陷。
+
+判读约定：guest 通过 ≠ 平台验收通过，只证明“未登录会被识别为可交接登录”。波动平台建议重跑单平台复核（`--platform <id>`）；从未通过平台按 failed 人工核对。**auth-verify 级验收仍待专用 profile 人工登录后执行。**
+
 ## 离线回归
 
 `tests/provider-live-acceptance.test.ts`（54 用例）覆盖：三模式参数与安全拒绝；日常 profile / Cookie 迁移 / 无平台批量创建拒绝；guest 与 auth-verify 动作白名单（无创建/确认/删除原子）；create-cleanup 缺双确认、服务未就绪、委托清理失败即停；报告含 commit SHA 与诊断且敏感字段脱敏；假浏览器“页面改版、入口消失”反向用例非零退出并产出可定位报告。`tests/fixtures/live-acceptance-reverse-harness.mjs` 可手动复演该反向用例（真实编排管线 + 假驱动，exit 1）。

@@ -287,10 +287,31 @@ describe('provider-live-acceptance probe', () => {
     expect(source).not.toContain('location.hash');
   });
 
+  it('compiles the generated probe (catches template-escaping regressions)', () => {
+    // A single-backslash regex inside the builder's template literal once
+    // closed the injected regex early and made the probe throw on the live
+    // page (注册 is not defined). Compiling without executing catches that
+    // class of bug offline.
+    const source = buildProbeScript({ expectedTexts: ['新建API Key'], maskedPrefix: 'sk-tp-', platformId: 'zhipu' });
+    expect(() => new Function(source)).not.toThrow();
+  });
+
+  it('embeds the explicit signed-out action family found by the real sweep', () => {
+    const source = buildProbeScript({ expectedTexts: [], maskedPrefix: '', platformId: 'zhipu' });
+    // anthropic “Continue with Google”, kimi “注册/登录”, volcengine “立即登录使用”
+    expect(source).toContain('continue with (?:google|email|sso');
+    expect(source).toContain('立即登录');
+    expect(source).toContain('注册');
+    // OAuth-style hosts like auth.opencode.ai count as login surfaces
+    expect(source).toMatch(/\(login\|auth\|signin\|passport\|accounts\)/);
+  });
+
   it('classifies login surfaces like the product does', () => {
     expect(classifyLoginState({ loginRoute: true })).toBe(true);
     expect(classifyLoginState({ hasSmsLoginSurface: true })).toBe(true);
     expect(classifyLoginState({ hasLoginInput: true, hasLoginAction: true })).toBe(true);
+    expect(classifyLoginState({ hasExplicitLoginAction: true })).toBe(true);
+    expect(classifyLoginState({ hostIsLoginPage: true })).toBe(true);
     expect(classifyLoginState({ hasLoginAction: true })).toBe(false);
     expect(classifyLoginState({})).toBe(false);
   });
