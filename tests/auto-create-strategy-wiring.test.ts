@@ -106,6 +106,38 @@ describe('auto-create strategy dependency wiring', () => {
     expect(clickCreateAction).not.toHaveBeenCalled();
   });
 
+  it('hands off a Zhipu login page that renders after navigation, before it looks for create actions', async () => {
+    const sendCommand = vi.fn(commandForNavigationAndCapture);
+    const clickCreateAction = vi.fn();
+    const detectLoginRequired = vi.fn()
+      .mockResolvedValueOnce({ loginRequired: false })
+      .mockResolvedValueOnce({ loginRequired: true, url: 'https://open.bigmodel.cn/login' });
+    const { createZhipuKey } = createZhipuStrategy({
+      sendCommand,
+      execJs: asyncNoop,
+      sleep: asyncNoop,
+      closeAutomationWindow: asyncNoop,
+      detectLoginRequired,
+      detectInteractiveVerification: async () => false,
+      waitForInteractiveVerification: asyncNoop,
+      isValidZhipuApiKey: () => false,
+      extractKeyFromCaptures: () => null,
+      ZHIPU_URL: 'https://console.example.test/zhipu',
+      ZHIPU_CREATE_TEXTS: ['Create API Key'],
+      ZHIPU_CONFIRM_TEXTS: ['Create'],
+      ZHIPU_NAME_SELECTORS: 'input[name="name"]',
+      resolveActionCandidate: () => null,
+      scoreActionCandidate: () => 0,
+      descriptorFingerprint: () => '',
+      clickCreateAction,
+    });
+
+    await expect(createZhipuKey({ tokenName: 'qa-key' }))
+      .rejects.toThrow('需要登录智谱 AI (https://open.bigmodel.cn/login)');
+    expect(sendCommand).toHaveBeenCalledWith('network-capture-start', expect.any(Object), 10000);
+    expect(clickCreateAction).not.toHaveBeenCalled();
+  });
+
   it('drives OpenRouter through its injected login handoff and public-page redirect before failing closed', async () => {
     const handoffOpenRouterLoginIfNeeded = vi.fn(async () => undefined);
     const hasOpenRouterPublicNavigation = vi.fn(() => true);

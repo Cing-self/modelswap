@@ -33,8 +33,8 @@
     },
     {
       "category": "improved",
-      "zh": "自动创建密钥遇到未登录状态时，现提供明确的平台官网登录入口，而不再只显示原始网址。",
-      "en": "When automatic key creation finds a signed-out session, it now provides a clear link to the provider’s login site instead of showing only a raw URL."
+      "zh": "自动创建密钥遇到未登录状态时，现会在页面延迟加载后稳定进入登录引导，并提供明确的平台官网登录入口，而不再只显示原始网址。",
+      "en": "When automatic key creation finds a signed-out session, including after a delayed page load, it now reliably enters the sign-in handoff and provides a clear link to the provider’s login site instead of showing only a raw URL."
     }
   ],
   "releaseUrl": "https://github.com/Cing-self/okit/releases/tag/v1.0.41"

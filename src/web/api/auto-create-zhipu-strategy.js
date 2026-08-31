@@ -14,13 +14,17 @@ async function createZhipuKey({ tokenName, run }) {
   const navData = nav.data || {};
   const tabId = navData.tabId;
 
-  // The key-management URL can render Zhipu's phone/SMS login shell. Detect
-  // it before capture or any create action so a signed-out user is handed off
-  // to login instead of receiving a misleading missing-button error.
-  const loginState = await detectLoginRequired({ id: 'zhipu', label: '智谱 AI' });
-  if (loginState.loginRequired) {
-    throw new Error(`需要登录智谱 AI${loginState.url ? ` (${loginState.url})` : ''}`);
-  }
+  // The key-management URL can render Zhipu's phone/SMS login shell after the
+  // SPA navigation settles. Check both immediately and before every create
+  // attempt so a late-rendered login page is handed off instead of being
+  // reported as a missing create button.
+  const requireSignedIn = async () => {
+    const loginState = await detectLoginRequired({ id: 'zhipu', label: '智谱 AI' });
+    if (loginState.loginRequired) {
+      throw new Error(`需要登录智谱 AI${loginState.url ? ` (${loginState.url})` : ''}`);
+    }
+  };
+  await requireSignedIn();
 
   // 2. Arm network capture BEFORE clicking create
   const capStart = await sendCommand('network-capture-start',
@@ -37,6 +41,7 @@ async function createZhipuKey({ tokenName, run }) {
   let createFatal = false;
   for (let wait = 0; wait < 15; wait++) {
     await sleep(1000);
+    await requireSignedIn();
     if (await detectInteractiveVerification('zhipu')) {
       await waitForInteractiveVerification({ run, platform: { id: 'zhipu', label: '智谱 AI' }, stage: 'before-create' });
     }

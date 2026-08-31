@@ -66,7 +66,7 @@ function createAutoCreateRunService(deps) {
       const limit = classifyLimit(message, platform.label || platform.id, platform.keyLimits);
       if (limit) return mark(run, 'failed', { error: limit, errorKind: 'platform_key_limit' });
       const login = await detectLogin(platform).catch(() => ({ loginRequired: false }));
-      if (/login|sign in|未登录/i.test(message) || login.loginRequired) {
+      if (/login|sign in|未登录|需要登录|登录/i.test(message) || login.loginRequired) {
         const browserFocused = await focusBrowser().catch(() => false);
         return mark(run, 'login_required', { loginRequired: true, browserFocused, loginUrl: login.url || platform.url,
           error: browserFocused ? `需要登录 ${platform.label || platform.id}。已将自动化浏览器窗口置前，请完成登录后重新开始。` : `需要登录 ${platform.label || platform.id}。请在自动化浏览器窗口完成登录后重新开始。` });

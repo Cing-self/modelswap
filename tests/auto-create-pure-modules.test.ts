@@ -54,4 +54,26 @@ describe('auto-create pure extraction and action modules', () => {
     expect(service.status('run-2')).toMatchObject({ status: 'running', pending: true });
     expect(created).toBe(1);
   });
+
+  it('turns a Chinese sign-in error into a resumable login handoff even if the page probe is unavailable', async () => {
+    const service = createAutoCreateRunService({
+      randomId: () => 'login-run', now: () => new Date('2026-08-31T00:00:00Z'),
+      setTimer: () => 1, clearTimer: () => undefined,
+      resultTtlMs: 10, verificationTimeoutMs: 10, extensionConnected: () => true,
+      createBrowserKey: async () => { throw new Error('需要登录智谱 AI (https://open.bigmodel.cn/login)'); },
+      isAssetData: () => false, classifyLimit: () => null, detectLogin: async () => ({ loginRequired: false }),
+      focusBrowser: async () => true, sleep: async () => undefined, detectVerification: async () => false,
+    });
+    const run = service.create({ platformConfig: { id: 'zhipu', label: '智谱 AI', url: 'https://open.bigmodel.cn/apikey/platform' }, tokenName: 'token' });
+
+    await service.execute(run);
+
+    expect(service.status('login-run')).toMatchObject({
+      success: false,
+      status: 'login_required',
+      loginRequired: true,
+      browserFocused: true,
+      loginUrl: 'https://open.bigmodel.cn/apikey/platform',
+    });
+  });
 });
