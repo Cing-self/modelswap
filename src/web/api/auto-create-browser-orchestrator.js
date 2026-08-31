@@ -112,6 +112,7 @@ async function clickCreateAction(platform) {
   if (!clickState.ok) {
     return { error: 'create-mismatch', buttons: collect.buttons || [], workspaceKeys: collect.workspaceKeys, keyInterface: collect.keyInterface };
   }
+  return clickState;
 }
 
 async function createGenericBrowserKey({ tokenName, platform, run }) {
