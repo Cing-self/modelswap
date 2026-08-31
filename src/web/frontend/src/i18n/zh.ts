@@ -484,6 +484,7 @@ export default {
   'vault.autoCreateLoginRequired': '需要登录此平台',
   'vault.autoCreateLoginFocused': '已将自动化浏览器窗口置前。请完成登录后回到这里重试。',
   'vault.autoCreateLoginOpenBrowser': '请切换到 Chrome 的 OKIT 自动化窗口完成登录，然后回到这里重试。',
+  'vault.autoCreateOpenLoginSite': '打开 {platform} 登录网站',
   'vault.autoCreateRetry': '登录完成，重试创建',
   'vault.autoCreateVerificationRequired': '需要完成安全验证',
   'vault.autoCreateVerificationFocused': '已将自动化浏览器窗口置前。请完成验证码或滑块验证，然后点击继续。',

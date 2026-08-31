@@ -1602,14 +1602,15 @@
 .vault-auto-create-login p {
   margin: 4px 0 8px;
 }
-.vault-auto-create-login-url {
-  display: block;
+.vault-auto-create-login-link {
+  display: inline-flex;
+  align-items: center;
   margin: 0 0 8px;
-  overflow: hidden;
-  color: var(--ink-muted);
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  text-decoration: none;
+}
+.vault-auto-create-login-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .vault-auto-create-actions {

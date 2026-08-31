@@ -484,6 +484,7 @@ export default {
   'vault.autoCreateLoginRequired': 'Sign in to this platform',
   'vault.autoCreateLoginFocused': 'The automation browser window has been brought forward. Finish signing in, then retry here.',
   'vault.autoCreateLoginOpenBrowser': 'Switch to Chrome\'s OKIT automation window, finish signing in, then retry here.',
+  'vault.autoCreateOpenLoginSite': 'Open {platform} sign-in site',
   'vault.autoCreateRetry': 'Signed in — retry creation',
   'vault.autoCreateVerificationRequired': 'Security verification required',
   'vault.autoCreateVerificationFocused': 'The automation browser window is in front. Complete the CAPTCHA or slider challenge, then continue here.',

@@ -30,6 +30,11 @@
       "category": "fixed",
       "zh": "修复浏览器自动创建流程在成功点击创建按钮后未返回结果的问题，避免智谱及其他复用该流程的平台报内部错误。",
       "en": "Fixed the browser auto-create flow failing to return after a successful create click, which caused internal errors for Zhipu and other platforms that use the shared flow."
+    },
+    {
+      "category": "improved",
+      "zh": "自动创建密钥遇到未登录状态时，现提供明确的平台官网登录入口，而不再只显示原始网址。",
+      "en": "When automatic key creation finds a signed-out session, it now provides a clear link to the provider’s login site instead of showing only a raw URL."
     }
   ],
   "releaseUrl": "https://github.com/Cing-self/okit/releases/tag/v1.0.41"

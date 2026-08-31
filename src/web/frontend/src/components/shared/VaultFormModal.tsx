@@ -4,6 +4,7 @@ import { apiRaw } from '../../api/client';
 import { useI18n } from '../../i18n';
 import CustomSelect from './CustomSelect';
 import { getAutoCreatePlatformFields } from './autoCreateFormState';
+import { AutoCreateLoginHandoff } from './AutoCreateLoginHandoff';
 import { normalizeGroupName, PREDEFINED_GROUPS } from '../../data/vault-groups';
 
 interface VaultFormModalProps {
@@ -379,12 +380,17 @@ export default function VaultFormModal({ groups, initialSecret, onBeforeSave, on
                   </div>
                 )}
                 {loginHandoff && (
-                  <div className="vault-auto-create-login" role="alert">
-                    <strong>{t('vault.autoCreateLoginRequired')}: {loginHandoff.platformLabel}</strong>
-                    <p>{loginHandoff.browserFocused ? t('vault.autoCreateLoginFocused') : t('vault.autoCreateLoginOpenBrowser')}</p>
-                    {loginHandoff.loginUrl && <span className="vault-auto-create-login-url">{loginHandoff.loginUrl}</span>}
-                    <button className="btn-save" onClick={handleAutoCreate} disabled={autoCreating} type="button">{t('vault.autoCreateRetry')}</button>
-                  </div>
+                  <AutoCreateLoginHandoff
+                    platformLabel={loginHandoff.platformLabel}
+                    browserFocused={loginHandoff.browserFocused}
+                    loginUrl={loginHandoff.loginUrl}
+                    title={t('vault.autoCreateLoginRequired')}
+                    message={loginHandoff.browserFocused ? t('vault.autoCreateLoginFocused') : t('vault.autoCreateLoginOpenBrowser')}
+                    openLoginLabel={t('vault.autoCreateOpenLoginSite', { platform: loginHandoff.platformLabel })}
+                    retryLabel={t('vault.autoCreateRetry')}
+                    autoCreating={autoCreating}
+                    onRetry={handleAutoCreate}
+                  />
                 )}
                 {autoError && <p className="vault-auto-create-error" role="alert">{autoError}</p>}
                 <div className="vault-auto-create-actions">
