@@ -260,3 +260,6 @@
 - P0-1：stop/start 后 304 吞通知——latestEtag 跨重启保留但 hasBaseline 重置，304 不重建基线，后续新 tag 被当首次。修复：304 在无基线时从共享 cache 重建基线（绝不为既有 release 广播）。精确序列反证测试先红后绿（update-watcher.test.js 第 8 用例）。
 - P0-2：silent check 先把 available 改 checking，失败时守卫失效→回退 error。修复：抽出 beginUpdateCheck/failUpdateCheck 纯函数——silent 且 available/upToDate 时进行中与失败后均保留原状态（含 release 信息）；显式检查错误照常上浮。转换语义 9 用例先红后绿（useAppUpdate.policy.test.ts）。
 状态：定向三文件全绿；fresh 全量除已知 v1.0.38 门禁基线失败外无新增失败。
+
+# 诊断页更新入口调整（2026-08-31，@ 3eadd36）
+格式门禁：PROGRESS.md EOF 多余空行清除（9b191f3）。诊断页 UpdateDetailsEntry（常驻“查看更新详情”）替换为 UpdateCheckButton：settings.updateCheck 标签 + RefreshCw，检查中 Loader+禁用，点击经 performSettingsUpdateCheck 调 check(false) 并以既有 toast 键反馈，不打开详情面板；详情/下载/安装仅由左上角 TitlebarUpdateIndicator 承接。回归测试 tests/frontend/update-check-entry.test.ts（编排行为 + 真实 renderToString 断言），红→绿 7 失败→7 通过。
