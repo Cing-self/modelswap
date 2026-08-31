@@ -353,6 +353,7 @@ beginGenericBrowserCreate = createGenericNavigationStrategy({
 });
 submitGenericBrowserCreate = createGenericFormStrategy({
   execJs, sendCommand, sleep, foregroundClick, waitForInteractiveVerification,
+  resolveActionCandidate, scoreActionCandidate, descriptorFingerprint,
 });
 readGenericBrowserCreateResult = createGenericResultStrategy({
   execJs, sendCommand, sleep, keyFromText, extractKeyFromCaptures,

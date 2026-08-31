@@ -1,6 +1,12 @@
 /** Submit the already-open generic browser form. */
 function createGenericFormStrategy(deps) {
-  const { execJs, sendCommand, sleep, foregroundClick, waitForInteractiveVerification } = deps;
+  const { execJs, sendCommand, sleep, foregroundClick, waitForInteractiveVerification,
+    resolveActionCandidate, scoreActionCandidate, descriptorFingerprint } = deps;
+  if (typeof resolveActionCandidate !== 'function'
+    || typeof scoreActionCandidate !== 'function'
+    || typeof descriptorFingerprint !== 'function') {
+    throw new Error('通用创建表单策略缺少安全动作解析依赖');
+  }
   return async function submitGenericBrowserCreate(state) {
     const { platform, run, uniqueName, tabId } = state;
   const nameFillResult = await execJs(`(() => {
