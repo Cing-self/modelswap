@@ -10,7 +10,7 @@ The **OKIT** extension (MV3) reuses your logged-in Chrome sessions: it fills for
 okit extension path    # prints a loadable extension directory
 ```
 
-**Desktop app users**: the extension ships inside the app too. Open **Settings → About & Diagnostics → Reveal extension folder in Finder** — it syncs the extension to `~/.okit/extension` and opens it in Finder. No CLI needed.
+**Desktop app users**: the extension ships inside the app too. Open **Settings → Browser Plugins → Open extension folder** — it syncs the extension to `~/.okit/extension` and opens it in Finder. No CLI needed.
 
 **Building from source**: the extension source lives in `extension/`; build the `dist/` directory first:
 

@@ -50,3 +50,11 @@ npm uninstall -g @cing-self/okit-cli  # uninstall
 > OKIT runs no daemon and never sits in the request path: it writes your config and exits — your agent talks to the model provider directly. Agent configs keep working after uninstall.
 
 > ⚠️ **Uninstalling the CLI does not affect the desktop app** (it is fully self-contained). However, `~/.okit` is the **shared data directory** for both forms (vault, provider configs, snapshots) — a "full uninstall" that removes `rm -rf ~/.okit` also wipes the desktop app's data. To remove just the CLI, `npm uninstall -g` is enough; leave `~/.okit` alone.
+
+## 1.4 Desktop updates
+
+The desktop app checks for updates after it starts and refreshes periodically while it is running. You can also check manually from **Check for updates…** in the app menu, or **Settings → About & Diagnostics → Check for updates**.
+
+When an update is available, a download icon appears at the upper left of the desktop window. Hover over it to read the release notes, then click it to download. Once the download is complete, OKIT installs the update and relaunches automatically; there is no separate Restart to install step.
+
+> Install the desktop app at `/Applications/OKIT.app` when possible. Automatic updates safely replace that app copy; if an update fails, the upper-left icon remains available so you can try again.

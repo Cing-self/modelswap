@@ -1,0 +1,26 @@
+{
+  "version": "v1.0.41",
+  "publishedAt": "2026-08-31",
+  "summary": {
+    "zh": "本次更新补齐桌面版更新流程的中英文说明，并让安装过程中的状态提示与自动安装行为一致。",
+    "en": "This update clarifies the desktop update flow in both languages and aligns installation status text with automatic installation."
+  },
+  "highlights": [
+    {
+      "category": "improved",
+      "zh": "桌面版手册现说明手动检查、左上角悬浮更新说明，以及下载完成后的自动安装与重新打开流程。",
+      "en": "The desktop manual now explains manual checks, the upper-left hover preview, and the automatic install-and-relaunch flow after download."
+    },
+    {
+      "category": "fixed",
+      "zh": "修正安装完成前仍提示“重启安装”的文案，避免与自动安装行为矛盾。",
+      "en": "Fixed installation status text that still asked for a manual restart despite automatic installation."
+    },
+    {
+      "category": "fixed",
+      "zh": "修正桌面版浏览器插件目录入口的手册路径，现为“设置 → 浏览器插件”。",
+      "en": "Corrected the desktop browser-extension path in the manual to Settings → Browser Plugins."
+    }
+  ],
+  "releaseUrl": "https://github.com/Cing-self/okit/releases/tag/v1.0.41"
+}
