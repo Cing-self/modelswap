@@ -21,11 +21,23 @@ function createGenericNavigationStrategy(deps) {
     throw new Error(`Login required at ${arrivedUrl}`);
   }
 
+  // Do not infer authentication from the URL alone. Many provider consoles
+  // keep their API-key route while their SPA replaces the content with a
+  // sign-in form. Recheck before every possible create click below as that
+  // form can render after navigation has already completed.
+  const requireSignedIn = async () => {
+    const loginState = await detectLoginRequired(platform);
+    if (loginState.loginRequired) {
+      throw new Error(`需要登录 ${platform.label || platform.id}${loginState.url ? ` (${loginState.url})` : ''}`);
+    }
+  };
+
   const capStart = await sendCommand('network-capture-start',
     { pattern: '', workspace: 'okit', ...(tabId ? { tabId } : {}) }, 10000);
   if (!capStart.ok) throw new Error(capStart.error || '无法开始安全抓取');
 
   await sleep(3000);
+  await requireSignedIn();
   // A previous attempt may have successfully created the key but failed local
   // format validation. Recover only an OKIT-named key from this provider's
   // credential-list response before considering another create action.
@@ -219,6 +231,7 @@ function createGenericNavigationStrategy(deps) {
     }
   }
 
+  await requireSignedIn();
   let createState = await clickCreateAction(platform);
   if (await detectInteractiveVerification(platform)) {
     await waitForInteractiveVerification({ run, platform, stage: 'create-action' });
@@ -229,6 +242,7 @@ function createGenericNavigationStrategy(deps) {
   const createAttempts = Math.max(1, Number(platform.createWaitAttempts) || 1);
   for (let attempt = 1; createState.error === 'create-not-found' && attempt < createAttempts; attempt += 1) {
     await sleep(1000);
+    await requireSignedIn();
     createState = await clickCreateAction(platform);
   }
   // The public OpenRouter shell can arrive after the earlier page-state probe.

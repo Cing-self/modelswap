@@ -214,12 +214,24 @@ async function createMinimaxKey({ tokenName, run }) {
   if (!nav.ok) throw new Error(nav.error || 'navigate failed');
   const tabId = nav.data && nav.data.tabId;
 
+  // MiniMax keeps its API-key URL while an expired session renders a login
+  // surface. Check it before arming/clicking and again after the SPA settles,
+  // so this becomes a user login handoff rather than a misleading form error.
+  const requireSignedIn = async () => {
+    const loginState = await detectLoginRequired({ id: 'minimax', label: 'MiniMax（国内站）' });
+    if (loginState.loginRequired) {
+      throw new Error(`需要登录 MiniMax（国内站）${loginState.url ? ` (${loginState.url})` : ''}`);
+    }
+  };
+  await requireSignedIn();
+
   const capStart = await sendCommand('network-capture-start',
     { pattern: '', workspace: 'okit', ...(tabId ? { tabId } : {}) }, 10000);
   if (!capStart.ok) throw new Error(capStart.error || 'network-capture-start failed');
   console.log('[auto-create] minimax: capture armed');
 
   await sleep(3000);
+  await requireSignedIn();
   if (await detectInteractiveVerification('minimax')) {
     await waitForInteractiveVerification({ run, platform: { id: 'minimax', label: 'MiniMax' }, stage: 'before-create' });
   }
@@ -242,6 +254,7 @@ async function createMinimaxKey({ tokenName, run }) {
   })()`).catch(() => 'promo-skipped');
   console.log('[auto-create] minimax: promo dismissed');
   await sleep(500);
+  await requireSignedIn();
 
   // Click create button
   await execJs(`(() => {

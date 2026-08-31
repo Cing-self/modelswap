@@ -43,7 +43,7 @@ describe('auto-create key platforms', () => {
       expect(platform.keyHint).toMatch(/^[A-Z0-9_]+$/);
       expect(platform.groupHint).toBeTruthy();
       expect(['api', 'browser']).toContain(platform.mode);
-      if (platform.mode === 'browser' && !['volcengine', 'zhipu', 'minimax'].includes(platform.id)) {
+      if (platform.mode === 'browser') {
         expect(platform.url).toMatch(/^https:\/\//);
       }
     }

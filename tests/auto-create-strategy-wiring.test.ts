@@ -242,6 +242,41 @@ describe('auto-create strategy dependency wiring', () => {
     expect(clickCreateAction).toHaveBeenCalledWith(expect.objectContaining({ id: 'deepseek' }));
   });
 
+  it('hands off a generic provider whose SPA renders a login surface after navigation, before any create click', async () => {
+    const clickCreateAction = vi.fn();
+    const detectLoginRequired = vi.fn()
+      .mockResolvedValueOnce({ loginRequired: false })
+      .mockResolvedValueOnce({ loginRequired: true, url: 'https://console.example.test/login' });
+    const beginGenericBrowserCreate = createGenericNavigationStrategy({
+      sendCommand: commandForNavigationAndCapture,
+      sleep: asyncNoop,
+      extractNewestNamedKeyFromCaptures: () => null,
+      capturesContainMistralKeyRecords: () => false,
+      closeAutomationWindow: asyncNoop,
+      execJs: async () => 'dismissed',
+      isLoginUrl: () => false,
+      detectLoginRequired,
+      detectInteractiveVerification: async () => false,
+      waitForInteractiveVerification: asyncNoop,
+      waitForSecurityVerificationToClear: asyncNoop,
+      recoverLatestZaiGlobalKey: asyncNoop,
+      clickCreateAction,
+      keyFromText: () => null,
+      extractKeyFromCaptures: () => null,
+      foregroundClick: async () => false,
+      XIAOMI_ICON_CLASSIFY_JS: '() => "unknown"',
+      handoffOpenRouterLoginIfNeeded: asyncNoop,
+      hasOpenRouterPublicNavigation: () => false,
+      redirectOpenRouterToLogin: asyncNoop,
+    });
+
+    await expect(beginGenericBrowserCreate({
+      tokenName: 'qa-key',
+      platform: { id: 'deepseek', label: 'DeepSeek', url: 'https://console.example.test/deepseek' },
+    })).rejects.toThrow('需要登录 DeepSeek (https://console.example.test/login)');
+    expect(clickCreateAction).not.toHaveBeenCalled();
+  });
+
   it('drives Volcengine through the injected public-shell login probe before any create operation', async () => {
     const detectVolcengineLoginSurface = vi.fn(async () => true);
     const { createVolcengineKey } = createVolcengineMinimaxStrategy({
@@ -301,6 +336,39 @@ describe('auto-create strategy dependency wiring', () => {
 
     await expect(createMinimaxKey({ tokenName: 'qa-key' })).rejects.toThrow('stop after first MiniMax form action');
     expect(calls).toEqual(['navigate', 'network-capture-start']);
+  });
+
+  it('hands off a signed-out MiniMax page before capture or any form action', async () => {
+    const calls: string[] = [];
+    const { createMinimaxKey } = createVolcengineMinimaxStrategy({
+      sendCommand: async (command: string) => {
+        calls.push(command);
+        if (command === 'navigate') return successfulNavigation;
+        throw new Error(`unexpected command: ${command}`);
+      },
+      execJs: asyncNoop,
+      sleep: asyncNoop,
+      closeAutomationWindow: asyncNoop,
+      foregroundClick: async () => false,
+      detectLoginRequired: async () => ({ loginRequired: true, url: 'https://console.example.test/login' }),
+      detectInteractiveVerification: async () => false,
+      waitForInteractiveVerification: asyncNoop,
+      isAssetData: () => false,
+      extractKeyFromCaptures: () => null,
+      describeCapturedResponses: () => [],
+      describeCapturedSecretFields: () => [],
+      describeMinimaxBackendResults: () => [],
+      VOLC_URL: 'https://console.example.test/volcengine',
+      VOLC_AGENT_PLAN_URL: 'https://console.example.test/volcengine/agent-plan',
+      VOLC_CREATE_TEXTS: ['Create API Key'],
+      MINIMAX_URL: 'https://console.example.test/minimax',
+      MINIMAX_CREATE_TEXTS: ['Create API Key'],
+      detectVolcengineLoginSurface: async () => false,
+    });
+
+    await expect(createMinimaxKey({ tokenName: 'qa-key' }))
+      .rejects.toThrow('需要登录 MiniMax（国内站） (https://console.example.test/login)');
+    expect(calls).toEqual(['navigate']);
   });
 
   it('uses the injected browser platform URL resolver before navigation', async () => {
