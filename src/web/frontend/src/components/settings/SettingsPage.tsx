@@ -10,7 +10,7 @@ import SnapshotsSection from './SnapshotsSection';
 import packageInfo from '../../../../../../package.json';
 import { useTransientFeedback } from '../../hooks/useTransientFeedback';
 import BrowserExtensionSection from './BrowserExtensionSection';
-import { UpdateDetailsEntry } from '../update/UpdateDetails';
+import { UpdateCheckButton } from '../update/UpdateDetails';
 
 /* 界面风格包：id 对应 <html data-style>，swatch 为 [暗色面板色, 强调色, 亮色面板色] */
 const UI_STYLES = [
@@ -285,7 +285,7 @@ export default function SettingsPage() {
           <footer className="settings-system-actions">
             <span><CheckCircle2 size={14} />{t('settings.diagnosticsPrivacy')}</span>
             <div className="settings-system-utilities">
-              <div className="settings-system-update" aria-live="polite"><UpdateDetailsEntry /></div>
+              <div className="settings-system-update" aria-live="polite"><UpdateCheckButton /></div>
 
               <button
                 className={`settings-system-icon-button${copiedAction === 'diagnostics' ? ' is-copied' : ''}`}

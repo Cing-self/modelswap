@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDownToLine, CheckCircle2, CircleAlert, ExternalLink, Loader2, RefreshCw, RotateCcw, X } from 'lucide-react';
-import { formatFileSize, ReleaseNoteCategory, useAppUpdate } from '../../hooks/useAppUpdate';
+import { formatFileSize, ReleaseNoteCategory, UpdateState, useAppUpdate } from '../../hooks/useAppUpdate';
 import { useI18n } from '../../i18n';
+import { useApp } from '../Layout/AppContext';
 
 type UpdateDetailsContextValue = ReturnType<typeof useAppUpdate> & {
   isOpen: boolean;
@@ -147,13 +148,54 @@ export function UpdateDetailsSheet({ triggerRef }: { triggerRef?: React.MutableR
   );
 }
 
-export function UpdateDetailsEntry() {
+/**
+ * Feedback for the diagnostics-page explicit "check for updates" action.
+ * Deterministic mapping from the awaited check result so the entry's
+ * semantics are testable without mounting anything.
+ */
+export type SettingsUpdateCheckFeedback =
+  | { kind: 'upToDate' }
+  | { kind: 'found'; version: string }
+  | { kind: 'error'; message: string };
+
+/**
+ * Run the diagnostics-page update check: an EXPLICIT check (never silent),
+ * with the outcome surfaced as feedback. The diagnostics entry deliberately
+ * has no path to the details sheet — when a new version is found, the
+ * titlebar indicator becomes the single entry point for details, download,
+ * and install. Structurally this orchestration never receives `open`.
+ */
+export async function performSettingsUpdateCheck(
+  check: (silent?: boolean) => Promise<UpdateState>,
+  notify: (feedback: SettingsUpdateCheckFeedback) => void,
+): Promise<void> {
+  const result = await check(false);
+  if (result.status === 'upToDate') notify({ kind: 'upToDate' });
+  else if (result.status === 'available') notify({ kind: 'found', version: String(result.latest ?? '') });
+  else notify({ kind: 'error', message: String(result.error ?? '') });
+}
+
+/**
+ * The diagnostics-page entry: an explicit "check for updates" action only.
+ * Findings are reported via toast; the update itself (details, download,
+ * install) stays with the titlebar indicator once it appears.
+ */
+export function UpdateCheckButton() {
   const { t } = useI18n();
-  const { update, download, open } = useUpdateDetails();
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const label = download?.status === 'completed' ? t('update.restartToInstall')
-    : update.status === 'available' ? t('update.details')
-      : update.status === 'checking' ? t('settings.updateCheck')
-        : t('update.details');
-  return <button ref={buttonRef} className="settings-system-download" type="button" onClick={() => open(buttonRef.current)} disabled={update.status === 'checking'}>{update.status === 'checking' ? <Loader2 size={14} className="spin" /> : <ArrowDownToLine size={14} />}{label}</button>;
+  const { update, check } = useUpdateDetails();
+  const { showToast } = useApp() as any;
+  const checking = update.status === 'checking';
+  const onClick = () => {
+    void performSettingsUpdateCheck(check, feedback => {
+      if (feedback.kind === 'upToDate') showToast(t('update.menuUpToDate'), 'success');
+      else if (feedback.kind === 'found') showToast(t('update.menuFound', { version: feedback.version }), 'success');
+      else showToast(t('update.checkFailed'), 'error');
+    });
+  };
+  return (
+    <button className="settings-system-download" type="button" onClick={onClick} disabled={checking}>
+      {checking ? <Loader2 size={14} className="spin" /> : <RefreshCw size={14} />}
+      {t('settings.updateCheck')}
+    </button>
+  );
 }
