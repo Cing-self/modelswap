@@ -10,6 +10,7 @@ import fs from 'node:fs/promises';
 import { redactSecrets } from './safety.mjs';
 import {
   startReport, finalizeReport, sanitizePlatformResult, exitCodeFromResults, writeReportFile,
+  uniqueRunStamp,
 } from './report.mjs';
 import { classifyLoginState, classifyVerification } from './probe.mjs';
 import {
@@ -116,7 +117,9 @@ export async function runAcceptance(options) {
   // Mode default: auth-verify keeps the dedicated Chrome open so the user can
   // finish logins in it; guest/create-cleanup close it.
   const keepChromeOpen = keepOpen === null ? mode === 'auth-verify' : Boolean(keepOpen);
-  const stamp = runStamp || now().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
+  // Millisecond + random stamp by default: two runs in the same second must
+  // never share a report path or screenshot directory (P1 collision fix).
+  const stamp = runStamp || uniqueRunStamp(now);
   const screenshotDir = path.join(root, 'screenshots', stamp);
   const report = startReport({
     mode,

@@ -297,3 +297,8 @@
 - 落地：orchestrate 真实分支前置硬禁用——`disabled` 状态（exit 1，零 fetch/零委托/零网络），三重门槛+身份证明全过也拒绝；`createCleanupRealRunEnabled` 选项仅测试注入（CLI 永不传），委托管道逻辑保留并用注入验证。dry-run 计划不变。
 - 定位调整：guest/auth-verify = 发布前巡检能力（保留）；create-cleanup = 已实现但禁用，不作为可执行真实验收能力宣传。文档写明解禁二选一：① 隔离 VM/独立机器跑专用服务+专用 Chrome；② 改产品 WS 协议（服务端记录 acceptanceSession、命令按 session 发送、被替换即拒绝）。P1 信号清理保留（独立有效改进）。
 - 测试：73/73（新增默认硬禁用反例=身份全过仍拒绝零 fetch 零委托；CLI 全参数 exit 1 disabled；既有身份/委托用例改注入解禁，语义不变）；全量与 build 见提交信息。未 push。
+
+# 报告同秒覆盖 P1 修复（2026-08-31 深夜，验收方复现：20260831155122-live-create-cleanup.json 被同秒两跑共享覆盖）
+- 根因：报告文件名精度只到秒。修复：① uniqueRunStamp=毫秒(17位)+随机4位hex，orchestrate 默认 stamp、CLI guest 临时目录、截图目录统一改用该 runKey（同秒 guest 双跑也不再共享临时 profile/截图目录）；② writeReportFile 改独占创建（flag:'wx'，EEXIST 重试追加随机后缀，上限8次）——即使调用方传入完全相同 stamp 也绝不覆盖，只会改名落盘。
+- 实跑复现修复：同秒两次 `--mode create-cleanup --platform zhipu --dry-run` → 20260831160132871-eafd-…json 与 20260831160133458-3943-…json 两份并存。
+- 测试：新增3例（同秒双跑两份报告互不覆盖、writeReportFile 独占反例、默认 stamp 唯一性+格式），定向 76/76；全量 104 文件/941 测试零退化；build exit 0。仅提交于 integration-refactor-suite（e93e worktree 有他人已暂存删除，未触碰）；未 push。

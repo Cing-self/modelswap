@@ -20,7 +20,7 @@ import {
 } from '../scripts/lib/live-acceptance/safety.mjs';
 import { buildProbeScript, classifyLoginState, classifyVerification } from '../scripts/lib/live-acceptance/probe.mjs';
 import { loadBrowserPlatforms, extraExpectedTexts, listAllPlatforms } from '../scripts/lib/live-acceptance/platforms.mjs';
-import { sanitizePlatformResult, exitCodeFromResults } from '../scripts/lib/live-acceptance/report.mjs';
+import { sanitizePlatformResult, exitCodeFromResults, writeReportFile, uniqueRunStamp } from '../scripts/lib/live-acceptance/report.mjs';
 import { runAcceptance, verifyDedicatedExtensionIdentity } from '../scripts/lib/live-acceptance/orchestrate.mjs';
 import {
   buildAcceptanceExtensionCopy, patchExtensionBackgroundSource, writeLaunchRecord,
@@ -954,6 +954,52 @@ function okIdentityStub() {
     awaitReport: async () => ({ sessionId: 'sess-happy-1', wsUrl: 'ws://localhost:3780/ws/extension', wsState: 1 }),
   };
 }
+
+describe('provider live-acceptance report collision (P1)', () => {
+  it('two runs with the same second-precision stamp produce two separate reports', async () => {
+    const sharedStamp = '20260831155122'; // reproduces the overwrite scenario
+    const first = await runAcceptance({
+      mode: 'guest',
+      dryRun: true,
+      platformConfigs: [ZHIPU_PLATFORM] as never,
+      root: tmpRoot(),
+      checkout: { revision: 'deadbeefcafe1234', dirty: false },
+      logger: { log: () => undefined },
+      runStamp: sharedStamp,
+    } as never);
+    const second = await runAcceptance({
+      mode: 'guest',
+      dryRun: true,
+      platformConfigs: [ZHIPU_PLATFORM] as never,
+      root: tmpRoot(),
+      checkout: { revision: 'deadbeefcafe1234', dirty: false },
+      logger: { log: () => undefined },
+      runStamp: sharedStamp,
+    } as never);
+    // the exclusive-create retry must have renamed the second write instead
+    // of overwriting the first — both files survive with their own content
+    expect(second.reportPath).not.toBe(first.reportPath);
+    expect(fs.existsSync(first.reportPath)).toBe(true);
+    expect(fs.existsSync(second.reportPath)).toBe(true);
+  });
+
+  it('writeReportFile never overwrites an existing report (exclusive create + retry)', async () => {
+    const root = tmpRoot();
+    const firstPath = await writeReportFile(root, { mode: 'guest', results: [] } as never, 'dup-stamp');
+    const secondPath = await writeReportFile(root, { mode: 'guest', results: [], marker: 2 } as never, 'dup-stamp');
+    expect(secondPath).not.toBe(firstPath);
+    const first = JSON.parse(fs.readFileSync(firstPath, 'utf8'));
+    const second = JSON.parse(fs.readFileSync(secondPath, 'utf8'));
+    expect(first.marker).toBeUndefined();
+    expect(second.marker).toBe(2);
+  });
+
+  it('default stamps carry millisecond + random components', async () => {
+    const stamps = new Set(Array.from({ length: 32 }, () => uniqueRunStamp()));
+    expect(stamps.size).toBe(32);
+    expect([...stamps][0]).toMatch(/^\d{17}-[0-9a-f]{4}$/);
+  });
+});
 
 describe('provider live-acceptance signal cleanup (P1)', { timeout: 20000 }, () => {
   // Windows cannot deliver SIGINT/SIGTERM to a child via process.kill with

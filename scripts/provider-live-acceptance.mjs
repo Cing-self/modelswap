@@ -29,6 +29,7 @@ import { listAllPlatforms, loadBrowserPlatforms, extraExpectedTexts, loadPlatfor
 import { createReadOnlyDriver, findChromeBinary, DEFAULT_DEBUG_PORT } from './lib/live-acceptance/browser.mjs';
 import { runAcceptance } from './lib/live-acceptance/orchestrate.mjs';
 import { registerSignalCleanup } from './lib/live-acceptance/signals.mjs';
+import { uniqueRunStamp } from './lib/live-acceptance/report.mjs';
 
 const SCRIPTS_DIR = path.dirname(fileURLToPath(import.meta.url));
 
@@ -93,7 +94,8 @@ async function main() {
 
   // Profile directories: guest gets a throwaway per-run dir; auth-verify and
   // create-cleanup use the named persistent dir under the acceptance root.
-  const runStamp = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
+  // uniqueRunStamp (ms + random) so same-second guest runs never share a dir.
+  const runStamp = uniqueRunStamp();
   const profileDir = parsed.mode === 'guest'
     ? path.join(root, 'tmp', `guest-${runStamp}`)
     : path.join(root, 'profiles', parsed.effective.profileName || 'auth');

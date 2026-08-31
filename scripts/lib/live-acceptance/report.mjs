@@ -7,6 +7,7 @@
 // into existence.
 
 import path from 'node:path';
+import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import { redactSecrets, sanitizeUrl, sanitizeTextSummary } from './safety.mjs';
 
@@ -119,10 +120,34 @@ export function reportFileName(report, stamp) {
   return `${stamp.replace(/[:.]/g, '-')}-live-${mode}.json`;
 }
 
+// Run stamps must be collision-proof: pre-release sweeps can legitimately run
+// twice within the same second, and a colliding report name would silently
+// overwrite acceptance evidence. Milliseconds + a random suffix make the
+// names unique; the exclusive-create retry in writeReportFile is the backstop.
+export function randomSuffix(length = 4) {
+  const chars = crypto.randomBytes(length).toString('hex');
+  return chars.slice(0, length);
+}
+
+export function uniqueRunStamp(now = () => new Date()) {
+  // ISO 2026-08-31T15:51:22.417Z -> 20260831155122417 (millisecond precision)
+  const compact = now().toISOString().replace(/[-:TZ.]/g, '').slice(0, 17);
+  return `${compact}-${randomSuffix(4)}`;
+}
+
 export async function writeReportFile(rootDir, report, stamp) {
   const dir = path.join(rootDir, 'reports');
   await fs.mkdir(dir, { recursive: true });
-  const filePath = path.join(dir, reportFileName(report, stamp));
-  await fs.writeFile(filePath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
-  return filePath;
+  for (let attempt = 0; ; attempt += 1) {
+    const suffix = attempt === 0 ? '' : `-${randomSuffix(4)}`;
+    const filePath = path.join(dir, reportFileName(report, `${stamp}${suffix}`));
+    try {
+      // 'wx' fails with EEXIST instead of overwriting — acceptance reports
+      // must never clobber each other, whatever the caller passes as stamp.
+      await fs.writeFile(filePath, `${JSON.stringify(report, null, 2)}\n`, { flag: 'wx' });
+      return filePath;
+    } catch (error) {
+      if (error?.code !== 'EEXIST' || attempt >= 8) throw error;
+    }
+  }
 }
