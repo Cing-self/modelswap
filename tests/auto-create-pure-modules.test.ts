@@ -4,6 +4,7 @@ const extraction = require('../src/application/auto-create-extraction.js');
 const actions = require('../src/application/auto-create-action-resolution.js');
 const { createAutoCreateRunService } = require('../src/application/auto-create-run-service.js');
 const { listPlatformDirectory } = require('../src/application/auto-create-platform-directory.js');
+const { createAutoCreatePlatforms } = require('../src/application/auto-create-platforms.js');
 
 describe('auto-create pure extraction and action modules', () => {
   it('extracts credential pairs while rejecting masked values', () => {
@@ -17,6 +18,22 @@ describe('auto-create pure extraction and action modules', () => {
   it('projects a public platform directory without browser selectors', () => {
     expect(listPlatformDirectory([{ id: 'demo', label: 'Demo', keyHint: 'DEMO_KEY', groupHint: 'Demo', mode: 'browser', createSelectors: ['secret'] }]))
       .toEqual([{ id: 'demo', label: 'Demo', keyHint: 'DEMO_KEY', groupHint: 'Demo', mode: 'browser' }]);
+  });
+
+  it('keeps special browser-platform URLs internally for login handoffs without exposing them in the public directory', () => {
+    const catalogue = createAutoCreatePlatforms({
+      ZHIPU_URL: 'https://open.bigmodel.cn/apikey/platform',
+      VOLC_URL: 'https://console.volcengine.com/ark/apiKey',
+      VOLC_AGENT_PLAN_URL: 'https://console.volcengine.com/ark/agent-plan',
+      MINIMAX_URL: 'https://platform.minimaxi.com/user-center/interface-key',
+    });
+
+    expect(catalogue.AUTO_CREATE_PLATFORM_MAP.get('zhipu').url).toBe('https://open.bigmodel.cn/apikey/platform');
+    expect(catalogue.AUTO_CREATE_PLATFORM_MAP.get('volcengine').url).toBe('https://console.volcengine.com/ark/apiKey');
+    expect(catalogue.AUTO_CREATE_PLATFORM_MAP.get('minimax').url).toBe('https://platform.minimaxi.com/user-center/interface-key');
+    expect(listPlatformDirectory([catalogue.AUTO_CREATE_PLATFORM_MAP.get('zhipu')])).toEqual([
+      expect.not.objectContaining({ url: expect.anything() }),
+    ]);
   });
 
   it('prefers the verified create control and fails closed for destructive or ambiguous actions', () => {

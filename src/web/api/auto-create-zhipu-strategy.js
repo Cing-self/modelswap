@@ -1,6 +1,11 @@
 // Zhipu browser strategy; all browser and safety operations arrive explicitly.
 function createZhipuStrategy(deps) {
   const { sendCommand, execJs, sleep, closeAutomationWindow, detectLoginRequired, detectInteractiveVerification, waitForInteractiveVerification, isValidZhipuApiKey, extractKeyFromCaptures, ZHIPU_URL, ZHIPU_CREATE_TEXTS, ZHIPU_CONFIRM_TEXTS, ZHIPU_NAME_SELECTORS, resolveActionCandidate, scoreActionCandidate, descriptorFingerprint, clickCreateAction } = deps;
+  const isSmsLoginSurface = buttons => {
+    const labels = Array.isArray(buttons) ? buttons.map(value => String(value || '').replace(/\s+/g, ' ').trim()) : [];
+    return labels.some(label => /获取验证码|发送验证码/i.test(label))
+      && labels.some(label => /登录\s*\/?\s*注册|登录|注册/i.test(label));
+  };
 async function createZhipuKey({ tokenName, run }) {
   // Append a short timestamp suffix to avoid name collisions on the platform
   // (zhipu rejects duplicate key names silently — the confirm button works
@@ -58,6 +63,12 @@ async function createZhipuKey({ tokenName, run }) {
     // Two-phase create click (read-only collect → Node resolve → fingerprint
     // recheck → click) against the exact bilingual API-Key phrases.
     createResult = await clickCreateAction({ createTexts: ZHIPU_CREATE_TEXTS });
+    // The shared read-only collector is also the most reliable observation of
+    // Zhipu's late-rendered SMS login form. Stop here before any click when
+    // it exposes the stable “get code + login/register” action pair.
+    if (!createResult.ok && isSmsLoginSurface(createResult.buttons)) {
+      throw new Error('需要登录智谱 AI');
+    }
     if (createResult.ok) break;
     if (createResult.error === 'create-ambiguous' || createResult.error === 'create-mismatch') {
       createFatal = true;

@@ -138,6 +138,36 @@ describe('auto-create strategy dependency wiring', () => {
     expect(clickCreateAction).not.toHaveBeenCalled();
   });
 
+  it('treats Zhipu’s observed SMS login controls as a login handoff when a generic probe misses them', async () => {
+    const sendCommand = vi.fn(commandForNavigationAndCapture);
+    const clickCreateAction = vi.fn(async () => ({
+      error: 'create-not-found',
+      buttons: ['', '获取验证码', '登录 / 注册', '《用户协议》'],
+    }));
+    const { createZhipuKey } = createZhipuStrategy({
+      sendCommand,
+      execJs: asyncNoop,
+      sleep: asyncNoop,
+      closeAutomationWindow: asyncNoop,
+      detectLoginRequired: async () => ({ loginRequired: false }),
+      detectInteractiveVerification: async () => false,
+      waitForInteractiveVerification: asyncNoop,
+      isValidZhipuApiKey: () => false,
+      extractKeyFromCaptures: () => null,
+      ZHIPU_URL: 'https://console.example.test/zhipu',
+      ZHIPU_CREATE_TEXTS: ['Create API Key'],
+      ZHIPU_CONFIRM_TEXTS: ['Create'],
+      ZHIPU_NAME_SELECTORS: 'input[name="name"]',
+      resolveActionCandidate: () => null,
+      scoreActionCandidate: () => 0,
+      descriptorFingerprint: () => '',
+      clickCreateAction,
+    });
+
+    await expect(createZhipuKey({ tokenName: 'qa-key' })).rejects.toThrow('需要登录智谱 AI');
+    expect(clickCreateAction).toHaveBeenCalledOnce();
+  });
+
   it('drives OpenRouter through its injected login handoff and public-page redirect before failing closed', async () => {
     const handoffOpenRouterLoginIfNeeded = vi.fn(async () => undefined);
     const hasOpenRouterPublicNavigation = vi.fn(() => true);

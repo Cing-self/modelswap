@@ -9,7 +9,7 @@ const AUTO_CREATE_PLATFORMS = [
   { id: 'anthropic', label: 'Anthropic', keyHint: 'ANTHROPIC_API_KEY', groupHint: 'Anthropic', mode: 'browser', url: 'https://platform.claude.com/settings/workspaces/default/keys', createTexts: ['Create Key', 'Create API Key', 'Create key', '创建 API Key', '创建密钥', '新建 API Key'], formReadyAttempts: 8, deleteMenuTexts: ['More actions', '更多操作', 'More', '更多', '⋯', '…'], nameSelectors: ['input[placeholder*="key name" i]', 'input[placeholder*="name" i]', 'input[aria-label*="key name" i]', 'input[aria-label="Name" i]', 'input[name*="name" i]', 'input[id*="name" i]', 'input[placeholder*="密钥名" i]', 'input[aria-label*="密钥名" i]'], requireNameInput: true, allowDialogTextInputFallback: true, preConfirmSelectDefaults: [{ triggerTexts: ['Select an expiration', '3 hours', '1 day', '7 days', '30 days', '选择到期时间', '3 小时', '1 天', '7 天', '30 天'], optionTexts: ['Never', 'No expiration', '永不过期'], optional: true }], confirmTexts: ['Add', 'Create key', 'Create Key', 'Create', '添加', '创建密钥', '创建'], allowConfirmCreateText: true, postCreateDomReadAttempts: 10, postCreateReadAttempts: 5, postCreateKeySelectors: ['[role="dialog"] input[readonly]', '[role="dialog"] input[type="text"]', 'input[value*="sk-ant"]', 'code', 'span.font-mono', 'div.font-mono'], postCreateCopyTexts: ['Copy'], postCreateCopyAttempts: 10, postCreateCopyRetryMs: 800, postCreateCopyNeedsForeground: true, allowExtensionClipboardRead: true, keyPatterns: ['sk-ant-api[a-zA-Z0-9_-]{16,}'] },
   // Verified in the signed-in Chinese AI Studio UI: the key is named through
   // its aria-labelled input and finalized with "创建密钥".
-  { id: 'volcengine', label: '火山引擎', keyHint: 'VOLCENGINE_API_KEY', groupHint: '火山引擎', mode: 'browser' },
+  { id: 'volcengine', label: '火山引擎', keyHint: 'VOLCENGINE_API_KEY', groupHint: '火山引擎', mode: 'browser', url: VOLC_URL },
   { id: 'volcengine-agent', label: '火山引擎 Agent Plan', keyHint: 'VOLCENGINE_AGENT_PLAN_API_KEY', groupHint: '火山引擎 Agent Plan', mode: 'browser', url: VOLC_AGENT_PLAN_URL },
   // Volcengine's traditional AK/SK is intentionally manual-only. It is an
   // IAM identity credential, not an API key, and its permissions/rotation
@@ -27,11 +27,11 @@ const AUTO_CREATE_PLATFORMS = [
   // Billing API. Keep it manual-only: OKIT must not acknowledge primary-account
   // risk dialogs, choose an IAM identity, or create a credential it cannot
   // synchronize after deletion in the cloud console.
-  { id: 'zhipu', label: '智谱 AI（国内站）', keyHint: 'ZHIPUAI_API_KEY', groupHint: '智谱AI', mode: 'browser', deleteConfirmWaitAttempts: 20, deleteConfirmTexts: ['确定'], deleteDialogText: '此操作将永久删除该行数据' },
+  { id: 'zhipu', label: '智谱 AI（国内站）', keyHint: 'ZHIPUAI_API_KEY', groupHint: '智谱AI', mode: 'browser', url: ZHIPU_URL, deleteConfirmWaitAttempts: 20, deleteConfirmTexts: ['确定'], deleteDialogText: '此操作将永久删除该行数据' },
   // Verified on the signed-in Z.AI console: the entry is "Add API Key", then
   // the dialog requires an "API key name" before its "Create" action is enabled.
   { id: 'zai-global', label: 'Z.AI（国际站）', keyHint: 'ZAI_API_KEY', groupHint: 'Z.AI', mode: 'browser', url: 'https://z.ai/manage-apikey/apikey-list', deleteButtonSelector: 'td.ant-table-cell-fix-end > div', deleteConfirmWaitAttempts: 10, deleteConfirmTexts: ['Remove'], deleteDialogText: 'This operation will permanently delete the data', createTexts: ['Add API Key'], nameSelectors: ['input#apiKeyName', 'input[placeholder="API key name"]'], confirmTexts: ['Create'], postCreateReadAttempts: 5, postCreateRowCopySelector: 'svg.lucide-copy', postCreateCopyAttempts: 20, postCreateCopyRetryMs: 1000, allowExtensionClipboardRead: true, requirePostCreateCopy: true, keyPatterns: ['[^.\\s]{8,128}\\.[^.\\s]{8,256}'], postCreateCopyFailureMessage: 'Z.AI 已创建 API Key，但列表复制控件没有返回可保存的明文；为避免保存掩码，已停止写入 Vault。' },
-  { id: 'minimax', label: 'MiniMax（国内站）', keyHint: 'MINIMAX_API_KEY', groupHint: 'MiniMax · 国内', mode: 'browser', deleteDomRetry: true, deleteConfirmTexts: ['删 除'], deleteDialogText: '此 API Key 将立即被禁用', deleteConfirmWaitAttempts: 10 },
+  { id: 'minimax', label: 'MiniMax（国内站）', keyHint: 'MINIMAX_API_KEY', groupHint: 'MiniMax · 国内', mode: 'browser', url: MINIMAX_URL, deleteDomRetry: true, deleteConfirmTexts: ['删 除'], deleteDialogText: '此 API Key 将立即被禁用', deleteConfirmWaitAttempts: 10 },
   // Token Plan uses a dedicated sk-cp key that is not interchangeable with
   // the ordinary pay-as-you-go API key. The subscribed account exposes the
   // key on the Token Plan page and may already have generated it.
