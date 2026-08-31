@@ -1,8 +1,9 @@
 /* A small, read-only release-note preview attached directly below the update
    icon. One uninterrupted card surface replaces the former tinted sheet. */
 .titlebar-update-anchor { position: relative; display: inline-flex; margin-left: 10px; -webkit-app-region: no-drag; }
-.titlebar-update { display: inline-grid; width: 28px; height: 28px; place-items: center; border: 1px solid color-mix(in srgb, var(--ink) 16%, transparent); border-radius: 8px; color: var(--ink); background: transparent; cursor: pointer; -webkit-app-region: no-drag; transition: background .16s ease, border-color .16s ease, color .16s ease, transform .16s ease; }
-.titlebar-update:hover, .titlebar-update:focus-visible { border-color: color-mix(in srgb, var(--accent) 48%, transparent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.titlebar-update { display: inline-grid; width: 28px; height: 28px; place-items: center; border: 0; border-radius: 8px; color: var(--ink); background: transparent; cursor: pointer; -webkit-app-region: no-drag; transition: background .16s ease, color .16s ease, transform .16s ease; }
+.titlebar-update:hover, .titlebar-update:focus-visible { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.titlebar-update:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 62%, transparent); outline-offset: 2px; }
 .titlebar-update:active { transform: translateY(1px); }
 .titlebar-update.is-available, .titlebar-update.is-ready { color: var(--accent); }
 .titlebar-update.is-downloading { cursor: wait; color: color-mix(in srgb, var(--ink) 70%, transparent); }
