@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [[ $# -lt 1 ]]; then
-  echo "Usage: scripts/publish-release.sh <version> [asset...]"
+  echo "Usage: .github/scripts/publish-release.sh <version> [asset...]"
   echo "Release notes must exist in release-notes/<version>.json."
   exit 1
 fi
@@ -23,7 +23,7 @@ done
 # Never derive user-facing release notes from commit titles. The reviewed,
 # versioned record is the single source for both this GitHub Release body and
 # the structured asset read by the desktop update sheet.
-node scripts/release-notes.js validate "$version"
+node .github/scripts/release-notes.js validate "$version"
 
 if ! command -v gh >/dev/null 2>&1; then
   echo "Error: gh (GitHub CLI) is not installed."
@@ -72,8 +72,8 @@ if [[ ${#assets[@]} -eq 0 ]]; then
     assets+=("$release_dir/$(basename "$dmg")" "$release_dir/$(basename "$dmg").sha256")
   done
 
-  node scripts/release-notes.js copy "$version" "$release_dir/release-notes.json"
-  node scripts/release-notes.js render "$version" "$release_dir/release-notes.md"
+  node .github/scripts/release-notes.js copy "$version" "$release_dir/release-notes.json"
+  node .github/scripts/release-notes.js render "$version" "$release_dir/release-notes.md"
   assets+=("$release_dir/release-notes.json")
 
   if [[ ${#assets[@]} -eq 0 ]]; then
@@ -83,7 +83,7 @@ if [[ ${#assets[@]} -eq 0 ]]; then
 fi
 
 notes_file="$(mktemp)"
-node scripts/release-notes.js render "$version" "$notes_file"
+node .github/scripts/release-notes.js render "$version" "$notes_file"
 
 if git rev-parse "$version" >/dev/null 2>&1; then
   echo "Tag $version already exists."

@@ -2,14 +2,14 @@
 
 const fs = require('fs');
 const path = require('path');
-const { validateReleaseNotes, normalizedReleaseNotes, renderReleaseBody, versionTag } = require('../src/application/release-notes');
+const { validateReleaseNotes, normalizedReleaseNotes, renderReleaseBody, versionTag } = require('../../src/application/release-notes');
 
-const root = path.resolve(__dirname, '..');
+const root = path.resolve(__dirname, '../..');
 const [command, rawVersion, output] = process.argv.slice(2);
 const version = versionTag(rawVersion);
 
 if (!['validate', 'render', 'copy'].includes(command) || !version) {
-  console.error('Usage: node scripts/release-notes.js <validate|render|copy> <vX.Y.Z> [output-file]');
+  console.error('Usage: node .github/scripts/release-notes.js <validate|render|copy> <vX.Y.Z> [output-file]');
   process.exit(1);
 }
 
