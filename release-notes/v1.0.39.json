@@ -1,0 +1,26 @@
+{
+  "version": "v1.0.39",
+  "publishedAt": "2026-08-31",
+  "summary": {
+    "zh": "本次更新将桌面端的新版本说明收敛为左上角图标旁的轻量悬浮预览，让更新信息更安静、更易扫读。",
+    "en": "This update turns desktop release notes into a lightweight hover preview beside the title-bar update icon, making update information quieter and easier to scan."
+  },
+  "highlights": [
+    {
+      "category": "new",
+      "zh": "桌面端新增左上角更新图标的悬浮预览，可直接浏览当前版本的更新说明。",
+      "en": "The desktop app now includes a hover preview on the title-bar update icon for browsing the current release notes."
+    },
+    {
+      "category": "improved",
+      "zh": "发现新版本后，鼠标移到左上角更新图标即可查看版本说明；移开即收起，不再弹出占据页面的更新详情面板。",
+      "en": "When an update is available, hover the title-bar update icon to read the release notes; the preview closes when you move away instead of opening a page-sized details panel."
+    },
+    {
+      "category": "improved",
+      "zh": "更新图标采用更轻量的无边框设计，并保持深色模式、悬停反馈与键盘焦点提示。",
+      "en": "The update icon now uses a lighter borderless design while preserving dark-mode support, hover feedback, and keyboard focus visibility."
+    }
+  ],
+  "releaseUrl": "https://github.com/Cing-self/okit/releases/tag/v1.0.39"
+}
