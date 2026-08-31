@@ -35,6 +35,14 @@ jobs:
       - run: npm ci --ignore-scripts
         working-directory: src/web/frontend
 
+      # CI approves a main commit for automatic patch release. Validate that
+      # release's reviewed notes here, before a successful CI can trigger the
+      # publish workflow. The release job repeats this gate before any
+      # external side effect, but its post-bump tests must validate the bumped
+      # version itself rather than recursively requiring another future note.
+      - name: Validate default patch release notes
+        run: node .github/scripts/validate-default-next-release-notes.js
+
       # Full compile (not --noEmit): tests import web/api modules that require
       # compiled outputs under dist/. copy-web is also required: compiled
       # dist/providers modules (store, codex adapter) require dist/web/api
