@@ -13,7 +13,8 @@ export const USAGE = [
   '  --platform <id>         平台 ID，可重复或逗号分隔（--list 查看全部）。guest/auth-verify 省略时默认全部 browser 平台；create-cleanup 必须恰好一个',
   '  --dry-run               只生成计划与报告格式，不启动浏览器、不访问任何外部资源',
   '  --allow-create-and-cleanup  create-cleanup 的危险确认开关，必须与 --platform 同时给出',
-  '  --profile <name>        专用 profile 名（仅 auth-verify/create-cleanup；纯标识符，不是路径）',
+  '  --session <id>          create-cleanup 真实运行必需：provider-live-chrome --with-extension 生成的一次性验收会话标识（用于证明扩展连接来自专用 Chrome）',
+  '  --profile <name>        专用 profile 名（仅 auth-verify；纯标识符，不是路径）',
   '  --screenshots <p>       off | login-only | all（默认 guest=all，auth-verify=login-only，create-cleanup=off）',
   '  --keep-open             运行后保留专用 Chrome（auth-verify 默认保留，便于人工登录）',
   '  --chrome-bin <path>     显式指定 Chrome/Chromium/Edge 可执行文件',
@@ -40,6 +41,7 @@ export function parseLiveAcceptanceArgs(argv) {
     dryRun: false,
     allowCreateAndCleanup: false,
     profileName: '',
+    session: '',
     withExtension: false,
     keepOpen: null,
     screenshots: '',
@@ -70,7 +72,8 @@ export function parseLiveAcceptanceArgs(argv) {
       if (token === '--list') parsed.list = true;
       else if (token === '--dry-run') parsed.dryRun = true;
       else if (token === '--allow-create-and-cleanup') parsed.allowCreateAndCleanup = true;
-      else if (token === '--with-extension') parsed.withExtension = true;
+      else if (token === '--session') parsed.session = valueOf('--session');
+      else if (token.startsWith('--session=')) parsed.session = token.slice('--session='.length);
       else if (token === '--keep-open') parsed.keepOpen = true;
       else if (token === '--mode') parsed.mode = valueOf('--mode');
       else if (token.startsWith('--mode=')) parsed.mode = token.slice('--mode='.length);
@@ -107,12 +110,12 @@ export function parseLiveAcceptanceArgs(argv) {
     return fail('--profile 只接受简单标识符（字母/数字/./_/-，且不是路径）；如需隔离请使用不同名称，验收 profile 永远位于 ~/.okit/provider-live-acceptance/ 内');
   }
 
-  if (parsed.mode === 'guest' && parsed.profileName !== '') {
-    return fail('guest 模式每次使用全新临时用户目录，不支持 --profile');
+  if (parsed.session !== '' && !/^[A-Za-z0-9-]{8,64}$/.test(parsed.session)) {
+    return fail('--session 只接受 provider-live-chrome --with-extension 输出的一次性会话标识（8-64 位字母/数字/连字符）');
   }
 
-  if (parsed.withExtension && parsed.mode !== 'create-cleanup') {
-    return fail('--with-extension 仅限 create-cleanup：guest/auth-verify 走 CDP 只读探针；若加载扩展会与日常 OKIT 服务争抢单一扩展连接（扩展按 3780→3785 顺序探测锁定）');
+  if (parsed.mode === 'guest' && parsed.profileName !== '') {
+    return fail('guest 模式每次使用全新临时用户目录，不支持 --profile');
   }
 
   if (parsed.mode === 'create-cleanup') {
@@ -125,8 +128,8 @@ export function parseLiveAcceptanceArgs(argv) {
     if (!parsed.dryRun && !parsed.allowCreateAndCleanup) {
       return fail('create-cleanup 默认禁止：真实运行必须同时给出 --platform 与 --allow-create-and-cleanup（会真实创建并删除第三方密钥）');
     }
-    if (!parsed.dryRun && !parsed.withExtension) {
-      return fail('create-cleanup 真实运行需要 --with-extension：先运行 scripts/provider-live-chrome.mjs --with-extension 启动加载 OKIT 扩展的专用 Chrome');
+    if (!parsed.dryRun && parsed.session === '') {
+      return fail('create-cleanup 真实运行需要 --session <id>：由 provider-live-chrome --with-extension 生成的一次性验收会话；无法证明扩展连接来自专用 Chrome 时一律拒绝');
     }
   }
 

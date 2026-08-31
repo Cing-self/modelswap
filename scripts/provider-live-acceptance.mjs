@@ -28,6 +28,7 @@ import { assertSafeProfileDir, redactSecrets } from './lib/live-acceptance/safet
 import { listAllPlatforms, loadBrowserPlatforms, extraExpectedTexts, loadPlatformById } from './lib/live-acceptance/platforms.mjs';
 import { createReadOnlyDriver, findChromeBinary, DEFAULT_DEBUG_PORT } from './lib/live-acceptance/browser.mjs';
 import { runAcceptance } from './lib/live-acceptance/orchestrate.mjs';
+import { registerSignalCleanup } from './lib/live-acceptance/signals.mjs';
 
 const SCRIPTS_DIR = path.dirname(fileURLToPath(import.meta.url));
 
@@ -103,6 +104,7 @@ async function main() {
   }
 
   let driver = null;
+  let unregisterSignalCleanup = () => undefined;
   if (!parsed.dryRun && parsed.mode !== 'create-cleanup') {
     const binary = parsed.chromeBin && fs.existsSync(parsed.chromeBin)
       ? parsed.chromeBin
@@ -116,25 +118,35 @@ async function main() {
       temporary: parsed.mode === 'guest',
       withExtension: false,
     });
+    // P1: Ctrl-C / SIGTERM must still kill the dedicated Chrome we launched
+    // and remove throwaway guest profiles (best effort; SIGKILL cannot be
+    // handled — see docs/testing/provider-live-acceptance.md).
+    unregisterSignalCleanup = registerSignalCleanup({ driver });
   }
 
   const delegateScriptPath = path.join(SCRIPTS_DIR, 'auto-create-key-check.mjs');
   const repoRoot = path.resolve(SCRIPTS_DIR, '..');
 
-  const outcome = await runAcceptance({
-    mode: parsed.mode,
-    dryRun: parsed.dryRun,
-    allowCreateAndCleanup: parsed.allowCreateAndCleanup,
-    keepOpen: parsed.effective.keepOpen,
-    screenshotPolicy: parsed.effective.screenshots,
-    platformConfigs,
-    driver,
-    root,
-    checkout: checkoutState(),
-    delegateScriptPath,
-    repoRoot,
-    runStamp,
-  });
+  let outcome;
+  try {
+    outcome = await runAcceptance({
+      mode: parsed.mode,
+      dryRun: parsed.dryRun,
+      allowCreateAndCleanup: parsed.allowCreateAndCleanup,
+      keepOpen: parsed.effective.keepOpen,
+      screenshotPolicy: parsed.effective.screenshots,
+      platformConfigs,
+      driver,
+      root,
+      checkout: checkoutState(),
+      delegateScriptPath,
+      repoRoot,
+      sessionId: parsed.session,
+      runStamp,
+    });
+  } finally {
+    unregisterSignalCleanup();
+  }
   console.log(`exit\t${outcome.exitCode}`);
   process.exitCode = outcome.exitCode;
 }

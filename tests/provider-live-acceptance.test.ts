@@ -21,12 +21,17 @@ import {
 import { buildProbeScript, classifyLoginState, classifyVerification } from '../scripts/lib/live-acceptance/probe.mjs';
 import { loadBrowserPlatforms, extraExpectedTexts, listAllPlatforms } from '../scripts/lib/live-acceptance/platforms.mjs';
 import { sanitizePlatformResult, exitCodeFromResults } from '../scripts/lib/live-acceptance/report.mjs';
-import { runAcceptance } from '../scripts/lib/live-acceptance/orchestrate.mjs';
+import { runAcceptance, verifyDedicatedExtensionIdentity } from '../scripts/lib/live-acceptance/orchestrate.mjs';
+import {
+  buildAcceptanceExtensionCopy, patchExtensionBackgroundSource, writeLaunchRecord,
+  validateLaunchRecord, createWitness, awaitFreshWitnessReport, parsePortFromWsUrl, newSessionId,
+} from '../scripts/lib/live-acceptance/sessions.mjs';
 
 const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const CLI_SCRIPT = path.join(REPO_ROOT, 'scripts', 'provider-live-acceptance.mjs');
 const CHROME_HELPER = path.join(REPO_ROOT, 'scripts', 'provider-live-chrome.mjs');
 const OLD_CHECK_SCRIPT = path.join(REPO_ROOT, 'scripts', 'auto-create-key-check.mjs');
+const SIGNAL_FIXTURE = path.join(REPO_ROOT, 'tests', 'fixtures', 'live-signal-cleanup-fixture.mjs');
 
 function tmpRoot(prefix = 'live-acc-') {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -155,15 +160,17 @@ describe('provider-live-acceptance args', () => {
   });
 
   it('create-cleanup real run requires the dangerous confirmation switch', () => {
-    const parsed = parseLiveAcceptanceArgs(['--mode', 'create-cleanup', '--platform', 'zhipu', '--with-extension']);
+    const parsed = parseLiveAcceptanceArgs(['--mode', 'create-cleanup', '--platform', 'zhipu', '--session', '12345678-abcd-1234-abcd-1234567890ab']);
     expect(parsed.ok).toBe(false);
     expect(parsed.ok === false && parsed.error).toContain('--allow-create-and-cleanup');
   });
 
-  it('create-cleanup real run requires the dedicated extension Chrome', () => {
+  it('create-cleanup real run requires a one-time acceptance session id', () => {
     const parsed = parseLiveAcceptanceArgs(['--mode', 'create-cleanup', '--platform', 'zhipu', '--allow-create-and-cleanup']);
     expect(parsed.ok).toBe(false);
-    expect(parsed.ok === false && parsed.error).toContain('--with-extension');
+    expect(parsed.ok === false && parsed.error).toContain('--session');
+    const badSession = parseLiveAcceptanceArgs(['--mode', 'create-cleanup', '--platform', 'zhipu', '--allow-create-and-cleanup', '--session', '../not/a/session']);
+    expect(badSession.ok).toBe(false);
   });
 
   it('rejects raw user-data-dir passthrough and cookie-migration flags', () => {
@@ -196,10 +203,10 @@ describe('provider-live-acceptance args', () => {
     expect(parsed.ok === false && parsed.error).toContain('全新临时');
   });
 
-  it('refuses --with-extension outside create-cleanup (single-extension crosstalk)', () => {
+  it('refuses --with-extension on the acceptance tool (extension loading is launcher-only)', () => {
     const parsed = parseLiveAcceptanceArgs(['--mode', 'auth-verify', '--with-extension']);
     expect(parsed.ok).toBe(false);
-    expect(parsed.ok === false && parsed.error).toContain('争抢');
+    expect(parsed.ok === false && parsed.error).toContain('未知参数');
   });
 
   it('rejects unknown arguments', () => {
@@ -543,6 +550,7 @@ describe('provider-live-acceptance dry-run', () => {
 
 describe('provider-live-acceptance create-cleanup mode', () => {
   const CC_PLATFORM = { id: 'zhipu', label: '智谱 AI（国内站）', mode: 'browser' };
+  const SESSION_ID = '12345678-abcd-1234-abcd-1234567890ab';
   const baseOptions = {
     mode: 'create-cleanup',
     platformConfigs: [CC_PLATFORM],
@@ -551,7 +559,25 @@ describe('provider-live-acceptance create-cleanup mode', () => {
     logger: { log: () => undefined },
     delegateScriptPath: '/nonexistent/auto-create-key-check.mjs',
     repoRoot: REPO_ROOT,
+    sessionId: SESSION_ID,
+    witnessTimeoutMs: 50,
   };
+  const healthy = () => new Response(JSON.stringify({ available: true }), { status: 200 });
+
+  // Identity deps that simulate a fully verified dedicated-Chrome session.
+  function okIdentityDeps(overrides: Record<string, unknown> = {}) {
+    return {
+      readRecord: async ({ sessionId }: { sessionId: string }) => ({
+        sessionId, profileDir: '/safe', debugPort: 9333, witnessPort: 9341, pid: 1,
+        extensionCopyDir: '/safe-copy', createdAt: new Date().toISOString(),
+      }),
+      validateRecord: async () => ({ ok: true, checks: {} }),
+      probeCdp: async () => true,
+      startWitness: async () => ({ stop: async () => undefined }),
+      awaitReport: async () => ({ sessionId: SESSION_ID, wsUrl: 'ws://localhost:3780/ws/extension', wsState: 1 }),
+      ...overrides,
+    };
+  }
 
   it('rejects a real run without the dangerous double confirmation', async () => {
     const root = tmpRoot();
@@ -567,21 +593,26 @@ describe('provider-live-acceptance create-cleanup mode', () => {
     expect(report.results[0].reason).toContain('--allow-create-and-cleanup');
   });
 
-  it('dry-run lists the full create→delete plan without server or spawn calls', async () => {
+  it('dry-run lists the full create→delete plan without server, spawn, or identity calls', async () => {
     const root = tmpRoot();
     let fetched = 0;
     let spawned = 0;
+    const identityDeps = okIdentityDeps({
+      readRecord: async () => { throw new Error('dry-run 不得读取会话'); },
+      startWitness: async () => { throw new Error('dry-run 不得启动 witness'); },
+    });
     const result = await runAcceptance({
       ...baseOptions, root, dryRun: true,
       fetchImpl: async () => { fetched += 1; return new Response('{}'); },
       spawnImpl: () => { spawned += 1; throw new Error('dry-run 不得 spawn'); },
+      identityDeps,
     } as never);
     expect(result.exitCode).toBe(0);
     expect(fetched).toBe(0);
     expect(spawned).toBe(0);
     const report = JSON.parse(fs.readFileSync(result.reportPath, 'utf8'));
     const steps = report.results[0].steps.map((step: { step: string }) => step.step);
-    expect(steps).toEqual(['verify-server', 'verify-dedicated-chrome', 'create', 'read', 'delete', 'confirm-gone']);
+    expect(steps).toEqual(['verify-server', 'verify-dedicated-chrome', 'verify-extension-session', 'create', 'read', 'delete', 'confirm-gone']);
   });
 
   it('blocked_prerequisite when the OKIT server/extension is not reachable', async () => {
@@ -597,6 +628,89 @@ describe('provider-live-acceptance create-cleanup mode', () => {
     expect(spawned).toBe(0);
     const report = JSON.parse(fs.readFileSync(result.reportPath, 'utf8'));
     expect(report.results[0].status).toBe('blocked_prerequisite');
+  });
+
+  it('refuses (exit 1, no delegation) when only an ordinary/unknown extension is online — no session given', async () => {
+    const root = tmpRoot();
+    let spawned = 0;
+    const result = await runAcceptance({
+      ...baseOptions, root, sessionId: '',
+      allowCreateAndCleanup: true,
+      fetchImpl: healthy,
+      spawnImpl: () => { spawned += 1; throw new Error('不得 spawn'); },
+      identityDeps: okIdentityDeps(),
+    } as never);
+    expect(result.exitCode).toBe(1);
+    expect(spawned).toBe(0);
+    const report = JSON.parse(fs.readFileSync(result.reportPath, 'utf8'));
+    expect(report.results[0].status).toBe('unverified_extension_identity');
+    expect(report.results[0].reason).toContain('--session');
+  });
+
+  it('refuses when the session record is missing', async () => {
+    const root = tmpRoot();
+    let spawned = 0;
+    const result = await runAcceptance({
+      ...baseOptions, root,
+      allowCreateAndCleanup: true,
+      fetchImpl: healthy,
+      spawnImpl: () => { spawned += 1; throw new Error('不得 spawn'); },
+      identityDeps: okIdentityDeps({ readRecord: async () => null }),
+    } as never);
+    expect(result.exitCode).toBe(1);
+    expect(spawned).toBe(0);
+    const report = JSON.parse(fs.readFileSync(result.reportPath, 'utf8'));
+    expect(report.results[0].status).toBe('unverified_extension_identity');
+    expect(report.results[0].reason).toContain('找不到验收会话记录');
+  });
+
+  it('refuses when the launch record fails validation', async () => {
+    const root = tmpRoot();
+    let spawned = 0;
+    const result = await runAcceptance({
+      ...baseOptions, root,
+      allowCreateAndCleanup: true,
+      fetchImpl: healthy,
+      spawnImpl: () => { spawned += 1; throw new Error('不得 spawn'); },
+      identityDeps: okIdentityDeps({ validateRecord: async () => ({ ok: false, reason: '会话记录的 profile 目录未通过隔离校验' }) }),
+    } as never);
+    expect(result.exitCode).toBe(1);
+    expect(spawned).toBe(0);
+    const report = JSON.parse(fs.readFileSync(result.reportPath, 'utf8'));
+    expect(report.results[0].reason).toContain('未通过隔离校验');
+  });
+
+  it('refuses when the dedicated Chrome CDP is dead', async () => {
+    const root = tmpRoot();
+    let spawned = 0;
+    const result = await runAcceptance({
+      ...baseOptions, root,
+      allowCreateAndCleanup: true,
+      fetchImpl: healthy,
+      spawnImpl: () => { spawned += 1; throw new Error('不得 spawn'); },
+      identityDeps: okIdentityDeps({ probeCdp: async () => false }),
+    } as never);
+    expect(result.exitCode).toBe(1);
+    expect(spawned).toBe(0);
+    const report = JSON.parse(fs.readFileSync(result.reportPath, 'utf8'));
+    expect(report.results[0].reason).toContain('CDP');
+  });
+
+  it('refuses on witness timeout — an online ordinary extension never reports a session heartbeat', async () => {
+    const root = tmpRoot();
+    let spawned = 0;
+    const result = await runAcceptance({
+      ...baseOptions, root,
+      allowCreateAndCleanup: true,
+      fetchImpl: healthy,
+      spawnImpl: () => { spawned += 1; throw new Error('不得 spawn'); },
+      identityDeps: okIdentityDeps({ awaitReport: async () => null }),
+    } as never);
+    expect(result.exitCode).toBe(1);
+    expect(spawned).toBe(0);
+    const report = JSON.parse(fs.readFileSync(result.reportPath, 'utf8'));
+    expect(report.results[0].status).toBe('unverified_extension_identity');
+    expect(report.results[0].reason).toContain('心跳证明');
   });
 
   it('propagates a delegate cleanup failure as exit 1 and stops (single platform, one spawn)', async () => {
@@ -627,8 +741,9 @@ describe('provider-live-acceptance create-cleanup mode', () => {
     const result = await runAcceptance({
       ...baseOptions, root,
       allowCreateAndCleanup: true,
-      fetchImpl: async () => new Response(JSON.stringify({ available: true }), { status: 200 }),
+      fetchImpl: healthy,
       spawnImpl,
+      identityDeps: okIdentityDeps(),
     } as never);
     expect(result.exitCode).toBe(1);
     expect(spawnCalls).toHaveLength(1);
@@ -638,7 +753,7 @@ describe('provider-live-acceptance create-cleanup mode', () => {
     expect(report.results[0].delegateReport).toBe(delegateReportPath);
   });
 
-  it('maps a delegate pass to exit 0', async () => {
+  it('maps a delegate pass to exit 0 after identity verification', async () => {
     const root = tmpRoot();
     const delegateReportPath = path.join(root, 'delegate-report.json');
     fs.writeFileSync(delegateReportPath, JSON.stringify({
@@ -657,12 +772,177 @@ describe('provider-live-acceptance create-cleanup mode', () => {
     const result = await runAcceptance({
       ...baseOptions, root,
       allowCreateAndCleanup: true,
-      fetchImpl: async () => new Response(JSON.stringify({ available: true }), { status: 200 }),
+      fetchImpl: healthy,
       spawnImpl,
+      identityDeps: okIdentityDeps(),
     } as never);
     expect(result.exitCode).toBe(0);
     const report = JSON.parse(fs.readFileSync(result.reportPath, 'utf8'));
     expect(report.results[0].status).toBe('passed');
+  });
+});
+
+// Snapshot of the real built extension (extension/dist is git-ignored, so CI
+// checkouts have no dist — see tests/fixtures/extension-dist-sample/README.md).
+const EXT_SAMPLE = path.join(REPO_ROOT, 'tests', 'fixtures', 'extension-dist-sample');
+const REAL_EXTENSION_DIST = path.join(REPO_ROOT, 'extension', 'dist', 'background.js');
+
+describe('provider-live-acceptance session binding (P0 primitives)', () => {
+  it('builds a patched copy of the extension snapshot and the result is valid ESM', { timeout: 30000 }, async () => {
+    const root = tmpRoot('live-copy-');
+    const sessionId = newSessionId();
+    const copyDir = path.join(root, 'copy');
+    const built = await buildAcceptanceExtensionCopy({
+      sourceDir: EXT_SAMPLE,
+      destDir: copyDir,
+      sessionId,
+      witnessPort: 9341,
+    });
+    expect(built.patched).toEqual({ hello: 1, authOk: 1, keepalive: 1 });
+    const background = fs.readFileSync(path.join(copyDir, 'dist', 'background.js'), 'utf8');
+    expect(background).toContain(sessionId);
+    expect(background).toContain('acceptanceSession: globalThis.__OKIT_ACCEPTANCE__.sessionId');
+    expect(background).toContain("reportAcceptance('acceptance-heartbeat')");
+    expect(fs.existsSync(path.join(copyDir, 'manifest.json'))).toBe(true);
+    expect(fs.existsSync(path.join(copyDir, 'OKIT_ACCEPTANCE_SESSION.json'))).toBe(true);
+    // The patched background must still be valid ESM (node --check on .mjs).
+    const mjsPath = path.join(root, 'background-check.mjs');
+    fs.copyFileSync(path.join(copyDir, 'dist', 'background.js'), mjsPath);
+    const check = spawnSync(process.execPath, ['--check', mjsPath], { encoding: 'utf8' });
+    expect(check.status).toBe(0);
+  });
+
+  it('fails closed when the source lacks the built dist', async () => {
+    const root = tmpRoot('live-nosrc-');
+    const empty = path.join(root, 'empty-ext');
+    fs.mkdirSync(path.join(empty, 'dist'), { recursive: true });
+    fs.writeFileSync(path.join(empty, 'manifest.json'), '{}');
+    await expect(buildAcceptanceExtensionCopy({
+      sourceDir: empty, destDir: path.join(root, 'copy'), sessionId: newSessionId(), witnessPort: 9341,
+    })).rejects.toThrow(/build-extension/);
+  });
+
+  it('patch anchors stay in sync with the real built extension when it exists', () => {
+    // CI checkouts do not build extension/dist before npm test, so this drift
+    // guard runs wherever the built artifact is present (dev machines and the
+    // build environment). The snapshot fixture keeps the offline coverage.
+    if (!fs.existsSync(REAL_EXTENSION_DIST)) return;
+    const real = fs.readFileSync(REAL_EXTENSION_DIST, 'utf8');
+    const snapshot = fs.readFileSync(path.join(EXT_SAMPLE, 'dist', 'background.js'), 'utf8');
+    expect(real).toBe(snapshot);
+  });
+
+  it('fails closed when patch anchors are missing or already applied', () => {
+    expect(() => patchExtensionBackgroundSource('const x = 1;', { sessionId: 'abcd1234-0', witnessPort: 9341 })).toThrow(/锚点/);
+    const real = fs.readFileSync(path.join(EXT_SAMPLE, 'dist', 'background.js'), 'utf8');
+    const once = patchExtensionBackgroundSource(real, { sessionId: 'abcd1234-0', witnessPort: 9341 });
+    expect(() => patchExtensionBackgroundSource(once.patched, { sessionId: 'abcd1234-0', witnessPort: 9341 })).toThrow(/不得重复打补丁/);
+  });
+
+  it('validates launch records against isolation, age, and copy integrity', { timeout: 30000 }, async () => {
+    const root = tmpRoot('live-rec-');
+    const sessionId = newSessionId();
+    const profileDir = path.join(root, 'profiles', 'auth');
+    const copyDir = path.join(root, 'copy');
+    const built = await buildAcceptanceExtensionCopy({
+      sourceDir: EXT_SAMPLE,
+      destDir: copyDir,
+      sessionId,
+      witnessPort: 9341,
+    });
+    const { record } = await writeLaunchRecord({
+      root, sessionId, profileDir, debugPort: 9333, witnessPort: 9341, pid: process.pid, extensionCopyDir: copyDir,
+    });
+    await expect(validateLaunchRecord(record, { root })).resolves.toMatchObject({ ok: true });
+
+    const outside = await validateLaunchRecord({ ...record, profileDir: '/tmp/daily-chrome' }, { root });
+    expect(outside.ok).toBe(false);
+    expect(outside.reason).toContain('未通过隔离校验');
+
+    const stale = await validateLaunchRecord(
+      { ...record, createdAt: new Date(Date.now() - 48 * 3600 * 1000).toISOString() },
+      { root },
+    );
+    expect(stale.ok).toBe(false);
+    expect(stale.reason).toContain('过期');
+
+    const noCopy = await validateLaunchRecord({ ...record, extensionCopyDir: path.join(root, 'missing') }, { root });
+    expect(noCopy.ok).toBe(false);
+    expect(noCopy.reason).toContain('副本缺失');
+  });
+
+  it('witness stores reports locally and freshness filters reject stale/closed/wrong-port reports', { timeout: 15000 }, async () => {
+    const witness = createWitness({ port: 0 });
+    const addr = await witness.start();
+    const sessionId = newSessionId();
+    const post = async (body: Record<string, unknown>) => fetch(`http://127.0.0.1:${addr.port}/acceptance`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    expect((await post({ sessionId, wsUrl: 'ws://localhost:3780/ws/extension', wsState: 1 })).status).toBe(204);
+    expect((await fetch(`http://127.0.0.1:${addr.port}/other`, { method: 'POST' })).status).toBe(404);
+    expect(parsePortFromWsUrl('ws://localhost:3780/ws/extension')).toBe(3780);
+
+    const match = await awaitFreshWitnessReport({ witness, sessionId, expectWsPort: 3780, maxWaitMs: 300, pollMs: 25 });
+    expect(match?.sessionId).toBe(sessionId);
+
+    const wrongPort = await awaitFreshWitnessReport({ witness, sessionId, expectWsPort: 3781, maxWaitMs: 120, pollMs: 20 });
+    expect(wrongPort).toBeNull();
+
+    // stale report: receivedAt far in the past via injected clock
+    const staleWitness = {
+      lastReport: () => ({ sessionId, wsUrl: 'ws://localhost:3780/ws/extension', wsState: 1, receivedAt: Date.now() - 60000 }),
+    };
+    expect(await awaitFreshWitnessReport({ witness: staleWitness as never, sessionId, expectWsPort: 3780, maxWaitMs: 50, pollMs: 10 })).toBeNull();
+
+    const closedWitness = {
+      lastReport: () => ({ sessionId, wsUrl: 'ws://localhost:3780/ws/extension', wsState: 0, receivedAt: Date.now() }),
+    };
+    expect(await awaitFreshWitnessReport({ witness: closedWitness as never, sessionId, expectWsPort: 3780, maxWaitMs: 50, pollMs: 10 })).toBeNull();
+    await witness.stop();
+  });
+
+  it('verifyDedicatedExtensionIdentity returns the report on the happy path', async () => {
+    const root = tmpRoot();
+    const outcome = await verifyDedicatedExtensionIdentity({
+      sessionId: 'sess-happy-1',
+      root,
+      baseUrl: 'http://127.0.0.1:3780',
+      fetchImpl: async () => new Response('{}'),
+      identityDeps: okIdentityStub(),
+    });
+    expect(outcome.ok).toBe(true);
+  });
+});
+
+function okIdentityStub() {
+  return {
+    readRecord: async ({ sessionId }: { sessionId: string }) => ({ sessionId }),
+    validateRecord: async () => ({ ok: true, checks: {} }),
+    probeCdp: async () => true,
+    startWitness: async () => ({ stop: async () => undefined }),
+    awaitReport: async () => ({ sessionId: 'sess-happy-1', wsUrl: 'ws://localhost:3780/ws/extension', wsState: 1 }),
+  };
+}
+
+describe('provider live-acceptance signal cleanup (P1)', { timeout: 20000 }, () => {
+  // Windows cannot deliver SIGINT/SIGTERM to a child via process.kill with
+  // POSIX semantics (handlers are not invoked), so this real-signal fixture
+  // runs only on POSIX CI legs.
+  it.skipIf(process.platform === 'win32')('SIGINT runs best-effort dispose, removes the temp profile, exits 130', () => {
+    const run = spawnSync(process.execPath, [SIGNAL_FIXTURE, 'SIGINT'], { encoding: 'utf8' });
+    expect(run.status).toBe(130);
+    expect(run.stdout).toContain('DISPOSED');
+    const readyLine = run.stdout.split('\n').find((line) => line.startsWith('READY '));
+    expect(readyLine).toBeTruthy();
+    expect(fs.existsSync(readyLine!.slice('READY '.length).trim())).toBe(false);
+  });
+
+  it.skipIf(process.platform === 'win32')('SIGTERM disposes and exits 143', () => {
+    const run = spawnSync(process.execPath, [SIGNAL_FIXTURE, 'SIGTERM'], { encoding: 'utf8' });
+    expect(run.status).toBe(143);
+    expect(run.stdout).toContain('DISPOSED');
   });
 });
 
@@ -708,6 +988,13 @@ describe('provider live-acceptance CLI subprocess', { timeout: 30000 }, () => {
     const run = runNode(CLI_SCRIPT, ['--mode', 'create-cleanup', '--platform', 'zhipu']);
     expect(run.status).not.toBe(0);
     expect(run.stderr).toContain('--allow-create-and-cleanup');
+  });
+
+  it('refuses create-cleanup with the confirmation but no acceptance session (non-zero exit)', () => {
+    const run = runNode(CLI_SCRIPT, ['--mode', 'create-cleanup', '--platform', 'zhipu', '--allow-create-and-cleanup']);
+    expect(run.status).not.toBe(0);
+    expect(run.stderr).toContain('--session');
+    expect(run.stderr).toContain('专用 Chrome');
   });
 
   it('refuses raw --user-data-dir attempts (non-zero exit)', () => {

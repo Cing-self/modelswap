@@ -10,7 +10,7 @@
 |------|-------------|----------|--------|
 | `guest` | 全新临时用户目录（跑完即删） | 访问真实控制台 URL，断言**未登录会话被登录墙识别**（可交接登录） | 创建/确认/复制/删除 |
 | `auth-verify` | 专用持久目录 `~/.okit/provider-live-acceptance/profiles/auth`（用户自行登录） | 到达已登录控制台、找到预期安全入口文案/订阅掩码 Key | 点击创建/确认/生成/删除、代输账号密码验证码 |
-| `create-cleanup` | 专用 Chrome + OKIT 扩展（`provider-live-chrome.mjs --with-extension`） | 委托 `auto-create-key-check.mjs`：唯一测试名创建→读取→精确删除→确认消失 | 缺 `--platform`+`--allow-create-and-cleanup` 双开关时直接拒绝；一次多平台拒绝；清理失败立即停止 |
+| `create-cleanup` | 专用 Chrome + 补丁扩展副本（`provider-live-chrome.mjs --with-extension` 生成一次性会话） | 委托 `auto-create-key-check.mjs`：唯一测试名创建→读取→精确删除→确认消失 | 缺 `--platform`+`--allow-create-and-cleanup`+`--session` 三要素直接拒绝；扩展身份无法证明（`unverified_extension_identity`）拒绝且零委托；一次多平台拒绝；清理失败立即停止 |
 
 ### 常用命令
 
@@ -25,8 +25,9 @@ node scripts/provider-live-chrome.mjs --status                          # 探测
 node scripts/provider-live-chrome.mjs --platform zhipu --platform volcengine  # 打开指定控制台标签便于登录
 
 npm run test:providers:live -- --mode create-cleanup --platform zhipu --dry-run          # 创建+清理计划
+node scripts/provider-live-chrome.mjs --with-extension          # 生成一次性验收会话 + 加载补丁扩展副本的专用 Chrome
 npm run test:providers:live -- --mode create-cleanup --platform zhipu \
-  --allow-create-and-cleanup --with-extension            # 真实创建（默认禁止；本阶段开发/验收不运行）
+  --allow-create-and-cleanup --session <启动器输出的会话ID>   # 真实创建（默认禁止；本阶段开发/验收不运行）
 ```
 
 `--dry-run` 只验证计划、参数校验和报告格式，**不构成任何真实验证**，也不启动浏览器、不访问网络。
@@ -37,8 +38,12 @@ npm run test:providers:live -- --mode create-cleanup --platform zhipu \
 2. **guest/auth-verify 无创建通路**。两模式不加载 OKIT 扩展（避免与日常 OKIT 服务争抢单一扩展连接——扩展按 3780→3785 顺序探测锁定），改用 CDP 直连专用 Chrome 的调试端口（默认 9333），驱动只实现只读原子（open-tab/probe/screenshot/close-tab/dispose）并经 `assertDriverActionAllowed` 白名单闸门——代码结构上不存在 click/type/submit。
 3. **只读探针自检**。注入页面的探针脚本由 `buildProbeScript` 生成并自检禁止令牌（`document.cookie`、storage、`.value`、`dispatchEvent`、`.click(` 等），读取的只有：URL（origin+path，**查询串在源头即不读**）、标题、可见按钮/链接文本摘要（≤30 项 ×48 字符）、登录/验证信号布尔值、正文长度。密码输入框只计数，不读值。
 4. **产物与脱敏**。报告/截图只写 `~/.okit/provider-live-acceptance/`（不进 Git）。所有页面来源字符串经 `redactSecrets`（sk-/xai-/tp-/bce-v3/AKLT/JWT/Bearer/32+hex → `[REDACTED]`），URL 经 `sanitizeUrl`（去 query/fragment/credentials，非 http(s) scheme 整体 `[REDACTED]`）。截图策略默认 guest=all、auth-verify=login-only（已登录健康控制台不截，避免账号 UI 入图）。
-5. **create-cleanup 双重确认**。必须同时 `--platform <唯一平台>` + `--allow-create-and-cleanup`（并要求 `--with-extension` 专用 Chrome）；任何清理失败 → `cleanup_failed`、退出码 1、不再创建下一把 Key。
-6. **旧脚本收紧**。`auto-create-key-check.mjs` 不再接受“未传平台=批量创建全部平台”：真实运行需要显式平台列表 + `--allow-create-and-cleanup`；`--list` 与 `--cleanup <report>`（孤儿清理兜底）不受影响。
+5. **create-cleanup 会话绑定（P0）**。`/api/vault/cdp-status` 的 available=true 只证明“某个扩展在线”，不能证明它在专用 Chrome 里——产品扩展的 WebSocket hello 只带 version/protocol，日常 Chrome 的扩展同样会连上服务端。因此真实运行要求**可验证的会话证明**，缺一即拒绝（`unverified_extension_identity`，exit 1，绝不降级为“提示先停用日常扩展”）：
+   - `provider-live-chrome --with-extension` 生成一次性会话 ID，写入启动记录（专用 profile、调试端口、pid、扩展副本目录）到 `~/.okit/provider-live-acceptance/sessions/`，并物化一份**打过补丁的扩展副本**（只复制运行时文件，产品扩展本身零修改）：在 hello 附加 `acceptanceSession`、auth-ok 与 ~20s keepalive 心跳时向本地 witness（127.0.0.1:9341）上报 `{sessionId, wsUrl, wsState}`。锚点替换校验“恰好一次”，扩展产物改版导致锚点漂移时**拒绝生成**（fail closed），并有快照夹具 + 真实产物一致性测试防漂移。
+   - create-cleanup 前置闸门：`--session` 必填 → 启动记录存在且通过隔离/时效/副本完整性校验 → 专用 Chrome CDP 存活 → witness 在新鲜窗口内收到**本会话**、wsState=OPEN、目标服务端口的扩展心跳。普通/未知扩展（未打补丁、不上报）永远给不出证明。
+   - 残余风险（如实说明）：服务端是单扩展槽位，若日常 Chrome 的扩展同时在跑，验证心跳之后仍存在被其抢占的理论竞态；新鲜窗口 + 立即委托收窄但不消除该窗口。结论：create-cleanup 运行期间不要并行使用日常扩展链路（这是风险评估，不是放行条件——无证明时无论如何都拒绝）。
+6. **信号清理（P1）**。guest/auth-verify 运行中收到 SIGINT/SIGTERM 时，尽力（3 秒预算）关闭本次启动的专用 Chrome 并删除 guest 临时 profile，然后以 130/143 退出。**SIGKILL 无法捕获**——强杀会遗留 `~/.okit/provider-live-acceptance/tmp/guest-<stamp>/` 目录与 Chrome 进程；下次 guest 用全新 stamp 目录互不影响，残留可 `rm -rf ~/.okit/provider-live-acceptance/tmp` 手工清理。
+7. **旧脚本收紧**。`auto-create-key-check.mjs` 不再接受“未传平台=批量创建全部平台”：真实运行需要显式平台列表 + `--allow-create-and-cleanup`；`--list` 与 `--cleanup <report>`（孤儿清理兜底）不受影响。
 
 ## 状态与退出码
 
@@ -73,10 +78,11 @@ npm run test:providers:live -- --mode create-cleanup --platform zhipu \
 
 ## create-cleanup 的前置条件（真实运行时）
 
-1. OKIT 服务在跑且浏览器扩展已连接（`GET /api/vault/cdp-status` → `available=true`）。
-2. 用 `node scripts/provider-live-chrome.mjs --with-extension` 启动**加载 OKIT 扩展的专用 Chrome** 并在其内完成目标平台登录。
-3. 日常 Chrome 如也启用了 OKIT 扩展，先停用其一（单扩展连接模型，会互相争抢/驱逐）。
-4. Cloudflare 走 API 模式，需 `OKIT_AUTOCHECK_CLOUDFLARE_PARENT_TOKEN` 专用父 Token（不得复用生产 Vault Token）。
+1. OKIT 服务在跑且有扩展在线（`GET /api/vault/cdp-status` → `available=true`；这只是必要条件，不是放行条件）。
+2. `node scripts/provider-live-chrome.mjs --with-extension` 启动专用 Chrome：生成一次性会话 + 加载补丁扩展副本，在其内完成目标平台登录，记下输出的 `session <id>`。
+3. 运行 create-cleanup 时带 `--session <id>`：闸门会校验启动记录、专用 Chrome CDP 存活，并在 witness 收到本会话扩展连接目标端口的新鲜心跳；**任何一环无法证明即拒绝（exit 1，不调用创建委托）**。
+4. 会话记录有效期 24 小时；扩展产物改版导致补丁锚点漂移时启动器 fail closed（提示先 `npm run build-extension` 同步并更新 `tests/fixtures/extension-dist-sample/` 快照）。
+5. Cloudflare 走 API 模式，需 `OKIT_AUTOCHECK_CLOUDFLARE_PARENT_TOKEN` 专用父 Token（不得复用生产 Vault Token）。
 
 ## 真实 guest 巡检结果（2026-08-31，三轮全量 31 平台）
 
@@ -90,4 +96,4 @@ npm run test:providers:live -- --mode create-cleanup --platform zhipu \
 
 ## 离线回归
 
-`tests/provider-live-acceptance.test.ts`（54 用例）覆盖：三模式参数与安全拒绝；日常 profile / Cookie 迁移 / 无平台批量创建拒绝；guest 与 auth-verify 动作白名单（无创建/确认/删除原子）；create-cleanup 缺双确认、服务未就绪、委托清理失败即停；报告含 commit SHA 与诊断且敏感字段脱敏；假浏览器“页面改版、入口消失”反向用例非零退出并产出可定位报告。`tests/fixtures/live-acceptance-reverse-harness.mjs` 可手动复演该反向用例（真实编排管线 + 假驱动，exit 1）。
+`tests/provider-live-acceptance.test.ts`（71 用例）覆盖：三模式参数与安全拒绝；日常 profile / Cookie 迁移 / 无平台批量创建拒绝；guest 与 auth-verify 动作白名单（无创建/确认/删除原子）；create-cleanup 缺双确认、缺 `--session`、服务未就绪、**身份闸门五种拒绝路径（无会话/记录缺失/校验失败/CDP 失活/witness 超时——均 exit 1 且零委托调用）**、委托清理失败即停；补丁器（快照夹具 + `node --check` 语法 + 锚点漂移 fail closed + dist 缺失 fail closed）；启动记录校验（隔离/时效/副本完整性）；witness 协议与新鲜度过滤（stale/关态/错端口）；信号清理子进程测试（真实 SIGINT/SIGTERM → dispose + 临时目录删除 + 130/143；Windows 无法按 POSIX 语义送达信号，仅 POSIX 腿运行）；报告含 commit SHA 与诊断且敏感字段脱敏；假浏览器“页面改版、入口消失”反向用例非零退出并产出可定位报告。`tests/fixtures/live-acceptance-reverse-harness.mjs`（改版反例）与 `tests/fixtures/live-identity-reverse-harness.mjs`（普通扩展在线→拒绝）可手动复演，均 exit 1。

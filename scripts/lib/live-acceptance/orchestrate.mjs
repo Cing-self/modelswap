@@ -12,6 +12,10 @@ import {
   startReport, finalizeReport, sanitizePlatformResult, exitCodeFromResults, writeReportFile,
 } from './report.mjs';
 import { classifyLoginState, classifyVerification } from './probe.mjs';
+import {
+  readLaunchRecord, validateLaunchRecord, createWitness, awaitFreshWitnessReport,
+  DEFAULT_WITNESS_PORT,
+} from './sessions.mjs';
 
 const DEFAULT_SETTLE = { attempts: 60, intervalMs: 500, spaSettleMs: 800 };
 
@@ -103,6 +107,9 @@ export async function runAcceptance(options) {
     env = process.env,
     logger = console,
     runStamp = '',
+    sessionId = '',
+    identityDeps = null,
+    witnessTimeoutMs = 45000,
   } = options;
 
   // Mode default: auth-verify keeps the dedicated Chrome open so the user can
@@ -137,6 +144,7 @@ export async function runAcceptance(options) {
         platformConfig: platformConfigs[0] || null,
         dryRun, allowCreateAndCleanup, push, fetchImpl, baseUrl,
         delegateScriptPath, repoRoot, spawnImpl, env, logger,
+        sessionId, root, identityDeps, witnessTimeoutMs,
       });
     } else if (dryRun) {
       for (const platform of platformConfigs) {
@@ -269,9 +277,92 @@ async function safeClose(driver, tab) {
   }
 }
 
+// ─── P0: dedicated-Chrome extension identity ────────────────────────
+//
+// /api/vault/cdp-status only proves that SOME extension holds the server's
+// single WS slot. Before any create/delete delegation we require a proof that
+// the connected extension belongs to THIS acceptance session: a patched
+// extension copy reporting {sessionId, wsUrl, wsState} to a local witness
+// while its server socket is open. Every dep is injectable so the offline
+// tests can drive the refuse paths without a browser.
+
+function defaultIdentityDeps({ root, fetchImpl, witnessTimeoutMs = 45000 }) {
+  return {
+    readRecord: ({ sessionId }) => readLaunchRecord({ root, sessionId }),
+    validateRecord: (record) => validateLaunchRecord(record, { root }),
+    probeCdp: async (debugPort) => {
+      try {
+        const response = await fetchImpl(`http://127.0.0.1:${debugPort}/json/version`);
+        return response.ok;
+      } catch {
+        return false;
+      }
+    },
+    startWitness: async (record) => {
+      const witness = createWitness({ port: record.witnessPort || DEFAULT_WITNESS_PORT });
+      await witness.start();
+      return witness;
+    },
+    awaitReport: ({ witness, sessionId, expectPort }) => awaitFreshWitnessReport({
+      witness, sessionId, expectWsPort: expectPort, maxWaitMs: witnessTimeoutMs,
+    }),
+  };
+}
+
+export async function verifyDedicatedExtensionIdentity({
+  sessionId, root, baseUrl, fetchImpl = fetch, identityDeps = null, witnessTimeoutMs = 45000, logger = console,
+}) {
+  const deps = identityDeps || defaultIdentityDeps({ root, fetchImpl, witnessTimeoutMs });
+  const refuse = (reason) => ({ ok: false, reason });
+  if (!sessionId) {
+    return refuse('未提供验收会话（--session）。create-cleanup 只接受由 provider-live-chrome --with-extension 生成的一次性验收会话；仅有“某个扩展在线”不构成执行依据');
+  }
+  const record = await deps.readRecord({ sessionId });
+  if (!record) {
+    return refuse(`找不到验收会话记录 ${sessionId}；请先用 provider-live-chrome --with-extension 启动专用 Chrome 生成新会话`);
+  }
+  const validation = await deps.validateRecord(record);
+  if (!validation.ok) {
+    return refuse(`会话记录校验失败：${validation.reason}`);
+  }
+  const cdpAlive = await deps.probeCdp(record.debugPort);
+  if (!cdpAlive) {
+    return refuse(`专用 Chrome 的 CDP（127.0.0.1:${record.debugPort}）未响应；会话 ${sessionId} 已失效，请重新启动`);
+  }
+  let expectPort = 80;
+  try {
+    expectPort = Number(new URL(baseUrl).port || 80);
+  } catch {
+    expectPort = 80;
+  }
+  let witness = null;
+  try {
+    witness = await deps.startWitness(record);
+  } catch (error) {
+    return refuse(`验收 witness 端口（${record.witnessPort || DEFAULT_WITNESS_PORT}）无法监听：${redactSecrets(error?.message || error)}；无法接收扩展证明`);
+  }
+  let report = null;
+  try {
+    report = await deps.awaitReport({ witness, sessionId, expectPort });
+  } finally {
+    try { await witness.stop(); } catch { /* already closed */ }
+  }
+  if (!report) {
+    return refuse(`未在 ${Math.round(witnessTimeoutMs / 1000)}s 内收到会话 ${sessionId} 的扩展心跳证明（要求 wsState=OPEN 且目标端口=${expectPort}）。当前在线的可能是日常 Chrome 的普通扩展（未打补丁、不上报会话）；无法证明扩展来源，拒绝执行`);
+  }
+  logger.log(`identity\tverified\tsession=${sessionId}\twitness-port=${parsePortOf(report.wsUrl) ?? '?'}`);
+  return { ok: true, record, report };
+}
+
+function parsePortOf(wsUrl) {
+  const match = /:\/\/[^/:]+:(\d+)(?:\/|$)/.exec(String(wsUrl || ''));
+  return match ? Number(match[1]) : null;
+}
+
 async function runCreateCleanupMode({
   platformConfig, dryRun, allowCreateAndCleanup, push, fetchImpl, baseUrl,
   delegateScriptPath, repoRoot, spawnImpl, env, logger,
+  sessionId = '', root = '', identityDeps = null, witnessTimeoutMs = 45000,
 }) {
   if (!platformConfig) {
     push({ platform: 'all', stage: 'validate', status: 'rejected', reason: 'create-cleanup 必须恰好指定一个平台' });
@@ -296,8 +387,9 @@ async function runCreateCleanupMode({
       status: 'dry_run',
       reason: '仅计划校验：未连接 OKIT 服务、未启动浏览器、未创建任何第三方密钥',
       steps: [
-        { step: 'verify-server', detail: `GET ${baseUrl}/api/vault/cdp-status，要求 available=true（扩展已连接）` },
-        { step: 'verify-dedicated-chrome', detail: '确认已用 scripts/provider-live-chrome.mjs --with-extension 启动专用 Chrome；日常 Chrome 的 OKIT 扩展须停用（单扩展连接模型）' },
+        { step: 'verify-server', detail: `GET ${baseUrl}/api/vault/cdp-status，要求 available=true（有扩展在线）` },
+        { step: 'verify-dedicated-chrome', detail: '校验 --session 一次性会话的启动记录：专用 profile 位于验收根内、补丁扩展副本完整、专用 Chrome CDP 存活' },
+        { step: 'verify-extension-session', detail: `在 witness（127.0.0.1:${DEFAULT_WITNESS_PORT}）收到本会话补丁扩展连接目标服务端口的新鲜心跳（wsState=OPEN）；普通/未知扩展在线不构成依据，无证明即拒绝` },
         { step: 'create', detail: `委托 scripts/auto-create-key-check.mjs ${platformConfig.id} --allow-create-and-cleanup：唯一测试名创建一把 Key` },
         { step: 'read', detail: '读取创建结果并核对唯一测试名与返回名称一致' },
         { step: 'delete', detail: '按精确名称删除本次创建的 Key（POST /api/vault/auto-create/delete）' },
@@ -325,6 +417,24 @@ async function runCreateCleanupMode({
       reason: `OKIT 服务/浏览器扩展未就绪（${redactSecrets(health.payload?.error || (health.ok ? 'available=false' : '服务不可达'))}）；请先启动 OKIT 服务并用 provider-live-chrome.mjs --with-extension 打开专用 Chrome`,
     });
     return 2;
+  }
+
+  // P0 gate: prove the connected extension belongs to this acceptance
+  // session before any create/delete delegation. cdp-status alone proves
+  // nothing about WHICH Chrome the extension lives in.
+  const identity = await verifyDedicatedExtensionIdentity({
+    sessionId, root, baseUrl, fetchImpl, identityDeps, witnessTimeoutMs, logger,
+  });
+  if (!identity.ok) {
+    push({
+      platform: platformConfig.id,
+      label: platformConfig.label,
+      mode: platformConfig.mode,
+      stage: 'verify-extension-session',
+      status: 'unverified_extension_identity',
+      reason: identity.reason,
+    });
+    return 1;
   }
 
   if (!spawnImpl || !delegateScriptPath) {

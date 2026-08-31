@@ -21,12 +21,15 @@ import { fileURLToPath } from 'node:url';
 import { findUnsafeArg, isSimpleProfileName, assertSafeProfileDir } from './lib/live-acceptance/safety.mjs';
 import { findChromeBinary, launchDedicatedChrome, probeDebugPort, openTabAtUrl, DEFAULT_DEBUG_PORT } from './lib/live-acceptance/browser.mjs';
 import { loadBrowserPlatforms } from './lib/live-acceptance/platforms.mjs';
+import {
+  newSessionId, buildAcceptanceExtensionCopy, writeLaunchRecord, DEFAULT_WITNESS_PORT,
+} from './lib/live-acceptance/sessions.mjs';
 
 const USAGE = [
   '用法：node scripts/provider-live-chrome.mjs [--profile <name>] [--with-extension] [--platform <id>...] [--status] [--debug-port <port>]',
   '',
   '  --profile <name>    专用 profile 名（默认 auth；纯标识符，不是路径）',
-  '  --with-extension    加载 OKIT 扩展（仅 create-cleanup 需要；日常 Chrome 的 OKIT 扩展请先停用——扩展按 3780→3785 顺序探测并锁定单一连接）',
+  '  --with-extension    创建一次性验收会话并加载打过补丁的扩展副本（create-cleanup 会话绑定所需；产品扩展本身不被修改）',
   '  --platform <id>     可重复：在打开的专用 Chrome 中新开该平台控制台标签页，便于人工登录',
   '  --status            只探测专用 Chrome 是否在运行，不启动',
   '  --debug-port <port> CDP 调试端口（默认 9333）',
@@ -104,7 +107,32 @@ async function main() {
     return;
   }
 
-  const extensionDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'extension');
+  // --with-extension creates a one-time acceptance session: a launch record
+  // plus a PATCHED COPY of the product extension that reports its session id
+  // to the local witness while its server WS is open. create-cleanup refuses
+  // to delegate unless it can verify this binding (unverified_extension_identity).
+  let extensionDir = '';
+  let sessionId = '';
+  let recordFile = '';
+  if (parsed.withExtension) {
+    sessionId = newSessionId();
+    const repoExtensionDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'extension');
+    extensionDir = path.join(root, 'extension-copies', sessionId);
+    try {
+      const built = await buildAcceptanceExtensionCopy({
+        sourceDir: repoExtensionDir,
+        destDir: extensionDir,
+        sessionId,
+        witnessPort: DEFAULT_WITNESS_PORT,
+      });
+      console.log(`extension-copy\t${built.copyDir}\tpatched=${Object.entries(built.patched).map(([k, v]) => `${k}:${v}`).join(',')}`);
+    } catch (error) {
+      console.error(`error\t无法生成验收扩展副本（fail closed，不启动扩展链路）：${error?.message || error}`);
+      process.exitCode = 1;
+      return;
+    }
+  }
+
   const launched = await launchDedicatedChrome({
     binary,
     userDataDir: profileDir,
@@ -114,6 +142,21 @@ async function main() {
     extensionDir,
   });
   await probeDebugPort(parsed.debugPort, 20000);
+
+  if (parsed.withExtension) {
+    const written = await writeLaunchRecord({
+      root,
+      sessionId,
+      profileDir,
+      debugPort: parsed.debugPort,
+      witnessPort: DEFAULT_WITNESS_PORT,
+      pid: launched.pid,
+      extensionCopyDir: extensionDir,
+    });
+    recordFile = written.file;
+    console.log(`session\t${sessionId}`);
+    console.log(`session-record\t${recordFile}`);
+  }
 
   if (parsed.platforms.length) {
     const byId = new Map(loadBrowserPlatforms().map((platform) => [platform.id, platform]));
@@ -137,7 +180,8 @@ async function main() {
   console.log(`pid\t${launched.pid}`);
   console.log('note\t这是独立的专用测试 Chrome：与日常 Chrome 完全隔离；本工具绝不读取/复制/备份/导出日常浏览器的 Cookie、LocalStorage、IndexedDB、钥匙串或配置');
   if (parsed.withExtension) {
-    console.log('note\t已加载 OKIT 扩展。日常 Chrome 如也启用了 OKIT 扩展，请先停用其一（扩展会争抢单一服务器连接）');
+    console.log('note\t已加载“本会话打过补丁的验收扩展副本”（上报会话标识到本地 witness）。create-cleanup 将校验该会话绑定；普通/未知扩展在线不构成执行依据');
+    console.log(`note\tcreate-cleanup 用法：npm run test:providers:live -- --mode create-cleanup --platform <id> --allow-create-and-cleanup --session ${sessionId}`);
   }
   console.log('note\t请在打开的窗口中人工完成各平台官方登录；登录态只保存在上述专用目录。auth-verify 验收请随后运行：npm run test:providers:live -- --mode auth-verify');
 }
