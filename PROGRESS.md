@@ -260,4 +260,3 @@
 - P0-1：stop/start 后 304 吞通知——latestEtag 跨重启保留但 hasBaseline 重置，304 不重建基线，后续新 tag 被当首次。修复：304 在无基线时从共享 cache 重建基线（绝不为既有 release 广播）。精确序列反证测试先红后绿（update-watcher.test.js 第 8 用例）。
 - P0-2：silent check 先把 available 改 checking，失败时守卫失效→回退 error。修复：抽出 beginUpdateCheck/failUpdateCheck 纯函数——silent 且 available/upToDate 时进行中与失败后均保留原状态（含 release 信息）；显式检查错误照常上浮。转换语义 9 用例先红后绿（useAppUpdate.policy.test.ts）。
 状态：定向三文件全绿；fresh 全量除已知 v1.0.38 门禁基线失败外无新增失败。
-
