@@ -1,0 +1,381 @@
+// Mode orchestration for the provider live-acceptance tool.
+//
+// runAcceptance is the single entry the CLI uses; the offline tests drive it
+// with a fake browser driver and injected clock/sleep/spawn so every branch —
+// including the "page redesigned, safe entry missing" red path — is provable
+// without touching a real provider.
+
+import path from 'node:path';
+import fs from 'node:fs/promises';
+import { redactSecrets } from './safety.mjs';
+import {
+  startReport, finalizeReport, sanitizePlatformResult, exitCodeFromResults, writeReportFile,
+} from './report.mjs';
+import { classifyLoginState, classifyVerification } from './probe.mjs';
+
+const DEFAULT_SETTLE = { attempts: 40, intervalMs: 300, spaSettleMs: 800 };
+
+function pageSummary(state) {
+  return {
+    title: String(state?.title || ''),
+    buttonsSummary: Array.isArray(state?.buttons) ? state.buttons : [],
+    linksSummary: Array.isArray(state?.links) ? state.links : [],
+    bodyChars: Number(state?.bodyChars) || 0,
+  };
+}
+
+function classifyGuestOutcome(state) {
+  if (classifyVerification(state)) {
+    return { status: 'waiting_for_user', reason: '未登录会话遇到人机/安全验证（CAPTCHA/滑块/短信）——外部前置条件，需人工完成后重跑；未执行任何创建动作' };
+  }
+  if (classifyLoginState(state)) {
+    return { status: 'passed_login_gate', reason: '未登录会话被登录墙识别（可交接登录）；本模式未执行任何创建/确认/复制/删除动作' };
+  }
+  if (state?.consoleSurface) {
+    return { status: 'failed', reason: '全新临时会话未被登录拦截，页面呈现控制台特征——需人工核对（免登录视图或页面改版）' };
+  }
+  if ((state?.buttons?.length || 0) + (state?.links?.length || 0) > 0) {
+    return { status: 'blocked_prerequisite', reason: '页面未呈现登录墙或控制台特征（可能营销页或改版），无法完成“未登录可识别”验收——需人工确认' };
+  }
+  return { status: 'failed', reason: '页面无可识别内容（疑似平台改版或反爬拦截）——探针无法定位登录墙，按失败处理' };
+}
+
+function classifyAuthVerifyOutcome(platform, state) {
+  if (classifyVerification(state)) {
+    return {
+      status: 'waiting_for_user',
+      loginUrl: state?.url,
+      reason: '专用测试 profile 遇到人机/安全验证——请在保留的专用 Chrome 窗口人工完成官方验证后重跑',
+    };
+  }
+  if (classifyLoginState(state)) {
+    return {
+      status: 'waiting_for_user',
+      loginUrl: state?.url,
+      reason: '专用测试 profile 尚未登录该平台；请在保留的专用 Chrome 窗口完成官方登录后重跑本命令（脚本不会代输账号/密码/验证码）',
+    };
+  }
+  if ((state?.matchedExpected || []).length > 0) {
+    return { status: 'passed_entry_found', reason: `已登录控制台可达，并找到预期安全入口文案（未点击）：${state.matchedExpected.slice(0, 3).join(' / ')}` };
+  }
+  if (state?.maskedPrefixFound) {
+    return { status: 'passed_entry_found', reason: '已登录页面显示订阅专属 Key 的掩码前缀（未复制、未点击生成/重置）' };
+  }
+  if (platform.reuseOnly && state?.consoleSurface) {
+    return { status: 'blocked_prerequisite', reason: '已登录，但页面未见可复用的掩码订阅 Key——按产品规则需先人工生成一次；自动化不会点击“生成/重置”' };
+  }
+  if ((platform.expectedTexts || []).length > 0) {
+    return { status: 'failed', reason: 'safe_entry_missing：已登录但未找到任何预期入口文案——疑似第三方页面改版，需要更新平台策略' };
+  }
+  if (state?.consoleSurface) {
+    return { status: 'passed_console_reached', reason: '已登录控制台可达；该平台未配置显式入口文案，仅验证页面状态（弱通过，不等于入口级验收）' };
+  }
+  return { status: 'failed', reason: '已登录会话未呈现可识别控制台（疑似改版或加载失败）——按失败处理' };
+}
+
+function shouldScreenshot(policy, status) {
+  if (policy === 'off') return false;
+  if (policy === 'all') return true;
+  // login-only: keep evidence for handoffs and failures; skip healthy
+  // signed-in consoles, whose screenshots would contain account UI.
+  return status === 'waiting_for_user' || status === 'failed' || status === 'blocked_prerequisite';
+}
+
+export async function runAcceptance(options) {
+  const {
+    mode,
+    dryRun = false,
+    allowCreateAndCleanup = false,
+    keepOpen = null,
+    screenshotPolicy = 'all',
+    platformConfigs = [],
+    driver = null,
+    root,
+    checkout = {},
+    now = () => new Date(),
+    sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    settle = DEFAULT_SETTLE,
+    fetchImpl = fetch,
+    baseUrl = process.env.OKIT_AUTO_CREATE_BASE_URL || 'http://127.0.0.1:3780',
+    delegateScriptPath = '',
+    repoRoot = process.cwd(),
+    spawnImpl = null,
+    env = process.env,
+    logger = console,
+    runStamp = '',
+  } = options;
+
+  // Mode default: auth-verify keeps the dedicated Chrome open so the user can
+  // finish logins in it; guest/create-cleanup close it.
+  const keepChromeOpen = keepOpen === null ? mode === 'auth-verify' : Boolean(keepOpen);
+  const stamp = runStamp || now().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
+  const screenshotDir = path.join(root, 'screenshots', stamp);
+  const report = startReport({
+    mode,
+    dryRun,
+    checkout,
+    requestedPlatforms: platformConfigs.map((platform) => platform.id),
+    safety: {
+      extensionLoaded: mode === 'create-cleanup',
+      screenshotPolicy,
+      keepOpen: keepChromeOpen,
+      artifactRoot: root,
+    },
+  });
+
+  const push = (partial) => {
+    const result = sanitizePlatformResult(partial);
+    report.results.push(result);
+    logger.log(`${result.status}\t${result.platform}${result.reason ? `\t${result.reason}` : ''}`);
+    return result;
+  };
+
+  let exitCode = 0;
+  try {
+    if (mode === 'create-cleanup') {
+      exitCode = await runCreateCleanupMode({
+        platformConfig: platformConfigs[0] || null,
+        dryRun, allowCreateAndCleanup, push, fetchImpl, baseUrl,
+        delegateScriptPath, repoRoot, spawnImpl, env, logger,
+      });
+    } else if (dryRun) {
+      for (const platform of platformConfigs) {
+        push({
+          platform: platform.id,
+          label: platform.label,
+          mode: 'browser',
+          stage: 'plan',
+          status: 'dry_run',
+          reason: 'dry-run 仅校验参数、计划与报告格式；未启动浏览器、未访问任何外部资源',
+        });
+      }
+      exitCode = 0;
+    } else {
+      if (!driver) throw new Error(`模式 ${mode} 需要 browser driver（dry-run 除外）`);
+      for (const platform of platformConfigs) {
+        await probePlatform({ platform, mode, driver, settle, sleep, push, screenshotDir, screenshotPolicy });
+      }
+    }
+  } catch (error) {
+    push({
+      platform: platformConfigs[0]?.id || 'all',
+      label: platformConfigs[0]?.label || '',
+      stage: 'fatal',
+      status: 'rejected',
+      reason: `运行中止：${redactSecrets(error?.message || String(error))}`,
+    });
+    exitCode = 1;
+  } finally {
+    // dry-run must not touch the driver at all; create-cleanup never uses one.
+    if (driver && !dryRun && mode !== 'create-cleanup') {
+      try {
+        await driver.dispose({ keepOpen: keepChromeOpen });
+      } catch (error) {
+        logger.log(`warn\t浏览器清理失败：${redactSecrets(error?.message || error)}`);
+      }
+    }
+  }
+
+  finalizeReport(report);
+  const reportPath = await writeReportFile(root, report, stamp);
+  logger.log(`report\t${reportPath}`);
+  return { report, exitCode: exitCode || report.exitCode, reportPath };
+}
+
+async function probePlatform({ platform, mode, driver, settle, sleep, push, screenshotDir, screenshotPolicy }) {
+  const base = {
+    platform: platform.id,
+    label: platform.label,
+    mode: 'browser',
+    stage: 'navigate',
+  };
+  let tab;
+  try {
+    tab = await driver.openTab(platform.url);
+  } catch (error) {
+    return push({
+      ...base,
+      stage: 'open-tab',
+      status: 'blocked_prerequisite',
+      reason: `无法打开专用浏览器页面（浏览器/CDP 错误）：${redactSecrets(error?.message || error)}`,
+    });
+  }
+
+  let state = null;
+  try {
+    for (let attempt = 0; attempt < Math.max(1, settle.attempts); attempt += 1) {
+      state = await driver.probe(tab, {
+        platformId: platform.id,
+        expectedTexts: platform.expectedTexts || [],
+        maskedPrefix: platform.maskedPrefix || '',
+      });
+      if (state?.readyState === 'complete') break;
+      await sleep(settle.intervalMs);
+    }
+    if (settle.spaSettleMs > 0) await sleep(settle.spaSettleMs);
+    state = await driver.probe(tab, {
+      platformId: platform.id,
+      expectedTexts: platform.expectedTexts || [],
+      maskedPrefix: platform.maskedPrefix || '',
+    });
+  } catch (error) {
+    await safeClose(driver, tab);
+    return push({
+      ...base,
+      stage: 'probe',
+      status: 'failed',
+      reason: `只读探针执行失败（可能页面改版或 CDP 中断）：${redactSecrets(error?.message || error)}`,
+    });
+  }
+
+  const outcome = mode === 'guest'
+    ? classifyGuestOutcome(state)
+    : classifyAuthVerifyOutcome(platform, state);
+
+  let screenshot = null;
+  if (shouldScreenshot(screenshotPolicy, outcome.status)) {
+    try {
+      await fs.mkdir(screenshotDir, { recursive: true });
+      const filePath = path.join(screenshotDir, `${mode}-${platform.id}.png`);
+      await driver.screenshot(tab, filePath);
+      screenshot = filePath;
+    } catch {
+      screenshot = null;
+    }
+  }
+
+  await safeClose(driver, tab);
+  return push({
+    ...base,
+    stage: 'classify',
+    ...outcome,
+    loginUrl: outcome.loginUrl || state?.url,
+    page: pageSummary(state),
+    screenshot,
+  });
+}
+
+async function safeClose(driver, tab) {
+  try {
+    await driver.closeTab(tab);
+  } catch {
+    // closing a probe tab is best-effort; the driver disposes the browser
+  }
+}
+
+async function runCreateCleanupMode({
+  platformConfig, dryRun, allowCreateAndCleanup, push, fetchImpl, baseUrl,
+  delegateScriptPath, repoRoot, spawnImpl, env, logger,
+}) {
+  if (!platformConfig) {
+    push({ platform: 'all', stage: 'validate', status: 'rejected', reason: 'create-cleanup 必须恰好指定一个平台' });
+    return 1;
+  }
+  if (!dryRun && !allowCreateAndCleanup) {
+    push({
+      platform: platformConfig.id,
+      label: platformConfig.label,
+      stage: 'validate',
+      status: 'rejected',
+      reason: 'create-cleanup 默认禁止：真实运行必须同时给出 --platform 与 --allow-create-and-cleanup',
+    });
+    return 1;
+  }
+  if (dryRun) {
+    push({
+      platform: platformConfig.id,
+      label: platformConfig.label,
+      mode: platformConfig.mode,
+      stage: 'plan',
+      status: 'dry_run',
+      reason: '仅计划校验：未连接 OKIT 服务、未启动浏览器、未创建任何第三方密钥',
+      steps: [
+        { step: 'verify-server', detail: `GET ${baseUrl}/api/vault/cdp-status，要求 available=true（扩展已连接）` },
+        { step: 'verify-dedicated-chrome', detail: '确认已用 scripts/provider-live-chrome.mjs --with-extension 启动专用 Chrome；日常 Chrome 的 OKIT 扩展须停用（单扩展连接模型）' },
+        { step: 'create', detail: `委托 scripts/auto-create-key-check.mjs ${platformConfig.id} --allow-create-and-cleanup：唯一测试名创建一把 Key` },
+        { step: 'read', detail: '读取创建结果并核对唯一测试名与返回名称一致' },
+        { step: 'delete', detail: '按精确名称删除本次创建的 Key（POST /api/vault/auto-create/delete）' },
+        { step: 'confirm-gone', detail: '确认该名称行消失；任何清理失败立即停止并报告 cleanup_failed，不再创建下一把 Key' },
+      ],
+    });
+    return 0;
+  }
+
+  // Real run: the OKIT server + its extension must be alive first.
+  let health = { ok: false, payload: {} };
+  try {
+    const response = await fetchImpl(new URL('/api/vault/cdp-status', baseUrl));
+    health = { ok: response.ok, payload: await response.json().catch(() => ({})) };
+  } catch (error) {
+    health = { ok: false, payload: { error: error?.message || String(error) } };
+  }
+  if (!health.ok || !health.payload?.available) {
+    push({
+      platform: platformConfig.id,
+      label: platformConfig.label,
+      mode: platformConfig.mode,
+      stage: 'verify-server',
+      status: 'blocked_prerequisite',
+      reason: `OKIT 服务/浏览器扩展未就绪（${redactSecrets(health.payload?.error || (health.ok ? 'available=false' : '服务不可达'))}）；请先启动 OKIT 服务并用 provider-live-chrome.mjs --with-extension 打开专用 Chrome`,
+    });
+    return 2;
+  }
+
+  if (!spawnImpl || !delegateScriptPath) {
+    push({
+      platform: platformConfig.id,
+      label: platformConfig.label,
+      stage: 'delegate',
+      status: 'failed',
+      reason: '缺少委托执行器（内部错误）',
+    });
+    return 1;
+  }
+
+  const child = spawnImpl(process.execPath, [delegateScriptPath, platformConfig.id, '--allow-create-and-cleanup'], {
+    cwd: repoRoot,
+    env,
+  });
+  let stdout = '';
+  child.stdout.on('data', (chunk) => { if (stdout.length < 65536) stdout += String(chunk); });
+  child.stderr.on('data', (chunk) => { if (stdout.length < 65536) stdout += String(chunk); });
+  const code = await new Promise((resolve) => {
+    child.on('error', resolve);
+    child.on('close', (exitCode) => resolve(exitCode == null ? 1 : exitCode));
+  });
+
+  const reportMatch = stdout.match(/^report\t(.+)$/m);
+  let delegated = null;
+  if (reportMatch) {
+    try {
+      const payload = JSON.parse(await fs.readFile(reportMatch[1].trim(), 'utf8'));
+      delegated = (payload.results || [])[0] || null;
+    } catch {
+      delegated = null;
+    }
+  }
+  if (!delegated) {
+    push({
+      platform: platformConfig.id,
+      label: platformConfig.label,
+      mode: platformConfig.mode,
+      stage: 'delegate',
+      status: 'failed',
+      reason: `委托脚本未产出可解析结果（退出码 ${code}）：${redactSecrets(stdout.split('\n').slice(-5).join(' '))}`,
+    });
+    return 1;
+  }
+  const result = push({
+    platform: platformConfig.id,
+    label: platformConfig.label,
+    mode: platformConfig.mode,
+    stage: 'delegate',
+    status: delegated.status,
+    reason: delegated.reason ? redactSecrets(delegated.reason) : `委托完成（status=${delegated.status}）`,
+    testName: delegated.testName,
+    createdName: delegated.createdName,
+    delegateReport: reportMatch ? reportMatch[1].trim() : '',
+  });
+  logger.log(`delegate-exit\t${code}`);
+  return exitCodeFromResults([result]);
+}

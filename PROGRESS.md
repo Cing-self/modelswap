@@ -266,3 +266,16 @@
 
 # Ubuntu CI provider-flow 竞态修复（2026-08-31，基于 origin/main e0ea6b1）
 任务书后半截断，按可见使命执行（细节假设记入 BLOCKED.md）。CI 33355240086 ubuntu 失败：provider-flow「runs API → store → adapters」行 127 modelOverrides['flow-open'] undefined。根因（代码级+体外双重实证）：createProvider/updateProvider 的 markDirty→recordLocalChange 为发射后不管排队写，夹具裸写 user.json 与其「读在裸写前、写在裸写后」的 straddle 交错时，旧快照落盘覆盖 overrides 段——与 b5ab9d6（hydration 夹具）同族；recordLocalChange 在 handler 内同步入队（sync-scheduler.js:41-43），故裸写前 await 一个排队写即严密 drain。修复仅动夹具：裸写前 `await syncCore.recordLocalChange('providers', …)`。验证：定向 14/14 ×6 轮（3 轮 CPU 饱和）；体外 A/B 对照（未修复 straddle 必丢 overrides=CI 同错；drain 后 overrides={context:777,output:333} 存活）；fresh 全量 98 文件/839 测试全绿（main 已含 v1.0.38 notes，基线无已知失败）；build 绿。未改业务生产逻辑。
+
+# Provider 真实验收工具·第一阶段开工（2026-08-31，worktree integration-refactor-suite）
+- 目标：新增发布前人工触发的 `scripts/provider-live-acceptance.mjs`（guest / auth-verify / create-cleanup 三模式），平台目录自动读 AUTO_CREATE_PLATFORMS，产物仅入 `~/.okit/provider-live-acceptance/`；同步收紧旧 auto-create-key-check.mjs 的无平台批量创建。
+- 顺序：先基线核对 → 设计安全边界（专用 profile、只读探针、动作白名单）→ 实现脚本与启动器 → 离线测试（含假浏览器反例）→ 反向验证三例 → 文档+提交（不 push）。
+- 最大安全风险：误碰日常 Chrome 登录态（profile 复用/复制）与真实创建第三方 Key；对策=guest/auth-verify 走专用 profile Chrome + CDP 只读探针（结构上无创建通路），create-cleanup 双重确认且单平台、清理失败即停。
+- 基线实测（2026-08-31 21:4x）：`--list` 32 平台=1 api(cloudflare)+31 browser ✓；定向 4 文件 57/57 通过 ✓；`npm run build` 见下一条回执。
+- 基线补记：`npm run build` exit 0（141 行日志，前端构建成功）；三项基线均与任务书一致，未触发 BLOCKED。
+
+# Provider 真实验收工具·第一阶段交付回执（2026-08-31）
+- 新增 `scripts/provider-live-acceptance.mjs`（npm run test:providers:live）+ `scripts/provider-live-chrome.mjs`（专用 Chrome 启动/登录辅助）+ `scripts/lib/live-acceptance/`（safety/args/platforms/probe/report/browser/orchestrate 七模块）。guest=临时 profile CDP 只读探针验证登录墙；auth-verify=专用持久 profile 验证安全入口（不点击创建类动作）；create-cleanup=单平台+`--allow-create-and-cleanup`+`--with-extension` 三重门槛，委托 auto-create-key-check.mjs，清理失败即停。平台单一真源 AUTO_CREATE_PLATFORMS（32=1 api+31 browser），未另抄名单。
+- 安全边界实证：日常 profile/Cookie 迁移/无平台批量创建均拒绝（反向验证#1/#2 exit 1/2）；假浏览器"页面改版入口消失"走真实编排管线 exit 1 且产出可定位报告（tests/fixtures/live-acceptance-reverse-harness.mjs）；报告脱敏（key/JWT/query 串）有测试断言；产物只写 ~/.okit/provider-live-acceptance/。
+- 旧 auto-create-key-check.mjs 收紧：真实创建需显式平台+危险确认开关，--list/--cleanup/dry-run 保留。
+- 测试结果：新增 tests/provider-live-acceptance.test.ts 54/54；定向 4 文件 57/57；全量 `npm test -- --run` 104 文件/919 测试全过零 skip；`npm run build` exit 0。本阶段未真实创建任何第三方 Key（create-cleanup 仅 dry-run 验证）。

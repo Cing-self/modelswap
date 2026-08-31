@@ -3,6 +3,12 @@
 /**
  * Destructive-but-scoped auto-create smoke test.
  *
+ * SAFETY GATE (2026-08-31): implicit batch creation over every platform is
+ * refused. A real run requires an explicit platform list AND the
+ * --allow-create-and-cleanup switch; --dry-run only previews a plan and is
+ * never a substitute for real verification. The provider-live-acceptance
+ * tool wraps this script for its single-platform create-cleanup mode.
+ *
  * Each run uses a unique OKIT_AUTOCHECK_* name, creates one credential through
  * the same HTTP route as the UI, then revokes/deletes that exact credential.
  * Subscription flows that deliberately copy an existing key are verified but
@@ -249,6 +255,18 @@ async function main() {
     return;
   }
   const cleanupMode = args.has('--cleanup');
+  // Guardrails: implicit "create on every platform" is no longer accepted.
+  // Real create runs need BOTH an explicit platform list and the dangerous
+  // confirmation switch; --dry-run may preview an explicit plan only.
+  const dangerousConfirmed = args.has('--allow-create-and-cleanup');
+  if (!cleanupMode) {
+    if (!requestedPlatforms.length) {
+      throw new Error('拒绝执行：未指定平台。请显式传入平台 ID（--list 查看）；不接受隐式的全平台批量真实创建。');
+    }
+    if (!dangerousConfirmed && !args.has('--dry-run')) {
+      throw new Error('拒绝执行：真实创建/删除第三方密钥需要 --allow-create-and-cleanup 危险确认开关。dry-run 只校验计划与参数，不构成真实验证。');
+    }
+  }
   const cleanupData = cleanupMode ? await readCleanupTargets(cleanupReportPath) : null;
   const cleanupTargets = cleanupData?.targets || [];
   const cleanupPlatforms = cleanupTargets.map(target => AUTO_CREATE_PLATFORMS.find(platform => platform.id === target.id));
@@ -274,6 +292,9 @@ async function main() {
     report.results = cleanupMode
       ? cleanupTargets.map(target => ({ ...target, status: 'dry_run' }))
       : activePlatforms.map(platform => ({ id: platform.id, label: platform.label, status: 'dry_run' }));
+    for (const result of report.results) {
+      console.log(`${result.status}\t${result.id || result.platform}${result.testName ? `\t${result.testName}` : ''}`);
+    }
   } else {
     if (report.checkout.dirty) {
       const reason = report.checkout.error

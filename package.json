@@ -22,6 +22,7 @@
     "pretest": "tsc && npm run copy-web",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:providers:live": "node scripts/provider-live-acceptance.mjs",
     "build-extension": "cd extension && npm ci && npm run build"
   },
   "files": [
