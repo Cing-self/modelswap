@@ -1,6 +1,10 @@
 node_modules
 bin/
 dist/
+# Byte-identical snapshot of the built extension used by the live-acceptance
+# patch tests (extension/dist itself is a build artifact absent on CI).
+!tests/fixtures/extension-dist-sample/dist/
+!tests/fixtures/extension-dist-sample/dist/**
 release/
 .DS_Store
 *.log
