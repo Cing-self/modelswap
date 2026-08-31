@@ -1,0 +1,26 @@
+{
+  "version": "v1.0.38",
+  "publishedAt": "2026-08-31",
+  "summary": {
+    "zh": "本次更新让常开桌面端能主动感知新版本，并把更新入口收敛为清晰、安静的检查与提示流程。",
+    "en": "This update lets long-running desktop apps discover new releases automatically and streamlines updates into a clear, quiet check-and-notify flow."
+  },
+  "highlights": [
+    {
+      "category": "new",
+      "zh": "桌面端会在后台定期检查新版本；发现更新后，无需重启应用即可在左上角显示更新提示。",
+      "en": "The desktop app now checks for releases in the background and shows an update indicator in the title bar without requiring a restart."
+    },
+    {
+      "category": "improved",
+      "zh": "“关于与诊断”页现在只保留“检查更新”操作；发现新版本后的详情、下载与安装统一从左上角提示进入。",
+      "en": "The About & Diagnostics page now offers one Check for updates action; update details, downloads, and installation are accessed from the title-bar indicator after an update is found."
+    },
+    {
+      "category": "fixed",
+      "zh": "修复应用服务重启后可能漏掉更新提示的问题，并确保后台检查失败时不会隐藏已经发现的更新。",
+      "en": "Fixed missed update notifications after an app-service restart and ensured failed background checks do not hide an update that was already found."
+    }
+  ],
+  "releaseUrl": "https://github.com/Cing-self/okit/releases/tag/v1.0.38"
+}
