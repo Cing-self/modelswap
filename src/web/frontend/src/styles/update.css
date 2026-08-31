@@ -1,58 +1,35 @@
-/* Shared update-details sheet. It extends the existing modal language rather
-   than creating a separate overlay visual system. */
-.update-details-overlay { align-items: stretch; justify-content: flex-end; padding: 16px; }
-.update-details-sheet {
-  width: min(472px, calc(100vw - 32px));
-  max-width: 472px;
-  max-height: calc(100dvh - 32px);
-  height: auto;
-  margin-left: auto;
-  display: flex;
-  flex-direction: column;
-  border: 1.5px solid var(--card-line);
-  border-radius: var(--card-radius);
-  background: var(--card-surface);
-  box-shadow: var(--card-shadow);
-  overflow: hidden;
-  animation: update-sheet-in .18s ease-out;
-}
-.update-details-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 20px 20px 15px; border-bottom: 1px solid var(--card-line); background: var(--card-surface-soft); }
-.update-details-heading { display: flex; gap: 10px; min-width: 0; }
-.update-details-status-icon { display: grid; flex: none; place-items: center; width: 32px; height: 32px; margin-top: 1px; border-radius: 10px; color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--card-inner)); }
-.update-details-status-icon.is-error { color: var(--red); background: color-mix(in srgb, var(--red) 10%, var(--card-inner)); }
-.update-details-heading h2 { margin: 0; color: var(--ink); font-size: 19px; line-height: 1.25; }
-.update-details-version { margin: 4px 0 0; color: var(--ink-muted); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
-.update-details-body { min-height: 0; overflow-y: auto; padding: 20px; }
-.update-details-summary { margin: 0 0 20px; color: var(--ink); font-size: 14px; line-height: 1.6; }
-.update-details-group + .update-details-group { margin-top: 18px; }
-.update-details-group h3 { margin: 0 0 7px; color: var(--ink-muted); font-size: 11px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
-.update-details-group ul { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
-.update-details-group li { position: relative; padding-left: 16px; color: var(--ink); font-size: 14px; line-height: 1.55; }
-.update-details-group li::before { position: absolute; left: 0; top: .6em; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); content: ''; }
-.update-details-recovery, .update-details-last-check { margin: 0; color: var(--ink-muted); font-size: 13px; line-height: 1.55; }
-.update-details-download-error { margin: 18px 0 0; color: var(--red); font-size: 13px; line-height: 1.5; }
-.update-details-progress { margin-top: 18px; padding: 12px; border: 1px solid var(--card-line); border-radius: 10px; background: var(--card-inner); color: var(--ink-muted); font-size: 12px; }
-.update-details-progress-row { display: flex; justify-content: space-between; gap: 12px; }
-.update-details-progress-track { display: block; height: 6px; margin-top: 9px; overflow: hidden; border-radius: 999px; background: color-mix(in srgb, var(--ink-muted) 15%, transparent); }
-.update-details-progress-track > span { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width .2s ease; }
-.update-details-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px; border-top: 1px solid var(--card-line); background: var(--card-surface-soft); }
-.update-details-release-link { display: inline-flex; align-items: center; gap: 4px; min-width: 0; color: var(--ink-muted); font-size: 12px; line-height: 1.4; text-decoration: none; }
-.update-details-release-link:hover { color: var(--ink); text-decoration: underline; }
-.update-details-action-buttons { display: flex; flex: none; align-items: center; gap: 8px; }
-.update-details-primary { min-height: 36px; white-space: nowrap; }
-.update-details-later { min-height: 36px; border: 0; background: transparent; color: var(--ink-muted); font: inherit; font-size: 12px; cursor: pointer; }
-.update-details-later:hover { color: var(--ink); text-decoration: underline; }
-[data-theme="dark"] .update-details-sheet { border-color: var(--card-line); box-shadow: var(--card-shadow); }
-@keyframes update-sheet-in { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: translateX(0); } }
-@media (max-width: 640px) {
-  .update-details-overlay { align-items: flex-end; padding: 12px; }
-  .update-details-sheet { width: 100%; max-width: none; max-height: calc(100dvh - 24px); margin: 0; }
-  .update-details-actions { align-items: stretch; flex-direction: column; }
-  .update-details-release-link { min-height: 30px; }
-  .update-details-action-buttons { width: 100%; }
-  .update-details-primary, .update-details-later { min-height: 44px; }
-  .update-details-primary { flex: 1; justify-content: center; }
-  @keyframes update-sheet-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
-}
-@media (max-width: 375px) { .update-details-header, .update-details-body, .update-details-actions { padding-left: 16px; padding-right: 16px; } }
-@media (prefers-reduced-motion: reduce) { .update-details-sheet, .update-details-progress-track > span { animation: none; transition: none; } }
+/* A small, read-only release-note preview attached directly below the update
+   icon. One uninterrupted card surface replaces the former tinted sheet. */
+.titlebar-update-anchor { position: relative; display: inline-flex; margin-left: 10px; -webkit-app-region: no-drag; }
+.titlebar-update { display: inline-grid; width: 28px; height: 28px; place-items: center; border: 1px solid color-mix(in srgb, var(--ink) 16%, transparent); border-radius: 8px; color: var(--ink); background: transparent; cursor: pointer; -webkit-app-region: no-drag; transition: background .16s ease, border-color .16s ease, color .16s ease, transform .16s ease; }
+.titlebar-update:hover, .titlebar-update:focus-visible { border-color: color-mix(in srgb, var(--accent) 48%, transparent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.titlebar-update:active { transform: translateY(1px); }
+.titlebar-update.is-available, .titlebar-update.is-ready { color: var(--accent); }
+.titlebar-update.is-downloading { cursor: wait; color: color-mix(in srgb, var(--ink) 70%, transparent); }
+.titlebar-update.is-failed { color: var(--red); }
+.titlebar-update .spin { animation: okit-titlebar-spin .9s linear infinite; }
+.titlebar-update.is-ready { animation: titlebar-update-pulse 2.2s ease-in-out infinite; }
+
+.update-hover-card { position: absolute; z-index: 45; top: calc(100% + 7px); left: 0; width: min(380px, calc(100vw - 28px)); max-height: min(430px, calc(100dvh - 66px)); overflow: hidden; border: 1px solid var(--card-line); border-radius: 12px; color: var(--ink); background: var(--card-surface); box-shadow: 0 16px 36px color-mix(in srgb, var(--ink) 16%, transparent), inset 0 1px 0 color-mix(in srgb, white 80%, transparent); animation: update-hover-card-in .14s ease-out; }
+.update-hover-card::before { position: absolute; top: -5px; left: 10px; width: 9px; height: 9px; border-top: 1px solid var(--card-line); border-left: 1px solid var(--card-line); background: var(--card-surface); content: ''; transform: rotate(45deg); }
+.update-hover-card-header { display: flex; align-items: flex-start; gap: 10px; padding: 16px 16px 11px; background: var(--card-surface); }
+.update-hover-card-status-icon { display: grid; flex: none; width: 29px; height: 29px; place-items: center; border-radius: 8px; color: var(--accent); background: color-mix(in srgb, var(--accent) 11%, transparent); }
+.update-hover-card-status-icon.is-error { color: var(--red); background: color-mix(in srgb, var(--red) 10%, transparent); }
+.update-hover-card-header h2 { margin: 0; font-size: 15px; line-height: 1.35; }
+.update-hover-card-version { margin: 3px 0 0; color: var(--ink-muted); font-size: 12px; line-height: 1.4; }
+.update-hover-card-body { max-height: 335px; overflow-y: auto; padding: 0 16px 16px; background: var(--card-surface); }
+.update-hover-card-summary { margin: 0 0 14px; color: var(--ink-light); font-size: 13px; line-height: 1.55; }
+.update-hover-card-group + .update-hover-card-group { margin-top: 13px; }
+.update-hover-card-group h3 { margin: 0 0 5px; color: var(--ink-muted); font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.update-hover-card-group ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.update-hover-card-group li { position: relative; padding-left: 13px; color: var(--ink); font-size: 12px; line-height: 1.48; }
+.update-hover-card-group li::before { position: absolute; top: .55em; left: 0; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); content: ''; }
+.update-hover-card-error { margin: 14px 0 0; color: var(--red); font-size: 12px; line-height: 1.45; }
+.update-hover-card-progress { margin-top: 14px; color: var(--ink-muted); font-size: 11px; }
+.update-hover-card-progress > div { display: flex; justify-content: space-between; gap: 10px; }
+.update-hover-card-progress > span { display: block; height: 5px; margin-top: 7px; overflow: hidden; border-radius: 999px; background: color-mix(in srgb, var(--ink-muted) 18%, transparent); }
+.update-hover-card-progress > span > span { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width .2s ease; }
+[data-theme="dark"] .update-hover-card { box-shadow: 0 18px 42px rgba(0, 0, 0, .36), inset 0 1px 0 color-mix(in srgb, white 8%, transparent); }
+@keyframes update-hover-card-in { from { opacity: 0; transform: translateY(-4px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@media (max-width: 500px) { .update-hover-card { left: min(0px, calc(100vw - 396px)); width: calc(100vw - 24px); } }
+@media (prefers-reduced-motion: reduce) { .update-hover-card, .update-hover-card-progress > span > span { animation: none; transition: none; } }

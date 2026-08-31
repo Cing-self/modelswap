@@ -85,9 +85,11 @@ describe('diagnostics update entry: rendered UI', () => {
     expect(html).not.toContain('update-details-sheet');
   });
 
-  it('no longer exports the old details entry component', async () => {
+  it('keeps the titlebar preview non-modal and no longer exports the old entry', async () => {
     const mod = await import('../../src/web/frontend/src/components/update/UpdateDetails');
     expect((mod as any).UpdateDetailsEntry).toBeUndefined();
+    expect((mod as any).UpdateDetailsSheet).toBeUndefined();
     expect(typeof mod.UpdateCheckButton).toBe('function');
+    expect(typeof mod.UpdateHoverCard).toBe('function');
   });
 });

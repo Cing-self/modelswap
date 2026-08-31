@@ -7,7 +7,7 @@ import Sidebar from './components/Layout/Sidebar';
 import ProviderImportModal from './components/shared/ProviderImportModal';
 import { useI18n } from './i18n';
 import { useApp } from './components/Layout/AppContext';
-import { UpdateDetailsProvider, useUpdateDetails } from './components/update/UpdateDetails';
+import { UpdateDetailsProvider, UpdateHoverCard, useUpdateDetails } from './components/update/UpdateDetails';
 import { invalidateProvidersCache, warmupMissingModels } from './api/providers';
 import { startModelCacheWarmup } from './lib/modelCacheWarmup';
 
@@ -351,16 +351,16 @@ function DesktopWindowFrameInner({
 }
 
 /**
- * Compact update indicator in the desktop titlebar: silent auto-check on app
- * open → update-details entry → spinning progress → restart once the installer
- * lands. It remains compact and opens the shared sheet instead of downloading.
+ * One compact update icon in the desktop titlebar. Hovering it reveals the
+ * release notes immediately below; clicking the icon remains the sole update
+ * action (download, retry, or restart) so the preview stays read-only.
  */
 function TitlebarUpdateIndicator() {
   const isDesktop = typeof window !== 'undefined' && Boolean((window as any).okitDesktop);
   const { t } = useI18n();
   const { showToast } = useApp() as any;
-  const { update, download, downloading, downloadProgress, check, open } = useUpdateDetails();
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  const { update, download, downloading, check, startDownload, restart, restarting } = useUpdateDetails();
+  const [showPreview, setShowPreview] = useState(false);
 
   // macOS app-menu "检查更新…" → explicit check with a spoken result.
   useEffect(() => {
@@ -377,42 +377,40 @@ function TitlebarUpdateIndicator() {
 
   if (!isDesktop || update.status !== 'available') return null;
 
-  if (downloading) {
-    return (
-      <button ref={triggerRef} type="button" className="titlebar-update is-downloading" role="status" onClick={() => open(triggerRef.current)}>
-        <Loader2 size={14} className="spin" aria-hidden="true" />
-        <span>{downloadProgress === null ? t('update.downloading') : `${downloadProgress}%`}</span>
-      </button>
-    );
-  }
-  if (download?.status === 'completed') {
-    return (
-      <button ref={triggerRef} type="button" className="titlebar-update is-ready" onClick={() => open(triggerRef.current)}>
-        <RotateCcw size={14} aria-hidden="true" />
-        <span>{t('update.restartToInstall')}</span>
-      </button>
-    );
-  }
-  if (download?.status === 'failed') {
-    return (
-      <button ref={triggerRef} type="button" className="titlebar-update is-failed" onClick={() => open(triggerRef.current)} title={download.error || t('update.failedTooltip')}>
-        <ArrowDownToLine size={14} aria-hidden="true" />
-        <span>{t('update.retryDownload')}</span>
-      </button>
-    );
-  }
+  const ready = download?.status === 'completed';
+  const failed = download?.status === 'failed';
+  const title = ready ? t('update.restartToInstall')
+    : downloading || restarting ? t('update.downloading')
+      : failed ? (download.error || t('update.failedTooltip'))
+        : t('update.availableTooltip', { version: update.latest ?? '' });
+  const onClick = () => {
+    if (downloading || restarting) return;
+    if (ready) { void restart(); return; }
+    if (update.dmgUrl) void startDownload();
+  };
+
   return (
-    <button
-      type="button"
-      className="titlebar-update is-available"
-      ref={triggerRef}
-      onClick={() => open(triggerRef.current)}
-      title={t('update.details')}
-      aria-label={t('update.details')}
+    <div
+      className="titlebar-update-anchor"
+      onPointerEnter={() => setShowPreview(true)}
+      onPointerLeave={() => setShowPreview(false)}
+      onFocus={() => setShowPreview(true)}
+      onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setShowPreview(false); }}
+      onKeyDown={event => { if (event.key === 'Escape') setShowPreview(false); }}
     >
-      <ArrowDownToLine size={14} aria-hidden="true" />
-      <span>{t('update.found', { version: update.latest ?? '' })}</span>
-    </button>
+      <button
+        type="button"
+        className={`titlebar-update titlebar-update-icon${downloading || restarting ? ' is-downloading' : ready ? ' is-ready' : failed ? ' is-failed' : ' is-available'}`}
+        onClick={onClick}
+        title={title}
+        aria-label={title}
+        aria-expanded={showPreview}
+        aria-haspopup="dialog"
+      >
+        {ready ? <RotateCcw size={15} aria-hidden="true" /> : downloading || restarting ? <Loader2 size={15} className="spin" aria-hidden="true" /> : <ArrowDownToLine size={15} aria-hidden="true" />}
+      </button>
+      <UpdateHoverCard visible={showPreview} />
+    </div>
   );
 }
 
