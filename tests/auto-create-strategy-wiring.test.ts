@@ -51,6 +51,7 @@ describe('auto-create strategy dependency wiring', () => {
       execJs: async () => 'dismissed',
       sleep: asyncNoop,
       closeAutomationWindow: asyncNoop,
+      detectLoginRequired: async () => ({ loginRequired: false }),
       detectInteractiveVerification: async () => false,
       waitForInteractiveVerification: asyncNoop,
       isValidZhipuApiKey: () => false,
@@ -68,6 +69,41 @@ describe('auto-create strategy dependency wiring', () => {
     await expect(createZhipuKey({ tokenName: 'qa-key' })).rejects.toThrow('创建按钮未找到');
     expect(clickCreateAction).toHaveBeenCalledTimes(15);
     expect(clickCreateAction).toHaveBeenCalledWith({ createTexts: ['Create API Key'] });
+  });
+
+  it('hands off a signed-out Zhipu page before capture or any create click', async () => {
+    const sendCommand = vi.fn(commandForNavigationAndCapture);
+    const clickCreateAction = vi.fn();
+    const detectLoginRequired = vi.fn(async () => ({
+      loginRequired: true,
+      url: 'https://account.example.test/login',
+    }));
+    const { createZhipuKey } = createZhipuStrategy({
+      sendCommand,
+      execJs: asyncNoop,
+      sleep: asyncNoop,
+      closeAutomationWindow: asyncNoop,
+      detectLoginRequired,
+      detectInteractiveVerification: async () => false,
+      waitForInteractiveVerification: asyncNoop,
+      isValidZhipuApiKey: () => false,
+      extractKeyFromCaptures: () => null,
+      ZHIPU_URL: 'https://console.example.test/zhipu',
+      ZHIPU_CREATE_TEXTS: ['Create API Key'],
+      ZHIPU_CONFIRM_TEXTS: ['Create'],
+      ZHIPU_NAME_SELECTORS: 'input[name="name"]',
+      resolveActionCandidate: () => null,
+      scoreActionCandidate: () => 0,
+      descriptorFingerprint: () => '',
+      clickCreateAction,
+    });
+
+    await expect(createZhipuKey({ tokenName: 'qa-key' }))
+      .rejects.toThrow('需要登录智谱 AI (https://account.example.test/login)');
+    expect(detectLoginRequired).toHaveBeenCalledWith({ id: 'zhipu', label: '智谱 AI' });
+    expect(sendCommand).toHaveBeenCalledTimes(1);
+    expect(sendCommand).toHaveBeenCalledWith('navigate', { url: 'https://console.example.test/zhipu', workspace: 'okit' }, 30000);
+    expect(clickCreateAction).not.toHaveBeenCalled();
   });
 
   it('drives OpenRouter through its injected login handoff and public-page redirect before failing closed', async () => {

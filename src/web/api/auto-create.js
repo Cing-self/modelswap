@@ -169,7 +169,7 @@ const { createVolcengineKey, createMinimaxKey } = volcengineMinimaxStrategy;
 
 const zhipuStrategy = createZhipuStrategy({
   sendCommand, execJs, sleep, closeAutomationWindow,
-  detectInteractiveVerification, waitForInteractiveVerification,
+  detectLoginRequired, detectInteractiveVerification, waitForInteractiveVerification,
   isValidZhipuApiKey, extractKeyFromCaptures,
   ZHIPU_URL, ZHIPU_CREATE_TEXTS, ZHIPU_CONFIRM_TEXTS, ZHIPU_NAME_SELECTORS,
   resolveActionCandidate, scoreActionCandidate, descriptorFingerprint,

@@ -33,6 +33,17 @@ function isLoginUrl(url) {
   return /\/(?:login|log-in|sign-in|signin|auth)(?:[/?#]|$)/i.test(url || '');
 }
 
+function classifyLoginRequiredState(state = {}) {
+  return Boolean(
+    state.loginRoute
+    || state.hasPasswordField
+    || (state.hasLoginInput && state.hasLoginAction)
+    || (state.hasLoginPrompt && state.hasLoginAction)
+    || state.hasSmsLoginSurface
+    || state.publicRootLoginSurface
+  );
+}
+
 /**
  * Some platforms redirect to a login page without returning a useful API
  * error. Probe only stable, non-sensitive page signals so the UI can hand the
@@ -52,24 +63,30 @@ async function detectLoginRequired(platform = null) {
         .some(isVisible);
       const hasLoginInput = [...document.querySelectorAll('input')]
         .filter(isVisible)
-        .some((el) => /账号名|账号ID|用户名|邮箱|password|密码/i.test(
+        .some((el) => /账号名|账号ID|用户名|邮箱|手机号|手机号码|phone|password|密码/i.test(
           String(el.getAttribute('placeholder') || '') + ' ' + String(el.getAttribute('aria-label') || '')
         ));
       const bodyText = (document.body?.innerText || '').slice(0, 12000);
       const hasLoginPrompt = /请(?:先)?登录|登录后(?:继续|使用)|请登录(?:后)?|sign in to continue|log in to continue|please sign in|authentication required/i.test(bodyText);
-      const hasLoginAction = [...document.querySelectorAll('a, button, [role="button"]')]
+      const actionTexts = [...document.querySelectorAll('a, button, [role="button"]')]
         .filter(isVisible)
-        .some((el) => /(?:登录|登入|sign in|log in)/i.test((el.textContent || '').trim()));
+        .map((el) => (el.textContent || '').trim());
+      const hasLoginAction = actionTexts
+        .some((text) => /(?:登录|登入|sign in|log in)/i.test(text));
+      // Zhipu's signed-out SMS form can omit an input placeholder. Its
+      // “获取验证码” and “登录 / 注册” action pair is a stable login surface.
+      const hasSmsLoginSurface = actionTexts.some((text) => /获取验证码|发送验证码/i.test(text))
+        && actionTexts.some((text) => /登录\s*\/?\s*注册|登录|注册/i.test(text));
       const publicRootLoginSurface = ${Boolean(platform?.loginRequiredOnPublicRoot)}
         && /^https:\/\/www\.kimi\.com\/(?:zh\/)?(?:\?.*)?(?:#.*)?$/i.test(url)
         && hasLoginAction;
       // A signed-in console may keep a “登录/Sign in” navigation item in its
       // shell. That label is not proof that the credential page is signed out;
       // require an actual login surface or a contextual login prompt instead.
-      return JSON.stringify({ loginRequired: loginRoute || hasPasswordField || (hasLoginInput && hasLoginAction) || (hasLoginPrompt && hasLoginAction) || publicRootLoginSurface, url });
+      return JSON.stringify({ loginRoute, hasPasswordField, hasLoginInput, hasLoginPrompt, hasLoginAction, hasSmsLoginSurface, publicRootLoginSurface, url });
     })()`);
     const state = JSON.parse(raw || '{}');
-    return { loginRequired: Boolean(state.loginRequired), url: typeof state.url === 'string' ? state.url : undefined };
+    return { loginRequired: classifyLoginRequiredState(state), url: typeof state.url === 'string' ? state.url : undefined };
   } catch {
     return { loginRequired: false, url: undefined };
   }
@@ -242,7 +259,7 @@ async function detectVolcengineLoginSurface() {
   })()`).catch(() => '{"required":false}');
   try { return Boolean(JSON.parse(raw || '{}').required); } catch { return false; }
 }
-  return { isLoginFailure, classifyKeyCreationLimitFailure, isLoginUrl, detectLoginRequired, classifyInteractiveVerificationState, detectInteractiveVerification, waitForSecurityVerificationToClear, isOpenRouterPublicPage, hasOpenRouterPublicNavigation, redirectOpenRouterToLogin, handoffOpenRouterLoginIfNeeded, detectVolcengineLoginSurface };
+  return { isLoginFailure, classifyKeyCreationLimitFailure, isLoginUrl, classifyLoginRequiredState, detectLoginRequired, classifyInteractiveVerificationState, detectInteractiveVerification, waitForSecurityVerificationToClear, isOpenRouterPublicPage, hasOpenRouterPublicNavigation, redirectOpenRouterToLogin, handoffOpenRouterLoginIfNeeded, detectVolcengineLoginSurface };
 }
 
 module.exports = { createAutoCreateBrowserState };

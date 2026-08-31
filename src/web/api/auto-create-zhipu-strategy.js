@@ -1,6 +1,6 @@
 // Zhipu browser strategy; all browser and safety operations arrive explicitly.
 function createZhipuStrategy(deps) {
-  const { sendCommand, execJs, sleep, closeAutomationWindow, detectInteractiveVerification, waitForInteractiveVerification, isValidZhipuApiKey, extractKeyFromCaptures, ZHIPU_URL, ZHIPU_CREATE_TEXTS, ZHIPU_CONFIRM_TEXTS, ZHIPU_NAME_SELECTORS, resolveActionCandidate, scoreActionCandidate, descriptorFingerprint, clickCreateAction } = deps;
+  const { sendCommand, execJs, sleep, closeAutomationWindow, detectLoginRequired, detectInteractiveVerification, waitForInteractiveVerification, isValidZhipuApiKey, extractKeyFromCaptures, ZHIPU_URL, ZHIPU_CREATE_TEXTS, ZHIPU_CONFIRM_TEXTS, ZHIPU_NAME_SELECTORS, resolveActionCandidate, scoreActionCandidate, descriptorFingerprint, clickCreateAction } = deps;
 async function createZhipuKey({ tokenName, run }) {
   // Append a short timestamp suffix to avoid name collisions on the platform
   // (zhipu rejects duplicate key names silently — the confirm button works
@@ -13,6 +13,14 @@ async function createZhipuKey({ tokenName, run }) {
   if (!nav.ok) throw new Error(nav.error || 'navigate failed');
   const navData = nav.data || {};
   const tabId = navData.tabId;
+
+  // The key-management URL can render Zhipu's phone/SMS login shell. Detect
+  // it before capture or any create action so a signed-out user is handed off
+  // to login instead of receiving a misleading missing-button error.
+  const loginState = await detectLoginRequired({ id: 'zhipu', label: '智谱 AI' });
+  if (loginState.loginRequired) {
+    throw new Error(`需要登录智谱 AI${loginState.url ? ` (${loginState.url})` : ''}`);
+  }
 
   // 2. Arm network capture BEFORE clicking create
   const capStart = await sendCommand('network-capture-start',

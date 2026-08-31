@@ -23,8 +23,8 @@
     },
     {
       "category": "fixed",
-      "zh": "修复智谱、OpenRouter、火山引擎及浏览器密钥删除流程中可能导致自动创建中断的运行时依赖遗漏。",
-      "en": "Fixed missing runtime dependencies that could interrupt automated key creation for Zhipu, OpenRouter, Volcengine, and browser-based key deletion."
+      "zh": "修复智谱、OpenRouter、火山引擎及浏览器密钥删除流程中可能导致自动创建中断的运行时依赖遗漏；智谱未登录时现在会明确提示先登录，不再误报“创建按钮未找到”。",
+      "en": "Fixed missing runtime dependencies that could interrupt automated key creation for Zhipu, OpenRouter, Volcengine, and browser-based key deletion. Zhipu now clearly asks the user to sign in instead of incorrectly reporting that the create button is missing."
     }
   ],
   "releaseUrl": "https://github.com/Cing-self/okit/releases/tag/v1.0.41"
