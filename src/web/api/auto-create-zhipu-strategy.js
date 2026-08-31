@@ -1,6 +1,6 @@
 // Zhipu browser strategy; all browser and safety operations arrive explicitly.
 function createZhipuStrategy(deps) {
-  const { sendCommand, execJs, sleep, closeAutomationWindow, detectInteractiveVerification, waitForInteractiveVerification, isValidZhipuApiKey, extractKeyFromCaptures, ZHIPU_URL, ZHIPU_CREATE_TEXTS, ZHIPU_CONFIRM_TEXTS, ZHIPU_NAME_SELECTORS, resolveActionCandidate, scoreActionCandidate, descriptorFingerprint } = deps;
+  const { sendCommand, execJs, sleep, closeAutomationWindow, detectInteractiveVerification, waitForInteractiveVerification, isValidZhipuApiKey, extractKeyFromCaptures, ZHIPU_URL, ZHIPU_CREATE_TEXTS, ZHIPU_CONFIRM_TEXTS, ZHIPU_NAME_SELECTORS, resolveActionCandidate, scoreActionCandidate, descriptorFingerprint, clickCreateAction } = deps;
 async function createZhipuKey({ tokenName, run }) {
   // Append a short timestamp suffix to avoid name collisions on the platform
   // (zhipu rejects duplicate key names silently — the confirm button works

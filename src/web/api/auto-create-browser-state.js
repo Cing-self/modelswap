@@ -242,7 +242,7 @@ async function detectVolcengineLoginSurface() {
   })()`).catch(() => '{"required":false}');
   try { return Boolean(JSON.parse(raw || '{}').required); } catch { return false; }
 }
-  return { isLoginFailure, classifyKeyCreationLimitFailure, isLoginUrl, detectLoginRequired, classifyInteractiveVerificationState, detectInteractiveVerification, waitForSecurityVerificationToClear, isOpenRouterPublicPage, hasOpenRouterPublicNavigation, handoffOpenRouterLoginIfNeeded, detectVolcengineLoginSurface };
+  return { isLoginFailure, classifyKeyCreationLimitFailure, isLoginUrl, detectLoginRequired, classifyInteractiveVerificationState, detectInteractiveVerification, waitForSecurityVerificationToClear, isOpenRouterPublicPage, hasOpenRouterPublicNavigation, redirectOpenRouterToLogin, handoffOpenRouterLoginIfNeeded, detectVolcengineLoginSurface };
 }
 
 module.exports = { createAutoCreateBrowserState };

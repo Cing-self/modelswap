@@ -1,6 +1,6 @@
 // Shared fail-closed browser deletion orchestration.
 function createBrowserDeleteStrategy(deps) {
-  const { sendCommand, execJs, sleep, closeAutomationWindow, foregroundClick, waitForInteractiveVerification, waitForSecurityVerificationToClear, deleteAnthropicBrowserKey, deleteZhipuBrowserKey, deleteMoonshotBrowserKey } = deps;
+  const { sendCommand, execJs, sleep, closeAutomationWindow, foregroundClick, waitForInteractiveVerification, waitForSecurityVerificationToClear, deleteAnthropicBrowserKey, deleteZhipuBrowserKey, deleteMoonshotBrowserKey, getBrowserPlatformUrl, isLoginUrl } = deps;
 async function deleteCreatedBrowserKey({ platform, createdName, run = null }) {
   if (!platform || !createdName) throw new Error('删除测试密钥需要 platform 和 createdName');
   if (platform.cleanupMode === 'never') {

@@ -1,6 +1,6 @@
 // Provider-specific browser strategies. All Chrome/runtime capabilities are injected.
 function createVolcengineMinimaxStrategy(deps) {
-  const { sendCommand, execJs, sleep, closeAutomationWindow, foregroundClick, detectLoginRequired, detectInteractiveVerification, waitForInteractiveVerification, isAssetData, extractKeyFromCaptures, describeCapturedResponses, describeCapturedSecretFields, describeMinimaxBackendResults, VOLC_URL, VOLC_AGENT_PLAN_URL, VOLC_CREATE_TEXTS, MINIMAX_URL, MINIMAX_CREATE_TEXTS } = deps;
+  const { sendCommand, execJs, sleep, closeAutomationWindow, foregroundClick, detectLoginRequired, detectInteractiveVerification, waitForInteractiveVerification, detectVolcengineLoginSurface, isAssetData, extractKeyFromCaptures, describeCapturedResponses, describeCapturedSecretFields, describeMinimaxBackendResults, VOLC_URL, VOLC_AGENT_PLAN_URL, VOLC_CREATE_TEXTS, MINIMAX_URL, MINIMAX_CREATE_TEXTS } = deps;
 async function createVolcengineKey({ tokenName, url = VOLC_URL, run }) {
   // Platform names must be unique. Keep the vault variable deterministic while
   // using a harmless suffix only for the console-side display name.

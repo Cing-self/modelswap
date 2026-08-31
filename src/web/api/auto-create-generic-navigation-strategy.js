@@ -3,7 +3,7 @@
  * Browser/extension side effects are injected by the controller assembly.
  */
 function createGenericNavigationStrategy(deps) {
-  const { sendCommand, sleep, extractNewestNamedKeyFromCaptures, capturesContainMistralKeyRecords, closeAutomationWindow, execJs, isLoginUrl, detectLoginRequired, detectInteractiveVerification, waitForInteractiveVerification, waitForSecurityVerificationToClear, recoverLatestZaiGlobalKey, clickCreateAction, keyFromText, extractKeyFromCaptures, foregroundClick, XIAOMI_ICON_CLASSIFY_JS } = deps;
+  const { sendCommand, sleep, extractNewestNamedKeyFromCaptures, capturesContainMistralKeyRecords, closeAutomationWindow, execJs, isLoginUrl, detectLoginRequired, detectInteractiveVerification, waitForInteractiveVerification, waitForSecurityVerificationToClear, recoverLatestZaiGlobalKey, clickCreateAction, keyFromText, extractKeyFromCaptures, foregroundClick, XIAOMI_ICON_CLASSIFY_JS, handoffOpenRouterLoginIfNeeded, hasOpenRouterPublicNavigation, redirectOpenRouterToLogin } = deps;
   return async function beginGenericBrowserCreate({ tokenName, platform, run }) {
   if (!platform.url) throw new Error('该平台还没有可自动创建密钥的控制台地址');
 

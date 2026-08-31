@@ -2,8 +2,8 @@
   "version": "v1.0.41",
   "publishedAt": "2026-08-31",
   "summary": {
-    "zh": "本次更新补齐桌面版更新流程的中英文说明，并让安装过程中的状态提示与自动安装行为一致。",
-    "en": "This update clarifies the desktop update flow in both languages and aligns installation status text with automatic installation."
+    "zh": "本次更新补齐桌面版更新流程的中英文说明，修复自动创建密钥流程的运行时依赖遗漏，并让安装状态提示与自动安装行为一致。",
+    "en": "This update clarifies the desktop update flow in both languages, fixes missing runtime dependencies in automated key creation, and aligns installation status text with automatic installation."
   },
   "highlights": [
     {
@@ -20,6 +20,11 @@
       "category": "fixed",
       "zh": "修正桌面版浏览器插件目录入口的手册路径，现为“设置 → 浏览器插件”。",
       "en": "Corrected the desktop browser-extension path in the manual to Settings → Browser Plugins."
+    },
+    {
+      "category": "fixed",
+      "zh": "修复智谱、OpenRouter、火山引擎及浏览器密钥删除流程中可能导致自动创建中断的运行时依赖遗漏。",
+      "en": "Fixed missing runtime dependencies that could interrupt automated key creation for Zhipu, OpenRouter, Volcengine, and browser-based key deletion."
     }
   ],
   "releaseUrl": "https://github.com/Cing-self/okit/releases/tag/v1.0.41"

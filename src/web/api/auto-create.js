@@ -66,7 +66,7 @@ const {
   isLoginFailure, classifyKeyCreationLimitFailure, isLoginUrl, detectLoginRequired,
   classifyInteractiveVerificationState, detectInteractiveVerification,
   waitForSecurityVerificationToClear, isOpenRouterPublicPage,
-  hasOpenRouterPublicNavigation, handoffOpenRouterLoginIfNeeded,
+  hasOpenRouterPublicNavigation, redirectOpenRouterToLogin, handoffOpenRouterLoginIfNeeded,
   detectVolcengineLoginSurface,
 } = browserState;
 
@@ -160,7 +160,7 @@ const {
 
 const volcengineMinimaxStrategy = createVolcengineMinimaxStrategy({
   sendCommand, execJs, sleep, closeAutomationWindow, foregroundClick,
-  detectLoginRequired, detectInteractiveVerification, waitForInteractiveVerification,
+  detectLoginRequired, detectInteractiveVerification, waitForInteractiveVerification, detectVolcengineLoginSurface,
   isAssetData, extractKeyFromCaptures, describeCapturedResponses,
   describeCapturedSecretFields, describeMinimaxBackendResults,
   VOLC_URL, VOLC_AGENT_PLAN_URL, VOLC_CREATE_TEXTS, MINIMAX_URL, MINIMAX_CREATE_TEXTS,
@@ -173,6 +173,7 @@ const zhipuStrategy = createZhipuStrategy({
   isValidZhipuApiKey, extractKeyFromCaptures,
   ZHIPU_URL, ZHIPU_CREATE_TEXTS, ZHIPU_CONFIRM_TEXTS, ZHIPU_NAME_SELECTORS,
   resolveActionCandidate, scoreActionCandidate, descriptorFingerprint,
+  clickCreateAction: (...args) => browserOrchestrator.clickCreateAction(...args),
 });
 const { createZhipuKey } = zhipuStrategy;
 
@@ -348,6 +349,7 @@ beginGenericBrowserCreate = createGenericNavigationStrategy({
   recoverLatestZaiGlobalKey: (...args) => browserOrchestrator.recoverLatestZaiGlobalKey(...args),
   clickCreateAction: (...args) => browserOrchestrator.clickCreateAction(...args),
   keyFromText, extractKeyFromCaptures, foregroundClick, XIAOMI_ICON_CLASSIFY_JS,
+  handoffOpenRouterLoginIfNeeded, hasOpenRouterPublicNavigation, redirectOpenRouterToLogin,
 });
 submitGenericBrowserCreate = createGenericFormStrategy({
   execJs, sendCommand, sleep, foregroundClick, waitForInteractiveVerification,
@@ -375,6 +377,7 @@ const browserDeleteStrategy = createBrowserDeleteStrategy({
   sendCommand, execJs, sleep, closeAutomationWindow, foregroundClick,
   waitForInteractiveVerification, waitForSecurityVerificationToClear,
   deleteAnthropicBrowserKey, deleteZhipuBrowserKey, deleteMoonshotBrowserKey,
+  getBrowserPlatformUrl, isLoginUrl,
 });
 ({ deleteCreatedBrowserKey } = browserDeleteStrategy);
 
