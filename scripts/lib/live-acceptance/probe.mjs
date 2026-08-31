@@ -106,11 +106,37 @@ export function buildProbeScript({ expectedTexts = [], maskedPrefix = '', platfo
   // Boolean only: the matched secret text itself never crosses the boundary.
   const maskedPrefixFound = Boolean(maskedPrefix) && bodyText.indexOf(maskedPrefix) !== -1;
   const consoleSurface = /api\\s*key|api keys|密钥管理|密钥列表|api 密钥|access key|management key|credential|调用凭证|token plan|订阅/i.test(bodyText);
+  // ── Readiness / handoff signals (2026-08-31 real-report regressions) ──
+  // All calibrated against captured evidence, not guessed copy:
+  //  * openai stayed on a "Signing in…" interstitial — title + a ~13-char
+  //    body with zero actionable elements.
+  //  * anthropic showed its first-use "Create Organization" chooser with
+  //    Individual / Organization actions.
+  //  * moonshot reached the signed-in API Key Management page while the
+  //    create button stayed out of the visible summary; volcengine's title
+  //    itself is “API Key 管理”.
+  //  * kimi-coding rendered an ant-style skeleton; qianfan-coding a bare
+  //    console shell (29 body chars).
+  const pageTitle = String(document.title || '').slice(0, 120);
+  const loginTransition = /signing\\s*in|logging\\s*in|正在登录|登录中|跳转中|redirecting/i.test(pageTitle + ' ' + bodyText.slice(0, 400))
+    || (bodyText.length > 0 && bodyText.length <= 40 && actionTexts.length === 0 && navTexts.length === 0);
+  const skeletonUi = actionTexts.length <= 3
+    && [...document.querySelectorAll('[class*="skeleton" i], [class*="shimmer" i]')].filter(visible).length > 0;
+  const workspaceChooser = /create organization|choose\\s+(?:an?\\s+)?(?:organization|workspace)|select\\s+(?:an?\\s+)?(?:organization|workspace)|选择(?:组织|工作空间|团队)/i.test(pageTitle + ' ' + bodyText.slice(0, 800))
+    || (actionTexts.some((text) => /^individual$/i.test(text)) && actionTexts.some((text) => /^organization$/i.test(text)));
+  const onKeyRoute = /api-?keys?|apikey|interface-key|token-plan|\\/keys(?:[/?]|$)/i.test(pathOnly);
+  const managementTitle = /api\\s*keys?\\s*(?:management|list|列表|管理)|api key management|密钥管理|api 密钥列表|密钥列表/i.test(pageTitle);
+  const managementNav = [...actionTexts, ...navTexts].some((text) => /api\\s*keys?|api 密钥|密钥管理/i.test(text));
+  // Title evidence is strong on its own; route+nav evidence additionally
+  // requires rendered content (moonshot: 1634 chars / 25 items vs the
+  // 159-char kimi-coding skeleton) so an unrendered shell never confirms.
+  const keyManagementSurface = managementTitle
+    || (onKeyRoute && managementNav && bodyText.length >= 300 && (actionTexts.length + navTexts.length) >= 5);
   const unique = (list) => [...new Set(list)];
   return JSON.stringify({
     url,
     aboutBlank,
-    title: String(document.title || '').slice(0, 120),
+    title: pageTitle,
     readyState: document.readyState,
     bodyChars: bodyText.length,
     loginRoute,
@@ -133,6 +159,10 @@ export function buildProbeScript({ expectedTexts = [], maskedPrefix = '', platfo
     matchedExpected,
     maskedPrefixFound,
     consoleSurface,
+    loginTransition,
+    skeletonUi,
+    workspaceChooser,
+    keyManagementSurface,
   });
 })()`;
   assertProbeScriptReadOnly(source);

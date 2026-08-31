@@ -10,3 +10,12 @@
 # provider-flow Ubuntu 竞态修复（2026-08-31）未覆盖边界
 - 本任务书在后半截断（任务 0 失败日志之后的内容未收到）。按可见使命与既有任务书惯例执行：根因修复 + 体外/定向/全量/build 验证 + PROGRESS.md 记录；未推送未发布，未触碰发布链路文件。若截断部分另有白名单或额外验收项，需补发后核对。
 - 竞态为 Ubuntu 时序型，本机（macOS）原生未复现（未修复版本本地多轮未红）。正确性依据为代码级入队时机分析（recordLocalChange 同步入队）+ 体外受控交错实证（未修复 straddle 必现 overrides 丢失、drain 后存活）+ 修复后 6 轮（含 CPU 饱和）与 CI 同款默认并行全量绿。最终确认以远端 Ubuntu CI 复跑为准（未推送，待授权）。
+
+---
+
+# auth-verify 判定修复后的残余边界（2026-09-01，非阻断、如实申报）
+- openai：专用 profile 停在 "Signing in…" 登录过渡态（本轮 waiting_for_user）——需稍后重跑或人工确认该 profile 登录态；入口级验收暂缓。
+- volcengine-agent / qianfan：本轮页面在有界窗口内未稳定（page_not_ready）——不判改版也不判通过；待页面就绪后复跑方可给结论。
+- volcengine：为管理页级通过（标题 "API Key 管理"），非入口级；入口级验收仍待创建按钮出现在可见摘要。
+- qwen-coding / qwen-token-plan / qianfan-coding：blocked_prerequisite——需人工先取得/生成订阅 Key（自动化不点击生成/重置/订阅/创建）。
+- 以上均为外部前置或页面状态问题，非工具缺陷；工具未对任何第三方页面执行写操作。

@@ -60,6 +60,24 @@ function classifyAuthVerifyOutcome(platform, state) {
       reason: '专用测试 profile 尚未登录该平台；请在保留的专用 Chrome 窗口完成官方登录后重跑本命令（脚本不会代输账号/密码/验证码）',
     };
   }
+  // Login/SSO transition pages (openai's "Signing in…" interstitial): a
+  // handoff state, never a redesign verdict.
+  if (state?.loginTransition) {
+    return {
+      status: 'waiting_for_user',
+      loginUrl: state?.url,
+      reason: '页面停留在登录/跳转过渡态（如 Signing in）——请稍后重跑；若持续出现请人工确认专用 profile 的登录态',
+    };
+  }
+  // First-use workspace/organization chooser (anthropic's Individual /
+  // Organization): a human prerequisite — the tool must never pick.
+  if (state?.workspaceChooser) {
+    return {
+      status: 'waiting_for_user',
+      loginUrl: state?.url,
+      reason: '首次使用需人工选择组织/工作区（如 Individual / Organization）——外部前置条件，工具不代选；请在专用 Chrome 中完成选择后重跑',
+    };
+  }
   if ((state?.matchedExpected || []).length > 0) {
     return { status: 'passed_entry_found', reason: `已登录控制台可达，并找到预期安全入口文案（未点击）：${state.matchedExpected.slice(0, 3).join(' / ')}` };
   }
@@ -69,13 +87,37 @@ function classifyAuthVerifyOutcome(platform, state) {
   if (platform.reuseOnly && state?.consoleSurface) {
     return { status: 'blocked_prerequisite', reason: '已登录，但页面未见可复用的掩码订阅 Key——按产品规则需先人工生成一次；自动化不会点击“生成/重置”' };
   }
+  if (state?.keyManagementSurface) {
+    return {
+      status: 'passed_console_reached',
+      reason: 'API Key 管理/列表页可确认（管理页级通过）；创建入口未出现在本次可见摘要中，不据此判定改版——入口级验收仍以按钮文案命中为准',
+    };
+  }
+  const stable = state?.stable !== false;
+  if (!stable || state?.skeletonUi) {
+    return {
+      status: 'page_not_ready',
+      reason: state?.skeletonUi
+        ? '页面仍为加载骨架/未渲染完成——有界等待后未稳定，不据此判定入口缺失或平台改版；请稍后重跑'
+        : '页面在有界等待窗口内持续变化（未稳定）——不作入口/改版结论；请稍后重跑',
+    };
+  }
   if ((platform.expectedTexts || []).length > 0) {
-    return { status: 'failed', reason: 'safe_entry_missing：已登录但未找到任何预期入口文案——疑似第三方页面改版，需要更新平台策略' };
+    if (state?.consoleSurface) {
+      return { status: 'failed', reason: 'safe_entry_missing：已登录且页面稳定的控制台上未找到任何预期入口文案——疑似第三方页面改版，需要更新平台策略' };
+    }
+    return {
+      status: 'page_not_ready',
+      reason: '页面已稳定但未呈现可确认的控制台内容（空壳/未就绪）——不据此判定入口缺失或平台改版；请稍后重跑',
+    };
   }
   if (state?.consoleSurface) {
     return { status: 'passed_console_reached', reason: '已登录控制台可达；该平台未配置显式入口文案，仅验证页面状态（弱通过，不等于入口级验收）' };
   }
-  return { status: 'failed', reason: '已登录会话未呈现可识别控制台（疑似改版或加载失败）——按失败处理' };
+  return {
+    status: 'page_not_ready',
+    reason: '已登录会话未呈现可识别的稳定控制台（疑似未就绪或渲染中）——不作改版结论；请稍后重跑',
+  };
 }
 
 function shouldScreenshot(policy, status) {
@@ -217,25 +259,40 @@ async function probePlatform({ platform, mode, driver, settle, sleep, push, scre
   try {
     // Heavy SPA shells (openai/deepseek/moonshot/qwen...) render long after
     // readyState flips to complete. Keep polling until the page exposes real
-    // content (body text or any visible action/nav text), not just completion.
-    for (let attempt = 0; attempt < Math.max(1, settle.attempts); attempt += 1) {
-      state = await driver.probe(tab, {
-        platformId: platform.id,
-        expectedTexts: platform.expectedTexts || [],
-        maskedPrefix: platform.maskedPrefix || '',
-      });
-      const hasContent = (state?.bodyChars || 0) > 0
-        || (state?.buttons?.length || 0) > 0
-        || (state?.links?.length || 0) > 0;
-      if (state?.readyState === 'complete' && !state?.aboutBlank && hasContent) break;
-      await sleep(settle.intervalMs);
-    }
-    if (settle.spaSettleMs > 0) await sleep(settle.spaSettleMs);
-    state = await driver.probe(tab, {
+    // content (body text or any visible action/nav text) AND two consecutive
+    // probes return the same signature — a bounded stability window, so an
+    // evolving skeleton never receives an entry/redesign verdict.
+    let previousSignature = null;
+    let equalSamples = 0;
+    const signatureOf = (probe) => JSON.stringify([
+      probe?.bodyChars || 0,
+      (probe?.buttons || []).length,
+      (probe?.links || []).length,
+    ]);
+    const probeOnce = () => driver.probe(tab, {
       platformId: platform.id,
       expectedTexts: platform.expectedTexts || [],
       maskedPrefix: platform.maskedPrefix || '',
     });
+    const observe = (probe) => {
+      const signature = signatureOf(probe);
+      if (signature === previousSignature) equalSamples += 1;
+      else equalSamples = 0;
+      previousSignature = signature;
+    };
+    for (let attempt = 0; attempt < Math.max(1, settle.attempts); attempt += 1) {
+      state = await probeOnce();
+      observe(state);
+      const hasContent = (state?.bodyChars || 0) > 0
+        || (state?.buttons?.length || 0) > 0
+        || (state?.links?.length || 0) > 0;
+      if (state?.readyState === 'complete' && !state?.aboutBlank && hasContent && equalSamples >= 1) break;
+      await sleep(settle.intervalMs);
+    }
+    if (settle.spaSettleMs > 0) await sleep(settle.spaSettleMs);
+    state = await probeOnce();
+    observe(state);
+    state.stable = equalSamples >= 1;
   } catch (error) {
     await safeClose(driver, tab);
     return push({

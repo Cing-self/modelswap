@@ -307,3 +307,8 @@
 - 修正：双跑用例改为共享同一 root + 相同秒级 stamp，且读取两份报告内容断言各自完好（requestedPlatforms 分别为 zhipu/openai，共享 reports/ 目录中恰有两份文件，第一份未被第二份覆盖）。
 - 红→绿实证：将 report.mjs+orchestrate.mjs 临时回退到修复前（f0bf6fb）后，新测试以"两次 reportPath 完全相同"变红（AssertionError: expected … not to be …，即覆盖症状本体）；恢复修复后转绿——测试现在是真实回归护栏而非空转。
 - 定向 76/76；全量 104 文件/941 测试零退化；build exit 0。仅提交于 integration-refactor-suite；未 push。
+
+# auth-verify 判定修复（2026-09-01 凌晨，基于 afdd40e，修 20260831171718115-d390 报告证实的五类误判）
+- 方法：先写测试（8 例，7 红 1 绿——"真改版"护栏未被削弱）再改实现。新页内信号全部按真实报告证据标定：登录跳转过渡（openai "Signing in…"：标题/正文短语或 ≤40 字正文+零可操作元素）、首次组织选择（anthropic Create Organization + Individual/Organization 按钮）、管理页级确认（moonshot 路由+导航+≥300 字已渲染内容；volcengine 标题 "API Key 管理"）、骨架（class 含 skeleton/shimmer 且按钮≤3）、空壳。
+- 判定顺序重排 + 有界稳定性等待（连续两次探针签名一致才可下改版结论；签名=正文字数+按钮数+链接数，窗口=既有 settle 上限，不无限等待）。新状态 page_not_ready（exit 2）：未就绪 ≠ 改版。safe_entry_missing 仅当"稳定+控制台可确认+配置入口全缺"。
+- 验证：定向 84/84；全量 104 文件/949 测试零退化；build exit 0；真实只读复跑 17 平台（D）零 failed：入口级 10、管理页级 1（volcengine 补强生效）、page_not_ready 2（volcengine-agent/qianfan 本轮未就绪）、blocked 3（qwen 系/qianfan-coding 需人工订阅前置，语义保持）、waiting 1（openai 登录过渡）。报告 20260831173056766-9421-live-auth-verify.json，退出码 2 为诚实非通过项。未点击/输入/创建/删除任何第三方资源；create-cleanup 真实创建保持硬禁用；未 push。

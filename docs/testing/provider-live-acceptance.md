@@ -47,9 +47,12 @@ npm run test:providers:live -- --mode create-cleanup --platform zhipu \
 
 ## 状态与退出码
 
-- `passed_login_gate`（guest 登录墙识别）/ `passed_entry_found`（auth-verify 入口命中）/ `passed_console_reached`（弱通过：无入口配置的平台仅验证到达已登录控制台）/ `passed`、`passed_existing_reuse`（create-cleanup 委托）→ 通过。
-- `waiting_for_user`（登录/人机验证等外部前置）与 `blocked_prerequisite`（前置缺失）→ **如实报告、不算通过**，退出码 2。
-- `failed` / `safe_entry_missing`（疑似改版）/ `cleanup_failed` / `rejected` / `disabled`（真实 create-cleanup 的硬禁用）→ 退出码 1。
+- `passed_login_gate`（guest 登录墙识别）/ `passed_entry_found`（auth-verify 入口命中）/ `passed_console_reached`（控制台级：无入口配置的平台仅验证到达已登录控制台，或**管理页级**——页面标题/路由+导航确认处于 API Key 管理/列表页但创建按钮未出现在可见摘要中）/ `passed`、`passed_existing_reuse`（create-cleanup 委托）→ 通过。
+- `waiting_for_user`（登录/人机验证/登录跳转过渡态如 Signing in/首次组织·工作区选择等需人工动作的外部前置）与 `blocked_prerequisite`（前置缺失，如订阅 Key 需先人工生成）→ **如实报告、不算通过**，退出码 2。
+- `page_not_ready`（页面在有界等待内未稳定：加载骨架、空控制台壳、探针签名持续变化）→ **不作入口缺失/改版结论**，退出码 2，建议稍后重跑。
+- `failed` / `safe_entry_missing`（**仅当**页面稳定、控制台内容可确认、且配置的入口文案全部缺失时才可判定——疑似改版）/ `cleanup_failed` / `rejected` / `disabled`（真实 create-cleanup 的硬禁用）→ 退出码 1。
+
+auth-verify 判定顺序（前几类绝不误报改版）：人机验证 → 未登录 → 登录跳转过渡（如 "Signing in…" 或 ≤40 字符正文且零可操作元素）→ 首次组织/工作区选择（如 Individual / Organization，工具不代选）→ 入口文案命中 → 掩码订阅 Key → reuse-only 前置缺失 → **管理页级确认**（标题含 “API Key 管理/列表”，或密钥路由+导航+已渲染内容）→ 未稳定/骨架（page_not_ready）→ 稳定控制台且配置入口缺失（才是 safe_entry_missing）。页面稳定性=有界窗口内连续两次探针签名一致（签名=正文字数+按钮数+链接数），不无限等待。
 
 **没有已登录专用 profile 的真实 auth-verify 巡检，不得声称平台已验收通过。**
 
@@ -104,6 +107,10 @@ npm run test:providers:live -- --mode create-cleanup --platform zhipu \
 - **从未通过 4（真发现：未登录可浏览控制台，登录面只在动作时出现）**：`volcengine`（shell+裸“登录”按钮，产品本就有 volcengine 专用登录探测器佐证）、`qwen-token-plan`（阿里云控制台可匿名浏览）、`stepfun`（未登录即显示“创建新的密钥”入口）、`xai`（Welcome 页 + Sign in 链接）。这四家的自动创建不能依赖页面级登录墙识别，需在动作时交接登录——属于产品侧已知行为的实证，不是本工具缺陷。
 
 判读约定：guest 通过 ≠ 平台验收通过，只证明“未登录会被识别为可交接登录”。波动平台建议重跑单平台复核（`--platform <id>`）；从未通过平台按 failed 人工核对。**auth-verify 级验收仍待专用 profile 人工登录后执行。**
+
+## 真实 auth-verify 复跑（2026-08-31 修复后，17 平台，报告 `20260831173056766-9421-live-auth-verify.json`）
+
+上一轮（`20260831171718115-d390`）的五类误判全部消除：openai 的 "Signing in…" 过渡页 → `waiting_for_user`（不再误报改版）；anthropic 组织选择页 → 本轮已过选择并入口级通过（分类器保留 chooser→waiting 分支）；moonshot 到达管理页 → 本轮入口级通过（另有管理页级兜底）；kimi-coding 骨架 → 本轮渲染完成入口级通过（未稳定时 `page_not_ready`）；qianfan-coding 空壳 → 本轮渲染出订阅内容并落 `blocked_prerequisite`（语义正确）。汇总：入口级通过 10、管理页级 1（volcengine，标题 “API Key 管理”）、`page_not_ready` 2（volcengine-agent/qianfan——本轮页面未就绪，不作结论）、`blocked_prerequisite` 3（qwen-coding/qwen-token-plan/qianfan-coding——需人工先取得订阅 Key，不点击生成/重置/订阅）、`waiting_for_user` 1（openai 登录过渡，建议稍后重跑）。退出码 2 = 存在诚实非通过项。
 
 ## 离线回归
 

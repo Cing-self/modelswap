@@ -48,24 +48,32 @@ function emitter() {
 // ─── Fake read-only browser driver ──────────────────────────────────
 // Mirrors the production driver surface. It records every action so tests
 // can prove guest/auth-verify only ever emit whitelisted read-only atoms.
-function makeFakeDriver(mode: string, statesByPlatform: Record<string, Record<string, unknown>>) {
+// statesByPlatform values may be a single state object (returned for every
+// probe) or an ARRAY of states returned in sequence (last one sticks) to
+// simulate evolving/unstable pages.
+function makeFakeDriver(mode: string, statesByPlatform: Record<string, Record<string, unknown> | Array<Record<string, unknown>>>) {
   const calls: string[] = [];
-  let counter = 0;
+  const counters: Record<string, number> = {};
   const guard = (action: string) => assertDriverActionAllowed(mode, action);
+  const stateFor = (platformId: string): Record<string, unknown> => {
+    const states = statesByPlatform[platformId] || [];
+    const sequence = Array.isArray(states) ? states : [states];
+    counters[platformId] = (counters[platformId] || 0) + 1;
+    const index = Math.min(counters[platformId] - 1, sequence.length - 1);
+    return { readyState: 'complete', ...(sequence[Math.max(0, index)] || {}) };
+  };
   return {
     mode,
     calls,
     async openTab(url: string) {
       guard('open-tab');
-      counter += 1;
       calls.push(`open-tab ${url}`);
-      return { id: `tab-${counter}`, wsUrl: `ws://127.0.0.1:9/fake/${counter}` };
+      return { id: `tab-${calls.length}`, wsUrl: `ws://127.0.0.1:9/fake/${calls.length}` };
     },
     async probe(_tab: unknown, probeOptions: { platformId: string }) {
       guard('probe');
       calls.push(`probe ${probeOptions.platformId}`);
-      const state = statesByPlatform[probeOptions.platformId] || {};
-      return { readyState: 'complete', ...state };
+      return stateFor(probeOptions.platformId);
     },
     async screenshot(_tab: unknown, filePath: string) {
       guard('screenshot');
@@ -106,7 +114,7 @@ const LOGIN_WALL_STATE = {
 async function runWithFake(
   mode: string,
   platformConfigs: Array<Record<string, unknown>>,
-  statesByPlatform: Record<string, Record<string, unknown>>,
+  statesByPlatform: Record<string, Record<string, unknown> | Array<Record<string, unknown>>>,
   extra: Record<string, unknown> = {},
 ) {
   const root = tmpRoot();
@@ -434,6 +442,177 @@ describe('provider-live-acceptance guest mode', () => {
     expect(report.results[0].reason).toContain('无可识别内容');
     expect(fs.existsSync(result.reportPath)).toBe(true);
     expect(report.checkout.revision).toBe('deadbeefcafe1234');
+  });
+});
+
+// ─── Real-page regressions from the 2026-08-31 auth-verify report ───
+// Each case replays the exact page evidence captured in
+// ~/.okit/provider-live-acceptance/reports/20260831171718115-d390-live-auth-verify.json.
+// Written BEFORE the implementation change; all five misjudged classes must
+// stop being reported as failed / safe_entry_missing.
+describe('provider-live-acceptance auth-verify real-page regressions', () => {
+  // openai: title "OpenAI Platform", bodyChars 13, zero buttons/links — the
+  // screenshot shows the "Signing in…" interstitial. A login-transition page
+  // is a handoff state, never a redesign verdict.
+  it('login transition ("Signing in…") is waiting_for_user, not safe_entry_missing', async () => {
+    const platform = { ...ZHIPU_PLATFORM, id: 'openai', expectedTexts: ['Create new secret key'] };
+    const { result, report } = await runWithFake('auth-verify', [platform], {
+      openai: {
+        url: 'https://platform.openai.com/api-keys',
+        title: 'OpenAI Platform',
+        buttons: [],
+        links: [],
+        bodyChars: 13,
+        loginTransition: true,
+        matchedExpected: [],
+      },
+    }, { screenshotPolicy: 'login-only' });
+    expect(result.exitCode).toBe(2);
+    expect(report.results[0].status).toBe('waiting_for_user');
+    expect(report.results[0].reason).toMatch(/登录|跳转/);
+    expect(report.results[0].reason).not.toMatch(/疑似.{0,6}改版|safe_entry_missing|需要更新平台策略/);
+  });
+
+  // anthropic: "Create Organization | Claude Platform" with Individual /
+  // Organization buttons — a first-use workspace chooser. Human prerequisite;
+  // the tool must never pick on the user's behalf.
+  it('first-use organization chooser is waiting_for_user (human picks, tool never clicks)', async () => {
+    const platform = { ...ZHIPU_PLATFORM, id: 'anthropic', expectedTexts: ['Create Key'] };
+    const { result, report } = await runWithFake('auth-verify', [platform], {
+      anthropic: {
+        url: 'https://platform.claude.com/create',
+        title: 'Create Organization | Claude Platform',
+        buttons: ['Individual', 'Organization'],
+        links: [],
+        bodyChars: 286,
+        workspaceChooser: true,
+        matchedExpected: [],
+      },
+    }, { screenshotPolicy: 'login-only' });
+    expect(result.exitCode).toBe(2);
+    expect(report.results[0].status).toBe('waiting_for_user');
+    expect(report.results[0].reason).toMatch(/组织|工作区/);
+    expect(report.results[0].reason).toMatch(/人工|不代选/);
+  });
+
+  // moonshot: signed-in "API Key Management" page reached (screenshot), nav
+  // link "API Keys", 1634 body chars — but the create button text is not in
+  // the visible summary. Management-page confirmation is a console-level
+  // pass, honestly labelled — not a redesign failure.
+  it('reached API Key management page passes at console level when entry text is absent', async () => {
+    const platform = { ...ZHIPU_PLATFORM, id: 'moonshot', expectedTexts: ['Create API Key'] };
+    const { result, report } = await runWithFake('auth-verify', [platform], {
+      moonshot: {
+        url: 'https://platform.kimi.ai/console/api-keys',
+        title: 'Kimi API Platform',
+        buttons: ['Personal', 'Organization Overview', 'You have unread notifications', 'Edit', 'Delete'],
+        links: ['User Center', 'API Keys', 'Usage Limits', 'Projects', 'Overview', 'Recharge', 'Billing Details'],
+        bodyChars: 1634,
+        keyManagementSurface: true,
+        matchedExpected: [],
+      },
+    });
+    expect(result.exitCode).toBe(0);
+    expect(report.results[0].status).toBe('passed_console_reached');
+    expect(report.results[0].reason).toMatch(/管理/);
+    expect(report.results[0].reason).not.toMatch(/疑似.{0,6}改版|safe_entry_missing|需要更新平台策略/);
+  });
+
+  // volcengine: page title itself is "火山方舟 - API Key 管理" — the same
+  // management-page rule upgrades the previous weak pass to an explicit
+  // management-level confirmation.
+  it('management-page title (火山 API Key 管理) yields management-level confirmation', async () => {
+    const platform = { ...ZHIPU_PLATFORM, id: 'volcengine', expectedTexts: [] };
+    const { result, report } = await runWithFake('auth-verify', [platform], {
+      volcengine: {
+        url: 'https://console.volcengine.com/ark/region:cn-beijing/apiKey',
+        title: '火山方舟 - API Key 管理',
+        buttons: ['全部产品', '火山方舟', '问卷反馈', '收起浮层'],
+        links: ['火山引擎'],
+        bodyChars: 124,
+        keyManagementSurface: true,
+        matchedExpected: [],
+      },
+    });
+    expect(result.exitCode).toBe(0);
+    expect(report.results[0].status).toBe('passed_console_reached');
+    expect(report.results[0].reason).toMatch(/管理/);
+  });
+
+  // kimi-coding: loading skeleton (3 chrome buttons, 19 nav links, 159 body
+  // chars). An unstable/skeleton page must be reported as not ready — never
+  // as "entry missing / platform redesigned".
+  it('loading skeleton is page_not_ready, not a redesign verdict', async () => {
+    const platform = { ...ZHIPU_PLATFORM, id: 'kimi-coding', expectedTexts: ['新建 API Key'] };
+    const { result, report } = await runWithFake('auth-verify', [platform], {
+      'kimi-coding': {
+        url: 'https://platform.kimi.com/console/api-keys',
+        title: 'Kimi API 开放平台',
+        buttons: ['个人组织', '组织概览', '有未读消息'],
+        links: ['开发工作台', '用户中心', 'API Key 管理', '用量限制', '账户总览'],
+        bodyChars: 159,
+        skeletonUi: true,
+        matchedExpected: [],
+      },
+    }, { screenshotPolicy: 'login-only' });
+    expect(result.exitCode).toBe(2);
+    expect(report.results[0].status).toBe('page_not_ready');
+    expect(report.results[0].reason).not.toMatch(/疑似.{0,6}改版|safe_entry_missing|需要更新平台策略/);
+  });
+
+  // qianfan-coding: console shell (29 body chars, nav chrome links only, no
+  // content). A stable-but-empty shell is still "not ready" for an entry
+  // verdict — the page gave us nothing to judge.
+  it('empty console shell is page_not_ready, not safe_entry_missing', async () => {
+    const platform = { ...ZHIPU_PLATFORM, id: 'qianfan-coding', expectedTexts: ['点击生成', '复制'] };
+    const { result, report } = await runWithFake('auth-verify', [platform], {
+      'qianfan-coding': {
+        url: 'https://console.bce.baidu.com/qianfan/resource/token-plan',
+        title: '百度千帆 - 百度智能云控制台',
+        buttons: [],
+        links: ['控制台', '财务', '工单', '文档', '生态', '备案', '购物车'],
+        bodyChars: 29,
+        matchedExpected: [],
+      },
+    }, { screenshotPolicy: 'login-only' });
+    expect(result.exitCode).toBe(2);
+    expect(report.results[0].status).toBe('page_not_ready');
+    expect(report.results[0].reason).not.toMatch(/疑似.{0,6}改版|safe_entry_missing|需要更新平台策略/);
+  });
+
+  // A page whose probe signature keeps changing within the bounded settle
+  // window is unstable: no verdict may be drawn from it.
+  it('unstable page (changing probe signatures) is page_not_ready, not failed', async () => {
+    const platform = { ...ZHIPU_PLATFORM, id: 'flaky', expectedTexts: ['新建API Key'] };
+    const { result, report } = await runWithFake('auth-verify', [platform], {
+      flaky: [
+        { url: 'https://flaky.example.com/keys', title: 'Console', buttons: [], links: [], bodyChars: 10, matchedExpected: [] },
+        { url: 'https://flaky.example.com/keys', title: 'Console', buttons: ['a'], links: [], bodyChars: 40, matchedExpected: [] },
+        { url: 'https://flaky.example.com/keys', title: 'Console', buttons: ['a', 'b'], links: ['x'], bodyChars: 90, matchedExpected: [] },
+      ],
+    });
+    expect(result.exitCode).toBe(2);
+    expect(report.results[0].status).toBe('page_not_ready');
+  });
+
+  it('keeps failing safe_entry_missing ONLY for a stable signed-in console with configured entries gone', async () => {
+    // The genuine redesign reverse case must survive this fix: stable page,
+    // console surface present, expected texts configured and absent.
+    const platform = { ...ZHIPU_PLATFORM, expectedTexts: ['新建API Key'] };
+    const { result, report } = await runWithFake('auth-verify', [platform], {
+      zhipu: {
+        url: 'https://open.bigmodel.cn/apikey/platform',
+        title: '全新控制台',
+        buttons: ['帮助', '文档'],
+        links: ['首页'],
+        bodyChars: 1200,
+        consoleSurface: true,
+        matchedExpected: [],
+      },
+    });
+    expect(result.exitCode).toBe(1);
+    expect(report.results[0].status).toBe('failed');
+    expect(report.results[0].reason).toContain('safe_entry_missing');
   });
 });
 
