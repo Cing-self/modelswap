@@ -263,3 +263,6 @@
 
 # 诊断页更新入口调整（2026-08-31，@ 3eadd36）
 格式门禁：PROGRESS.md EOF 多余空行清除（9b191f3）。诊断页 UpdateDetailsEntry（常驻“查看更新详情”）替换为 UpdateCheckButton：settings.updateCheck 标签 + RefreshCw，检查中 Loader+禁用，点击经 performSettingsUpdateCheck 调 check(false) 并以既有 toast 键反馈，不打开详情面板；详情/下载/安装仅由左上角 TitlebarUpdateIndicator 承接。回归测试 tests/frontend/update-check-entry.test.ts（编排行为 + 真实 renderToString 断言），红→绿 7 失败→7 通过。
+
+# Ubuntu CI provider-flow 竞态修复（2026-08-31，基于 origin/main e0ea6b1）
+任务书后半截断，按可见使命执行（细节假设记入 BLOCKED.md）。CI 33355240086 ubuntu 失败：provider-flow「runs API → store → adapters」行 127 modelOverrides['flow-open'] undefined。根因（代码级+体外双重实证）：createProvider/updateProvider 的 markDirty→recordLocalChange 为发射后不管排队写，夹具裸写 user.json 与其「读在裸写前、写在裸写后」的 straddle 交错时，旧快照落盘覆盖 overrides 段——与 b5ab9d6（hydration 夹具）同族；recordLocalChange 在 handler 内同步入队（sync-scheduler.js:41-43），故裸写前 await 一个排队写即严密 drain。修复仅动夹具：裸写前 `await syncCore.recordLocalChange('providers', …)`。验证：定向 14/14 ×6 轮（3 轮 CPU 饱和）；体外 A/B 对照（未修复 straddle 必丢 overrides=CI 同错；drain 后 overrides={context:777,output:333} 存活）；fresh 全量 98 文件/839 测试全绿（main 已含 v1.0.38 notes，基线无已知失败）；build 绿。未改业务生产逻辑。

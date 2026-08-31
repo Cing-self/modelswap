@@ -93,6 +93,17 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
         await call(api.updateProvider,{params:{id:'flow-open'},body:{name:'Flow Open Renamed',baseUrl:'https://flow-renamed.test/v1'}});
         await call(api.createProvider,{body:claude});
         const userPath=path.join(process.env.HOME,'.okit','user.json');
+        // Drain the config write queue before the fixture's raw user.json
+        // write. Provider create/update handlers fire-and-forget
+        // recordLocalChanged commits (saveProviders → markDirty); a queued
+        // commit whose read predated and whose atomic write lands after the
+        // raw write restores the pre-write snapshot and drops the override
+        // section (Ubuntu CI flake, run 33355240086:
+        // modelOverrides['flow-open'] === undefined). Those commits enqueue
+        // synchronously inside the awaited handlers, so awaiting one more
+        // queued write serializes behind every pending one first.
+        const syncCore=require(path.join(process.argv[1], 'src/web/api/cloud-sync-core.js'));
+        await syncCore.recordLocalChange('providers', new Date().toISOString());
         fs.writeFileSync(userPath,JSON.stringify({modelOverrides:{'flow-open':{one:{context:777,output:333}}}}));
         await call(api.configureAgentProvider,{params:{agentId:'codex',providerId:'flow-open'},body:{modelIds:['one','two'],primaryModelId:'one'}});
         await call(api.switchProvider,{body:{agentId:'codex',providerId:'flow-open',modelId:'two'}});
