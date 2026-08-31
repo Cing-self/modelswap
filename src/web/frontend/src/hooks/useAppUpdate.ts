@@ -9,7 +9,7 @@ import { useDataChanged } from './useDataChanged';
  *                                    │
  *                              startDownload()
  *                                    ▼
- *                     downloading(polled progress) ──▶ completed ──▶ restart()
+ *                     downloading(polled progress) ──▶ completed ──▶ auto-install + restart()
  *
  * The initial auto-check is silent (no error surfaced) so it can run on every
  * app open without nagging offline users. `restart()` only exists in the
@@ -59,6 +59,30 @@ export function formatFileSize(bytes: number) {
 /** Focus re-check cooldown: a returning user re-checks at most every 5 min. */
 export const FOCUS_RECHECK_COOLDOWN_MS = 5 * 60 * 1000;
 
+/** Give the completed state a moment to paint before the desktop quits. */
+export const AUTO_INSTALL_DELAY_MS = 600;
+
+/**
+ * Only the packaged desktop app may take over installation. A completed job
+ * must include its downloaded DMG path, and each job is scheduled once even
+ * when polling delivers the same completed payload more than once.
+ */
+export function shouldAutoInstallDownloadedUpdate(
+  download: UpdateDownload | null,
+  isDesktop: boolean,
+  restarting: boolean,
+  scheduledJobId: string | null,
+): boolean {
+  return Boolean(
+    isDesktop
+      && !restarting
+      && download?.id
+      && download.status === 'completed'
+      && download.path
+      && scheduledJobId !== download.id,
+  );
+}
+
 /**
  * Pure focus-recheck policy: check when the window becomes visible again
  * only if the last SUCCESSFUL check is older than the cooldown (or never
@@ -98,8 +122,8 @@ export function failUpdateCheck(prev: UpdateState, silent: boolean, error: strin
 
 export function useAppUpdate(options?: { autoCheck?: boolean }) {
   const autoCheck = options?.autoCheck !== false;
-  // Desktop owns installation after an explicit restart action. Browsers keep
-  // the manual installer flow after the server opens the DMG.
+  // Desktop owns installation after a completed download. Browsers keep the
+  // manual installer flow after the server opens the DMG.
   const isDesktop = typeof window !== 'undefined' && Boolean((window as any).okitDesktop?.installUpdate);
   const [update, setUpdate] = useState<UpdateState>({ status: 'idle' });
   const [download, setDownload] = useState<UpdateDownload | null>(null);
@@ -107,6 +131,7 @@ export function useAppUpdate(options?: { autoCheck?: boolean }) {
   const [lastCheckedAt, setLastCheckedAt] = useState<number | null>(null);
   const lastSuccessfulCheckRef = useRef<number | null>(null);
   const dmgPathRef = useRef<string | null>(null);
+  const scheduledAutoInstallJobRef = useRef<string | null>(null);
 
   const downloading = download?.status === 'queued' || download?.status === 'downloading';
   const downloadProgress = download?.total && download.total > 0
@@ -197,6 +222,18 @@ export function useAppUpdate(options?: { autoCheck?: boolean }) {
       setRestarting(false);
     }
   }, []);
+
+  // A desktop update is transactional: once its DMG is complete, hand it to
+  // Electron automatically. The one-shot job guard prevents repeated polling
+  // results from scheduling multiple detached installer scripts. Browsers
+  // intentionally remain manual because their server has already opened the
+  // downloaded installer for the user.
+  useEffect(() => {
+    if (!shouldAutoInstallDownloadedUpdate(download, isDesktop, restarting, scheduledAutoInstallJobRef.current)) return;
+    scheduledAutoInstallJobRef.current = download!.id;
+    const timer = window.setTimeout(() => { void restart(); }, AUTO_INSTALL_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [download, isDesktop, restarting, restart]);
 
   useEffect(() => {
     if (autoCheck) void check(true);

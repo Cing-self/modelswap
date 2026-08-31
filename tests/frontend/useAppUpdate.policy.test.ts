@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { FOCUS_RECHECK_COOLDOWN_MS, shouldCheckOnFocus } from '../../src/web/frontend/src/hooks/useAppUpdate';
+import {
+  AUTO_INSTALL_DELAY_MS,
+  FOCUS_RECHECK_COOLDOWN_MS,
+  shouldAutoInstallDownloadedUpdate,
+  shouldCheckOnFocus,
+} from '../../src/web/frontend/src/hooks/useAppUpdate';
 
 const MIN = 60 * 1000;
 
@@ -22,6 +27,28 @@ describe('focus re-check policy (useAppUpdate)', () => {
     const now = 10 * MIN;
     expect(shouldCheckOnFocus(now - 5 * MIN - 1, now)).toBe(true);
     expect(shouldCheckOnFocus(now - 6 * MIN, now)).toBe(true);
+  });
+});
+
+describe('completed desktop download installation policy', () => {
+  const completedDownload = {
+    id: 'update-job-1', status: 'completed' as const, received: 1, total: 1,
+    path: '/tmp/OKIT-1.0.40-arm64.dmg',
+  };
+
+  it('waits briefly so the completed state can render before quitting', () => {
+    expect(AUTO_INSTALL_DELAY_MS).toBe(600);
+  });
+
+  it('automatically installs one completed desktop download with a DMG path', () => {
+    expect(shouldAutoInstallDownloadedUpdate(completedDownload, true, false, null)).toBe(true);
+  });
+
+  it('does not auto-install in a browser, while restarting, without a DMG, or twice for the same job', () => {
+    expect(shouldAutoInstallDownloadedUpdate(completedDownload, false, false, null)).toBe(false);
+    expect(shouldAutoInstallDownloadedUpdate(completedDownload, true, true, null)).toBe(false);
+    expect(shouldAutoInstallDownloadedUpdate({ ...completedDownload, path: null }, true, false, null)).toBe(false);
+    expect(shouldAutoInstallDownloadedUpdate(completedDownload, true, false, completedDownload.id)).toBe(false);
   });
 });
 

@@ -1,0 +1,26 @@
+{
+  "version": "v1.0.40",
+  "publishedAt": "2026-08-31",
+  "summary": {
+    "zh": "本次更新让桌面端在下载完更新包后自动完成安装与重启，减少等待与重复操作。",
+    "en": "This update lets the desktop app finish installing and relaunching automatically after an update package has downloaded, removing an extra manual step."
+  },
+  "highlights": [
+    {
+      "category": "new",
+      "zh": "桌面端下载更新包完成后，会自动开始安装并重新打开 OKIT。",
+      "en": "After a desktop update package finishes downloading, OKIT now automatically starts installation and relaunches."
+    },
+    {
+      "category": "improved",
+      "zh": "更新流程无需再点击第二次“重启安装”；下载完成状态会短暂显示后无缝进入安装。",
+      "en": "The update flow no longer requires a second Restart to install click; the completed state is briefly shown before installation continues seamlessly."
+    },
+    {
+      "category": "fixed",
+      "zh": "修复更新包已下载完成但应用停留在等待手动重启状态的问题。",
+      "en": "Fixed downloaded updates remaining in a state that waited for a manual restart."
+    }
+  ],
+  "releaseUrl": "https://github.com/Cing-self/okit/releases/tag/v1.0.40"
+}
