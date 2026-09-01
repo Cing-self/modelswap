@@ -1761,14 +1761,44 @@
 }
 
 .vault-picker-sidebar {
+  display: flex;
   flex-shrink: 0;
   width: 172px;
-  overflow-y: auto;
+  min-height: 0;
+  flex-direction: column;
+  gap: 8px;
   border-right: 1px solid rgba(23, 32, 29, 0.08);
   background:
     linear-gradient(90deg, rgba(5, 150, 105, 0.055), transparent 62%),
     rgba(246, 248, 245, 0.78);
   padding: 12px;
+}
+
+.vault-picker-sidebar-filter {
+  flex-shrink: 0;
+}
+
+.vault-picker-sidebar .vault-picker-sidebar-search-field {
+  min-height: 34px;
+  border-radius: 10px;
+  padding: 0 10px;
+  gap: 7px;
+}
+
+.vault-picker-sidebar .vault-picker-sidebar-search-input {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.vault-picker-group-list {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  margin: 0 -2px;
+  padding: 0 2px 2px;
 }
 
 .vault-picker-group {
@@ -1843,9 +1873,24 @@
 }
 
 .vault-picker-search-input {
+  flex: 1;
+  min-width: 0;
+  align-self: stretch;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
   color: #111816;
   font-size: 14px;
   font-weight: 650;
+}
+
+.vault-picker-sidebar-empty {
+  padding: 10px;
+  color: #7b8580;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.4;
 }
 
 .vault-picker-list {

@@ -524,6 +524,8 @@ export default {
   // 密钥选择弹窗
   'vaultPicker.title': '选择密钥',
   'vaultPicker.search': '搜索密钥...',
+  'vaultPicker.groupSearch': '搜索分组...',
+  'vaultPicker.noGroupMatch': '无匹配分组',
   'vaultPicker.noMatch': '无匹配密钥',
   'vaultPicker.newKey': '+ 新建密钥',
   'vaultPicker.keyLabel': '密钥名称',

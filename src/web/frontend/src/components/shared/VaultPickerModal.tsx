@@ -4,7 +4,7 @@ import { setVault } from '../../api/vault';
 import { useI18n } from '../../i18n';
 import CustomSelect from './CustomSelect';
 import { normalizeGroupName } from '../../data/vault-groups';
-import { sortGroupEntries } from '../../lib/groupOrdering';
+import { filterGroupEntries, sortGroupEntries } from '../../lib/groupOrdering';
 
 interface TestEndpoint {
   baseUrl: string;
@@ -23,6 +23,7 @@ export default function VaultPickerModal({ selected, onSelect, onClose, testEndp
   const { t } = useI18n();
   const [secrets, setSecrets] = useState<any[]>([]);
   const [search, setSearch] = useState('');
+  const [groupSearch, setGroupSearch] = useState('');
   const [activeGroup, setActiveGroup] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [newKey, setNewKey] = useState('');
@@ -83,6 +84,11 @@ export default function VaultPickerModal({ selected, onSelect, onClose, testEndp
   }, [secrets, t]);
 
   const groupNames = useMemo(() => groups.map(([g]) => g).filter(g => g !== t('common.ungrouped')), [groups, t]);
+
+  const visibleGroups = useMemo(
+    () => filterGroupEntries(groups, groupSearch),
+    [groups, groupSearch],
+  );
 
   const filtered = useMemo(() => {
     const source = activeGroup ? (groups.find(([g]) => g === activeGroup)?.[1] || []) : secrets;
@@ -150,27 +156,44 @@ export default function VaultPickerModal({ selected, onSelect, onClose, testEndp
         </div>
         <div className="vault-picker-body">
           <aside className="vault-picker-sidebar">
-            <button
-              type="button"
-              className={`vault-picker-group${!activeGroup ? ' active' : ''}`}
-              onClick={() => setActiveGroup(null)}
-              aria-pressed={!activeGroup}
-            >
-              <span>{t('common.all')}</span>
-              <span className="vault-picker-group-count">{secrets.length}</span>
-            </button>
-            {groups.map(([g, items]) => (
+            <div className="vault-picker-sidebar-filter">
+              <div className="vault-picker-search-field vault-picker-sidebar-search-field">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                <input
+                  className="vault-picker-search-input vault-picker-sidebar-search-input"
+                  value={groupSearch}
+                  onChange={event => setGroupSearch(event.target.value)}
+                  placeholder={t('vaultPicker.groupSearch')}
+                  aria-label={t('vaultPicker.groupSearch')}
+                />
+              </div>
+            </div>
+            <div className="vault-picker-group-list">
               <button
                 type="button"
-                key={g}
-                className={`vault-picker-group${activeGroup === g ? ' active' : ''}`}
-                onClick={() => setActiveGroup(g)}
-                aria-pressed={activeGroup === g}
+                className={`vault-picker-group${!activeGroup ? ' active' : ''}`}
+                onClick={() => setActiveGroup(null)}
+                aria-pressed={!activeGroup}
               >
-                <span>{g}</span>
-                <span className="vault-picker-group-count">{items.length}</span>
+                <span>{t('common.all')}</span>
+                <span className="vault-picker-group-count">{secrets.length}</span>
               </button>
-            ))}
+              {visibleGroups.map(([g, items]) => (
+                <button
+                  type="button"
+                  key={g}
+                  className={`vault-picker-group${activeGroup === g ? ' active' : ''}`}
+                  onClick={() => setActiveGroup(g)}
+                  aria-pressed={activeGroup === g}
+                >
+                  <span>{g}</span>
+                  <span className="vault-picker-group-count">{items.length}</span>
+                </button>
+              ))}
+              {visibleGroups.length === 0 && (
+                <div className="vault-picker-sidebar-empty">{t('vaultPicker.noGroupMatch')}</div>
+              )}
+            </div>
           </aside>
           <div className="vault-picker-main">
             <div className="vault-picker-search">

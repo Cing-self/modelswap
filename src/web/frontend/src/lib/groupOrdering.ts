@@ -15,3 +15,10 @@ export function compareGroupNames(a: string, b: string, ungroupedLabel = '') {
 export function sortGroupEntries<T>(entries: Array<[string, T]>, ungroupedLabel = '') {
   return [...entries].sort(([a], [b]) => compareGroupNames(a, b, ungroupedLabel));
 }
+
+/** Filter group picker entries without changing their canonical order. */
+export function filterGroupEntries<T>(entries: Array<[string, T]>, query = '') {
+  const normalized = query.trim().toLocaleLowerCase();
+  if (!normalized) return [...entries];
+  return entries.filter(([group]) => group.toLocaleLowerCase().includes(normalized));
+}

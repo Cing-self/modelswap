@@ -524,6 +524,8 @@ export default {
   // Vault Picker
   'vaultPicker.title': 'Select Key',
   'vaultPicker.search': 'Search keys...',
+  'vaultPicker.groupSearch': 'Search groups...',
+  'vaultPicker.noGroupMatch': 'No matching groups',
   'vaultPicker.noMatch': 'No matching keys',
   'vaultPicker.newKey': '+ New Key',
   'vaultPicker.keyLabel': 'Key name',

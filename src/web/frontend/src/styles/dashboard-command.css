@@ -2119,6 +2119,10 @@ select:focus {
   color: rgba(215, 211, 201, 0.58) !important;
 }
 
+[data-theme="dark"] .settings-workspace .vault-picker-sidebar-empty {
+  color: rgba(215, 211, 201, 0.58) !important;
+}
+
 [data-theme="dark"] .settings-workspace .vault-picker-group:hover,
 [data-theme="dark"] .picker-provider:hover,
 [data-theme="dark"] .sync-sidebar-item:hover {
