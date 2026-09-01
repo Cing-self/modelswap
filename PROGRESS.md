@@ -336,3 +336,8 @@
 - 根因复核：Agent Plan 专属 Key 在订阅控制台管理，普通方舟 Key 可通过 `/api/v3` 但会被 `/api/plan/v3` 拒绝；此前把 Agent Plan 引到标准 API Key 管理页是错误流程。
 - 修复：Agent Plan 自动创建进入订阅页“使用配置 → 配置专属API Key”。已有 Key 默认遮罩时点击专用 `keyToggleBtn` 显示后读取 `ark-...`；未找到 Key 行时查找并点击“创建 API KEY”（不点击“更新API KEY”，避免轮换既有 Key）。流程有界轮询 SPA 渲染，读取结果仅写入本地表单，不输出明文、不读剪贴板。
 - 真实验证：使用用户提供的专属 Key（不回显）写入本地加密 Vault `VOLCENGINE_AGENT_PLAN_API_KEY`，并绑定 `volcengine-agent`；`/verify-auth` 返回 verified，OpenAI 与 Anthropic 两个 Agent Plan endpoint 均 verified。自动化定向 3 文件 69/69；全量 105 文件/956 测试；完整构建 exit 0。
+
+# 火山方舟 Agent Plan 模型目录修复（2026-09-01 晚）
+- 根因：`/api/plan` 网关不提供公共 `/models` 目录，旧逻辑把它当普通 OpenAI endpoint，因此连接验证通过但模型列表为空。通过每模型 1-token 最小推理探测确认控制台目录中的可用 ID；`auto` 只是控制台路由展示值，`kimi-k3` 在当前 Small 套餐返回 `UnsupportedModel`，两者均不进入目录。
+- 修复：Agent Plan 模型发现改用静态官方控制台目录，包含 `ark-code-latest` 与 10 个实测可用直连模型，并在 OpenAI 与 Anthropic endpoint 上标记可用；保留用户手动模型与当前 Agent 选择的既有规则。
+- 验证：新增目录回归 1/1；全量 106 文件/957 测试通过；完整构建 exit 0。重启后真实调用 `/api/providers/fetch-models` 返回 11 个模型，provider 持久列表同步为 11 个且 authState 仍为 verified。

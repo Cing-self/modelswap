@@ -1,6 +1,42 @@
 // Provider model discovery is transport/cache orchestration, independent of HTTP.
 const { describeRejection, modelDiscoveryFailure } = require('./error-normalization');
 
+// Agent Plan's /api/plan gateway intentionally has no public /models route.
+// This catalog mirrors the signed-in console's selectable model IDs. Kimi K3
+// is displayed for larger plans but returned UnsupportedModel on Small plans,
+// so it is deliberately excluded until plan-aware discovery exists.
+const VOLCENGINE_AGENT_PLAN_MODEL_CATALOG = Object.freeze([
+  { id: 'ark-code-latest', name: 'Ark Code Latest（自动路由）' },
+  { id: 'doubao-seed-evolving', name: 'Doubao Seed Evolving' },
+  { id: 'doubao-seed-2.1-turbo', name: 'Doubao Seed 2.1 Turbo' },
+  { id: 'doubao-seed-2.0-lite', name: 'Doubao Seed 2.0 Lite' },
+  { id: 'doubao-seed-2.0-mini', name: 'Doubao Seed 2.0 Mini' },
+  { id: 'glm-5.3-flash', name: 'GLM 5.3 Flash' },
+  { id: 'glm-5.3', name: 'GLM 5.3' },
+  { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro' },
+  { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash' },
+  { id: 'kimi-k2.7-code', name: 'Kimi K2.7 Code' },
+  { id: 'minimax-m3', name: 'MiniMax M3' },
+]);
+
+function volcengineAgentPlanModels(endpointEntries) {
+  const discoveredAt = new Date().toISOString();
+  return VOLCENGINE_AGENT_PLAN_MODEL_CATALOG.map(({ id, name }) => ({
+    id,
+    name,
+    origin: 'remote',
+    availability: endpointEntries.map(({ id: endpointId }) => ({
+      executionMode: 'http_endpoint',
+      endpointId,
+      remoteModelId: id,
+      status: 'available',
+      source: 'remote',
+      discoveredAt,
+      lastSeenAt: discoveredAt,
+    })),
+  }));
+}
+
 function createModelDiscoveryService(deps) {
   const { fs, path, os, _store, loadProviders, saveProviders, loadUserConfig, providerEndpointEntries, providerExecutionMode, QIANFAN_CODING_PROBE_MODEL, isQianfanCodingEndpoint, isQianfanCodingAnthropicEndpoint, qianfanModelDirectoryUrl, qianfanCodingErrorCode, qianfanCodingErrorMessage, getAnthropicAuthMode, normalizeRemoteModel, detectOAuth, resolveVaultKey, findCommand } = deps;
   const warmupInflight = new Map();
@@ -221,6 +257,53 @@ async function fetchModels(input = {}) {
       p.models = models;
       await _store.saveDiscoveredModels(p.id, p.models);
       return { success: true, models, modelsDiscovered: true };
+    }
+
+    if (p?.id === 'volcengine-agent') {
+      const discoveredProvider = p && hasRequestedConfig ? {
+        ...p,
+        ...(Array.isArray(requestedEndpoints) ? {
+          endpoints: requestedEndpoints,
+          ...(requestedEndpoints[0]?.baseUrl ? { baseUrl: requestedEndpoints[0].baseUrl } : {}),
+        } : {}),
+        ...(Object.prototype.hasOwnProperty.call(input, 'vaultKey') ? { vaultKey: requestedVaultKey || undefined } : {}),
+      } : p;
+      const endpointEntries = Array.isArray(requestedEndpoints) && requestedEndpoints.length
+        ? requestedEndpoints.map((endpoint, index) => ({ id: endpoint.id || `${providerId}:endpoint:${index}`, endpoint }))
+        : providerEndpointEntries(discoveredProvider);
+      if (!endpointEntries.length) throw Object.assign(new Error('至少需要一个有效端点'), { status: 400 });
+
+      const models = volcengineAgentPlanModels(endpointEntries);
+      const userConfig = await loadUserConfig();
+      const activeModelIds = new Set(
+        Object.values(userConfig.agentProviders || {})
+          .flatMap(state => state?.sites?.[p.id]?.modelIds || []),
+      );
+      p.models = replaceRemoteModels(p, models.flatMap(model => endpointEntries.map(({ id: endpointId }) => ({
+        endpointId,
+        model,
+      }))), activeModelIds);
+      try {
+        p.models = await require('../web/api/models-dev').enrichModels(discoveredProvider || p, p.models);
+      } catch (enrichErr) {
+        console.warn(`[fetchModels] models.dev enrichment failed: ${enrichErr.message}`);
+      }
+      if (persistConfig && discoveredProvider) {
+        Object.assign(p, {
+          endpoints: discoveredProvider.endpoints,
+          baseUrl: discoveredProvider.baseUrl,
+          vaultKey: discoveredProvider.vaultKey,
+        });
+        await saveProviders(providers);
+      } else {
+        await _store.saveDiscoveredModels(p.id, p.models);
+      }
+      return {
+        success: true,
+        modelsDiscovered: true,
+        models: previewConfig ? models : p.models,
+        errors: undefined,
+      };
     }
 
     if (p && providerExecutionMode(p) === 'agent_native' && !previewConfig) {
@@ -562,6 +645,6 @@ const PROVIDER_CODE_PREFIX = 'okit-provider:';
 const PROVIDER_CODE_SALT = 'okit-provider-salt';
 
 
-  return { readCodexCachedModels, readGrokCliModels, readCopilotCliModels, withNativeAvailability, replaceRemoteModels, fetchModels, discoverMissingConfiguredModels, fetchOpenAIModels, fetchQianfanCodingModels, fetchQianfanCodingAnthropicModels, fetchAnthropicModels };
+  return { readCodexCachedModels, readGrokCliModels, readCopilotCliModels, withNativeAvailability, replaceRemoteModels, fetchModels, discoverMissingConfiguredModels, fetchOpenAIModels, fetchQianfanCodingModels, fetchQianfanCodingAnthropicModels, fetchAnthropicModels, volcengineAgentPlanModels };
 }
 module.exports = { createModelDiscoveryService };
