@@ -1,6 +1,6 @@
 // Browser create/recovery orchestration. Platform-specific strategies are injected.
 function createBrowserOrchestrator(deps) {
-  const { AUTO_CREATE_PLATFORM_MAP, createZhipuKey, createVolcengineKey, createMinimaxKey, beginGenericBrowserCreate, submitGenericBrowserCreate, readGenericBrowserCreateResult, execJs, resolveActionCandidate, scoreActionCandidate, descriptorFingerprint, sendCommand, sleep, keyFromText, extractKeyFromCaptures, describeCapturedResponses, describeCapturedSecretFields, closeAutomationWindow, isAssetData } = deps;
+  const { AUTO_CREATE_PLATFORM_MAP, createZhipuKey, createVolcengineKey, createVolcengineAgentPlanKey, createMinimaxKey, beginGenericBrowserCreate, submitGenericBrowserCreate, readGenericBrowserCreateResult, execJs, resolveActionCandidate, scoreActionCandidate, descriptorFingerprint, sendCommand, sleep, keyFromText, extractKeyFromCaptures, describeCapturedResponses, describeCapturedSecretFields, closeAutomationWindow, isAssetData } = deps;
   const CREATE_ACTION_STRONG_PHRASES = ["create api key", "create key", "add", "new api key", "创建 api 密钥", "新建 api key", "确定"];
   const CREATE_ACTION_SCORE_THRESHOLD = 70;
 
@@ -125,12 +125,12 @@ async function createBrowserPlatformKey(platform, tokenName, run) {
   const ORCHESTRATORS = {
     zhipu: createZhipuKey,
     volcengine: createVolcengineKey,
-    'volcengine-agent': (params) => createVolcengineKey({ ...params, plan: 'agent' }),
+    'volcengine-agent': createVolcengineAgentPlanKey,
     minimax: createMinimaxKey,
   };
   const orchestrator = ORCHESTRATORS[platform.id]
     || ((params) => createGenericBrowserKey({ ...params, platform }));
-  return orchestrator({ tokenName, run });
+  return orchestrator({ platform, tokenName, run });
 }
 
 /** Recover the newest already-created Z.AI key without creating another one. */

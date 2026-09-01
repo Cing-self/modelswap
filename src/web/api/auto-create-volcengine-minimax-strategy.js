@@ -1,6 +1,6 @@
 // Provider-specific browser strategies. All Chrome/runtime capabilities are injected.
 function createVolcengineMinimaxStrategy(deps) {
-  const { sendCommand, execJs, sleep, closeAutomationWindow, foregroundClick, detectLoginRequired, detectInteractiveVerification, waitForInteractiveVerification, detectVolcengineLoginSurface, isAssetData, extractKeyFromCaptures, describeCapturedResponses, describeCapturedSecretFields, describeMinimaxBackendResults, VOLC_URL, VOLC_CREATE_TEXTS, MINIMAX_URL, MINIMAX_CREATE_TEXTS } = deps;
+  const { sendCommand, execJs, sleep, closeAutomationWindow, foregroundClick, detectLoginRequired, detectInteractiveVerification, waitForInteractiveVerification, detectVolcengineLoginSurface, isAssetData, extractKeyFromCaptures, describeCapturedResponses, describeCapturedSecretFields, describeMinimaxBackendResults, VOLC_URL, VOLC_AGENT_PLAN_URL, VOLC_CREATE_TEXTS, MINIMAX_URL, MINIMAX_CREATE_TEXTS } = deps;
 async function createVolcengineKey({ tokenName, url = VOLC_URL, run, plan = 'standard' }) {
   // Platform names must be unique. Keep the vault variable deterministic while
   // using a harmless suffix only for the console-side display name.
@@ -200,6 +200,127 @@ async function createVolcengineKey({ tokenName, url = VOLC_URL, run, plan = 'sta
 
   await closeAutomationWindow();
   return { value: key, name: uniqueName };
+}
+
+async function clickVisibleTextWhenReady(text, missingMessage) {
+  // Ark's subscription page is an SPA: navigate can resolve while the
+  // radio/section text is still hydrating. Poll with a bounded deadline.
+  for (let attempt = 0; attempt < 24; attempt += 1) {
+    const stateRaw = await execJs(`(() => {
+      const visible = el => {
+        const rect = el?.getBoundingClientRect?.();
+        const style = el ? getComputedStyle(el) : null;
+        return Boolean(rect && rect.width > 0 && rect.height > 0 && style?.display !== 'none' && style?.visibility !== 'hidden');
+      };
+      const target = [...document.querySelectorAll('label, button, [role="button"], [role="radio"], span, div')]
+        .filter(visible)
+        .find(el => (el.textContent || '').trim() === ${JSON.stringify(text)});
+      if (!target) return JSON.stringify({ ok: false });
+      target.click();
+      return JSON.stringify({ ok: true });
+    })()`).catch(() => '{"ok":false}');
+    let state = {};
+    try { state = JSON.parse(stateRaw || '{}'); } catch {}
+    if (state.ok) return state;
+    await sleep(500);
+  }
+  throw new Error(missingMessage);
+}
+
+async function createVolcengineAgentPlanKey({ platform }) {
+  // Agent Plan keys live in the subscription console, not in Ark's generic
+  // API Key manager. A generic Ark key can list standard models while still
+  // being rejected by /api/plan, so this flow must never use that page.
+  const nav = await sendCommand('navigate', { url: VOLC_AGENT_PLAN_URL, workspace: 'okit' }, 30000);
+  if (!nav.ok) throw new Error(nav.error || 'navigate failed');
+  const tabId = nav.data && nav.data.tabId;
+  const loginState = await detectLoginRequired();
+  if (loginState.loginRequired || await detectVolcengineLoginSurface()) {
+    throw new Error('需要登录火山方舟 Agent Plan');
+  }
+
+  await clickVisibleTextWhenReady('使用配置', '打开 Agent Plan 使用配置超时：页面未出现“使用配置”');
+  await clickVisibleTextWhenReady('配置专属API Key', '打开 Agent Plan 专属 API Key 区域超时：页面未出现“配置专属API Key”');
+
+  let key = '';
+  let createClicks = 0;
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    const stateRaw = await execJs(`(() => {
+      const visible = el => {
+        const rect = el?.getBoundingClientRect?.();
+        const style = el ? getComputedStyle(el) : null;
+        return Boolean(rect && rect.width > 0 && rect.height > 0 && style?.display !== 'none' && style?.visibility !== 'hidden' && !el.disabled);
+      };
+      const rows = [...document.querySelectorAll('tr, [role="row"]')].filter(row => visible(row) && (/\\bark-[A-Za-z0-9-]{20,}\\b/.test(row.innerText || '') || /\\*{10,}/.test(row.innerText || '')));
+      if (rows.length === 1) {
+        const plainKey = ((rows[0].innerText || '').match(/\\bark-[A-Za-z0-9-]{20,}\\b/) || [])[0] || '';
+        if (plainKey) return JSON.stringify({ action: 'key', key: plainKey });
+        const toggle = rows[0].querySelector('[class*="keyToggleBtn"]');
+        if (!toggle || !visible(toggle)) return JSON.stringify({ action: 'toggle-missing' });
+        const rect = toggle.getBoundingClientRect();
+        return JSON.stringify({ action: 'reveal', x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+      }
+      if (rows.length > 1) return JSON.stringify({ action: 'ambiguous-rows', rows: rows.length });
+      const create = [...document.querySelectorAll('button, [role="button"]')]
+        .filter(visible)
+        .find(el => /^(?:创建|生成)\\s*API\\s*KEY$/i.test((el.textContent || '').trim()));
+      if (!create) return JSON.stringify({ action: 'no-row-no-create' });
+      const rect = create.getBoundingClientRect();
+      return JSON.stringify({ action: 'create', x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+    })()`).catch(() => '{"ok":false}');
+    let state = {};
+    try { state = JSON.parse(stateRaw || '{}'); } catch { state = { action: 'invalid-state' }; }
+    if (state.action === 'key' && isValidAgentPlanCredential(state.key)) {
+      key = state.key;
+      break;
+    }
+    if (state.action === 'reveal' && await foregroundClick({ ...state, tabId })) {
+      await sleep(500);
+      continue;
+    }
+    if (state.action === 'create') {
+      if (createClicks >= 3) throw new Error('已点击 Agent Plan 创建 API Key，但未能读取新专属 Key');
+      createClicks += 1;
+      if (await foregroundClick({ ...state, tabId })) {
+        await sleep(1500);
+        continue;
+      }
+    }
+    if (state.action === 'toggle-missing') {
+      throw new Error('已找到 Agent Plan 专属 API Key，但无法识别显示/隐藏控件');
+    }
+    if (state.action === 'ambiguous-rows') {
+      throw new Error(`Agent Plan 专属 API Key 行不唯一（${state.rows} 行）`);
+    }
+    if (state.action === 'no-row-no-create' && attempt >= 12) {
+      throw new Error('未找到 Agent Plan 专属 API Key，也未找到“创建 API KEY”按钮');
+    }
+    await sleep(500);
+  }
+  if (!key) throw new Error(`已找到 Agent Plan 专属 Key，但复制内容未通过格式校验（${describeCredentialShape(key)}）；为避免保存错误 Key，已停止`);
+  await closeAutomationWindow();
+  return { value: key, name: platform.keyHint || 'VOLCENGINE_AGENT_PLAN_API_KEY' };
+}
+
+function describeCredentialShape(value) {
+  const text = String(value || '');
+  return JSON.stringify({
+    length: text.length,
+    lower: /[a-z]/.test(text),
+    upper: /[A-Z]/.test(text),
+    digit: /[0-9]/.test(text),
+    punctuation: /[-._~+/=]/.test(text),
+    whitespace: /\s/.test(text),
+    masked: /[*•]/.test(text),
+  });
+}
+
+function isValidAgentPlanCredential(value) {
+  // Agent Plan credentials are not necessarily the same 40+ character shape
+  // as generic Ark API keys. Require a clean, non-trivial token and reject
+  // masked rows/asset-like data; actual usability is verified by Ark afterwards.
+  return /^[A-Za-z0-9][A-Za-z0-9._~+/=-]{19,}$/.test(String(value || ''))
+    && !isAssetData(value);
 }
 
 // ─── MiniMax — atomic-capability orchestration ──────────────────────
@@ -460,6 +581,6 @@ async function createMinimaxKey({ tokenName, run }) {
   return { value: key, name: uniqueName };
 }
 
-  return { createVolcengineKey, createMinimaxKey };
+  return { createVolcengineKey, createVolcengineAgentPlanKey, createMinimaxKey };
 }
 module.exports = { createVolcengineMinimaxStrategy };

@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 const { createZhipuStrategy } = require('../src/web/api/auto-create-zhipu-strategy.js');
 const { createGenericNavigationStrategy } = require('../src/web/api/auto-create-generic-navigation-strategy.js');
 const { createVolcengineMinimaxStrategy } = require('../src/web/api/auto-create-volcengine-minimax-strategy.js');
+const { createBrowserOrchestrator } = require('../src/web/api/auto-create-browser-orchestrator.js');
 const { createBrowserDeleteStrategy } = require('../src/web/api/auto-create-delete-browser-strategy.js');
 const { createCloudflareKeyService } = require('../src/application/auto-create-cloudflare-service.js');
 
@@ -284,7 +285,7 @@ describe('auto-create strategy dependency wiring', () => {
       execJs: asyncNoop,
       sleep: asyncNoop,
       closeAutomationWindow: asyncNoop,
-      foregroundClick: async () => false,
+      foregroundClick: async () => true,
       detectLoginRequired: async () => ({ loginRequired: false }),
       detectInteractiveVerification: async () => false,
       waitForInteractiveVerification: asyncNoop,
@@ -305,27 +306,33 @@ describe('auto-create strategy dependency wiring', () => {
     expect(detectVolcengineLoginSurface).toHaveBeenCalledTimes(1);
   });
 
-  it('routes an enabled Agent Plan account to Ark API Key management, never to the subscription page', async () => {
+  it('reads the dedicated Agent Plan key from its subscription console, never from generic Ark keys', async () => {
     const calls: string[] = [];
     const navigationUrls: string[] = [];
+    let usageClickAttempts = 0;
     const agentPlanUrl = 'https://console.example.test/volcengine/agent-plan';
-    const apiKeyUrl = 'https://console.example.test/volcengine/api-key';
-    const { createVolcengineKey } = createVolcengineMinimaxStrategy({
+    const { createVolcengineAgentPlanKey } = createVolcengineMinimaxStrategy({
       sendCommand: async (command: string, params: { url?: string } = {}) => {
         calls.push(command);
         if (command === 'navigate') {
           navigationUrls.push(params.url || '');
           return successfulNavigation;
         }
-        if (command === 'network-capture-start') return successfulCaptureStart;
         throw new Error(`unexpected command: ${command}`);
       },
-      execJs: async (script: string) => script.includes('button.click')
-        ? JSON.stringify({ ok: true })
-        : JSON.stringify({ error: 'name-input-not-found' }),
+      execJs: async (script: string) => {
+        if (script.includes('使用配置')) {
+          usageClickAttempts += 1;
+          if (usageClickAttempts < 3) return JSON.stringify({ ok: false });
+        }
+        if (script.includes("querySelectorAll('tr, [role=\"row\"]')")) {
+          return JSON.stringify({ action: 'key', key: 'ark-' + 'a'.repeat(19) });
+        }
+        return JSON.stringify({ ok: true });
+      },
       sleep: asyncNoop,
       closeAutomationWindow: asyncNoop,
-      foregroundClick: async () => false,
+      foregroundClick: async () => true,
       detectLoginRequired: async () => ({ loginRequired: false }),
       detectInteractiveVerification: async () => false,
       waitForInteractiveVerification: asyncNoop,
@@ -334,7 +341,7 @@ describe('auto-create strategy dependency wiring', () => {
       describeCapturedResponses: () => [],
       describeCapturedSecretFields: () => [],
       describeMinimaxBackendResults: () => [],
-      VOLC_URL: apiKeyUrl,
+      VOLC_URL: 'https://console.example.test/volcengine/api-key',
       VOLC_AGENT_PLAN_URL: agentPlanUrl,
       VOLC_CREATE_TEXTS: ['Create API Key'],
       MINIMAX_URL: 'https://console.example.test/minimax',
@@ -342,10 +349,37 @@ describe('auto-create strategy dependency wiring', () => {
       detectVolcengineLoginSurface: async () => false,
     });
 
-    await expect(createVolcengineKey({ tokenName: 'qa-key', url: agentPlanUrl, plan: 'agent' }))
-      .rejects.toThrow('火山方舟创建对话框异常：name-input-not-found');
-    expect(calls).toEqual(['navigate', 'network-capture-start']);
-    expect(navigationUrls).toEqual([apiKeyUrl]);
+    const orchestrator = createBrowserOrchestrator({
+      AUTO_CREATE_PLATFORM_MAP: new Map(),
+      createZhipuKey: async () => { throw new Error('unexpected zhipu'); },
+      createVolcengineKey: async () => { throw new Error('unexpected generic volcengine'); },
+      createVolcengineAgentPlanKey,
+      createMinimaxKey: async () => { throw new Error('unexpected minimax'); },
+      beginGenericBrowserCreate: async () => { throw new Error('unexpected generic navigation'); },
+      submitGenericBrowserCreate: async () => { throw new Error('unexpected generic submit'); },
+      readGenericBrowserCreateResult: async () => { throw new Error('unexpected generic result'); },
+      execJs: async () => { throw new Error('unexpected orchestrator exec'); },
+      resolveActionCandidate: async () => { throw new Error('unexpected action candidate'); },
+      scoreActionCandidate: () => 0,
+      descriptorFingerprint: () => '',
+      sendCommand: async () => { throw new Error('unexpected orchestrator command'); },
+      sleep: asyncNoop,
+      keyFromText: () => null,
+      extractKeyFromCaptures: () => null,
+      describeCapturedResponses: () => [],
+      describeCapturedSecretFields: () => [],
+      closeAutomationWindow: asyncNoop,
+      isAssetData: () => false,
+    });
+    const result = await orchestrator.createBrowserPlatformKey(
+      { id: 'volcengine-agent', keyHint: 'VOLCENGINE_AGENT_PLAN_API_KEY' },
+      'qa-key',
+    );
+    expect(result).toEqual({ value: 'ark-' + 'a'.repeat(19), name: 'VOLCENGINE_AGENT_PLAN_API_KEY' });
+    expect(usageClickAttempts).toBe(3);
+    expect(navigationUrls).toEqual([agentPlanUrl]);
+    expect(calls).not.toContain('clipboard-read');
+    expect(calls).not.toContain('network-capture-start');
   });
 
   it('drives MiniMax through its injected navigation/capture dependencies before the first form action', async () => {

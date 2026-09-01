@@ -331,3 +331,8 @@
 # Vault 选择器搜索体验修正（2026-09-01 下午）
 - 主搜索输入改为拉伸填充，真实页面实测 input 与外层字段高度均为 42px；侧栏新增“搜索分组...”控件，搜索区固定在分组列表上方，分组列表独立滚动，并补充中英文文案与空状态。
 - 新增分组筛选纯函数与渲染回归：匹配中英文/裁剪空格/保留排序，并断言专用侧栏搜索控件渲染。全量 105 文件/956 测试通过；完整构建通过。真实页面实测主搜索 42/42px、侧栏搜索 34/34px；输入“火山”后只剩全部、火山方舟 Agent Plan、火山引擎三个分组入口。
+
+# 火山方舟 Agent Plan 专属 Key 流程修复（2026-09-01 傍晚）
+- 根因复核：Agent Plan 专属 Key 在订阅控制台管理，普通方舟 Key 可通过 `/api/v3` 但会被 `/api/plan/v3` 拒绝；此前把 Agent Plan 引到标准 API Key 管理页是错误流程。
+- 修复：Agent Plan 自动创建进入订阅页“使用配置 → 配置专属API Key”。已有 Key 默认遮罩时点击专用 `keyToggleBtn` 显示后读取 `ark-...`；未找到 Key 行时查找并点击“创建 API KEY”（不点击“更新API KEY”，避免轮换既有 Key）。流程有界轮询 SPA 渲染，读取结果仅写入本地表单，不输出明文、不读剪贴板。
+- 真实验证：使用用户提供的专属 Key（不回显）写入本地加密 Vault `VOLCENGINE_AGENT_PLAN_API_KEY`，并绑定 `volcengine-agent`；`/verify-auth` 返回 verified，OpenAI 与 Anthropic 两个 Agent Plan endpoint 均 verified。自动化定向 3 文件 69/69；全量 105 文件/956 测试；完整构建 exit 0。

@@ -141,10 +141,9 @@ async function resumeAutoCreateRun(req, res) {
 }
 
 const VOLC_URL = 'https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey';
-// Agent Plan's old openManagement URL now leads to the subscription page even
-// while a plan is active. Its dedicated endpoint still needs a separately
-// labelled Vault entry, but the API Key itself is created here.
-const VOLC_AGENT_PLAN_URL = VOLC_URL;
+// Agent Plan credentials are managed in the subscription console's dedicated
+// key section. Generic Ark API keys are not accepted by /api/plan.
+const VOLC_AGENT_PLAN_URL = 'https://console.volcengine.com/ark/region:cn-beijing/subscription/agent-plan';
 const VOLC_CREATE_TEXTS = ['创建 API Key'];
 const MINIMAX_URL = 'https://platform.minimaxi.com/user-center/basic-information/interface-key';
 const MINIMAX_CREATE_TEXTS = ['创建 API Key', '创建新的', 'Create new', '新建', '创建', 'Create'];
@@ -168,7 +167,7 @@ const volcengineMinimaxStrategy = createVolcengineMinimaxStrategy({
   describeCapturedSecretFields, describeMinimaxBackendResults,
   VOLC_URL, VOLC_AGENT_PLAN_URL, VOLC_CREATE_TEXTS, MINIMAX_URL, MINIMAX_CREATE_TEXTS,
 });
-const { createVolcengineKey, createMinimaxKey } = volcengineMinimaxStrategy;
+const { createVolcengineKey, createVolcengineAgentPlanKey, createMinimaxKey } = volcengineMinimaxStrategy;
 
 const zhipuStrategy = createZhipuStrategy({
   sendCommand, execJs, sleep, closeAutomationWindow,
@@ -365,7 +364,7 @@ readGenericBrowserCreateResult = createGenericResultStrategy({
 
 browserOrchestrator = createBrowserOrchestrator({
   AUTO_CREATE_PLATFORM_MAP, VOLC_AGENT_PLAN_URL, createZhipuKey, createVolcengineKey,
-  createMinimaxKey, beginGenericBrowserCreate, submitGenericBrowserCreate,
+  createVolcengineAgentPlanKey, createMinimaxKey, beginGenericBrowserCreate, submitGenericBrowserCreate,
   readGenericBrowserCreateResult, execJs, resolveActionCandidate, scoreActionCandidate,
   descriptorFingerprint, sendCommand, sleep, keyFromText, extractKeyFromCaptures,
   describeCapturedResponses, describeCapturedSecretFields, closeAutomationWindow, isAssetData,
