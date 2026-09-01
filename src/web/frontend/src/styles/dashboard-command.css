@@ -2303,6 +2303,20 @@ select:focus {
   box-shadow: none !important;
 }
 
+/* Focus belongs to the pill, not to the visually transparent input inside it. */
+.settings-workspace .vault-picker-search-field:focus-within {
+  border: 0;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 46%, transparent);
+}
+
+.settings-workspace .vault-picker-search-field .vault-picker-search-input:focus,
+.settings-workspace .vault-picker-search-field .vault-picker-search-input:focus-visible {
+  border: 0 !important;
+  outline: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
 .access-workspace .picker-panel {
   width: min(820px, calc(100vw - 48px));
   max-height: calc(100vh - 96px);
