@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-const { createAutoCreateBrowserState } = require('../src/web/api/auto-create-browser-state.js');
+const { createAutoCreateBrowserState, classifyVolcengineLoginSurface } = require('../src/web/api/auto-create-browser-state.js');
 
 function createStateProbe(execJs: (script: string) => Promise<string>) {
   return createAutoCreateBrowserState({
@@ -44,5 +44,25 @@ describe('auto-create browser login state', () => {
       hasSmsLoginSurface: false,
       publicRootLoginSurface: false,
     })).toBe(false);
+  });
+
+  it('does not mistake a signed-in Volcengine Agent Plan console shell for login merely because it retains a login link', () => {
+    // Captured from the Agent Plan console: it exposes an account-resource
+    // menu after sign-in, but the page shell may still contain login wording.
+    expect(classifyVolcengineLoginSurface({
+      loginPrompt: false,
+      credentialSurface: true,
+      loginAction: true,
+      signedInAccountSurface: true,
+    })).toBe(false);
+  });
+
+  it('still recognizes a Volcengine credential page with only a login action as signed out', () => {
+    expect(classifyVolcengineLoginSurface({
+      loginPrompt: false,
+      credentialSurface: true,
+      loginAction: true,
+      signedInAccountSurface: false,
+    })).toBe(true);
   });
 });

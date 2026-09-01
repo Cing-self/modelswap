@@ -1,4 +1,15 @@
 // Read-only login/security state probes and browser handoff helpers.
+function classifyVolcengineLoginSurface(state = {}) {
+  // A signed-in Ark shell can retain a generic login link while rendering an
+  // API-key page. Its account-resource menu is stronger evidence than that
+  // stale shell link, so only treat the combination as signed out when no
+  // signed-in account surface is present.
+  return Boolean(
+    state.loginPrompt
+    || (state.credentialSurface && state.loginAction && !state.signedInAccountSurface)
+  );
+}
+
 function createAutoCreateBrowserState(deps) {
   const { execJs, sendCommand, focusAutomationWindow, sleep, verificationTimeoutMs } = deps;
 function isLoginFailure(message) {
@@ -250,16 +261,22 @@ async function detectVolcengineLoginSurface() {
       return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
     };
     const bodyText = String(document.body?.innerText || '').slice(0, 16000);
-    const loginAction = [...document.querySelectorAll('a, button, [role="button"]')]
+    const actionTexts = [...document.querySelectorAll('a, button, [role="button"]')]
       .filter(visible)
-      .some(el => /登录|登入|sign in|log in/i.test(String(el.textContent || '').trim()));
+      .map(el => String(el.textContent || '').trim().replace(/\s+/g, ' '))
+      .filter(Boolean);
+    const loginAction = actionTexts.some(text => /登录|登入|sign in|log in/i.test(text));
     const loginPrompt = /立即登录使用|请先登录|登录后继续|登录后使用/i.test(bodyText);
     const credentialSurface = /API\s*Key|密钥管理|调用凭证|credential/i.test(bodyText);
-    return JSON.stringify({ required: loginPrompt || (credentialSurface && loginAction) });
+    // "账号全部资源" is the signed-in Ark account menu observed on the
+    // Agent Plan console. The other labels are the same authenticated account
+    // affordance on Ark shell variants, not generic page navigation.
+    const signedInAccountSurface = actionTexts.some(text => /^(?:账号全部资源|退出登录|切换账号|个人中心|账户中心|账号设置)$/.test(text));
+    return JSON.stringify({ loginPrompt, credentialSurface, loginAction, signedInAccountSurface });
   })()`).catch(() => '{"required":false}');
-  try { return Boolean(JSON.parse(raw || '{}').required); } catch { return false; }
+  try { return classifyVolcengineLoginSurface(JSON.parse(raw || '{}')); } catch { return false; }
 }
   return { isLoginFailure, classifyKeyCreationLimitFailure, isLoginUrl, classifyLoginRequiredState, detectLoginRequired, classifyInteractiveVerificationState, detectInteractiveVerification, waitForSecurityVerificationToClear, isOpenRouterPublicPage, hasOpenRouterPublicNavigation, redirectOpenRouterToLogin, handoffOpenRouterLoginIfNeeded, detectVolcengineLoginSurface };
 }
 
-module.exports = { createAutoCreateBrowserState };
+module.exports = { createAutoCreateBrowserState, classifyVolcengineLoginSurface };

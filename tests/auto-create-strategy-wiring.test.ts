@@ -305,6 +305,43 @@ describe('auto-create strategy dependency wiring', () => {
     expect(detectVolcengineLoginSurface).toHaveBeenCalledTimes(1);
   });
 
+  it('reports an enabled-session Agent Plan redirect as a subscription prerequisite, never as a login failure', async () => {
+    const calls: string[] = [];
+    const agentPlanUrl = 'https://console.example.test/volcengine/agent-plan';
+    const { createVolcengineKey } = createVolcengineMinimaxStrategy({
+      sendCommand: async (command: string) => {
+        calls.push(command);
+        if (command === 'navigate') return successfulNavigation;
+        if (command === 'network-capture-start') return successfulCaptureStart;
+        throw new Error(`unexpected command: ${command}`);
+      },
+      execJs: async (script: string) => script === 'location.href'
+        ? 'https://console.volcengine.com/ark/region:cn-beijing/subscription/agent-plan'
+        : JSON.stringify({ error: 'create-not-found' }),
+      sleep: asyncNoop,
+      closeAutomationWindow: asyncNoop,
+      foregroundClick: async () => false,
+      detectLoginRequired: async () => ({ loginRequired: false }),
+      detectInteractiveVerification: async () => false,
+      waitForInteractiveVerification: asyncNoop,
+      isAssetData: () => false,
+      extractKeyFromCaptures: () => null,
+      describeCapturedResponses: () => [],
+      describeCapturedSecretFields: () => [],
+      describeMinimaxBackendResults: () => [],
+      VOLC_URL: 'https://console.example.test/volcengine',
+      VOLC_AGENT_PLAN_URL: agentPlanUrl,
+      VOLC_CREATE_TEXTS: ['Create API Key'],
+      MINIMAX_URL: 'https://console.example.test/minimax',
+      MINIMAX_CREATE_TEXTS: ['Create API Key'],
+      detectVolcengineLoginSurface: async () => false,
+    });
+
+    await expect(createVolcengineKey({ tokenName: 'qa-key', url: agentPlanUrl }))
+      .rejects.toThrow('说明 Agent Plan 尚未开通、已失效或权益尚未生效');
+    expect(calls).toEqual(['navigate', 'network-capture-start']);
+  });
+
   it('drives MiniMax through its injected navigation/capture dependencies before the first form action', async () => {
     const calls: string[] = [];
     const { createMinimaxKey } = createVolcengineMinimaxStrategy({

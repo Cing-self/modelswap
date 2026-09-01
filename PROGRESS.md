@@ -312,3 +312,8 @@
 - 方法：先写测试（8 例，7 红 1 绿——"真改版"护栏未被削弱）再改实现。新页内信号全部按真实报告证据标定：登录跳转过渡（openai "Signing in…"：标题/正文短语或 ≤40 字正文+零可操作元素）、首次组织选择（anthropic Create Organization + Individual/Organization 按钮）、管理页级确认（moonshot 路由+导航+≥300 字已渲染内容；volcengine 标题 "API Key 管理"）、骨架（class 含 skeleton/shimmer 且按钮≤3）、空壳。
 - 判定顺序重排 + 有界稳定性等待（连续两次探针签名一致才可下改版结论；签名=正文字数+按钮数+链接数，窗口=既有 settle 上限，不无限等待）。新状态 page_not_ready（exit 2）：未就绪 ≠ 改版。safe_entry_missing 仅当"稳定+控制台可确认+配置入口全缺"。
 - 验证：定向 84/84；全量 104 文件/949 测试零退化；build exit 0；真实只读复跑 17 平台（D）零 failed：入口级 10、管理页级 1（volcengine 补强生效）、page_not_ready 2（volcengine-agent/qianfan 本轮未就绪）、blocked 3（qwen 系/qianfan-coding 需人工订阅前置，语义保持）、waiting 1（openai 登录过渡）。报告 20260831173056766-9421-live-auth-verify.json，退出码 2 为诚实非通过项。未点击/输入/创建/删除任何第三方资源；create-cleanup 真实创建保持硬禁用；未 push。
+
+# 火山引擎 Agent Plan 登录误判修复（2026-09-01）
+- 症状：已登录账号自动创建时反复提示“需要登录火山引擎 Agent Plan”。根因：`detectVolcengineLoginSurface` 把“凭据页 + 任意登录文案”直接当未登录；已登录 Ark 壳仍可能保留登录链接，同时已显示“账号全部资源”账号菜单。
+- 修复：状态判定抽为纯函数；明确登录提示仍拦截，但已出现认证账号菜单时不再因泛登录文案误判。补齐 Agent Plan 被重定向到 `/subscription/agent-plan` 的策略回归，确保已登录但套餐不可用时给出套餐前置提示，而不是登录提示。
+- 验证：先新增两条状态反证（旧代码导出缺失，2 红）后修复；定向 `tests/auto-create-browser-state.test.ts` + `tests/auto-create-strategy-wiring.test.ts` 18/18；全量 104 文件/952 测试；`npm run build` exit 0。专用已登录 Chrome 只读读取到“账号全部资源”，且实际 URL 被重定向到 Agent Plan 套餐页；未点击创建、未生成/读取/删除外部 Key。
