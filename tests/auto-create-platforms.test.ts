@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 const autoCreate = await import('../src/web/api/auto-create.js');
 
 const { AUTO_CREATE_PLATFORMS, BROWSER_LOGIN_VERIFICATION_PLATFORMS, isLoginFailure, classifyKeyCreationLimitFailure, isLoginUrl, classifyInteractiveVerificationState, isOpenRouterPublicPage, hasOpenRouterPublicNavigation, extractKeyFromCaptures, describeCapturedSecretFields, capturesContainMaskedSecret, isAssetData, serializeCredentialPair } = autoCreate as {
-  AUTO_CREATE_PLATFORMS: Array<{ id: string; keyHint: string; groupHint: string; mode: string; url?: string }>;
+  AUTO_CREATE_PLATFORMS: Array<{ id: string; label: string; keyHint: string; groupHint: string; mode: string; url?: string }>;
   BROWSER_LOGIN_VERIFICATION_PLATFORMS: Array<{ id: string; label: string; url: string }>;
   isLoginFailure: (message: string) => boolean;
   classifyKeyCreationLimitFailure: (message: string, platformLabel?: string) => string | null;
@@ -81,6 +81,18 @@ describe('auto-create key platforms', () => {
     expect(AUTO_CREATE_PLATFORMS.find(platform => platform.id === 'minimax-coding')?.groupHint).toBe('MiniMax · 国内');
     expect(AUTO_CREATE_PLATFORMS.find(platform => platform.id === 'minimax-global')?.groupHint).toBe('MiniMax · 国际');
     expect(AUTO_CREATE_PLATFORMS.find(platform => platform.id === 'minimax-global-coding')?.groupHint).toBe('MiniMax · 国际');
+  });
+
+  it('names Ark API keys by their actual product, without offering cloud AK/SK creation', () => {
+    expect(AUTO_CREATE_PLATFORMS.find(platform => platform.id === 'volcengine')).toMatchObject({
+      label: '火山方舟（普通 API Key）',
+      groupHint: '火山方舟',
+    });
+    expect(AUTO_CREATE_PLATFORMS.find(platform => platform.id === 'volcengine-agent')).toMatchObject({
+      label: '火山方舟 Agent Plan',
+      groupHint: '火山方舟 Agent Plan',
+    });
+    expect(AUTO_CREATE_PLATFORMS.find(platform => platform.id === 'volcengine-usage-credentials')).toBeUndefined();
   });
 
   it('does not treat Zhipu security copy in the signed-in shell as an active challenge', () => {

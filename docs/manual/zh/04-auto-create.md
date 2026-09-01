@@ -20,7 +20,7 @@
 |------|------|
 | 国际 | OpenAI、Anthropic、Cloudflare、xAI (Grok)、Mistral、OpenRouter |
 | 智谱系 | 智谱 AI（国内站）、Z.AI（国际站） |
-| 火山引擎 | 火山引擎、火山引擎 Agent Plan |
+| 火山方舟 | 火山方舟（普通 API Key）、火山方舟 Agent Plan |
 | 腾讯云 | 腾讯云、腾讯云 Token Plan |
 | MiniMax | MiniMax 国内/国际站、MiniMax Token Plan 国内/国际 |
 | 月之暗面 | Moonshot、Moonshot Coding Plan、Kimi 国内站、Kimi 国际站 |
@@ -30,6 +30,6 @@
 
 ## 4.4 特殊情况
 
-- **火山引擎**：创建过程中平台可能弹出安全验证或短信验证码，需要你手动完成验证，之后扩展继续接管（半自动）
+- **火山方舟**：创建过程中平台可能弹出安全验证或短信验证码，需要你手动完成验证，之后扩展继续接管（半自动）
 - **Z.AI / 百度千帆 Token Plan**：依赖列表页的"复制"控件读取明文；个别情况下控件不返回明文，OKIT 会明确提示**停止写入并要求手动复制**——宁可不存，也不把掩码存进库
 - **Anthropic**：创建后需要保持浏览器在前台，扩展通过"复制"按钮读取 Key

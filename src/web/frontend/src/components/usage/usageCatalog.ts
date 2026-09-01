@@ -133,17 +133,17 @@ export const PROVIDER_META: Record<
     kind: 'subscription',
   },
   'volcengine-coding': {
-    name: '火山引擎 Coding Plan',
+    name: '火山方舟 Coding Plan',
     typeKey: 'usage.typeCodingPlan',
     kind: 'subscription',
   },
   'volcengine-agent': {
-    name: '火山引擎 Agent Plan',
+    name: '火山方舟 Agent Plan',
     typeKey: 'usage.typeAgentPlan',
     kind: 'subscription',
   },
   volcengine: {
-    name: '火山引擎',
+    name: '火山方舟',
     typeKey: 'usage.typeApiPlatform',
     kind: 'prepaid',
   },

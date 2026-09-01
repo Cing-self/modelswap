@@ -317,3 +317,7 @@
 - 症状：已登录账号自动创建时反复提示“需要登录火山引擎 Agent Plan”。根因：`detectVolcengineLoginSurface` 把“凭据页 + 任意登录文案”直接当未登录；已登录 Ark 壳仍可能保留登录链接，同时已显示“账号全部资源”账号菜单。
 - 修复：状态判定抽为纯函数；明确登录提示仍拦截，但已出现认证账号菜单时不再因泛登录文案误判。补齐 Agent Plan 被重定向到 `/subscription/agent-plan` 的策略回归，确保已登录但套餐不可用时给出套餐前置提示，而不是登录提示。
 - 验证：先新增两条状态反证（旧代码导出缺失，2 红）后修复；定向 `tests/auto-create-browser-state.test.ts` + `tests/auto-create-strategy-wiring.test.ts` 18/18；全量 104 文件/952 测试；`npm run build` exit 0。专用已登录 Chrome 只读读取到“账号全部资源”，且实际 URL 被重定向到 Agent Plan 套餐页；未点击创建、未生成/读取/删除外部 Key。
+
+# 火山方舟产品命名澄清（2026-09-01）
+- 普通 API Key、Coding Plan 与 Agent Plan 的产品显示名统一为“火山方舟”系列；自动创建普通 Key 显式标为“火山方舟（普通 API Key）”，避免与火山引擎云账号 AK/SK 混淆。内部 `volcengine` ID、方舟 API 地址与已有配置兼容性不变；真实云账号 AK/SK 的文案保留“火山引擎”。
+- 同步更新 Provider 预设、分组、用量页、双语 i18n、自动创建手册与测试覆盖矩阵，并由生成脚本更新前端预设清单。验证：名称契约测试先红后绿（51/51）；全量 104 文件/953 测试；`npm run build` exit 0。

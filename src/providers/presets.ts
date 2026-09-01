@@ -41,7 +41,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
   },
   {
     id: "volcengine",
-    name: "火山引擎",
+    name: "火山方舟",
     type: "openai",
     baseUrl: "https://ark.cn-beijing.volces.com/api/v3",
     endpoints: [
@@ -260,7 +260,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
   },
   {
     id: "volcengine-coding",
-    name: "火山引擎 Coding Plan",
+    name: "火山方舟 Coding Plan",
     type: "openai",
     baseUrl: "https://ark.cn-beijing.volces.com/api/coding/v3",
     endpoints: [
@@ -272,7 +272,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
   },
   {
     id: "volcengine-agent",
-    name: "火山引擎 Agent Plan",
+    name: "火山方舟 Agent Plan",
     type: "openai",
     baseUrl: "https://ark.cn-beijing.volces.com/api/plan/v3",
     endpoints: [

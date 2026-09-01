@@ -92,7 +92,7 @@ export const PROVIDER_GROUPS: { key: string; labelKey: string; ids: string[] }[]
     "minimax", "minimax-global", "minimax-coding", "minimax-global-coding",
     // Kimi / Moonshot
     "moonshot", "moonshot-coding-plan", "kimi-coding", "kimi-coding-plan",
-    // 火山引擎
+    // 火山方舟
     "volcengine", "volcengine-coding", "volcengine-agent",
     // 百度千帆
     "qianfan", "qianfan-coding",
@@ -221,7 +221,7 @@ export const PROVIDER_FAMILIES: ProviderFamily[] = [
     ids: ["kimi-coding", "kimi-coding-plan"],
   },
   {
-    family: "火山引擎",
+    family: "火山方舟",
     plans: [
       { label: "API 平台", providerId: "volcengine" },
       { label: "Coding Plan", providerId: "volcengine-coding" },
