@@ -1,13 +1,20 @@
 // Provider-specific browser strategies. All Chrome/runtime capabilities are injected.
 function createVolcengineMinimaxStrategy(deps) {
-  const { sendCommand, execJs, sleep, closeAutomationWindow, foregroundClick, detectLoginRequired, detectInteractiveVerification, waitForInteractiveVerification, detectVolcengineLoginSurface, isAssetData, extractKeyFromCaptures, describeCapturedResponses, describeCapturedSecretFields, describeMinimaxBackendResults, VOLC_URL, VOLC_AGENT_PLAN_URL, VOLC_CREATE_TEXTS, MINIMAX_URL, MINIMAX_CREATE_TEXTS } = deps;
-async function createVolcengineKey({ tokenName, url = VOLC_URL, run }) {
+  const { sendCommand, execJs, sleep, closeAutomationWindow, foregroundClick, detectLoginRequired, detectInteractiveVerification, waitForInteractiveVerification, detectVolcengineLoginSurface, isAssetData, extractKeyFromCaptures, describeCapturedResponses, describeCapturedSecretFields, describeMinimaxBackendResults, VOLC_URL, VOLC_CREATE_TEXTS, MINIMAX_URL, MINIMAX_CREATE_TEXTS } = deps;
+async function createVolcengineKey({ tokenName, url = VOLC_URL, run, plan = 'standard' }) {
   // Platform names must be unique. Keep the vault variable deterministic while
   // using a harmless suffix only for the console-side display name.
   const nameSuffix = Date.now().toString(36).slice(-4);
   const requestedName = `${tokenName}-${nameSuffix}`;
   const uniqueName = requestedName;
-  const nav = await sendCommand('navigate', { url, workspace: 'okit' }, 30000);
+  // Agent Plan is a billing/calling plan, not a separate key-management
+  // surface. Its current console redirects the historical Agent Plan URL to
+  // the subscription page even for an active plan. Keys are created on Ark's
+  // standard API Key page and then used with the Agent Plan endpoint.
+  const isAgentPlan = plan === 'agent';
+  const keyManagementUrl = isAgentPlan ? VOLC_URL : url;
+  const planLabel = isAgentPlan ? ' Agent Plan' : '';
+  const nav = await sendCommand('navigate', { url: keyManagementUrl, workspace: 'okit' }, 30000);
   if (!nav.ok) throw new Error(nav.error || 'navigate failed');
   const tabId = nav.data && nav.data.tabId;
   console.log('[auto-create] volcengine: navigated (tab ' + tabId + ')');
@@ -18,7 +25,7 @@ async function createVolcengineKey({ tokenName, url = VOLC_URL, run }) {
   // than a misleading “create button missing” failure.
   const loginState = await detectLoginRequired();
   if (loginState.loginRequired || await detectVolcengineLoginSurface()) {
-    throw new Error(`需要登录火山引擎${url === VOLC_AGENT_PLAN_URL ? ' Agent Plan' : ''}`);
+    throw new Error(`需要登录火山方舟${planLabel}`);
   }
 
   const capStart = await sendCommand('network-capture-start',
@@ -32,7 +39,7 @@ async function createVolcengineKey({ tokenName, url = VOLC_URL, run }) {
   for (let attempt = 0; attempt < 12 && !opened; attempt += 1) {
     const currentLoginState = await detectLoginRequired();
     if (currentLoginState.loginRequired || await detectVolcengineLoginSurface()) {
-      throw new Error(`需要登录火山引擎${url === VOLC_AGENT_PLAN_URL ? ' Agent Plan' : ''}`);
+      throw new Error(`需要登录火山方舟${planLabel}`);
     }
     if (await detectInteractiveVerification('volcengine')) {
       await waitForInteractiveVerification({ run, platform: { id: 'volcengine', label: '火山引擎' }, stage: 'before-create' });
@@ -55,13 +62,7 @@ async function createVolcengineKey({ tokenName, url = VOLC_URL, run }) {
   }
   if (!opened) {
     if (await detectVolcengineLoginSurface()) {
-      throw new Error(`需要登录火山引擎${url === VOLC_AGENT_PLAN_URL ? ' Agent Plan' : ''}`);
-    }
-    if (url === VOLC_AGENT_PLAN_URL) {
-      const currentUrl = await execJs('location.href').catch(() => '');
-      if (/\/subscription\/agent-plan(?:[/?#]|$)/.test(currentUrl)) {
-        throw new Error('当前账号被火山方舟重定向到 Agent Plan 套餐页，说明 Agent Plan 尚未开通、已失效或权益尚未生效。请先开通或续费 Agent Plan，待套餐生效后再自动创建专属 API Key。');
-      }
+      throw new Error(`需要登录火山方舟${planLabel}`);
     }
     throw new Error('未找到火山方舟“创建 API Key”按钮');
   }

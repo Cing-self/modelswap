@@ -141,7 +141,10 @@ async function resumeAutoCreateRun(req, res) {
 }
 
 const VOLC_URL = 'https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey';
-const VOLC_AGENT_PLAN_URL = 'https://console.volcengine.com/ark/region:ark+cn-beijing/openManagement?advancedActiveKey=agentPlan';
+// Agent Plan's old openManagement URL now leads to the subscription page even
+// while a plan is active. Its dedicated endpoint still needs a separately
+// labelled Vault entry, but the API Key itself is created here.
+const VOLC_AGENT_PLAN_URL = VOLC_URL;
 const VOLC_CREATE_TEXTS = ['创建 API Key'];
 const MINIMAX_URL = 'https://platform.minimaxi.com/user-center/basic-information/interface-key';
 const MINIMAX_CREATE_TEXTS = ['创建 API Key', '创建新的', 'Create new', '新建', '创建', 'Create'];

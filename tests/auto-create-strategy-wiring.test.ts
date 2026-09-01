@@ -301,23 +301,28 @@ describe('auto-create strategy dependency wiring', () => {
       detectVolcengineLoginSurface,
     });
 
-    await expect(createVolcengineKey({ tokenName: 'qa-key' })).rejects.toThrow('需要登录火山引擎');
+    await expect(createVolcengineKey({ tokenName: 'qa-key' })).rejects.toThrow('需要登录火山方舟');
     expect(detectVolcengineLoginSurface).toHaveBeenCalledTimes(1);
   });
 
-  it('reports an enabled-session Agent Plan redirect as a subscription prerequisite, never as a login failure', async () => {
+  it('routes an enabled Agent Plan account to Ark API Key management, never to the subscription page', async () => {
     const calls: string[] = [];
+    const navigationUrls: string[] = [];
     const agentPlanUrl = 'https://console.example.test/volcengine/agent-plan';
+    const apiKeyUrl = 'https://console.example.test/volcengine/api-key';
     const { createVolcengineKey } = createVolcengineMinimaxStrategy({
-      sendCommand: async (command: string) => {
+      sendCommand: async (command: string, params: { url?: string } = {}) => {
         calls.push(command);
-        if (command === 'navigate') return successfulNavigation;
+        if (command === 'navigate') {
+          navigationUrls.push(params.url || '');
+          return successfulNavigation;
+        }
         if (command === 'network-capture-start') return successfulCaptureStart;
         throw new Error(`unexpected command: ${command}`);
       },
-      execJs: async (script: string) => script === 'location.href'
-        ? 'https://console.volcengine.com/ark/region:cn-beijing/subscription/agent-plan'
-        : JSON.stringify({ error: 'create-not-found' }),
+      execJs: async (script: string) => script.includes('button.click')
+        ? JSON.stringify({ ok: true })
+        : JSON.stringify({ error: 'name-input-not-found' }),
       sleep: asyncNoop,
       closeAutomationWindow: asyncNoop,
       foregroundClick: async () => false,
@@ -329,7 +334,7 @@ describe('auto-create strategy dependency wiring', () => {
       describeCapturedResponses: () => [],
       describeCapturedSecretFields: () => [],
       describeMinimaxBackendResults: () => [],
-      VOLC_URL: 'https://console.example.test/volcengine',
+      VOLC_URL: apiKeyUrl,
       VOLC_AGENT_PLAN_URL: agentPlanUrl,
       VOLC_CREATE_TEXTS: ['Create API Key'],
       MINIMAX_URL: 'https://console.example.test/minimax',
@@ -337,9 +342,10 @@ describe('auto-create strategy dependency wiring', () => {
       detectVolcengineLoginSurface: async () => false,
     });
 
-    await expect(createVolcengineKey({ tokenName: 'qa-key', url: agentPlanUrl }))
-      .rejects.toThrow('说明 Agent Plan 尚未开通、已失效或权益尚未生效');
+    await expect(createVolcengineKey({ tokenName: 'qa-key', url: agentPlanUrl, plan: 'agent' }))
+      .rejects.toThrow('火山方舟创建对话框异常：name-input-not-found');
     expect(calls).toEqual(['navigate', 'network-capture-start']);
+    expect(navigationUrls).toEqual([apiKeyUrl]);
   });
 
   it('drives MiniMax through its injected navigation/capture dependencies before the first form action', async () => {

@@ -64,7 +64,7 @@
 | OpenAI | `auto-create-platforms`、`auto-create-bilingual-resolver` | 页面地址、表单规则、通用安全选按钮 | 未登录交接、真实创建、一次性明文读取 |
 | Anthropic | `auto-create-platforms`、`auto-create-bilingual-resolver` | 密钥名称、到期时间和确认动作配置 | 真实下拉选择、登录与创建结果 |
 | 火山方舟（普通 API Key） | `auto-create-strategy-wiring`、`auto-create-platforms` | 特殊流程的登录壳识别；创建前不误操作 | 真实账号、验证码、创建后 Key 获取 |
-| 火山方舟 Agent Plan | `auto-create-strategy-wiring`、`auto-create-platforms` | 进入 Agent Plan 的特殊地址与登录前停止 | 套餐未开通/过期、真实创建 |
+| 火山方舟 Agent Plan | `auto-create-strategy-wiring`、`auto-create-platforms` | 使用标准 API Key 管理页；以 plan 标识保存到 Agent Plan 分组 | 套餐未开通/过期、验证码 |
 | 腾讯云 | `auto-create-platforms`、`auto-create-bilingual-resolver` | 页面、名称、确认和复制配置 | 身份验证、真实创建与复制 |
 | 腾讯云 Token Plan | `auto-create-platforms`、`auto-create-bilingual-resolver` | 仅复用/复制订阅 Key，不触发重置 | 未登录、无订阅 Key、真实复制 |
 | 智谱 AI（国内站） | `auto-create-browser-state`、`auto-create-strategy-wiring`、`auto-create-login-handoff`、`auto-create-platforms` | 短信登录页、延迟渲染登录页、登录链接与创建前停止 | 完整 Vault 页面点击后登录、返回重试、真实创建 |

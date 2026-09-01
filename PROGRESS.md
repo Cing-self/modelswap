@@ -321,3 +321,9 @@
 # 火山方舟产品命名澄清（2026-09-01）
 - 普通 API Key、Coding Plan 与 Agent Plan 的产品显示名统一为“火山方舟”系列；自动创建普通 Key 显式标为“火山方舟（普通 API Key）”，避免与火山引擎云账号 AK/SK 混淆。内部 `volcengine` ID、方舟 API 地址与已有配置兼容性不变；真实云账号 AK/SK 的文案保留“火山引擎”。
 - 同步更新 Provider 预设、分组、用量页、双语 i18n、自动创建手册与测试覆盖矩阵，并由生成脚本更新前端预设清单。验证：名称契约测试先红后绿（51/51）；全量 104 文件/953 测试；`npm run build` exit 0。
+
+# 火山方舟 Agent Plan 自动创建真实路径修复（2026-09-01 下午）
+- 症状：账号已订阅 Agent Plan 且订阅状态“生效中”，自动创建仍先提示登录，随后又把 `/subscription/agent-plan` 重定向解释为套餐未生效。真实控制台复核证明该结论不成立：新版方舟把 API Key 创建统一放在标准 `API Key 管理` 页，Agent Plan 只是调用/计费方式，不是独立密钥后台。
+- 修复：`volcengine-agent` 创建流程改为走标准方舟 API Key 管理页，同时以 `plan: 'agent'` 保存到“火山方舟 Agent Plan”分组；删除“重定向到订阅页即判定未开通”的错误推断。登录判断仍由真实登录面/账号菜单信号决定。
+- 回归：先按现有代码运行新契约，断言失败显示仍导航旧 Agent Plan URL；修复后断言导航标准 API Key URL。定向 3 文件 69/69；全量 104 文件/953 测试；`npm run build` exit 0。
+- 真实路径：重启桌面主项目服务并确认扩展 `available:true` 后，从 Vault UI 选择“火山方舟 Agent Plan”创建 `VOLCENGINE_AGENT_PLAN_VERIFY_20260901_1410-og5m`，平台创建成功、写入本地加密 Vault 且分组正确。随后按用户确认删除云端精确资源 `apikey-20260901140917-45gfw` 与本地同名记录，云端列表复核消失，本地计数从 73 回到 72、临时分组消失。未展示或复制 Key 明文。
