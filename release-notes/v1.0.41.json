@@ -1,40 +1,40 @@
 {
   "version": "v1.0.41",
-  "publishedAt": "2026-08-31",
+  "publishedAt": "2026-09-02",
   "summary": {
-    "zh": "本次更新补齐桌面版更新流程的中英文说明，修复自动创建密钥流程的运行时依赖遗漏，并让安装状态提示与自动安装行为一致。",
-    "en": "This update clarifies the desktop update flow in both languages, fixes missing runtime dependencies in automated key creation, and aligns installation status text with automatic installation."
+    "zh": "本次更新重点强化自动创建密钥与火山方舟连接可靠性，改进模型和密钥管理交互，并让桌面更新说明、安装状态与首页用量展示更一致。",
+    "en": "This release strengthens automated key creation and Volcengine Ark connectivity, improves model and key management interactions, and makes desktop update guidance, installation status, and home usage display more consistent."
   },
   "highlights": [
     {
       "category": "improved",
-      "zh": "桌面版手册现说明手动检查、左上角悬浮更新说明，以及下载完成后的自动安装与重新打开流程。",
-      "en": "The desktop manual now explains manual checks, the upper-left hover preview, and the automatic install-and-relaunch flow after download."
+      "zh": "桌面版手册补齐手动检查、左上角悬浮更新说明、下载后自动安装与重新打开流程；安装状态文案也与实际自动安装行为保持一致。",
+      "en": "The desktop manual now covers manual checks, the upper-left update preview, automatic installation after download, and relaunching. Installation status text now matches the actual automatic installation behavior."
     },
     {
       "category": "fixed",
-      "zh": "修正安装完成前仍提示“重启安装”的文案，避免与自动安装行为矛盾。",
-      "en": "Fixed installation status text that still asked for a manual restart despite automatic installation."
+      "zh": "修复多个浏览器自动创建密钥流程的运行时依赖与返回值问题；智谱、Mistral 和通用平台在页面延迟渲染或未登录时会进入明确登录引导，不再误报按钮缺失或内部错误。",
+      "en": "Fixed runtime dependencies and return handling across browser key-creation flows. Zhipu, Mistral, and generic providers now provide clear sign-in handoffs when pages render late or sessions expire instead of reporting missing buttons or internal errors."
     },
     {
       "category": "fixed",
-      "zh": "修正桌面版浏览器插件目录入口的手册路径，现为“设置 → 浏览器插件”。",
-      "en": "Corrected the desktop browser-extension path in the manual to Settings → Browser Plugins."
+      "zh": "澄清火山方舟产品命名，并修复 Agent Plan 专属 API Key 自动创建：现在会进入订阅控制台的专属密钥区域，避免把普通方舟 Key、Coding Plan 和 Agent Plan 混用；模型名仍可手动填写。",
+      "en": "Clarifies Volcengine Ark product naming and fixes Agent Plan dedicated API key creation. OKIT now uses the subscription console's dedicated key area instead of mixing generic Ark, Coding Plan, and Agent Plan credentials; model names remain manually editable."
     },
     {
       "category": "fixed",
-      "zh": "修复智谱、OpenRouter、火山引擎及浏览器密钥删除流程中可能导致自动创建中断的运行时依赖遗漏；智谱未登录时现在会明确提示先登录，不再误报“创建按钮未找到”。",
-      "en": "Fixed missing runtime dependencies that could interrupt automated key creation for Zhipu, OpenRouter, Volcengine, and browser-based key deletion. Zhipu now clearly asks the user to sign in instead of incorrectly reporting that the create button is missing."
+      "zh": "修复火山方舟 API 平台 Anthropic 兼容端点，使用正确的 /api/compatible 地址与 Bearer 认证；同一 Key 的 OpenAI 和 Anthropic 两条链路均可通过连接验证。",
+      "en": "Fixed the Volcengine Ark API platform's Anthropic-compatible endpoint with the correct /api/compatible URL and Bearer authentication. Both OpenAI- and Anthropic-compatible routes can now pass connection verification with the same key."
     },
     {
-      "category": "fixed",
-      "zh": "修复浏览器自动创建流程在成功点击创建按钮后未返回结果的问题，避免智谱及其他复用该流程的平台报内部错误。",
-      "en": "Fixed the browser auto-create flow failing to return after a successful create click, which caused internal errors for Zhipu and other platforms that use the shared flow."
+      "category": "new",
+      "zh": "密钥选择器新增分组搜索，模型编辑器把“添加模型”移到最后一条记录下方，便于连续录入；同时修正搜索框聚焦态和输入框高度细节。",
+      "en": "The key picker adds group search, and the model editor moves Add Model below the last row for continuous entry. Focus states and input sizing details are also corrected."
     },
     {
       "category": "improved",
-      "zh": "自动创建密钥遇到未登录状态时，现会在页面延迟加载后稳定进入登录引导，并提供明确的平台官网登录入口，而不再只显示原始网址。",
-      "en": "When automatic key creation finds a signed-out session, including after a delayed page load, it now reliably enters the sign-in handoff and provides a clear link to the provider’s login site instead of showing only a raw URL."
+      "zh": "首页用量会随凭据和平台列表变化自动刷新，DeepSeek 余额正确显示 CNY；同时新增发布前 Provider 真实验收工具与安全隔离报告，降低控制台改版和登录态问题上线后才暴露的风险。",
+      "en": "Home usage now refreshes automatically when credentials or supported providers change, and DeepSeek balances correctly show CNY. A new pre-release provider acceptance workflow with safety isolation helps catch console changes and login-state issues before release."
     }
   ],
   "releaseUrl": "https://github.com/Cing-self/okit/releases/tag/v1.0.41"
