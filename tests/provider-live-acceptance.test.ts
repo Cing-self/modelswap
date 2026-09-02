@@ -1204,9 +1204,11 @@ describe('provider live-acceptance report collision (P1)', () => {
   });
 
   it('default stamps carry millisecond + random components', async () => {
-    const stamps = new Set(Array.from({ length: 32 }, () => uniqueRunStamp()));
-    expect(stamps.size).toBe(32);
-    expect([...stamps][0]).toMatch(/^\d{17}-[0-9a-f]{4}$/);
+    // A 16-bit random suffix reduces same-millisecond collisions but cannot
+    // mathematically eliminate birthday collisions. Exclusive-create retry in
+    // writeReportFile is the no-overwrite guarantee and has its own test.
+    const stamp = uniqueRunStamp();
+    expect(stamp).toMatch(/^\d{17}-[0-9a-f]{4}$/);
   });
 });
 
