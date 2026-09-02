@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.44",
+  "publishedAt": "2026-09-02",
+  "summary": {
+    "zh": "修复 v1.0.42 引入的数据目录迁移缺陷（~/.okit → ~/.modelswap 的一次性迁移从未真正执行，升级后密钥库与 Provider 配置会看起来\"消失\"），并在 CLI、Web、桌面端所有入口接入迁移；修复桌面端启动崩溃。v1.0.42 因 npm 受信发布未配置从未发出；v1.0.43 仅手动补发到 npm；本版为首个全自动发布的完整版本（npm + GitHub Release + 桌面安装包）。",
+    "en": "Fixes the broken data-directory migration introduced in v1.0.42 (the one-time ~/.okit → ~/.modelswap copy never ran, so upgraded installs appeared to lose their vault and provider config) by wiring it into every entry point (CLI, web, desktop), and fixes a desktop launch crash. v1.0.42 never shipped due to the missing npm trusted-publisher config and v1.0.43 was manually published to npm only; this is the first fully automated release (npm + GitHub Release + desktop installers)."
+  },
+  "highlights": [
+    {
+      "category": "fixed",
+      "zh": "修复数据目录迁移从未执行的问题：~/.okit 的密钥库、Provider 配置与设置会在首次运行时完整迁移到 ~/.modelswap，旧目录保留作为备份，可手动删除。",
+      "en": "Fix the never-running data migration: vaults, provider config, and settings under ~/.okit now copy over to ~/.modelswap on first run; the legacy directory is kept as a manual-deletion backup."
+    },
+    {
+      "category": "fixed",
+      "zh": "自动修复被 v1.0.42 初始化过的空 ~/.modelswap 目录：当新目录只含自动生成的 master.key 而没有任何用户数据时，首次运行会用旧目录内容自动恢复。",
+      "en": "Auto-heal a ~/.modelswap dir initialized by v1.0.42: when it holds only an auto-generated master.key and no user data, first run restores the legacy contents automatically."
+    },
+    {
+      "category": "fixed",
+      "zh": "修复桌面端启动即崩溃（Cannot find module './config/boot'）的入口路径错误，并在构建门禁中静态校验所有打包入口的相对 require，防止同类问题再次 silently 发版。",
+      "en": "Fix the desktop crash-on-launch (Cannot find module './config/boot') and add a build gate that statically resolves every relative require of the packaged entry points so this class of error can never ship silently again."
+    }
+  ]
+}
