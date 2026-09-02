@@ -142,7 +142,7 @@ jobs:
 
       # Trusted publishing (OIDC): npm exchanges GitHub's short-lived OIDC
       # token for publish rights — no NPM_TOKEN secret involved. Requires the
-      # trusted-publisher config on the npm side (Cing-self/okit, publish.yml).
+      # trusted-publisher config on the npm side (Cing-self/modelswap, publish.yml).
       - name: Publish to NPM
         run: npm publish --access public
 

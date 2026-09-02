@@ -50,7 +50,7 @@ export class CodexAdapter extends BaseAdapter {
     }
 
     // Official OpenAI subscription = OAuth mode. Only clear the ACTIVE
-    // third-party selection. Keep every [model_providers.okit-*] registration:
+    // third-party selection. Keep every [model_providers.modelswap-*] registration:
     // existing Codex conversations persist their provider id, and deleting the
     // table makes those conversations impossible to reopen ("provider not
     // found"). A registration is removed only when the user removes that site.
@@ -105,7 +105,7 @@ export class CodexAdapter extends BaseAdapter {
 
       // Codex dropped support for wire_api = "chat" — "responses" is required.
       // base_url normalization appends /v1 for origin-only URLs. Authentication
-      // is a provider-specific command below, backed by OKIT's encrypted Vault;
+      // is a provider-specific command below, backed by MODELSWAP's encrypted Vault;
       // this keeps multiple providers resumable without writing keys to TOML.
       //
       // http_headers: the opencode.ai gateway rate-limits anonymous traffic
@@ -152,15 +152,15 @@ export class CodexAdapter extends BaseAdapter {
 
   async removeProvider(providerId: string): Promise<void> {
     if (!(await fs.pathExists(CODEX_CONFIG_PATH))) return;
-    const codexProviderId = providerId.startsWith("okit-")
+    const codexProviderId = providerId.startsWith("modelswap-")
       ? providerId
       : getCodexProviderId({ id: providerId } as Provider);
     let toml = await fs.readFile(CODEX_CONFIG_PATH, "utf-8");
     toml = removeTomlTable(toml, `model_providers.${codexProviderId}.auth`);
     toml = removeTomlTable(toml, `model_providers.${codexProviderId}`);
     const removedWasActive = readTopLevelTomlKey(toml, "model_provider") === codexProviderId;
-    const hasOtherOkitProviders = /\[model_providers\.okit-[^\]]+\]/.test(toml);
-    if (removedWasActive || !hasOtherOkitProviders) {
+    const hasOtherModelSwapProviders = /\[model_providers\.modelswap-[^\]]+\]/.test(toml);
+    if (removedWasActive || !hasOtherModelSwapProviders) {
       toml = removeTopLevelTomlKey(toml, "model_provider");
       toml = removeTopLevelTomlKey(toml, "model_catalog_json");
       await fs.remove(MODEL_CATALOG_PATH);
@@ -171,16 +171,16 @@ export class CodexAdapter extends BaseAdapter {
 }
 
 // The ChatGPT desktop app persists its own picker preference under [models]
-// (`default` + `default_reasoning_effort`). When the referenced okit
+// (`default` + `default_reasoning_effort`). When the referenced modelswap
 // provider's site has been removed, the stale default keeps pointing at a
-// dead provider table. Drop the table only for okit references that no
-// longer resolve; anything else (including app-owned non-okit values) stays
+// dead provider table. Drop the table only for modelswap references that no
+// longer resolve; anything else (including app-owned non-modelswap values) stays
 // untouched so we never fight the app's own preference.
 export function removeStaleModelsTable(toml: string): string {
   const match = toml.match(/\[models\]\s*\n[^[]*?default\s*=\s*"([^"]+)"/);
   if (!match) return toml;
   const referenced = match[1];
-  if (!referenced.startsWith("okit-")) return toml;
+  if (!referenced.startsWith("modelswap-")) return toml;
   const escaped = referenced.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   if (new RegExp(`\\[model_providers\\.${escaped}\\]`).test(toml)) return toml;
   return removeTomlTable(toml, "models");
@@ -202,7 +202,7 @@ const MODEL_CATALOG_REF = "~/.codex/model-catalogs/model-catalogs.json";
 // Write ~/.codex/model-catalogs/model-catalogs.json with one entry per model on
 // the active provider, then add `model_catalog_json` to config.toml so Codex
 // loads it. This lets the user run `/model` inside Codex CLI to switch models
-// without returning to OKIT. Schema follows Xiaomi MiMo's documented format
+// without returning to MODELSWAP. Schema follows Xiaomi MiMo's documented format
 // (https://mimo.mi.com/docs/zh-CN/tokenplan/integration/codex-configuration),
 // which is Codex's native model-catalog shape.
 async function writeModelCatalog(provider: Provider): Promise<void> {
@@ -272,7 +272,7 @@ function normalizeBaseUrl(url: string): string {
 }
 
 function getCodexProviderId(provider: Provider): string {
-  return provider.id === "openai" ? "openai" : `okit-${sanitizeTomlKey(provider.id)}`;
+  return provider.id === "openai" ? "openai" : `modelswap-${sanitizeTomlKey(provider.id)}`;
 }
 
 function sanitizeTomlKey(value: string): string {
@@ -373,7 +373,7 @@ function removeTomlTable(toml: string, tableName: string): string {
 function codexVaultAuthCommand(vaultKey: string): { command: string; args: string[] } {
   // The adapter runs from dist/providers/adapters in both CLI and desktop
   // builds, so dist/main.js is a stable entry point for the existing raw
-  // `okit vault get` command. Packaged Electron can execute that entry point
+  // `modelswap vault get` command. Packaged Electron can execute that entry point
   // as Node when ELECTRON_RUN_AS_NODE is set through `env`.
   const cliEntry = path.join(__dirname, "..", "..", "main.js");
   if (process.versions.electron && process.platform !== "win32") {
@@ -444,13 +444,13 @@ async function resolveVaultAuthCommand(vaultKey: string): Promise<VaultCommand &
   if (!probing) return { ...primary, key: null };
   const candidates: VaultCommand[] = [primary];
   if (process.platform === "win32") {
-    candidates.push({ command: "cmd.exe", args: ["/d", "/s", "/c", `okit vault get "${vaultKey}"`] });
+    candidates.push({ command: "cmd.exe", args: ["/d", "/s", "/c", `modelswap vault get "${vaultKey}"`] });
   } else {
-    candidates.push({ command: "okit", args: ["vault", "get", vaultKey] });
+    candidates.push({ command: "modelswap", args: ["vault", "get", vaultKey] });
   }
   const chosen = pickVaultCommand(candidates);
   if (!chosen.key) {
-    appendLog("codex-vault-auth-probe", vaultKey, false, "no vault command produced a bare key; Codex will start without Authorization until the packaged CLI or the okit binary understands `vault get`");
+    appendLog("codex-vault-auth-probe", vaultKey, false, "no vault command produced a bare key; Codex will start without Authorization until the packaged CLI or the modelswap binary understands `vault get`");
   }
   return { ...chosen.command, key: chosen.key };
 }

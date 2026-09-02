@@ -5,9 +5,9 @@ import { resolveModel, resolveModelRoute } from '../../../src/providers/routing'
 
 const testRoot = vi.hoisted(() => {
   const p = require('path');
-  const d = '/tmp/test-okit-claude';
+  const d = '/tmp/test-modelswap-claude';
   return {
-    OKIT_DIR: d,
+    MODELSWAP_DIR: d,
     REGISTRY_PATH: p.join(d, 'registry.json'),
     LOGS_DIR: p.join(d, 'logs'),
     CACHE_DIR: p.join(d, 'cache'),
@@ -29,7 +29,7 @@ const mocks = vi.hoisted(() => {
 vi.mock('fs-extra', () => ({ default: mocks }));
 
 vi.mock('../../../src/config/registry', () => ({
-  OKIT_DIR: testRoot.OKIT_DIR,
+  MODELSWAP_DIR: testRoot.MODELSWAP_DIR,
   REGISTRY_PATH: testRoot.REGISTRY_PATH,
   LOGS_DIR: testRoot.LOGS_DIR,
   CACHE_DIR: testRoot.CACHE_DIR,
@@ -171,7 +171,7 @@ describe('ClaudeAdapter.applyConfig', () => {
 
     const written = JSON.parse(mocks.files.get(SETTINGS_PATH)!);
     expect(written.env.ANTHROPIC_AUTH_TOKEN).toBeUndefined();
-    expect(written.apiKeyHelper).toBe(path.join(os.homedir(), '.claude', '.okit-key-helper.sh'));
+    expect(written.apiKeyHelper).toBe(path.join(os.homedir(), '.claude', '.modelswap-key-helper.sh'));
   });
 
   it('clears env overrides for official Anthropic (no apiKey)', async () => {

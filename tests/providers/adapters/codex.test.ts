@@ -4,9 +4,9 @@ import path from 'path';
 
 const testRoot = vi.hoisted(() => {
   const p = require('path');
-  const d = '/tmp/test-okit-codex';
+  const d = '/tmp/test-modelswap-codex';
   return {
-    OKIT_DIR: d,
+    MODELSWAP_DIR: d,
     REGISTRY_PATH: p.join(d, 'registry.json'),
     LOGS_DIR: p.join(d, 'logs'),
     CACHE_DIR: p.join(d, 'cache'),
@@ -29,7 +29,7 @@ const mocks = vi.hoisted(() => {
 vi.mock('fs-extra', () => ({ default: mocks }));
 
 vi.mock('../../../src/config/registry', () => ({
-  OKIT_DIR: testRoot.OKIT_DIR,
+  MODELSWAP_DIR: testRoot.MODELSWAP_DIR,
   REGISTRY_PATH: testRoot.REGISTRY_PATH,
   LOGS_DIR: testRoot.LOGS_DIR,
   CACHE_DIR: testRoot.CACHE_DIR,
@@ -141,13 +141,13 @@ describe('CodexAdapter.applyConfig', () => {
     await adapter.applyConfig(customProvider, 'my-model');
 
     const toml = mocks.files.get(CODEX_CONFIG)!;
-    expect(toml).toContain('[model_providers.okit-custom-openai]');
+    expect(toml).toContain('[model_providers.modelswap-custom-openai]');
     expect(toml).toContain('base_url = "https://custom.api.com/v1"');
     expect(toml).not.toContain('api_base');
     // Each provider resolves its own Vault key. A shared OPENAI_API_KEY cannot
     // resume conversations from two different third-party providers safely.
     expect(toml).not.toContain('env_key');
-    expect(toml).toContain('[model_providers.okit-custom-openai.auth]');
+    expect(toml).toContain('[model_providers.modelswap-custom-openai.auth]');
     expect(toml).toContain('"vault", "get", "CODEX_API_KEY"');
     // Codex requires wire_api = "responses" on current builds (chat was dropped).
     // Mirror cc-switch: unconditional "responses" regardless of endpoint protocol.
@@ -272,10 +272,10 @@ describe('CodexAdapter.applyConfig', () => {
     expect(entry.input_modalities).toEqual(['text', 'image']);
   });
 
-  it('falls back to the okit binary when the primary vault command cannot emit a key', async () => {
+  it('falls back to the modelswap binary when the primary vault command cannot emit a key', async () => {
     const { pickVaultCommand, vaultKeyLooksReal, setVaultProbeForTests } = await import('../../../src/providers/adapters/codex');
     const primary = { command: 'old-app', args: ['vault', 'get', 'K'] };
-    const fallback = { command: 'okit', args: ['vault', 'get', 'K'] };
+    const fallback = { command: 'modelswap', args: ['vault', 'get', 'K'] };
     const noKey = pickVaultCommand([primary, fallback]);
     expect(noKey.command).toBe(primary);
     expect(noKey.key).toBeNull();
@@ -290,31 +290,31 @@ describe('CodexAdapter.applyConfig', () => {
     expect(vaultKeyLooksReal('sk-codex-456789012345')).toBe(true);
     // A stale packaged CLI prints the help screen (banner + usage) instead of
     // the key; neither a multi-line answer nor the banner art may pass.
-    expect(vaultKeyLooksReal('Usage: okit <command>\n  vault  Manage the key vault')).toBe(false);
-    expect(vaultKeyLooksReal(' ██████████\n ██ OKIT v1.0\n')).toBe(false);
+    expect(vaultKeyLooksReal('Usage: modelswap <command>\n  vault  Manage the key vault')).toBe(false);
+    expect(vaultKeyLooksReal(' ██████████\n ██ MODELSWAP v1.0\n')).toBe(false);
   });
 
-  it('drops the desktop app [models] table only when it references a removed okit provider', async () => {
+  it('drops the desktop app [models] table only when it references a removed modelswap provider', async () => {
     const { removeStaleModelsTable } = await import('../../../src/providers/adapters/codex');
     const stale = [
       'model = "glm-5.3"',
       '[models]',
-      'default = "okit-xiaomi-coding-mimo-v2-5"',
+      'default = "modelswap-xiaomi-coding-mimo-v2-5"',
       'default_reasoning_effort = "xhigh"',
       '',
-      '[model_providers.okit-glm-coding]',
+      '[model_providers.modelswap-glm-coding]',
       'base_url = "https://open.bigmodel.cn/api/v1"',
     ].join('\n');
     const cleaned = removeStaleModelsTable(stale);
     expect(cleaned).not.toContain('[models]');
     expect(cleaned).toContain('model = "glm-5.3"');
-    expect(cleaned).toContain('[model_providers.okit-glm-coding]');
+    expect(cleaned).toContain('[model_providers.modelswap-glm-coding]');
 
-    // A reference that still resolves (and any non-okit value) belongs to the
+    // A reference that still resolves (and any non-modelswap value) belongs to the
     // desktop app's own picker preference and must survive.
-    const live = stale.replace('okit-xiaomi-coding-mimo-v2-5', 'okit-glm-coding');
+    const live = stale.replace('modelswap-xiaomi-coding-mimo-v2-5', 'modelswap-glm-coding');
     expect(removeStaleModelsTable(live)).toBe(live);
-    const appOwned = stale.replace('okit-xiaomi-coding-mimo-v2-5', 'gpt-5.6');
+    const appOwned = stale.replace('modelswap-xiaomi-coding-mimo-v2-5', 'gpt-5.6');
     expect(removeStaleModelsTable(appOwned)).toBe(appOwned);
     expect(removeStaleModelsTable('model = "glm-5.3"')).toBe('model = "glm-5.3"');
   });
@@ -323,7 +323,7 @@ describe('CodexAdapter.applyConfig', () => {
     mocks.files.set(CODEX_CONFIG, [
       'model = "old"',
       'service_tier = "priority"',
-      '[model_providers.okit-custom-openai]',
+      '[model_providers.modelswap-custom-openai]',
       'base_url = "https://custom.api.com/v1"',
     ].join('\n'));
     const adapter = new CodexAdapter();
@@ -339,14 +339,14 @@ describe('CodexAdapter.applyConfig', () => {
     mocks.files.set(CODEX_CONFIG, [
       'model = "old"',
       '',
-      '[model_providers.okit-custom-openai]',
+      '[model_providers.modelswap-custom-openai]',
       'name = "Old"',
       'base_url = "https://old.example/v1"',
       'wire_api = "responses"',
       'requires_openai_auth = true',
       'experimental_bearer_token_auth = true',
       '',
-      '[model_providers.okit-custom-openai.auth]',
+      '[model_providers.modelswap-custom-openai.auth]',
       'command = "/old/credential-command"',
       '',
       '[projects."/keep"]',
@@ -360,7 +360,7 @@ describe('CodexAdapter.applyConfig', () => {
     const toml = mocks.files.get(CODEX_CONFIG)!;
     expect(toml).not.toContain('requires_openai_auth');
     expect(toml).not.toContain('experimental_bearer_token_auth');
-    expect(toml).toContain('[model_providers.okit-custom-openai.auth]');
+    expect(toml).toContain('[model_providers.modelswap-custom-openai.auth]');
     expect(toml).toContain('"vault", "get", "CODEX_API_KEY"');
     expect(toml).toContain('[projects."/keep"]');
     // The legacy shared key is no longer referenced by this provider. Leave
@@ -376,7 +376,7 @@ describe('CodexAdapter.applyConfig', () => {
     await adapter.applyConfig(zenProvider, 'my-model');
 
     const toml = mocks.files.get(CODEX_CONFIG)!;
-    expect(toml).toContain('[model_providers.okit-custom-openai]');
+    expect(toml).toContain('[model_providers.modelswap-custom-openai]');
     expect(toml).toContain('http_headers = { "User-Agent" = "opencode/1.18.15" }');
     expect(toml).toContain('base_url = "https://opencode.ai/zen/v1"');
   });
@@ -511,20 +511,20 @@ describe('CodexAdapter.applyConfig', () => {
     // Start with a config that has third-party gunk from a previous provider.
     mocks.files.set(CODEX_CONFIG, [
       'model = "mimo-v2.5"',
-      'model_provider = "okit-xiaomi-coding"',
+      'model_provider = "modelswap-xiaomi-coding"',
       'model_reasoning_effort = "high"',
       'disable_response_storage = true',
       'web_search = "disabled"',
       'model_catalog_json = "~/.codex/model-catalogs/model-catalogs.json"',
       '',
-      '[model_providers.okit-xiaomi-coding]',
+      '[model_providers.modelswap-xiaomi-coding]',
       'name = "小米 MiMo Token Plan"',
       'base_url = "https://token-plan-sgp.xiaomimimo.com/v1"',
       'wire_api = "responses"',
       '',
-      '[model_providers.okit-xiaomi-coding.auth]',
+      '[model_providers.modelswap-xiaomi-coding.auth]',
       'command = "/usr/bin/env"',
-      'args = ["ELECTRON_RUN_AS_NODE=1", "/Applications/OKIT.app/Contents/MacOS/OKIT", "main.js", "vault", "get", "XIAOMI_API_KEY"]',
+      'args = ["ELECTRON_RUN_AS_NODE=1", "/Applications/MODELSWAP.app/Contents/MacOS/MODELSWAP", "main.js", "vault", "get", "XIAOMI_API_KEY"]',
       '',
       '[projects."/some/path"]',
       'trust_level = "trusted"',
@@ -545,9 +545,9 @@ describe('CodexAdapter.applyConfig', () => {
     expect(toml).not.toContain('model_catalog_json');
     // Registrations and their independent auth survive so an existing thread
     // that stores this provider id can still be reopened.
-    expect(toml).toContain('[model_providers.okit-xiaomi-coding]');
-    expect(toml).toContain('[model_providers.okit-xiaomi-coding.auth]');
-    // Non-okit sections (projects) preserved.
+    expect(toml).toContain('[model_providers.modelswap-xiaomi-coding]');
+    expect(toml).toContain('[model_providers.modelswap-xiaomi-coding.auth]');
+    // Non-modelswap sections (projects) preserved.
     expect(toml).toContain('[projects."/some/path"]');
 
     // Legacy shared key is removed; OAuth tokens remain.
@@ -560,15 +560,15 @@ describe('CodexAdapter.applyConfig', () => {
     mocks.files.set(CODEX_CONFIG, [
       'model = "gpt-5.6-sol"',
       '',
-      '[model_providers.okit-deepseek]',
+      '[model_providers.modelswap-deepseek]',
       'name = "DeepSeek"',
       'base_url = "https://api.deepseek.com/v1"',
       '',
-      '[model_providers.okit-deepseek.auth]',
+      '[model_providers.modelswap-deepseek.auth]',
       'command = "/usr/bin/node"',
       'args = ["main.js", "vault", "get", "DEEPSEEK_API_KEY"]',
       '',
-      '[model_providers.okit-xiaomi]',
+      '[model_providers.modelswap-xiaomi]',
       'name = "Xiaomi"',
       'base_url = "https://api.xiaomimimo.com/v1"',
       '',
@@ -578,9 +578,9 @@ describe('CodexAdapter.applyConfig', () => {
     await adapter.removeProvider('deepseek');
 
     const toml = mocks.files.get(CODEX_CONFIG)!;
-    expect(toml).not.toContain('[model_providers.okit-deepseek]');
-    expect(toml).not.toContain('[model_providers.okit-deepseek.auth]');
-    expect(toml).toContain('[model_providers.okit-xiaomi]');
+    expect(toml).not.toContain('[model_providers.modelswap-deepseek]');
+    expect(toml).not.toContain('[model_providers.modelswap-deepseek.auth]');
+    expect(toml).toContain('[model_providers.modelswap-xiaomi]');
   });
 
   it('removes api_base for official OpenAI', async () => {

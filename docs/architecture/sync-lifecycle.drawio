@@ -6,7 +6,7 @@
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
 
-        <mxCell id="2" value="OKIT 本机" style="swimlane;html=1;startSize=36;horizontal=1;collapsible=0;fillColor=#f7f9fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=16;" vertex="1" parent="1"><mxGeometry x="30" y="80" width="470" height="800" as="geometry" /></mxCell>
+        <mxCell id="2" value="MODELSWAP 本机" style="swimlane;html=1;startSize=36;horizontal=1;collapsible=0;fillColor=#f7f9fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=16;" vertex="1" parent="1"><mxGeometry x="30" y="80" width="470" height="800" as="geometry" /></mxCell>
         <mxCell id="3" value="同步调度器" style="swimlane;html=1;startSize=36;horizontal=1;collapsible=0;fillColor=#fffaf0;strokeColor=#d6b656;fontStyle=1;fontSize=16;" vertex="1" parent="1"><mxGeometry x="530" y="80" width="480" height="800" as="geometry" /></mxCell>
         <mxCell id="4" value="加密云端备份 / 其他设备" style="swimlane;html=1;startSize=36;horizontal=1;collapsible=0;fillColor=#f8f5fa;strokeColor=#9673a6;fontStyle=1;fontSize=16;" vertex="1" parent="1"><mxGeometry x="1040" y="80" width="500" height="800" as="geometry" /></mxCell>
 

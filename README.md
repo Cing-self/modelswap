@@ -1,19 +1,19 @@
 <div align="center">
 
-# OKIT
+# ModelSwap
 
 ### The Key & Model Console for AI Coding Agents — Claude Code / Codex / OpenCode / ZCode / Kimi / Grok & 10 agents total
 
-[![Version](https://img.shields.io/github/v/release/Cing-self/okit?color=blue&label=version)](https://github.com/Cing-self/okit/releases)
-[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey.svg)](https://github.com/Cing-self/okit/releases)
+[![Version](https://img.shields.io/github/v/release/Cing-self/modelswap?color=blue&label=version)](https://github.com/Cing-self/modelswap/releases)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey.svg)](https://github.com/Cing-self/modelswap/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A520-339933.svg)](package.json)
 
-[中文](README_ZH.md) · [Website](https://landing.auto.code) · [Docs](docs/manual/en/) · [Changelog](CHANGELOG.md)
+[中文](README_ZH.md) · [Website](https://modelswap.app) · [Docs](docs/manual/en/) · [Changelog](CHANGELOG.md)
 
 </div>
 
-Keys and models, one console. OKIT is a local-first open-source tool that manages the full key lifecycle for AI coding CLIs: **create → store → switch → verify → monitor**. Local features are free forever.
+Keys and models, one console. ModelSwap is a local-first open-source tool that manages the full key lifecycle for AI coding CLIs: **create → store → switch → verify → monitor**. Local features are free forever.
 
 ## Screenshots
 
@@ -25,16 +25,16 @@ Keys and models, one console. OKIT is a local-first open-source tool that manage
 |---|---|
 | ![Vault](docs/manual/images/vault.png) | ![Auto-create](docs/manual/images/auto-create.png) |
 
-## Why OKIT
+## Why ModelSwap
 
-- **Switching never loses your config** — Surgical writes: only fields OKIT owns are touched; your hooks, statusLine, tui and MCP config stay intact. Every switch is snapshotted first — one-click diff and rollback in Settings.
-- **Switch models without leaving Codex** — OKIT auto-generates Codex's native model catalog (model-catalogs); switch with `/model` right inside the Codex CLI, no round-trip to OKIT.
-- **Zero daemons, zero interception** — No background process, nothing on your request path: OKIT writes config and exits; your agents talk to model platforms directly. Uninstall leaves nothing behind — configs keep working.
+- **Switching never loses your config** — Surgical writes: only fields ModelSwap owns are touched; your hooks, statusLine, tui and MCP config stay intact. Every switch is snapshotted first — one-click diff and rollback in Settings.
+- **Switch models without leaving Codex** — ModelSwap auto-generates Codex's native model catalog (model-catalogs); switch with `/model` right inside the Codex CLI, no round-trip to ModelSwap.
+- **Zero daemons, zero interception** — No background process, nothing on your request path: ModelSwap writes config and exits; your agents talk to model platforms directly. Uninstall leaves nothing behind — configs keep working.
 - **Key vault** — AES-256-GCM encrypted local storage, cloud sync and LAN peer-to-peer sync (pairing-code pairing).
 
 ## Comparison
 
-| Capability | OKIT | cc-switch | codex-router |
+| Capability | ModelSwap | cc-switch | codex-router |
 |------|------|-----------|--------------|
 | Config writing | Field-level merge + pre-switch snapshot/rollback | Full overwrite + config snippets | Managed block |
 | Resident process | None | Tray (optional proxy) | Local gateway (required) |
@@ -48,11 +48,11 @@ Keys and models, one console. OKIT is a local-first open-source tool that manage
 
 ```bash
 # via npm
-npm install -g @cing-self/okit-cli
+npm install -g modelswap
 
 # or from source
-git clone https://github.com/Cing-self/okit.git
-cd okit
+git clone https://github.com/Cing-self/modelswap.git
+cd modelswap
 npm ci --ignore-scripts
 npm run build
 node dist/main.js web
@@ -62,25 +62,25 @@ node dist/main.js web
 Common commands:
 
 ```bash
-okit web                              # launch the web console (:3780)
-okit vault set <key>                  # store a key interactively (AES-256-GCM)
-printf '%s' "$SECRET" | okit vault set <key> --stdin  # keep secrets out of argv in automation
-okit vault inject                     # print export statements (pipe to eval)
-okit provider list                    # list 40 preset model platforms
-okit provider switch                  # interactive provider/model switch
-okit provider use <provider>          # non-interactive switch (script/agent friendly)
+modelswap web                              # launch the web console (:3780)
+modelswap vault set <key>                  # store a key interactively (AES-256-GCM)
+printf '%s' "$SECRET" | modelswap vault set <key> --stdin  # keep secrets out of argv in automation
+modelswap vault inject                     # print export statements (pipe to eval)
+modelswap provider list                    # list 40 preset model platforms
+modelswap provider switch                  # interactive provider/model switch
+modelswap provider use <provider>          # non-interactive switch (script/agent friendly)
 ```
 
-> **Shell config boundary**: OKIT never touches your shell config (`~/.zshrc` / `~/.bashrc` etc.) — no feature writes to it, in any form.
+> **Shell config boundary**: ModelSwap never touches your shell config (`~/.zshrc` / `~/.bashrc` etc.) — no feature writes to it, in any form.
 
 ### For AI agents
 
-The package ships an [`okit-cli` Agent Skill](skills/okit-cli/SKILL.md). Run `okit skill install /path/to/project` to install it into the target project's `.agents/skills/okit-cli/`; `okit skill path` prints the bundled original location. The skill documents resolvable read-only commands, non-interactive model switching, and the security boundaries around plaintext keys and cloud sync.
+The package ships an [`modelswap-cli` Agent Skill](skills/modelswap-cli/SKILL.md). Run `modelswap skill install /path/to/project` to install it into the target project's `.agents/skills/modelswap-cli/`; `modelswap skill path` prints the bundled original location. The skill documents resolvable read-only commands, non-interactive model switching, and the security boundaries around plaintext keys and cloud sync.
 
 Or install straight from the public repo via [skills.sh](https://skills.sh/):
 
 ```bash
-npx skills add Cing-self/okit --skill okit-cli
+npx skills add Cing-self/modelswap --skill modelswap-cli
 ```
 
 ## Features
@@ -102,11 +102,11 @@ Official pricing and capability data across platforms (input / output / cache pr
 
 ## FAQ
 
-**Does OKIT sit on my request path?**
-No. Zero daemons, zero interception: OKIT writes config and exits — your agents connect to model platforms directly, with no proxy or forwarding layer.
+**Does ModelSwap sit on my request path?**
+No. Zero daemons, zero interception: ModelSwap writes config and exits — your agents connect to model platforms directly, with no proxy or forwarding layer.
 
 **Will switching break my existing settings?**
-No. Surgical writes touch only OKIT-owned fields; hooks / statusLine / MCP config are preserved, and every switch is snapshotted for rollback.
+No. Surgical writes touch only ModelSwap-owned fields; hooks / statusLine / MCP config are preserved, and every switch is snapshotted for rollback.
 
 **Where are keys stored? How safe?**
 AES-256-GCM encrypted locally, with machine-bound key derivation. Nothing ever lands on disk in plaintext (keys found by the import wizard are shown masked only). Uninstalling wipes everything.
@@ -130,4 +130,4 @@ Requires Node.js 20+. Frontend: React + TypeScript + Vite; backend: Node (web la
 
 ## License
 
-OKIT is released under the [MIT License](LICENSE). Copyright Cing-self / OKIT contributors (2026).
+ModelSwap is released under the [MIT License](LICENSE). Copyright Cing-self / ModelSwap contributors (2026).

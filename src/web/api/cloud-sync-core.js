@@ -16,7 +16,7 @@ const { createPulledAgentReconciler, desiredAgentSites } = require('../../applic
 const { createSyncService } = require('../../application/sync-service');
 const { shouldApplyRemoteSection } = require('../../application/sync-config-state');
 
-const CONFIG_PATH = path.join(os.homedir(), '.okit', 'user.json');
+const CONFIG_PATH = path.join(os.homedir(), '.modelswap', 'user.json');
 let providerStore;
 try {
   providerStore = require('../../providers/store');

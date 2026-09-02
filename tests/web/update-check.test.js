@@ -11,8 +11,8 @@ describe('update-check helpers', () => {
 
   it('picks the desktop dmg out of a release asset list', () => {
     const assets = [
-      { name: 'OKIT-1.1.0-arm64.dmg', url: 'dmg' },
-      { name: 'OKIT-1.1.0-arm64.dmg.sha256', url: 'dmgs' },
+      { name: 'MODELSWAP-1.1.0-arm64.dmg', url: 'dmg' },
+      { name: 'MODELSWAP-1.1.0-arm64.dmg.sha256', url: 'dmgs' },
     ];
     const picked = pickAssets(assets);
     expect(picked.dmg?.url).toBe('dmg');
@@ -24,8 +24,8 @@ describe('update-check helpers', () => {
   });
 
   it('only accepts safe release-asset download targets', () => {
-    const target = downloadTarget('https://github.com/Cing-self/okit/releases/download/v1.1.0/OKIT-1.1.0-arm64.dmg');
-    expect(target.fileName).toBe('OKIT-1.1.0-arm64.dmg');
+    const target = downloadTarget('https://github.com/Cing-self/modelswap/releases/download/v1.1.0/MODELSWAP-1.1.0-arm64.dmg');
+    expect(target.fileName).toBe('MODELSWAP-1.1.0-arm64.dmg');
     expect(() => downloadTarget('https://example.com/installer.dmg')).toThrow('仅允许下载本仓库');
   });
 });

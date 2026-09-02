@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const LOGS_DIR = path.join(os.homedir(), '.okit', 'logs');
+const LOGS_DIR = path.join(os.homedir(), '.modelswap', 'logs');
 const HISTORY_FILE = path.join(LOGS_DIR, 'history.jsonl');
 
 // Read at most this many bytes from the tail of the history file. The log UI

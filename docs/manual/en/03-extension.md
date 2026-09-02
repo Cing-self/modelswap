@@ -1,16 +1,16 @@
 # 3. Browser Extension Setup (prerequisite for auto-create)
 
-The **OKIT** extension (MV3) reuses your logged-in Chrome sessions: it fills forms in the provider's own console, creates the key, copies it, and files it back into the encrypted vault — everything happens only between your browser and your machine.
+The **ModelSwap** extension (MV3) reuses your logged-in Chrome sessions: it fills forms in the provider's own console, creates the key, copies it, and files it back into the encrypted vault — everything happens only between your browser and your machine.
 
 ## 3.1 Get the extension
 
 **npm installs**: no need to build it yourself. Run the command below to get the extension directory, then load that directory as described in 3.2:
 
 ```bash
-okit extension path    # prints a loadable extension directory
+modelswap extension path    # prints a loadable extension directory
 ```
 
-**Desktop app users**: the extension ships inside the app too. Open **Settings → Browser Plugins → Open extension folder** — it syncs the extension to `~/.okit/extension` and opens it in Finder. No CLI needed.
+**Desktop app users**: the extension ships inside the app too. Open **Settings → Browser Plugins → Open extension folder** — it syncs the extension to `~/.modelswap/extension` and opens it in Finder. No CLI needed.
 
 **Building from source**: the extension source lives in `extension/`; build the `dist/` directory first:
 
@@ -25,20 +25,20 @@ npm run build        # tsc compile → extension/dist/
 1. Open `chrome://extensions/`
 2. Enable **Developer mode** (top right)
 3. Click **Load unpacked**
-4. Select the extension ROOT directory that contains `manifest.json` — npm installs pick the path printed by `okit extension path`, source users pick the repo's `extension/` directory (after building `dist/`). Not the `dist` subdirectory itself.
+4. Select the extension ROOT directory that contains `manifest.json` — npm installs pick the path printed by `modelswap extension path`, source users pick the repo's `extension/` directory (after building `dist/`). Not the `dist` subdirectory itself.
 
-The extension list should now show "OKIT".
+The extension list should now show "ModelSwap".
 
 ## 3.3 Verify the connection
 
-1. Start OKIT (`okit web`)
-2. The extension probes ports 3780–3785 in order, locks onto the first OKIT server that answers, and connects over WebSocket (authenticated with a one-time token) — it keeps working when OKIT falls back to 3781+
-3. A line like `[WS] Extension hello: v2.x.x protocol=...` in the OKIT log means connected
+1. Start ModelSwap (`modelswap web`)
+2. The extension probes ports 3780–3785 in order, locks onto the first ModelSwap server that answers, and connects over WebSocket (authenticated with a one-time token) — it keeps working when ModelSwap falls back to 3781+
+3. A line like `[WS] Extension hello: v2.x.x protocol=...` in the ModelSwap log means connected
 4. You can also check the extension status under **Vault → Auto-create**
 
 ## 3.4 Permissions (important)
 
-The extension requests `debugger`, `tabs`, `cookies` and related permissions, so Chrome shows a **"OKIT started debugging this browser"** banner — **this is expected**: the debugger channel is how the extension reads pages and performs clicks. Debugging happens only between your local OKIT and your browser; nothing is sent to any external server.
+The extension requests `debugger`, `tabs`, `cookies` and related permissions, so Chrome shows a **"ModelSwap started debugging this browser"** banner — **this is expected**: the debugger channel is how the extension reads pages and performs clicks. Debugging happens only between your local ModelSwap and your browser; nothing is sent to any external server.
 
 ## 3.5 Updating the extension
 

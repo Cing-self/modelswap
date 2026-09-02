@@ -5,7 +5,7 @@ import { setVault, scanAgentKeys, importAgentKeys, AgentKeyFinding } from '../..
 import { getAdapters, listProviders, updateProvider } from '../../api/providers';
 import { getAgentIcon, getAgentIconClass } from '../../assets/agents';
 import { getProviderIcon, getProviderIconClass } from '../../assets/providers';
-import okitIcon from '../../assets/branding/okit-icon-command-v1.png';
+import modelswapIcon from '../../assets/branding/modelswap-icon-command-v1.png';
 import { setOnboardingDone } from '../../lib/onboardingGate';
 import { useApp } from '../Layout/AppContext';
 import { useI18n } from '../../i18n';
@@ -34,7 +34,7 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
   const [keyValue, setKeyValue] = useState('');
   const [keySaving, setKeySaving] = useState(false);
   const [configuredIds, setConfiguredIds] = useState<Set<string>>(new Set());
-  // Config entries in agent files that OKIT doesn't show on the home page
+  // Config entries in agent files that MODELSWAP doesn't show on the home page
   // yet — offered for adoption so they appear under AGENT 配置 immediately.
   const [externalSites, setExternalSites] = useState<{ agentId: string; agentName: string; providerId: string; providerName: string }[]>([]);
   const [selectedSites, setSelectedSites] = useState<Set<string>>(new Set());
@@ -173,7 +173,7 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
     if (openingExtension) return;
     setOpeningExtension(true);
     try {
-      const desktop = (window as any).okitDesktop;
+      const desktop = (window as any).modelswapDesktop;
       if (desktop?.revealExtension) {
         await desktop.revealExtension();
       } else {
@@ -235,8 +235,8 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
         {/* Brand + step indicator */}
         <div className="wiz-top">
           <div className="wiz-brand">
-            <img src={okitIcon} alt="OKIT" />
-            <span>OKIT</span>
+            <img src={modelswapIcon} alt="MODELSWAP" />
+            <span>MODELSWAP</span>
           </div>
           <div className="wiz-progress">
             <span className="wiz-progress-label">{t('onboarding.initStep')} {step + 1}/{STEPS}</span>

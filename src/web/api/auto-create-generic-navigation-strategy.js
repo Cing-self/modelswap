@@ -13,7 +13,7 @@ function createGenericNavigationStrategy(deps) {
   const uniqueName = maxNameLength > 0 && rawUniqueName.length > maxNameLength
     ? `${String(tokenName).slice(0, Math.max(1, maxNameLength - uniqueSuffix.length - 1))}-${uniqueSuffix}`.slice(0, maxNameLength)
     : rawUniqueName;
-  const nav = await sendCommand('navigate', { url: platform.url, workspace: 'okit' }, 30000);
+  const nav = await sendCommand('navigate', { url: platform.url, workspace: 'modelswap' }, 30000);
   if (!nav.ok) throw new Error(nav.error || '打开密钥管理页失败');
   const tabId = nav.data && nav.data.tabId;
   const arrivedUrl = nav.data && nav.data.url;
@@ -33,17 +33,17 @@ function createGenericNavigationStrategy(deps) {
   };
 
   const capStart = await sendCommand('network-capture-start',
-    { pattern: '', workspace: 'okit', ...(tabId ? { tabId } : {}) }, 10000);
+    { pattern: '', workspace: 'modelswap', ...(tabId ? { tabId } : {}) }, 10000);
   if (!capStart.ok) throw new Error(capStart.error || '无法开始安全抓取');
 
   await sleep(3000);
   await requireSignedIn();
   // A previous attempt may have successfully created the key but failed local
-  // format validation. Recover only an OKIT-named key from this provider's
+  // format validation. Recover only an MODELSWAP-named key from this provider's
   // credential-list response before considering another create action.
   if (platform.recoverExistingNamedKey || platform.blockWhenExistingKeys) {
     const recoveryRead = await sendCommand('network-capture-read', {
-      workspace: 'okit',
+      workspace: 'modelswap',
       ...(tabId ? { tabId } : {}),
     }, 10000).catch(() => ({ ok: false, data: [] }));
     const capturedEntries = recoveryRead.ok ? (recoveryRead.data || []) : [];
@@ -159,10 +159,10 @@ function createGenericNavigationStrategy(deps) {
       // the one-time value into navigator.clipboard without exposing it in
       // the DOM or network response.
       await execJs(`(() => {
-        window.__okitExistingCapturedKey = '';
+        window.__modelswapExistingCapturedKey = '';
         const capture = value => {
           const text = String(value || '');
-          if (text) window.__okitExistingCapturedKey = text;
+          if (text) window.__modelswapExistingCapturedKey = text;
         };
         try {
           const clipboard = navigator.clipboard;
@@ -192,7 +192,7 @@ function createGenericNavigationStrategy(deps) {
       const clicked = await foregroundClick({ x: existingState.x, y: existingState.y, tabId });
       if (!clicked) throw new Error(platform.existingMaskedCopyFailureMessage || '已有 API Key 的复制控件无法点击');
       await sleep(500);
-      const capturedExisting = await execJs('window.__okitExistingCapturedKey || ""').catch(() => '');
+      const capturedExisting = await execJs('window.__modelswapExistingCapturedKey || ""').catch(() => '');
       const capturedExistingKey = keyFromText(capturedExisting, platform);
       if (capturedExistingKey) {
         await closeAutomationWindow();
@@ -200,7 +200,7 @@ function createGenericNavigationStrategy(deps) {
       }
       if (platform.allowExtensionClipboardRead) {
         const clipboardRead = await sendCommand('clipboard-read', {
-          workspace: 'okit',
+          workspace: 'modelswap',
           clipboardPattern: platform.keyPatterns?.[0] || '',
         }, 5000).catch(() => ({ ok: false, data: {} }));
         const clipboardValue = clipboardRead.ok && clipboardRead.data?.matched ? clipboardRead.data.value : '';
@@ -211,7 +211,7 @@ function createGenericNavigationStrategy(deps) {
         }
       }
       const existingNetwork = await sendCommand('network-capture-read', {
-        workspace: 'okit',
+        workspace: 'modelswap',
         ...(tabId ? { tabId } : {}),
       }, 10000).catch(() => ({ ok: false, data: [] }));
       const existingEntries = existingNetwork.ok ? (existingNetwork.data || []) : [];

@@ -279,7 +279,7 @@ function parseOpenCodeGoUsage(data) {
 // connected" — which reads as "plugin problem", and fixing it needs no console
 // visit — from "connected but no platform session", where a one-time console
 // visit mints the API session cookie via Xiaomi SSO (instant when already
-// signed in; OKIT then caches the session until it expires).
+// signed in; MODELSWAP then caches the session until it expires).
 function getCookieExpiry(cookies) {
   const expiries = cookies
     .map(cookie => Number(cookie?.expirationDate))

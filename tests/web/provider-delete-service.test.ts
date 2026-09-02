@@ -6,7 +6,7 @@ import { execFileSync } from 'child_process';
 
 describe('provider deletion through Agent configuration service', { timeout: 30000 }, () => {
   it('removes only the deleted Codex registration and retains another managed provider', () => {
-    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-delete-service-'));
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-delete-service-'));
     const root = path.resolve(__dirname, '../..');
     const script = `
       const fs=require('fs'), path=require('path'), api=require(path.join(process.argv[1],'src/web/api/providers.js'));
@@ -16,8 +16,8 @@ describe('provider deletion through Agent configuration service', { timeout: 300
     const result = JSON.parse(execFileSync(process.execPath, ['-r', 'ts-node/register', '-e', script, root], {
       env: { ...process.env, HOME: home, USERPROFILE: home }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
     }).trim());
-    expect(result.text).not.toContain('okit-one');
-    expect(result.text).toContain('okit-two');
+    expect(result.text).not.toContain('modelswap-one');
+    expect(result.text).toContain('modelswap-two');
     expect(result.catalog).toBe(true);
   });
 });

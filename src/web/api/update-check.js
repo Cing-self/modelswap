@@ -21,7 +21,7 @@ const { Readable, Transform } = require('stream');
 const { pipeline } = require('stream/promises');
 const { normalizedReleaseNotes } = require('../../application/release-notes');
 
-const GITHUB_REPO = 'Cing-self/okit';
+const GITHUB_REPO = 'Cing-self/modelswap';
 const LATEST_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
 // Only Release asset URLs from this repo may be downloaded — the endpoint must
 // never become an arbitrary-URL downloader (SSRF).
@@ -52,8 +52,8 @@ function compareVersions(a, b) {
 }
 
 function githubHeaders() {
-  const headers = { 'User-Agent': 'okit-update-check', Accept: 'application/vnd.github+json' };
-  const token = process.env.OKIT_GITHUB_TOKEN;
+  const headers = { 'User-Agent': 'modelswap-update-check', Accept: 'application/vnd.github+json' };
+  const token = process.env.MODELSWAP_GITHUB_TOKEN;
   if (token) headers.Authorization = `Bearer ${token}`;
   return headers;
 }
@@ -255,7 +255,7 @@ async function runDownload(job) {
   const tempPath = `${job.dest}.part-${job.id}`;
   try {
     job.status = 'downloading';
-    const dl = await fetch(job.url, { headers: { 'User-Agent': 'okit-update-check' } });
+    const dl = await fetch(job.url, { headers: { 'User-Agent': 'modelswap-update-check' } });
     if (!dl.ok) throw new Error(`下载失败 HTTP ${dl.status}`);
     if (!dl.body) throw new Error('下载响应没有文件内容');
 

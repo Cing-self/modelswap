@@ -12,7 +12,7 @@ import { useTransientFeedback } from '../../hooks/useTransientFeedback';
 import { useDataChanged } from '../../hooks/useDataChanged';
 import { useModelCacheWarmupPending } from '../../hooks/useModelCacheWarmup';
 
-const AGENT_ORDER_KEY = 'okit.agentOrder';
+const AGENT_ORDER_KEY = 'modelswap.agentOrder';
 
 function loadSavedAgentOrder(): string[] {
   try {
@@ -318,7 +318,7 @@ export default function HomePage() {
     }
   }
 
-  // Additive agents (workbuddy): toggling a site OFF removes the entries OKIT
+  // Additive agents (workbuddy): toggling a site OFF removes the entries MODELSWAP
   // wrote for it from the agent's own config. Switching between sites happens
   // inside the agent, so there is no fallback-to-official concept here.
   async function handleDisableSite(agentId: string, providerId: string) {

@@ -275,8 +275,8 @@ async function deleteMoonshotBrowserKey({ createdName, tabId }) {
     })()`).catch(() => false);
     if (retryFocus === true || retryFocus === 'true') {
       const enterParams = { type: 'keyDown', key: 'Enter', code: 'Enter', text: '\r', unmodifiedText: '\r', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 };
-      await sendCommand('cdp', { cdpMethod: 'Input.dispatchKeyEvent', cdpParams: enterParams, workspace: 'okit', ...(tabId ? { tabId } : {}) }, 5000).catch(() => {});
-      await sendCommand('cdp', { cdpMethod: 'Input.dispatchKeyEvent', cdpParams: { ...enterParams, type: 'keyUp' }, workspace: 'okit', ...(tabId ? { tabId } : {}) }, 5000).catch(() => {});
+      await sendCommand('cdp', { cdpMethod: 'Input.dispatchKeyEvent', cdpParams: enterParams, workspace: 'modelswap', ...(tabId ? { tabId } : {}) }, 5000).catch(() => {});
+      await sendCommand('cdp', { cdpMethod: 'Input.dispatchKeyEvent', cdpParams: { ...enterParams, type: 'keyUp' }, workspace: 'modelswap', ...(tabId ? { tabId } : {}) }, 5000).catch(() => {});
       await sleep(800);
       remaining = await execJs(`(() => {
         const target = ${JSON.stringify(createdName)};

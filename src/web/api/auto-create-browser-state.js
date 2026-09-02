@@ -212,7 +212,7 @@ function hasOpenRouterPublicNavigation(labels) {
 
 async function redirectOpenRouterToLogin() {
   const signInUrl = 'https://openrouter.ai/sign-in?redirect_url=https%3A%2F%2Fopenrouter.ai%2Fworkspaces%2Fdefault%2Fkeys';
-  await sendCommand('navigate', { url: signInUrl, workspace: 'okit' }, 30000).catch(() => {});
+  await sendCommand('navigate', { url: signInUrl, workspace: 'modelswap' }, 30000).catch(() => {});
 }
 
 /**

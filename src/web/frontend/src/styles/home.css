@@ -1546,8 +1546,8 @@
 }
 .home-picker-save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 /* Rotating spinner for the in-picker refresh button */
-.spin { animation: okit-spin 0.9s linear infinite; }
-@keyframes okit-spin { to { transform: rotate(360deg); } }
+.spin { animation: modelswap-spin 0.9s linear infinite; }
+@keyframes modelswap-spin { to { transform: rotate(360deg); } }
 /* Models-view drill-down: back button (left) + title, inside picker header */
 .home-add-picker-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .home-add-picker-title h3 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

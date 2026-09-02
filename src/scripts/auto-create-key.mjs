@@ -17,7 +17,7 @@ if (!PLATFORM || !KEY_NAME) {
   process.exit(1);
 }
 
-const STATE_DIR = path.join(os.homedir(), '.okit', 'auto-create');
+const STATE_DIR = path.join(os.homedir(), '.modelswap', 'auto-create');
 fs.mkdirSync(STATE_DIR, { recursive: true });
 
 const PLATFORM_CONFIG = {
@@ -163,7 +163,7 @@ async function main() {
         await page.evaluate(() => {
           const d = document.createElement('div');
           d.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#f59e0b;color:#000;padding:12px 20px;text-align:center;font-size:15px;font-weight:600;';
-          d.textContent = '⚡ OKIT — 请登录，登录后将自动继续';
+          d.textContent = '⚡ MODELSWAP — 请登录，登录后将自动继续';
           document.body.prepend(d);
         });
       } catch {}
@@ -210,7 +210,7 @@ async function main() {
     console.error(`[auto-create] Looking for create button...`);
     const createBtn = await findElement(page, config.selectors.createBtn, 15000);
     if (!createBtn) {
-      await page.screenshot({ path: `/tmp/okit-${PLATFORM}-debug.png` });
+      await page.screenshot({ path: `/tmp/modelswap-${PLATFORM}-debug.png` });
       throw new Error(`Create button not found on ${config.name}`);
     }
     await createBtn.click({ force: true });
@@ -274,7 +274,7 @@ async function main() {
       console.error(`[auto-create] ✅ Key: ${keyValue.substring(0, 10)}...`);
       console.log(JSON.stringify({ success: true, value: keyValue, name: KEY_NAME, platform: PLATFORM }));
     } else {
-      await page.screenshot({ path: `/tmp/okit-${PLATFORM}-result.png` });
+      await page.screenshot({ path: `/tmp/modelswap-${PLATFORM}-result.png` });
       throw new Error('Key value not found');
     }
 

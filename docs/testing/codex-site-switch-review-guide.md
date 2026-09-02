@@ -13,7 +13,7 @@
 | `6d31795` | 千帆等无 Responses 端点的站点快速失败（探测实证 404） |
 | `eb62707` | 静态黑名单重构为应用时实时探测 `/responses`（404 拒绝，其他放行，探测失败忽略）；测试桩两个 seam |
 | `6188067` | `responses` 成为正式端点类型：预设（智谱系）+ 编辑器下拉 + codex 优先使用该类端点；adapters API 附带兼容标记；picker 过滤不兼容站点（无提示文本）；站点卡片按添加序 |
-| `c7fdac7` | 清理桌面端写入的陈旧 `[models]` 表（仅当指向已删 okit provider） |
+| `c7fdac7` | 清理桌面端写入的陈旧 `[models]` 表（仅当指向已删 modelswap provider） |
 | `3b6addd` | 第三方 apply 时清除订阅专属的 `service_tier`（kimi/opencode 等启动警告根因） |
 
 ### B. 打包 CLI 与配置写入 bug

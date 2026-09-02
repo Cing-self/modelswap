@@ -279,7 +279,7 @@ function startServer(port = 3780, onStarted) {
     // before listen() turns EADDRINUSE into an uncaught WebSocket error and
     // prevents the fallback-port retry below from completing.
     setupWebSocket(server);
-    console.log(`\n  OKIT Web UI is running at http://localhost:${port}`);
+    console.log(`\n  MODELSWAP Web UI is running at http://localhost:${port}`);
     console.log(`  Press Ctrl+C to stop\n`);
     // Auto-sync scheduler: debounced push + periodic pull check.
     require('./api/sync-scheduler').startAutoSync();

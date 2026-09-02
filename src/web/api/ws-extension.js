@@ -1,9 +1,9 @@
 /**
- * WebSocket bridge between OKIT server and Chrome Extension (v2 atomic-capability protocol).
+ * WebSocket bridge between MODELSWAP server and Chrome Extension (v2 atomic-capability protocol).
  *
  * Extension connects via ws://localhost:3780/ws/extension and exposes generic
  * atoms: exec, navigate, network-capture-start, network-capture-read, etc.
- * OKIT server orchestrates platform-specific flows by composing these atoms
+ * MODELSWAP server orchestrates platform-specific flows by composing these atoms
  * via sendCommand().
  *
  * Protocol message shapes:
@@ -195,7 +195,7 @@ function setupWebSocket(httpServer) {
 function sendCommand(action, params = {}, timeoutMs = 60000) {
   return new Promise((resolve, reject) => {
     if (!extWs || extWs.readyState !== 1) {
-      reject(new Error('OKIT browser extension is not connected. In Chrome open chrome://extensions, or in Edge open edge://extensions; then choose Load unpacked and select the OKIT extension folder.'));
+      reject(new Error('MODELSWAP browser extension is not connected. In Chrome open chrome://extensions, or in Edge open edge://extensions; then choose Load unpacked and select the MODELSWAP extension folder.'));
       return;
     }
 
@@ -221,7 +221,7 @@ function sendCommand(action, params = {}, timeoutMs = 60000) {
 function sendToExtension(command, timeoutMs = 60000) {
   return new Promise((resolve, reject) => {
     if (!extWs || extWs.readyState !== 1) {
-      reject(new Error('OKIT browser extension is not connected. Please install the OKIT browser extension.'));
+      reject(new Error('MODELSWAP browser extension is not connected. Please install the MODELSWAP browser extension.'));
       return;
     }
 

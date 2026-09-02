@@ -26,7 +26,7 @@ async function queryQianfanPersonalUsageViaExtension() {
 
   let tabsResult;
   try {
-    tabsResult = await bridge.sendCommand('tabs', { op: 'list', workspace: 'okit' }, 10000);
+    tabsResult = await bridge.sendCommand('tabs', { op: 'list', workspace: 'modelswap' }, 10000);
   } catch { tabsResult = { data: [] }; }
   const tabs = Array.isArray(tabsResult?.data) ? tabsResult.data : [];
   const target = tabs
@@ -48,7 +48,7 @@ async function queryQianfanPersonalUsageViaExtension() {
   }})()`;
   let result;
   try {
-    result = await bridge.sendCommand('exec', { tabId: target.tabId, code, workspace: 'okit' }, 20000);
+    result = await bridge.sendCommand('exec', { tabId: target.tabId, code, workspace: 'modelswap' }, 20000);
   } catch { return null; }
   const response = result?.data;
   if (!result?.ok || !response) return null;
@@ -152,7 +152,7 @@ function normalizeQianfanDate(value) {
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
-// Tencent Token Plan support in OKIT is currently limited to the personal
+// Tencent Token Plan support in MODELSWAP is currently limited to the personal
 // plan. Tencent does not publish a reusable personal quota endpoint, so keep
 // this card console-only instead of mixing in enterprise CAM credentials.
 async function queryTencentTokenPlanUsage(_apiKey) {
@@ -254,8 +254,8 @@ function callTencentApi(secretId, secretKey, action, payload, options = {}) {
 
 // OpenCode Go quota is rendered by the authenticated opencode.ai workspace
 // page, not by the documented organization CSV export endpoint. Reuse the
-// browser session through the OKIT extension: fetch() runs in the logged-in
-// page context with credentials: include, so raw cookies never enter OKIT.
+// browser session through the MODELSWAP extension: fetch() runs in the logged-in
+// page context with credentials: include, so raw cookies never enter MODELSWAP.
 async function queryOpenCodeGoUsage(_apiKey) {
   const browserUsage = await queryOpenCodeGoUsageViaExtension();
   if (browserUsage) return browserUsage;
@@ -279,7 +279,7 @@ async function queryOpenCodeGoUsageViaExtension() {
 
   let tabsResult;
   try {
-    tabsResult = await bridge.sendCommand('tabs', { op: 'list', workspace: 'okit' }, 10000);
+    tabsResult = await bridge.sendCommand('tabs', { op: 'list', workspace: 'modelswap' }, 10000);
   } catch { tabsResult = { data: [] }; }
   const tabs = Array.isArray(tabsResult?.data) ? tabsResult.data : [];
   let target = tabs
@@ -292,14 +292,14 @@ async function queryOpenCodeGoUsageViaExtension() {
     try {
       const navigation = await bridge.sendCommand('navigate', {
         url: 'https://opencode.ai/',
-        workspace: 'okit',
+        workspace: 'modelswap',
       }, 30000);
       if (!navigation?.ok || !navigation.data?.tabId) return null;
       target = { tabId: navigation.data.tabId, url: navigation.data.url || 'https://opencode.ai/' };
       const links = await bridge.sendCommand('exec', {
         tabId: target.tabId,
         code: "Array.from(document.querySelectorAll('a[href]')).map(a => a.href).filter(h => /^https:\\/\\/(?:www\\.)?opencode\\.ai\\/workspace\\/[^/]+\\/go(?:[/?#]|$)/.test(h))",
-        workspace: 'okit',
+        workspace: 'modelswap',
       }, 10000);
       const workspaceUrl = Array.isArray(links?.data) ? links.data[0] : null;
       if (!workspaceUrl) {
@@ -312,7 +312,7 @@ async function queryOpenCodeGoUsageViaExtension() {
       const goNavigation = await bridge.sendCommand('navigate', {
         tabId: target.tabId,
         url: workspaceUrl,
-        workspace: 'okit',
+        workspace: 'modelswap',
       }, 30000);
       if (!goNavigation?.ok) return null;
       target.url = workspaceUrl;
@@ -338,7 +338,7 @@ async function queryOpenCodeGoUsageViaExtension() {
     // The Go page loads its quota through the SolidStart server function
     // `lite.subscription.get`. This is the same authenticated request the
     // page itself makes; the compact Seroval envelope keeps the workspace ID
-    // in the page context and never exposes its session cookie to OKIT.
+    // in the page context and never exposes its session cookie to MODELSWAP.
     if (workspaceId) {
       try {
         const response = await fetch(new URL('/_server', location.origin), {
@@ -348,7 +348,7 @@ async function queryOpenCodeGoUsageViaExtension() {
             Accept: 'application/json',
             'Content-Type': 'application/json',
             'X-Server-Id': 'c7389bd0e731f80f49593e5ee53835475f4e28594dd6bd83eb229bab753498cd',
-            'X-Server-Instance': 'okit:' + Date.now(),
+            'X-Server-Instance': 'modelswap:' + Date.now(),
           },
           body: JSON.stringify({
             t: { t: 9, s: 1, a: [{ t: 1, s: workspaceId }], o: 0 },
@@ -401,7 +401,7 @@ async function queryOpenCodeGoUsageViaExtension() {
   }} )()`;
   let result;
   try {
-    result = await bridge.sendCommand('exec', { tabId: target.tabId, code, workspace: 'okit' }, 20000);
+    result = await bridge.sendCommand('exec', { tabId: target.tabId, code, workspace: 'modelswap' }, 20000);
   } catch { return null; }
   if (!result?.ok || !Array.isArray(result.data)) return null;
 
@@ -456,7 +456,7 @@ function parseOpenCodeGoUsage(data) {
 // connected" — which reads as "plugin problem", and fixing it needs no console
 // visit — from "connected but no platform session", where a one-time console
 // visit mints the API session cookie via Xiaomi SSO (instant when already
-// signed in; OKIT then caches the session until it expires).
+// signed in; MODELSWAP then caches the session until it expires).
 function xiaomiSessionNotice(loginUrl) {
   let bridge = null;
   try { bridge = require('../web/api/ws-extension'); } catch { /* fall through */ }
@@ -479,7 +479,7 @@ function xiaomiSessionNotice(loginUrl) {
 // clear console-login message for accounts that require a web session.
 async function queryXiaomiCodingUsage(apiKey, baseUrl) {
   // Reuse the encrypted session cache first. A 401 invalidates it and triggers
-  // one refresh from the OKIT browser extension below.
+  // one refresh from the MODELSWAP browser extension below.
   const cachedSession = await loadXiaomiSession();
   if (cachedSession?.cookie) {
     const cachedEndpoint = /^https:\/\/platform\.xiaomimimo\.com\/api\/v1\/tokenPlan\/usage/.test(cachedSession.endpoint || '')
@@ -513,7 +513,7 @@ async function queryXiaomiCodingUsage(apiKey, baseUrl) {
         'Referer': 'https://platform.xiaomimimo.com/console/plan-manage',
         'Origin': 'https://platform.xiaomimimo.com',
         'X-Timezone': 'Asia/Shanghai',
-        'User-Agent': 'OKIT/usage',
+        'User-Agent': 'MODELSWAP/usage',
       },
       timeout: 10000,
     });
@@ -560,12 +560,12 @@ async function getXiaomiBrowserSession() {
   try { bridge = require('../web/api/ws-extension'); } catch { return null; }
   if (!bridge.isExtensionConnected()) return null;
 
-  // Older OKIT extensions only support an exact-domain lookup. Query both the
+  // Older MODELSWAP extensions only support an exact-domain lookup. Query both the
   // host and its parent domain so this works without requiring an extension
   // reinstall/reload when the auth cookie is scoped to `.xiaomimimo.com`.
   const cookieResults = await Promise.all(['platform.xiaomimimo.com', 'xiaomimimo.com'].map(async domain => {
     try {
-      return await bridge.sendCommand('cookies', { domain, workspace: 'okit' }, 10000);
+      return await bridge.sendCommand('cookies', { domain, workspace: 'modelswap' }, 10000);
     } catch {
       return null;
     }
@@ -583,7 +583,7 @@ async function getXiaomiBrowserSession() {
 
   let tabsResult;
   try {
-    tabsResult = await bridge.sendCommand('tabs', { op: 'list', workspace: 'okit' }, 10000);
+    tabsResult = await bridge.sendCommand('tabs', { op: 'list', workspace: 'modelswap' }, 10000);
   } catch { tabsResult = { data: [] }; }
   const tabs = Array.isArray(tabsResult?.data) ? tabsResult.data : [];
   return { cookieHeader, cookies, tabs };
@@ -597,7 +597,7 @@ async function queryXiaomiUsageWithCookie(cookieHeader, endpoint = 'https://plat
         'Accept': 'application/json',
         'Cookie': cookieHeader,
         'Referer': 'https://platform.xiaomimimo.com/console/plan-manage',
-        'User-Agent': 'OKIT/usage',
+        'User-Agent': 'MODELSWAP/usage',
       },
       timeout: 10000,
     });
@@ -721,7 +721,7 @@ async function queryXiaomiBalanceWithCookie(cookieHeader) {
         'Cookie': cookieHeader,
         'Referer': MIMO_BALANCE_CONSOLE_URL,
         'X-Timezone': 'Asia/Shanghai',
-        'User-Agent': 'OKIT/usage',
+        'User-Agent': 'MODELSWAP/usage',
       },
       timeout: 10000,
     });

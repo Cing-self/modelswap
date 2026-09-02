@@ -16,7 +16,7 @@ const PEER_TTL_MS = 60 * 60 * 1000;
 const PAIRING_TTL_MS = 5 * 60 * 1000;
 
 function createLanListener({ core, homeDir = os.homedir }) {
-  const blobPath = path.join(homeDir(), '.okit', 'sync', 'lan-blob.json');
+  const blobPath = path.join(homeDir(), '.modelswap', 'sync', 'lan-blob.json');
   let server = null;
   let runningPort = null;
   let runningTokenHash = null;
@@ -71,7 +71,7 @@ function createLanListener({ core, homeDir = os.homedir }) {
   }
 
   function buildConnectionCode(address, port, token) {
-    return `okit-lan://${address}:${port}/${token}?name=${encodeURIComponent(getMachineName())}`;
+    return `modelswap-lan://${address}:${port}/${token}?name=${encodeURIComponent(getMachineName())}`;
   }
 
   function createPairingCode() {
@@ -88,7 +88,7 @@ function createLanListener({ core, homeDir = os.homedir }) {
   }
 
   function trackPeer(req) {
-    const header = String(req.headers['x-okit-machine'] || '');
+    const header = String(req.headers['x-modelswap-machine'] || '');
     const separator = header.lastIndexOf('#');
     if (separator <= 0) return;
     const id = header.slice(separator + 1).trim();

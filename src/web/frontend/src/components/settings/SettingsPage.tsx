@@ -46,7 +46,7 @@ export default function SettingsPage() {
     } catch { /* fall back to browser-side basics only */ }
 
     const lines = [
-      `OKIT ${packageInfo.version}`,
+      `MODELSWAP ${packageInfo.version}`,
       `Service: ${serviceReady === null ? 'checking' : serviceReady ? 'connected' : 'unavailable'}`,
       `Address: ${window.location.origin}`,
     ];
@@ -65,7 +65,7 @@ export default function SettingsPage() {
       }
     }
     lines.push(
-      `Data: ~/.okit`,
+      `Data: ~/.modelswap`,
       `Language: ${lang}`,
       `Platform: ${navigator.platform}`,
     );
@@ -254,7 +254,7 @@ export default function SettingsPage() {
         <section className={`settings-system-overview${serviceReady === null ? ' is-checking' : serviceReady ? ' is-ready' : ' is-error'}`} aria-label={t('settings.runtimeOverview')}>
           <div className="settings-system-primary">
             <span className="settings-system-logo" aria-hidden="true">
-              <img src="/okit-icon-180.png" alt="" />
+              <img src="/modelswap-icon-180.png" alt="" />
               <i />
             </span>
             <span
@@ -270,7 +270,7 @@ export default function SettingsPage() {
           <dl className="settings-system-facts">
             <div>
               <dt><Package size={15} />{t('common.version')}</dt>
-              <dd>OKIT {packageInfo.version}</dd>
+              <dd>MODELSWAP {packageInfo.version}</dd>
             </div>
             <div>
               <dt><Globe2 size={15} />{t('settings.serviceAddress')}</dt>
@@ -278,7 +278,7 @@ export default function SettingsPage() {
             </div>
             <div>
               <dt><FolderOpen size={15} />{t('settings.dataDirectory')}</dt>
-              <dd>~/.okit</dd>
+              <dd>~/.modelswap</dd>
             </div>
           </dl>
 

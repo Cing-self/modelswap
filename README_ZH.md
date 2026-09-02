@@ -1,19 +1,19 @@
 <div align="center">
 
-# OKIT
+# ModelSwap
 
 ### AI Agent 的密钥与模型管控台 — Claude Code / Codex / OpenCode / ZCode / Kimi / Grok 等 10 个 Agent
 
-[![Version](https://img.shields.io/github/v/release/Cing-self/okit?color=blue&label=version)](https://github.com/Cing-self/okit/releases)
-[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey.svg)](https://github.com/Cing-self/okit/releases)
+[![Version](https://img.shields.io/github/v/release/Cing-self/modelswap?color=blue&label=version)](https://github.com/Cing-self/modelswap/releases)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey.svg)](https://github.com/Cing-self/modelswap/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A520-339933.svg)](package.json)
 
-English · [官网](https://landing.auto.code) · [用户手册](docs/manual/zh/) · [CHANGELOG](CHANGELOG.md)
+English · [官网](https://modelswap.app) · [用户手册](docs/manual/zh/) · [CHANGELOG](CHANGELOG.md)
 
 </div>
 
-密钥与模型，一处掌控。OKIT 是一个本地优先的开源工具，管好 AI 编程 CLI 的密钥生命周期：**创建 → 保管 → 切换 → 验证 → 监控**。本地功能永久免费。
+密钥与模型，一处掌控。ModelSwap 是一个本地优先的开源工具，管好 AI 编程 CLI 的密钥生命周期：**创建 → 保管 → 切换 → 验证 → 监控**。本地功能永久免费。
 
 ## 截图
 
@@ -25,16 +25,16 @@ English · [官网](https://landing.auto.code) · [用户手册](docs/manual/zh/
 |---|---|
 | ![密钥库](docs/manual/images/vault.png) | ![一键创建](docs/manual/images/auto-create.png) |
 
-## 为什么是 OKIT
+## 为什么是 ModelSwap
 
-- **切换永不丢配置** — 外科手术式写入：只改 OKIT 自己拥有的字段，你的 hooks、statusLine、tui、MCP 配置原样保留。每次切换前自动快照，设置页一键对比与回滚。
-- **切模型不离开 Codex** — 自动生成 Codex 原生模型目录（model-catalogs），在 Codex CLI 里 `/model` 直接切换，不用回到 OKIT。
-- **零常驻、零侵入** — 没有后台进程、不在请求路径上：OKIT 写完配置就退出，你的 Agent 直连模型平台。卸载不留痕，配置照常工作。
+- **切换永不丢配置** — 外科手术式写入：只改 ModelSwap 自己拥有的字段，你的 hooks、statusLine、tui、MCP 配置原样保留。每次切换前自动快照，设置页一键对比与回滚。
+- **切模型不离开 Codex** — 自动生成 Codex 原生模型目录（model-catalogs），在 Codex CLI 里 `/model` 直接切换，不用回到 ModelSwap。
+- **零常驻、零侵入** — 没有后台进程、不在请求路径上：ModelSwap 写完配置就退出，你的 Agent 直连模型平台。卸载不留痕，配置照常工作。
 - **密钥保险库** — AES-256-GCM 本地加密存储，支持云端同步与局域网点对点同步（配对码配对）。
 
 ## 与同类工具对比
 
-| 能力 | OKIT | cc-switch | codex-router |
+| 能力 | ModelSwap | cc-switch | codex-router |
 |------|------|-----------|--------------|
 | 配置写入 | 字段级合并 + 切换前快照/回滚 | 全量覆盖 + 通用配置片段 | managed block |
 | 常驻进程 | 无 | 托盘（代理可选） | 本地网关（必须） |
@@ -48,11 +48,11 @@ English · [官网](https://landing.auto.code) · [用户手册](docs/manual/zh/
 
 ```bash
 # npm 安装
-npm install -g @cing-self/okit-cli
+npm install -g modelswap
 
 # 或从源码
-git clone https://github.com/Cing-self/okit.git
-cd okit
+git clone https://github.com/Cing-self/modelswap.git
+cd modelswap
 npm ci --ignore-scripts
 npm run build
 node dist/main.js web
@@ -62,25 +62,25 @@ node dist/main.js web
 常用命令：
 
 ```bash
-okit web                              # 启动 Web 管理台（:3780）
-okit vault set <key>                  # 交互式存密钥（AES-256-GCM 加密）
-printf '%s' "$SECRET" | okit vault set <key> --stdin  # 自动化时避免密钥进入命令参数
-okit vault inject                     # 输出 export 语句（配合 eval）
-okit provider list                    # 列出 40 个预置模型平台
-okit provider switch                  # 交互式切换 Agent 的 Provider/模型
-okit provider use <provider>          # 非交互式切换（脚本/Agent 友好）
+modelswap web                              # 启动 Web 管理台（:3780）
+modelswap vault set <key>                  # 交互式存密钥（AES-256-GCM 加密）
+printf '%s' "$SECRET" | modelswap vault set <key> --stdin  # 自动化时避免密钥进入命令参数
+modelswap vault inject                     # 输出 export 语句（配合 eval）
+modelswap provider list                    # 列出 40 个预置模型平台
+modelswap provider switch                  # 交互式切换 Agent 的 Provider/模型
+modelswap provider use <provider>          # 非交互式切换（脚本/Agent 友好）
 ```
 
-> **Shell 配置安全边界**：OKIT 永远不会修改你的 Shell 配置（`~/.zshrc` / `~/.bashrc` 等）——没有任何功能会写它。
+> **Shell 配置安全边界**：ModelSwap 永远不会修改你的 Shell 配置（`~/.zshrc` / `~/.bashrc` 等）——没有任何功能会写它。
 
 ### 给 AI Agent 使用
 
-安装包随附 [`okit-cli` Agent Skill](skills/okit-cli/SKILL.md)。运行 `okit skill install /path/to/project` 会将它安装到目标项目的 `.agents/skills/okit-cli/`；`okit skill path` 可输出内置原文件位置。Skill 说明了可解析的只读命令、非交互式模型切换，以及密钥明文、Shell Hook 和云同步的安全边界。
+安装包随附 [`modelswap-cli` Agent Skill](skills/modelswap-cli/SKILL.md)。运行 `modelswap skill install /path/to/project` 会将它安装到目标项目的 `.agents/skills/modelswap-cli/`；`modelswap skill path` 可输出内置原文件位置。Skill 说明了可解析的只读命令、非交互式模型切换，以及密钥明文、Shell Hook 和云同步的安全边界。
 
 也可以通过 [skills.sh](https://skills.sh/) 直接从公开仓库安装：
 
 ```bash
-npx skills add Cing-self/okit --skill okit-cli
+npx skills add Cing-self/modelswap --skill modelswap-cli
 ```
 
 ## 功能总览
@@ -102,11 +102,11 @@ npx skills add Cing-self/okit --skill okit-cli
 
 ## FAQ
 
-**OKIT 会在我的请求路径上吗？**
-不会。零常驻、零侵入：OKIT 写完配置就退出，你的 Agent 直连模型平台，没有任何代理或转发层。
+**ModelSwap 会在我的请求路径上吗？**
+不会。零常驻、零侵入：ModelSwap 写完配置就退出，你的 Agent 直连模型平台，没有任何代理或转发层。
 
 **切换配置会破坏我已有的设置吗？**
-不会。外科手术式写入：只改 OKIT 拥有的字段，hooks / statusLine / MCP 配置原样保留，切换前自动快照可回滚。
+不会。外科手术式写入：只改 ModelSwap 拥有的字段，hooks / statusLine / MCP 配置原样保留，切换前自动快照可回滚。
 
 **密钥存在哪里？安全吗？**
 AES-256-GCM 本地加密，密钥派生绑定本机。绝不以明文落盘（导入向导扫描到的配置文件密钥也只以掩码展示）。卸载即全部清除。
@@ -130,4 +130,4 @@ cd src/web/frontend && npm run dev   # 前端开发服务器（:5173 → 代理 
 
 ## License
 
-OKIT 以 [MIT License](LICENSE) 发布。版权归属 Cing-self / OKIT contributors（2026）。
+ModelSwap 以 [MIT License](LICENSE) 发布。版权归属 Cing-self / ModelSwap contributors（2026）。

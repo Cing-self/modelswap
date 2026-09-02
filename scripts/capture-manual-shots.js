@@ -1,15 +1,15 @@
 // Captures product screenshots for the user manual (docs/manual/images).
 //
-// Prerequisites: OKIT web running with the build you want to shoot:
+// Prerequisites: MODELSWAP web running with the build you want to shoot:
 //   node dist/main.js web        (from the repo root, port 3780)
 //
 // Usage: node scripts/capture-manual-shots.js
-// Env:   OKIT_BASE (default http://localhost:3780), SHOTS (comma list to filter)
+// Env:   MODELSWAP_BASE (default http://localhost:3780), SHOTS (comma list to filter)
 const path = require('path');
 const fs = require('fs');
 const { chromium } = require('playwright');
 
-const BASE = process.env.OKIT_BASE || 'http://localhost:3780';
+const BASE = process.env.MODELSWAP_BASE || 'http://localhost:3780';
 const OUT_DIR = path.join(__dirname, '..', 'docs', 'manual', 'images');
 const FILTER = process.env.SHOTS ? process.env.SHOTS.split(',').map((s) => s.trim()) : null;
 
@@ -40,8 +40,8 @@ async function main() {
   });
   // Force Chinese UI + light theme before any app code runs.
   await context.addInitScript(() => {
-    localStorage.setItem('okit-lang', 'zh');
-    localStorage.setItem('okit-theme', 'light');
+    localStorage.setItem('modelswap-lang', 'zh');
+    localStorage.setItem('modelswap-theme', 'light');
   });
   const page = await context.newPage();
 

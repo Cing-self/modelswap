@@ -51,7 +51,7 @@ const PROBE = String.raw`
 
 describe('warmup failures do not take down the desktop web service', { timeout: 30000 }, () => {
   it('keeps ping, diagnostics, and an authenticated Chrome extension connection alive', () => {
-    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-server-warmup-resilience-'));
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-server-warmup-resilience-'));
     const root = path.resolve(__dirname, '../..');
     try {
       const stdout = execFileSync(process.execPath, ['-r', 'ts-node/register', '-e', PROBE, root], {

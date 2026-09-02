@@ -8,7 +8,7 @@
 .titlebar-update.is-available, .titlebar-update.is-ready { color: var(--accent); }
 .titlebar-update.is-downloading { cursor: wait; color: color-mix(in srgb, var(--ink) 70%, transparent); }
 .titlebar-update.is-failed { color: var(--red); }
-.titlebar-update .spin { animation: okit-titlebar-spin .9s linear infinite; }
+.titlebar-update .spin { animation: modelswap-titlebar-spin .9s linear infinite; }
 .titlebar-update.is-ready { animation: titlebar-update-pulse 2.2s ease-in-out infinite; }
 
 .update-hover-card { position: absolute; z-index: 45; top: calc(100% + 7px); left: 0; width: min(380px, calc(100vw - 28px)); max-height: min(430px, calc(100dvh - 66px)); overflow: hidden; border: 1px solid var(--card-line); border-radius: 12px; color: var(--ink); background: var(--card-surface); box-shadow: 0 16px 36px color-mix(in srgb, var(--ink) 16%, transparent), inset 0 1px 0 color-mix(in srgb, white 80%, transparent); animation: update-hover-card-in .14s ease-out; }

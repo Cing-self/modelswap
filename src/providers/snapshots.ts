@@ -5,19 +5,19 @@ import { atomicWrite } from "../utils/atomicWrite";
 
 export type SnapshotMeta = { id: string; createdAt: string; files: { name: string; size: number }[] };
 
-const DEFAULT_ROOT = path.join(os.homedir(), ".okit");
+const DEFAULT_ROOT = path.join(os.homedir(), ".modelswap");
 const SNAPSHOTS_DIR_NAME = "agent-snapshots";
 const MAX_SNAPSHOTS = 10;
-// Internal manifest for snapshots created by current OKIT versions. It records
+// Internal manifest for snapshots created by current MODELSWAP versions. It records
 // files that did NOT exist at capture time, so an automatic rollback can also
 // remove a newly-created file after a failed first-time switch. It is never
 // exposed in the snapshot viewer.
-const MANIFEST_FILE = ".okit-snapshot.json";
+const MANIFEST_FILE = ".modelswap-snapshot.json";
 
 // Relative (to os.homedir()) config files owned by each agent. These are the
 // files a switch rewrites, so they are the ones we snapshot before a switch.
 const AGENT_CONFIG_FILES: Record<string, string[]> = {
-  claude: [".claude/settings.json", ".claude/.credentials.json", ".claude/.credentials.json.okit-backup", ".claude/.okit-key-helper.sh"],
+  claude: [".claude/settings.json", ".claude/.credentials.json", ".claude/.credentials.json.modelswap-backup", ".claude/.modelswap-key-helper.sh"],
   codex: [".codex/config.toml", ".codex/auth.json", ".codex/model-catalogs/model-catalogs.json"],
   grok: [".grok/config.toml"],
   "kimi-code": [".kimi-code/config.toml"],

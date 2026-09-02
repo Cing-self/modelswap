@@ -191,7 +191,7 @@
       "releaseDate": "Informational metadata only",
       "lastUpdated": "Informational metadata only",
       "openWeights": "Informational metadata only",
-      "status": "Used by OKIT availability filtering, not emitted to Codex",
+      "status": "Used by MODELSWAP availability filtering, not emitted to Codex",
       "cost": "Informational metadata only",
       "providerConfig": "models.dev SDK metadata is not Codex provider configuration",
       "experimental": "Must not be forwarded without an explicit Codex transform"

@@ -32,7 +32,7 @@ function validateReleaseNotes(input, expectedVersion) {
       if (!readText(item?.zh) || !readText(item?.en)) errors.push(`highlight ${index + 1} must include zh and en text`);
     });
   }
-  if (input?.releaseUrl && !/^https:\/\/github\.com\/Cing-self\/okit\/releases\/tag\/v\d+\.\d+\.\d+$/.test(input.releaseUrl)) {
+  if (input?.releaseUrl && !/^https:\/\/github\.com\/Cing-self\/modelswap\/releases\/tag\/v\d+\.\d+\.\d+$/.test(input.releaseUrl)) {
     errors.push('releaseUrl must be this repository\'s versioned GitHub Release URL');
   }
   return { valid: errors.length === 0, errors, version };
@@ -67,7 +67,7 @@ function renderReleaseBody(notes) {
     }
     return lines.join('\n').trim();
   };
-  return [`# OKIT ${normalized.version}`, '', renderLocale('zh', '中文'), '', renderLocale('en', 'English')].join('\n');
+  return [`# MODELSWAP ${normalized.version}`, '', renderLocale('zh', '中文'), '', renderLocale('en', 'English')].join('\n');
 }
 
 module.exports = { validateReleaseNotes, normalizedReleaseNotes, renderReleaseBody, versionTag };

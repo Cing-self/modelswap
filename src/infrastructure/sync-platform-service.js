@@ -111,7 +111,7 @@ function createSyncPlatformService({ loadAdapter, createVaultStore, appendLog })
   function resolveSyncKeys(config) {
     const password = config.sync?.password;
     if (!password) throw new Error('请先设置同步密码');
-    const key = crypto.pbkdf2Sync(password, 'okit-sync-salt', 100000, 32, 'sha256');
+    const key = crypto.pbkdf2Sync(password, 'modelswap-sync-salt', 100000, 32, 'sha256');
     return { userId: key.slice(0, 16).toString('hex'), encryptionKey: key };
   }
 

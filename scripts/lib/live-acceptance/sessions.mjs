@@ -6,7 +6,7 @@
 //
 //   1. provider-live-chrome.mjs --with-extension generates a one-time session
 //      id, writes a launch record (profile dir, debug port, pid, extension
-//      copy dir) under ~/.okit/provider-live-acceptance/sessions/, and loads a
+//      copy dir) under ~/.modelswap/provider-live-acceptance/sessions/, and loads a
 //      patched extension copy that reports {sessionId, wsUrl, wsState} to a
 //      local witness endpoint whenever its server WS is open.
 //   2. create-cleanup preflight starts the witness, re-validates the launch
@@ -28,7 +28,7 @@ import path from 'node:path';
 import http from 'node:http';
 import { assertSafeProfileDir } from './safety.mjs';
 
-export const DEFAULT_WITNESS_PORT = Number(process.env.OKIT_LIVE_WITNESS_PORT || 9341);
+export const DEFAULT_WITNESS_PORT = Number(process.env.MODELSWAP_LIVE_WITNESS_PORT || 9341);
 export const SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const SESSION_ID_PATTERN = /^[A-Za-z0-9-]{8,64}$/;
 
@@ -159,11 +159,11 @@ const PATCH_ANCHORS = {
 
 function acceptancePrelude(sessionId, witnessPort) {
   return [
-    '// OKIT provider live-acceptance session build (generated; do not edit).',
-    `globalThis.__OKIT_ACCEPTANCE__ = { sessionId: ${JSON.stringify(sessionId)}, witness: ${JSON.stringify(`http://127.0.0.1:${witnessPort}/acceptance`)} };`,
+    '// MODELSWAP provider live-acceptance session build (generated; do not edit).',
+    `globalThis.__MODELSWAP_ACCEPTANCE__ = { sessionId: ${JSON.stringify(sessionId)}, witness: ${JSON.stringify(`http://127.0.0.1:${witnessPort}/acceptance`)} };`,
     'async function reportAcceptance(kind) {',
     '    try {',
-    '        const cfg = globalThis.__OKIT_ACCEPTANCE__;',
+    '        const cfg = globalThis.__MODELSWAP_ACCEPTANCE__;',
     '        if (!cfg) return;',
     '        await fetch(cfg.witness, {',
     '            method: \'POST\',',
@@ -198,7 +198,7 @@ export function patchExtensionBackgroundSource(source, { sessionId, witnessPort 
   }
   let patched = `${acceptancePrelude(sessionId, witnessPort)}\n${normalizedSource}`;
   patched = patched.replace(PATCH_ANCHORS.hello,
-    "            protocol: 'atomic-v2',\n            acceptanceSession: globalThis.__OKIT_ACCEPTANCE__.sessionId,\n        }));");
+    "            protocol: 'atomic-v2',\n            acceptanceSession: globalThis.__MODELSWAP_ACCEPTANCE__.sessionId,\n        }));");
   patched = patched.replace(PATCH_ANCHORS.authOk,
     '        if (msg?.type === \'auth-ok\') {\n            void reportAcceptance(\'acceptance-hello\');\n            return; // handshake ack — not a command\n        }');
   patched = patched.replace(PATCH_ANCHORS.keepalive,
@@ -243,7 +243,7 @@ export async function buildAcceptanceExtensionCopy({
     createdAt: now().toISOString(),
     patched: counts,
   };
-  await fsp.writeFile(path.join(destDir, 'OKIT_ACCEPTANCE_SESSION.json'), `${JSON.stringify(marker, null, 2)}\n`, 'utf8');
+  await fsp.writeFile(path.join(destDir, 'MODELSWAP_ACCEPTANCE_SESSION.json'), `${JSON.stringify(marker, null, 2)}\n`, 'utf8');
   return { copyDir: destDir, patched: counts, marker };
 }
 

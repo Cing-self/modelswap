@@ -23,9 +23,9 @@ function reservePort() {
 describe('sync pull agent model hydration', { timeout: 30000 }, () => {
   it('rebuilds B-local model membership before reconciling native Agent configs', async () => {
     const root = path.resolve(__dirname, '../..');
-    const machineA = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-sync-hydration-a-'));
-    const machineB = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-sync-hydration-b-'));
-    const blob = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'okit-sync-hydration-blob-')), 'remote.json');
+    const machineA = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-sync-hydration-a-'));
+    const machineB = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-sync-hydration-b-'));
+    const blob = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-sync-hydration-blob-')), 'remote.json');
     const port = await reservePort();
     const origin = `http://127.0.0.1:${port}`;
     const transport = `
@@ -46,8 +46,8 @@ describe('sync pull agent model hydration', { timeout: 30000 }, () => {
         }
         if (id === './platform-adapters/supabase') return {
           name:'Supabase', testConnection:async()=>true,
-          pushSync:async (_config,_id,data)=>transportFs.writeFileSync(process.env.OKIT_SYNC_BLOB, JSON.stringify(data)),
-          pullSync:async ()=>transportFs.existsSync(process.env.OKIT_SYNC_BLOB)?JSON.parse(transportFs.readFileSync(process.env.OKIT_SYNC_BLOB,'utf8')):null,
+          pushSync:async (_config,_id,data)=>transportFs.writeFileSync(process.env.MODELSWAP_SYNC_BLOB, JSON.stringify(data)),
+          pullSync:async ()=>transportFs.existsSync(process.env.MODELSWAP_SYNC_BLOB)?JSON.parse(transportFs.readFileSync(process.env.MODELSWAP_SYNC_BLOB,'utf8')):null,
         };
         return original.apply(this,arguments);
       };
@@ -59,9 +59,9 @@ describe('sync pull agent model hydration', { timeout: 30000 }, () => {
       const sync=require(path.join(root,'src/web/api/cloud-sync-core.js'));
       const {VaultStore}=require(path.join(root,'src/vault/store'));
       const call=(handler,req)=>new Promise((resolve,reject)=>handler(req,{status(c){this.code=c;return this},json(v){(this.code||200)>=400?reject(new Error(v.error)):resolve(v)}}));
-      const userPath=path.join(process.env.HOME,'.okit','user.json');
-      const providersPath=path.join(process.env.HOME,'.okit','providers.json');
-      const cachePath=path.join(process.env.HOME,'.okit','models-cache.json');
+      const userPath=path.join(process.env.HOME,'.modelswap','user.json');
+      const providersPath=path.join(process.env.HOME,'.modelswap','providers.json');
+      const cachePath=path.join(process.env.HOME,'.modelswap','models-cache.json');
       const syncOpen={id:'sync-open',name:'Sync Open',type:'openai',baseUrl:'${origin}/open/v1',endpoints:[{id:'sync-open-endpoint',type:'openai',baseUrl:'${origin}/open/v1'}],authMode:'api_key',vaultKey:'SYNC_OPEN_KEY',models:[{id:'sync-open-live'}]};
       const syncClaude={id:'sync-claude',name:'Sync Claude',type:'anthropic',baseUrl:'${origin}/claude',endpoints:[{id:'sync-claude-endpoint',type:'anthropic',baseUrl:'${origin}/claude'}],authMode:'api_key',vaultKey:'SYNC_CLAUDE_KEY',models:[{id:'sync-claude-live'}]};
       const qianfan={id:'qianfan-coding',name:'Qianfan Token Plan',type:'openai',baseUrl:'http://qianfan.baidubce.com/v2/tokenplan/personal',endpoints:[{id:'qianfan-openai',type:'openai',baseUrl:'http://qianfan.baidubce.com/v2/tokenplan/personal',plan:'token'},{id:'qianfan-anthropic',type:'anthropic',baseUrl:'http://qianfan.baidubce.com/anthropic/tokenplan/personal',plan:'token'}],authMode:'api_key',vaultKey:'QIANFAN_TOKEN_KEY',models:[]};
@@ -100,7 +100,7 @@ describe('sync pull agent model hydration', { timeout: 30000 }, () => {
       })().catch(error=>{console.error(error.stack);process.exit(1)});
     `;
     execFileSync(process.execPath, ['-r', 'ts-node/register/transpile-only', '-e', push, root], {
-        env: { ...process.env, HOME: machineA, USERPROFILE: machineA, OKIT_SYNC_BLOB: blob },
+        env: { ...process.env, HOME: machineA, USERPROFILE: machineA, MODELSWAP_SYNC_BLOB: blob },
         encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
       });
 
@@ -119,11 +119,11 @@ describe('sync pull agent model hydration', { timeout: 30000 }, () => {
             res.statusCode=503; return res.end(JSON.stringify({error:'offline fixture'}));
           });
           await new Promise((resolve,reject)=>server.listen(${port},'127.0.0.1',error=>error?reject(error):resolve()));
-          // B begins without provider sites or OKIT model cache. Codex's own
+          // B begins without provider sites or MODELSWAP model cache. Codex's own
           // CLI cache is a separate local discovery source, not sync payload.
           fs.mkdirSync(path.join(process.env.HOME,'.codex'),{recursive:true});
           fs.writeFileSync(path.join(process.env.HOME,'.codex','models_cache.json'),JSON.stringify([{slug:'gpt-5.6-sol',display_name:'GPT 5.6 Sol'}]));
-          const catalogPath=path.join(process.env.HOME,'.okit','cache','models-dev.json');
+          const catalogPath=path.join(process.env.HOME,'.modelswap','cache','models-dev.json');
           const now=new Date().toISOString();
           fs.mkdirSync(path.dirname(catalogPath),{recursive:true});
           fs.writeFileSync(catalogPath,JSON.stringify({source:'models.dev',version:2,generation:1,sourceFetchedAt:now,cachedAt:now,status:'fresh',data:{'qianfan-coding':{api:'${origin}/v2',models:{'glm-5.1':{limit:{context:123456,output:8192},reasoning:true},'catalog-only':{limit:{context:999999}}}}}}));
@@ -153,7 +153,7 @@ describe('sync pull agent model hydration', { timeout: 30000 }, () => {
         })().catch(error=>{console.error(error.stack);process.exit(1)});
       `;
     const result = JSON.parse(execFileSync(process.execPath, ['-r', 'ts-node/register/transpile-only', '-e', pull, root], {
-        env: { ...process.env, HOME: machineB, USERPROFILE: machineB, OKIT_SYNC_BLOB: blob },
+        env: { ...process.env, HOME: machineB, USERPROFILE: machineB, MODELSWAP_SYNC_BLOB: blob },
         encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
       }).trim());
 

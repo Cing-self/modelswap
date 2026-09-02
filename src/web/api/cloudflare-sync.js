@@ -6,7 +6,7 @@ const { appendLog: appendSyncLog } = require('./log-writer');
 
 const vault = new VaultStore();
 
-const LOG_FILE = path.join(process.env.HOME || '/tmp', '.okit-cf-sync.log');
+const LOG_FILE = path.join(process.env.HOME || '/tmp', '.modelswap-cf-sync.log');
 
 function cfLog(...args) {
   const msg = args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ');

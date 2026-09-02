@@ -9,7 +9,7 @@
  * never a substitute for real verification. The provider-live-acceptance
  * tool wraps this script for its single-platform create-cleanup mode.
  *
- * Each run uses a unique OKIT_AUTOCHECK_* name, creates one credential through
+ * Each run uses a unique MODELSWAP_AUTOCHECK_* name, creates one credential through
  * the same HTTP route as the UI, then revokes/deletes that exact credential.
  * Subscription flows that deliberately copy an existing key are verified but
  * are never deleted. Reports contain status and redacted errors only.
@@ -33,9 +33,9 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { AUTO_CREATE_PLATFORMS } = require('../src/web/api/auto-create.js');
 
-const BASE_URL = process.env.OKIT_AUTO_CREATE_BASE_URL || 'http://127.0.0.1:3780';
-const REPORT_DIR = process.env.OKIT_AUTO_CREATE_REPORT_DIR
-  || path.join(os.homedir(), '.okit', 'auto-create-check');
+const BASE_URL = process.env.MODELSWAP_AUTO_CREATE_BASE_URL || 'http://127.0.0.1:3780';
+const REPORT_DIR = process.env.MODELSWAP_AUTO_CREATE_REPORT_DIR
+  || path.join(os.homedir(), '.modelswap', 'auto-create-check');
 const cliArgs = process.argv.slice(2);
 const args = new Set(cliArgs.filter(value => value.startsWith('--')));
 const cleanupOptionIndex = cliArgs.indexOf('--cleanup');
@@ -57,7 +57,7 @@ function redact(value) {
 }
 
 function testName(platformId, stamp) {
-  return `OKIT_AUTOCHECK_${platformId.replace(/[^A-Za-z0-9]+/g, '_').toUpperCase()}_${stamp}`;
+  return `MODELSWAP_AUTOCHECK_${platformId.replace(/[^A-Za-z0-9]+/g, '_').toUpperCase()}_${stamp}`;
 }
 
 function failureMessage(status, payload) {
@@ -129,10 +129,10 @@ async function runOne(platform, stamp) {
     cleanup: 'not_started',
   };
 
-  const parentToken = process.env.OKIT_AUTOCHECK_CLOUDFLARE_PARENT_TOKEN || '';
+  const parentToken = process.env.MODELSWAP_AUTOCHECK_CLOUDFLARE_PARENT_TOKEN || '';
   if (platform.id === 'cloudflare' && !parentToken) {
     result.status = 'blocked_prerequisite';
-    result.reason = '缺少 OKIT_AUTOCHECK_CLOUDFLARE_PARENT_TOKEN；不会复用生产 Vault Token';
+    result.reason = '缺少 MODELSWAP_AUTOCHECK_CLOUDFLARE_PARENT_TOKEN；不会复用生产 Vault Token';
     return result;
   }
 

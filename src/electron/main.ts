@@ -12,8 +12,8 @@ let serverPort: number | null = null;
 /**
  * The browser extension ships INSIDE the desktop app (asarUnpack keeps it on
  * the real filesystem — Chrome cannot load an unpacked extension from inside
- * an asar archive). Revealing copies it to ~/.okit/extension so the path is
- * stable across app updates and matches what `okit extension path` prints on
+ * an asar archive). Revealing copies it to ~/.modelswap/extension so the path is
+ * stable across app updates and matches what `modelswap extension path` prints on
  * CLI installs; the copy is refreshed on every reveal.
  */
 function bundledExtensionDir(): string {
@@ -27,7 +27,7 @@ async function revealExtensionInFinder(): Promise<string> {
   if (!(await fs.pathExists(src))) {
     throw new Error(`桌面应用未内置扩展目录: ${src}`);
   }
-  const dest = path.join(os.homedir(), ".okit", "extension");
+  const dest = path.join(os.homedir(), ".modelswap", "extension");
   await fs.remove(dest);
   await fs.copy(src, dest);
   shell.showItemInFolder(path.join(dest, "manifest.json"));
@@ -38,38 +38,38 @@ async function revealExtensionInFinder(): Promise<string> {
  * Install a downloaded update and relaunch. macOS apps keep their code mapped
  * while running, so the swap must happen after this process exits: write a
  * small installer script, run it detached (it waits for the app to quit),
- * then quit. The copy is staged (OKIT.app.new → rename) so a mid-copy failure
+ * then quit. The copy is staged (MODELSWAP.app.new → rename) so a mid-copy failure
  * can never leave /Applications without an app bundle.
  */
 async function installUpdateAndRelaunch(dmgPath?: string): Promise<void> {
   const downloadsDir = path.join(os.homedir(), "Downloads");
-  // Prefer the newest OKIT dmg in ~/Downloads when the renderer did not pass
+  // Prefer the newest MODELSWAP dmg in ~/Downloads when the renderer did not pass
   // the exact path (e.g. the user cleared state mid-flow).
   let dmg = dmgPath && path.isAbsolute(dmgPath) ? dmgPath : null;
   if (!dmg || !(await fs.pathExists(dmg))) {
     const candidates = (await fs.readdir(downloadsDir).catch(() => [] as string[]))
-      .filter((f) => /^OKIT-[\d.]+-.*\.dmg$/.test(f))
+      .filter((f) => /^MODELSWAP-[\d.]+-.*\.dmg$/.test(f))
       .map((f) => ({ f, mtime: fs.statSync(path.join(downloadsDir, f)).mtimeMs }))
       .sort((a, b) => b.mtime - a.mtime);
     dmg = candidates[0] ? path.join(downloadsDir, candidates[0].f) : null;
   }
   if (!dmg || !dmg.endsWith(".dmg") || !path.dirname(dmg).startsWith(downloadsDir) || !(await fs.pathExists(dmg))) {
-    throw new Error(`未找到下载好的安装包 (在 ${downloadsDir} 中查找 OKIT-*.dmg)`);
+    throw new Error(`未找到下载好的安装包 (在 ${downloadsDir} 中查找 MODELSWAP-*.dmg)`);
   }
 
-  const mountPoint = path.join(os.tmpdir(), "okit-update-mount");
-  const scriptPath = path.join(os.tmpdir(), `okit-update-${Date.now()}.sh`);
+  const mountPoint = path.join(os.tmpdir(), "modelswap-update-mount");
+  const scriptPath = path.join(os.tmpdir(), `modelswap-update-${Date.now()}.sh`);
   const script = `#!/bin/bash
 set -e
 # Wait for the running app to release the old bundle before swapping it.
 sleep 1
 hdiutil attach "${dmg}" -nobrowse -readonly -mountpoint "${mountPoint}" >/dev/null
-rm -rf "/Applications/OKIT.app.new"
-cp -R "${mountPoint}/OKIT.app" "/Applications/OKIT.app.new"
+rm -rf "/Applications/MODELSWAP.app.new"
+cp -R "${mountPoint}/MODELSWAP.app" "/Applications/MODELSWAP.app.new"
 hdiutil detach "${mountPoint}" >/dev/null || true
-rm -rf "/Applications/OKIT.app"
-mv "/Applications/OKIT.app.new" "/Applications/OKIT.app"
-open -a "/Applications/OKIT.app"
+rm -rf "/Applications/MODELSWAP.app"
+mv "/Applications/MODELSWAP.app.new" "/Applications/MODELSWAP.app"
+open -a "/Applications/MODELSWAP.app"
 rm -f "${scriptPath}"
 `;
   await fs.writeFile(scriptPath, script, { mode: 0o755 });
@@ -96,7 +96,7 @@ function createApplicationMenu() {
               // The renderer owns the update flow (check + download UI); the
               // menu item just pokes it so results surface in one place.
               label: "检查更新…",
-              click: () => mainWindow?.webContents.send("okit:check-update"),
+              click: () => mainWindow?.webContents.send("modelswap:check-update"),
             },
             { type: "separator" },
             { role: "hide" },
@@ -158,7 +158,7 @@ function createApplicationMenu() {
   return Menu.buildFromTemplate([...appMenu, ...fileMenu, editMenu, viewMenu, windowMenu]);
 }
 
-function startOkitServer(): Promise<number> {
+function startModelSwapServer(): Promise<number> {
   if (serverPort) return Promise.resolve(serverPort);
 
   const serverPath = path.join(__dirname, "..", "web", "server.js");
@@ -174,15 +174,15 @@ function startOkitServer(): Promise<number> {
 }
 
 async function createWindow() {
-  const port = await startOkitServer();
+  const port = await startModelSwapServer();
 
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 860,
     minWidth: 880,
     minHeight: 600,
-    title: "OKIT",
-    icon: path.join(__dirname, "..", "web", "public", "okit-icon.png"),
+    title: "MODELSWAP",
+    icon: path.join(__dirname, "..", "web", "public", "modelswap-icon.png"),
     // On macOS the renderer owns a compact, draggable title surface. Use the
     // same base colour as the sidebar so the window frame never cuts across
     // the content canvas with a different material while it boots.
@@ -217,10 +217,10 @@ async function createWindow() {
   await mainWindow.loadURL(`http://127.0.0.1:${port}`);
 }
 
-app.setName("OKIT");
+app.setName("MODELSWAP");
 Menu.setApplicationMenu(createApplicationMenu());
-ipcMain.handle("okit:reveal-extension", revealExtensionInFinder);
-ipcMain.handle("okit:install-update", async (_event, dmgPath?: string) => {
+ipcMain.handle("modelswap:reveal-extension", revealExtensionInFinder);
+ipcMain.handle("modelswap:install-update", async (_event, dmgPath?: string) => {
   await installUpdateAndRelaunch(dmgPath);
 });
 

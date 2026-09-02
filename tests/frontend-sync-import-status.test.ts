@@ -5,9 +5,9 @@ const t = (key: string, params?: Record<string, unknown>) => `${key}:${JSON.stri
 
 describe('getSyncImportStatus', () => {
   it('returns visible feedback for sync file import lifecycle', () => {
-    expect(getSyncImportStatus({ phase: 'importing', filename: 'okit-sync.json' }, t)).toEqual({
+    expect(getSyncImportStatus({ phase: 'importing', filename: 'modelswap-sync.json' }, t)).toEqual({
       tone: 'loading',
-      message: 'settings.syncFileImporting:{"filename":"okit-sync.json"}',
+      message: 'settings.syncFileImporting:{"filename":"modelswap-sync.json"}',
     });
 
     expect(getSyncImportStatus({ phase: 'success', platform: 'Cloudflare', secrets: 2 }, t)).toEqual({

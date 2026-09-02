@@ -1,14 +1,14 @@
 import fs from "fs-extra";
 import path from "path";
-import { OKIT_DIR } from "../config/registry";
+import { MODELSWAP_DIR } from "../config/registry";
 import { backupImportantData } from "../config/backup";
 import { Provider, ProviderModel, ProviderSite, ProvidersData, ModelMetadata } from "./types";
 import { PRESET_PROVIDERS } from "./presets";
 import { PRESET_AUTH_MODE_MIGRATIONS, PRESET_BASE_URL_MIGRATIONS, PRESET_ENDPOINT_BASE_URL_MIGRATIONS, RETIRED_PRESET_PROVIDER_IDS } from "./metadata";
 import { atomicWriteJSON } from "../utils/atomicWrite";
 
-const PROVIDERS_PATH = path.join(OKIT_DIR, "providers.json");
-const MODELS_CACHE_PATH = path.join(OKIT_DIR, "models-cache.json");
+const PROVIDERS_PATH = path.join(MODELSWAP_DIR, "providers.json");
+const MODELS_CACHE_PATH = path.join(MODELSWAP_DIR, "models-cache.json");
 const PROVIDERS_VERSION = 2 as const;
 const CACHE_VERSION = 2 as const;
 const modelsDev: {
@@ -27,7 +27,7 @@ function serializeStoreWrite<T>(task: () => Promise<T>): Promise<T> {
 
 export type ModelsCacheData = {
   version: 2;
-  source: "okit";
+  source: "modelswap";
   generation: number;
   sourceFetchedAt: string | null;
   cachedAt: string;
@@ -147,7 +147,7 @@ function mergeCachedModels(existing: ModelMetadata[], incoming: ModelMetadata[])
 function defaultCache(): ModelsCacheData {
   return {
     version: CACHE_VERSION,
-    source: "okit",
+    source: "modelswap",
     generation: 0,
     sourceFetchedAt: null,
     cachedAt: new Date().toISOString(),
@@ -199,7 +199,7 @@ async function readCache(): Promise<ModelsCacheData> {
         ...defaultCache(),
         ...data,
         version: CACHE_VERSION,
-        source: "okit",
+        source: "modelswap",
         generation: Number.isInteger(data.generation) ? data.generation : 0,
         sourceFetchedAt: typeof data.sourceFetchedAt === "string" ? data.sourceFetchedAt : null,
         cachedAt: typeof data.cachedAt === "string" ? data.cachedAt : new Date().toISOString(),
@@ -222,16 +222,16 @@ async function readCache(): Promise<ModelsCacheData> {
   }
 }
 async function writeCache(cache: ModelsCacheData): Promise<void> {
-  await fs.ensureDir(OKIT_DIR);
+  await fs.ensureDir(MODELSWAP_DIR);
   await atomicWriteJSON(MODELS_CACHE_PATH, {
     ...cache,
     version: CACHE_VERSION,
-    source: "okit",
+    source: "modelswap",
     // This is the local persistence time, not the upstream freshness time.
     cachedAt: new Date().toISOString(),
   });
 }
-async function writeProviderFile(file: ProviderFile, backup = true): Promise<void> { await fs.ensureDir(OKIT_DIR); if (backup) await backupImportantData("providers"); const { models: _models, modelCache: _cache, platforms: _platforms, ...clean } = file as any; await atomicWriteJSON(PROVIDERS_PATH, clean); }
+async function writeProviderFile(file: ProviderFile, backup = true): Promise<void> { await fs.ensureDir(MODELSWAP_DIR); if (backup) await backupImportantData("providers"); const { models: _models, modelCache: _cache, platforms: _platforms, ...clean } = file as any; await atomicWriteJSON(PROVIDERS_PATH, clean); }
 async function backupLegacy(content: string): Promise<void> { await fs.writeFile(`${PROVIDERS_PATH}.pre-model-cache-${Date.now()}.json`, content, "utf8"); }
 
 async function readProviderFile(): Promise<ProviderFile> {

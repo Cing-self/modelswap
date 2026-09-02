@@ -38,7 +38,7 @@ function makeDeps(overrides: Partial<UpgradeDeps> = {}): UpgradeDeps & {
   } as any;
 }
 
-describe("okit upgrade", () => {
+describe("modelswap upgrade", () => {
   beforeEach(() => {
     process.exitCode = 0;
   });
@@ -47,12 +47,8 @@ describe("okit upgrade", () => {
     vi.restoreAllMocks();
   });
 
-  it("uses the scoped npm package name @cing-self/okit-cli", () => {
-    expect(PACKAGE_NAME).toBe("@cing-self/okit-cli");
-  });
-
-  it("does not treat the bare 'okit-cli' as the npm package", () => {
-    expect(PACKAGE_NAME).not.toBe("okit-cli");
+  it("uses the scoped npm package name modelswap", () => {
+    expect(PACKAGE_NAME).toBe("modelswap");
   });
 
   it("queryLatestVersion shells out via the npm CLI with the package name", async () => {

@@ -37,7 +37,7 @@ async function pushSync(config, userId, encryptedBlob) {
   const accountId = accounts[0]?.id;
   if (!accountId) throw new Error('未找到 Cloudflare 账户');
 
-  const secretName = `okit-sync-${userId}`;
+  const secretName = `modelswap-sync-${userId}`;
   const value = JSON.stringify(encryptedBlob);
 
   // Try to find existing
@@ -66,7 +66,7 @@ async function pullSync(config, userId) {
   const accountId = accounts[0]?.id;
   if (!accountId) throw new Error('未找到 Cloudflare 账户');
 
-  const secretName = `okit-sync-${userId}`;
+  const secretName = `modelswap-sync-${userId}`;
 
   let existing = [];
   try {

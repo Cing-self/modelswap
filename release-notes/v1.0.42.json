@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.42",
+  "publishedAt": "2026-09-02",
+  "summary": {
+    "zh": "OKIT 正式更名为 ModelSwap：npm 包名、CLI 命令与官网同步切换为 modelswap / modelswap.app，数据目录自动从 ~/.okit 迁移到 ~/.modelswap，原有密钥库、快照与设置完整保留。",
+    "en": "OKIT is now ModelSwap: the npm package, CLI command, and website move to modelswap / modelswap.app. Existing data migrates automatically from ~/.okit to ~/.modelswap — vaults, snapshots, and settings are fully preserved."
+  },
+  "highlights": [
+    {
+      "category": "new",
+      "zh": "品牌更名：npm 包发布为 modelswap，CLI 命令改为 modelswap，GitHub 仓库迁移到 Cing-self/modelswap，旧地址自动重定向。",
+      "en": "Rebrand: the npm package is now published as modelswap, the CLI command is modelswap, and the GitHub repo moves to Cing-self/modelswap with automatic redirects from the old address."
+    },
+    {
+      "category": "improved",
+      "zh": "首次运行时自动把 ~/.okit 数据目录迁移到 ~/.modelswap：密钥库、快照、备份与设置原样保留，旧目录保留作为备份，可手动删除。",
+      "en": "On first run, the data directory migrates automatically from ~/.okit to ~/.modelswap. Vaults, snapshots, backups, and settings carry over as-is; the legacy directory is kept as a backup until deleted manually."
+    },
+    {
+      "category": "improved",
+      "zh": "官网切换为 modelswap.app，README 与文档中的安装命令统一更新为 npm install -g modelswap。",
+      "en": "The website moves to modelswap.app, and install commands across the README and docs are unified as npm install -g modelswap."
+    }
+  ]
+}

@@ -23,14 +23,14 @@ export function useI18n() {
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(() => {
-    const saved = localStorage.getItem('okit-lang');
+    const saved = localStorage.getItem('modelswap-lang');
     if (saved === 'en' || saved === 'zh') return saved;
     return 'zh';
   });
 
   const setLang = useCallback((next: Lang) => {
     setLangState(next);
-    localStorage.setItem('okit-lang', next);
+    localStorage.setItem('modelswap-lang', next);
   }, []);
 
   const t = useCallback((key: string, params?: Record<string, string | number>): string => {

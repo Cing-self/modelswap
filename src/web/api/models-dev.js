@@ -12,7 +12,7 @@ const os = require('os');
 const https = require('https');
 const crypto = require('crypto');
 
-let CACHE_PATH = path.join(os.homedir(), '.okit', 'cache', 'models-dev.json');
+let CACHE_PATH = path.join(os.homedir(), '.modelswap', 'cache', 'models-dev.json');
 const CATALOG_URL = 'https://models.dev/api.json';
 const TTL_MS = 24 * 60 * 60 * 1000;
 const RETRY_AFTER_FAILURE_MS = 5 * 60 * 1000;
@@ -343,7 +343,7 @@ function setTestHooks(options = {}) {
 }
 
 function resetTestHooks() {
-  CACHE_PATH = path.join(os.homedir(), '.okit', 'cache', 'models-dev.json');
+  CACHE_PATH = path.join(os.homedir(), '.modelswap', 'cache', 'models-dev.json');
   _fetchJson = fetchJson;
   clearCatalogCache();
 }

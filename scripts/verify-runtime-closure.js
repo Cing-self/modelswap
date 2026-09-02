@@ -35,7 +35,7 @@ function assertRuntimeFiles() {
 }
 
 function makeIsolatedPackage() {
-  const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-runtime-closure-'));
+  const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-runtime-closure-'));
   fs.cpSync(DIST, path.join(sandbox, 'dist'), { recursive: true });
   fs.copyFileSync(path.join(ROOT, 'package.json'), path.join(sandbox, 'package.json'));
   fs.symlinkSync(path.join(ROOT, 'node_modules'), path.join(sandbox, 'node_modules'), 'junction');

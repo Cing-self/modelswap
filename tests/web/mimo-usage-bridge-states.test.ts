@@ -44,7 +44,7 @@ const PROBE = String.raw`
 
 describe('MiMo bridge usage states', () => {
   it('distinguishes an offline bridge, missing SSO, and valid browser usage', () => {
-    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-mimo-bridge-state-'));
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-mimo-bridge-state-'));
     const root = path.resolve(__dirname, '../..');
     try {
       const stdout = execFileSync(process.execPath, ['-e', PROBE, root], {

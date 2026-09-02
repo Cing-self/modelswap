@@ -12,7 +12,7 @@ import CustomSelect from '../shared/CustomSelect';
 import { getAgentIcon, getAgentIconClass } from '../../assets/agents';
 import { Clock3, Eye, GitCompareArrows, History, RotateCcw, X } from 'lucide-react';
 
-// Theme the third-party diff viewer with OKIT's palette. Values are plain CSS
+// Theme the third-party diff viewer with MODELSWAP's palette. Values are plain CSS
 // so var() references resolve inside the modal like anywhere else.
 const DIFF_STYLES: ReactDiffViewerStylesOverride = {
   variables: {

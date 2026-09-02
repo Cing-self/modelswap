@@ -1,5 +1,5 @@
 
-const TABLE_NAME = 'okit_sync';
+const TABLE_NAME = 'modelswap_sync';
 
 function getBaseUrl(config) {
   const rawProjectId = String(config.projectId || '').replace(/\s+/g, '').trim();

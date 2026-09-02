@@ -1,7 +1,7 @@
 // Scan agent config files for plaintext API keys that are NOT managed by
-// the OKIT vault, and import them into the vault on request.
+// the MODELSWAP vault, and import them into the vault on request.
 //
-// Why this matters: OKIT rewrites agent config files whenever the user
+// Why this matters: MODELSWAP rewrites agent config files whenever the user
 // switches providers or curates models — a key that lives ONLY in the file
 // can be clobbered by such a write, and rotation / sync / backup never see
 // it. The home page therefore shows a persistent banner until every found
@@ -96,8 +96,8 @@ function scanEnv(text) {
   for (const line of text.split('\n')) {
     const m = line.match(/^\s*(?:export\s+)?([A-Z0-9_]*(?:API_KEY|TOKEN|SECRET)[A-Z0-9_]*)\s*=\s*"?([^"\n]+?)"?\s*$/);
     if (!m) continue;
-    // OKIT writes OKIT_* env vars FROM the vault — never a finding.
-    if (m[1].startsWith('OKIT_')) continue;
+    // MODELSWAP writes MODELSWAP_* env vars FROM the vault — never a finding.
+    if (m[1].startsWith('MODELSWAP_')) continue;
     const value = m[2].replace(/^['"]|['"]$/g, '');
     if (looksLikeSecret(value)) out.push({ path: m[1], value });
   }
@@ -118,7 +118,7 @@ function providerFromPath(p) {
 // Lazy access to the provider store. Same dual fallback as providers.js:
 // the first path resolves in the ts-node/dev layout, the second in the
 // compiled dist layout (npm package / desktop app). WITHOUT the fallback the
-// require fails silently, okitProviderIds stays null, and every finding
+// require fails silently, modelswapProviderIds stays null, and every finding
 // except `builtin:` ones is misclassified as a non-model credential and
 // hidden from the onboarding wizard (observed on a fresh machine: only the
 // two zcode builtin keys showed).
@@ -153,12 +153,12 @@ const MODEL_ENV_KEYS = new Set([
 // Classify a finding as a MODEL-invocation key or not. Users only want model
 // API keys in the vault — Discord/Tavily/Brave/Stripe-MCP/gateway tokens are
 // app credentials, not LLM access, and stay untouched in their files.
-function isModelKey(finding, okitProviderIds) {
+function isModelKey(finding, modelswapProviderIds) {
   const p = finding.path || '';
   if (NON_MODEL_PATH_RE.test(p)) return false;
   if (finding.providerId) {
     if (finding.providerId.startsWith('builtin:')) return true;
-    if (okitProviderIds && okitProviderIds.has(finding.providerId)) return true;
+    if (modelswapProviderIds && modelswapProviderIds.has(finding.providerId)) return true;
   }
   if (/^models\.providers\./.test(p)) return true;
   // env.<NAME> (JSON env blocks) and bare <NAME> (.env files, codex
@@ -183,11 +183,11 @@ async function scanRaw() {
       if (v) vaultByValue.set(v, e.key);
     } catch { /* unreadable entry — skip */ }
   }
-  // Known OKIT provider ids for model-key classification.
-  let okitProviderIds = null;
+  // Known MODELSWAP provider ids for model-key classification.
+  let modelswapProviderIds = null;
   try {
     const provs = await loadProviderStore().loadProviders();
-    okitProviderIds = new Set((provs || []).map(p => p.id));
+    modelswapProviderIds = new Set((provs || []).map(p => p.id));
   } catch { /* fall back to path-based classification */ }
   const findings = [];
   for (const t of SCAN_FILES) {
@@ -213,7 +213,7 @@ async function scanRaw() {
         vaultKey: vaultByValue.get(h.value) || undefined,
       };
       // Model-invocation key vs app credential (discord/search/mcp/gateway).
-      finding.model = isModelKey(finding, okitProviderIds);
+      finding.model = isModelKey(finding, modelswapProviderIds);
       findings.push(finding);
     }
   }

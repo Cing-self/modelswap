@@ -40,7 +40,7 @@ const PROBE = `
 
 describe('GET /api/extension/token origin gate', () => {
   it('serves extension + bare requests, rejects web-page origins', () => {
-    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-token-endpoint-'));
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-token-endpoint-'));
     const root = path.resolve(__dirname, '../..');
     const stdout = execFileSync(
       process.execPath,

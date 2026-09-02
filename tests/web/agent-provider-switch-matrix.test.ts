@@ -4,7 +4,7 @@ import os from 'os';
 import path from 'path';
 import { execFileSync } from 'child_process';
 
-/** Credential-free copy of the current Agent/site/model choices. Never read ~/.okit here. */
+/** Credential-free copy of the current Agent/site/model choices. Never read ~/.modelswap here. */
 const MATRIX = {
   claude: {
     'opencode-zen': ['x-preview-f-free', 'hy3-free'],
@@ -59,12 +59,12 @@ const key = (agentId: string, providerId: string, modelId: string) => `${agentId
 
 describe('Agent × site × selected-model switch matrix', () => {
   beforeAll(() => {
-    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-agent-switch-matrix-'));
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-agent-switch-matrix-'));
     const root = path.resolve(__dirname, '../..');
     const script = String.raw`
       const fs=require('fs'), path=require('path'), https=require('https');
-      const matrix=JSON.parse(process.env.OKIT_MATRIX_JSON), disabled=JSON.parse(process.env.OKIT_DISABLED_JSON), root=process.argv[1];
-      const cacheDir=path.join(process.env.HOME,'.okit','cache'); fs.mkdirSync(cacheDir,{recursive:true});
+      const matrix=JSON.parse(process.env.MODELSWAP_MATRIX_JSON), disabled=JSON.parse(process.env.MODELSWAP_DISABLED_JSON), root=process.argv[1];
+      const cacheDir=path.join(process.env.HOME,'.modelswap','cache'); fs.mkdirSync(cacheDir,{recursive:true});
       fs.writeFileSync(path.join(cacheDir,'models-dev.json'),JSON.stringify({source:'models.dev',version:2,generation:1,sourceFetchedAt:new Date().toISOString(),cachedAt:new Date().toISOString(),sourceHash:'matrix-fixture',status:'fresh',lastError:null,data:{}}));
       https.get=()=>{throw new Error('network is forbidden in agent switch matrix')};
       const api=require(path.join(root,'src/web/api/providers.js'));
@@ -83,7 +83,7 @@ describe('Agent × site × selected-model switch matrix', () => {
           await call(api.createProvider,{body:{...preset,id:providerId,name:preset.name||providerId,authMode:'none',models:ids.map(id=>({id,name:id,meta:{source:'remote',context:128000}}))}});
         }
         for(const [agentId,sites] of Object.entries(matrix)) for(const [providerId,modelIds] of Object.entries(sites)) await call(api.configureAgentProvider,{params:{agentId,providerId},body:{modelIds,primaryModelId:modelIds[0]}});
-        const userPath=path.join(process.env.HOME,'.okit','user.json'); const config=JSON.parse(fs.readFileSync(userPath,'utf8'));
+        const userPath=path.join(process.env.HOME,'.modelswap','user.json'); const config=JSON.parse(fs.readFileSync(userPath,'utf8'));
         config.agentProviders[disabled.agentId].sites[disabled.providerId]={modelIds:disabled.modelIds,enabled:false}; fs.writeFileSync(userPath,JSON.stringify(config));
         const outcomes={};
         for(const [agentId,sites] of Object.entries(matrix)) for(const [providerId,modelIds] of Object.entries(sites)) for(const modelId of modelIds){
@@ -91,11 +91,11 @@ describe('Agent × site × selected-model switch matrix', () => {
           const allSitesEnabled=additive.has(agentId)?Object.keys(sites).every(id=>after.agentProviders[agentId].sites[id]&&after.agentProviders[agentId].sites[id].enabled!==false):true;
           outcomes[[agentId,providerId,modelId].join('\u0000')]={success:response.success===true,active:additive.has(agentId)||(state.activeProviderId===providerId&&state.activeModelId===modelId),selected:site?site.modelIds:[],configContainsRoute:typeof routeModel==='string'&&contents.includes(routeModel),allSitesEnabled};
         }
-        const user=JSON.parse(fs.readFileSync(userPath,'utf8')), providers=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.okit','providers.json'),'utf8')), cache=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.okit','models-cache.json'),'utf8')); const beforeReload=JSON.stringify(user.agentProviders); await loadProviders(); const reloaded=JSON.parse(fs.readFileSync(userPath,'utf8')); const disabledContents=await configText(disabled.agentId);
-        console.log(JSON.stringify({outcomes,user,providers,cache,disabledConfigContainsModels:disabledContents.includes('api.deepseek.com'),reloadStable:beforeReload===JSON.stringify(reloaded.agentProviders),outsideHomeTouched:fs.existsSync('/Users/dolphin/.okit/.agent-switch-matrix-sentinel')||fs.existsSync('/Users/dolphin/.codex/.agent-switch-matrix-sentinel')}));
+        const user=JSON.parse(fs.readFileSync(userPath,'utf8')), providers=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.modelswap','providers.json'),'utf8')), cache=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.modelswap','models-cache.json'),'utf8')); const beforeReload=JSON.stringify(user.agentProviders); await loadProviders(); const reloaded=JSON.parse(fs.readFileSync(userPath,'utf8')); const disabledContents=await configText(disabled.agentId);
+        console.log(JSON.stringify({outcomes,user,providers,cache,disabledConfigContainsModels:disabledContents.includes('api.deepseek.com'),reloadStable:beforeReload===JSON.stringify(reloaded.agentProviders),outsideHomeTouched:fs.existsSync('/Users/dolphin/.modelswap/.agent-switch-matrix-sentinel')||fs.existsSync('/Users/dolphin/.codex/.agent-switch-matrix-sentinel')}));
       })().catch(error=>{console.error(error&&error.stack||error);process.exit(1)});
     `;
-    const output = execFileSync(process.execPath, ['-r', 'ts-node/register', '-e', script, root], { env: { ...process.env, HOME: home, USERPROFILE: home, VITEST: 'true', OKIT_MATRIX_JSON: JSON.stringify(MATRIX), OKIT_DISABLED_JSON: JSON.stringify(DISABLED) }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    const output = execFileSync(process.execPath, ['-r', 'ts-node/register', '-e', script, root], { env: { ...process.env, HOME: home, USERPROFILE: home, VITEST: 'true', MODELSWAP_MATRIX_JSON: JSON.stringify(MATRIX), MODELSWAP_DISABLED_JSON: JSON.stringify(DISABLED) }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
     result = JSON.parse(output.trim());
   }, 120_000);
 

@@ -2,11 +2,11 @@ import fs from "fs-extra";
 import path from "path";
 import crypto from "crypto";
 import os from "os";
-import { OKIT_DIR } from "../config/registry";
+import { MODELSWAP_DIR } from "../config/registry";
 import { backupImportantData } from "../config/backup";
 import { atomicWrite, atomicWriteJSON } from "../utils/atomicWrite";
 
-const VAULT_DIR = path.join(OKIT_DIR, "vault");
+const VAULT_DIR = path.join(MODELSWAP_DIR, "vault");
 const SECRETS_FILE = path.join(VAULT_DIR, "secrets.enc");
 const MASTER_KEY_FILE = path.join(VAULT_DIR, "master.key");
 const REGISTRY_FILE = path.join(VAULT_DIR, "registry.json");
@@ -38,11 +38,11 @@ function deriveMasterKey(): Buffer {
   }
 
   // Generate from machine identity
-  const identity = `${os.hostname()}:${os.userInfo().username}:okit-vault`;
-  const key = crypto.pbkdf2Sync(identity, "okit-vault-salt", 100000, KEY_LENGTH, "sha256");
+  const identity = `${os.hostname()}:${os.userInfo().username}:modelswap-vault`;
+  const key = crypto.pbkdf2Sync(identity, "modelswap-vault-salt", 100000, KEY_LENGTH, "sha256");
 
   fs.ensureDirSync(VAULT_DIR);
-  const tmp = fp + ".okit-tmp";
+  const tmp = fp + ".modelswap-tmp";
   fs.writeFileSync(tmp, key.toString("hex"), { mode: 0o600 });
   fs.renameSync(tmp, fp);
   return key;

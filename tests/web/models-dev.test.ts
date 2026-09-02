@@ -62,7 +62,7 @@ describe('models.dev directory resolution', () => {
   });
 
   it('deduplicates concurrent refreshes and atomically publishes one generation', async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'okit-models-dev-'));
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'modelswap-models-dev-'));
     const cachePath = path.join(root, 'models-dev.json');
     let calls = 0;
     __testing.setTestHooks({
@@ -87,7 +87,7 @@ describe('models.dev directory resolution', () => {
   });
 
   it('keeps last-good data and provenance when a forced refresh fails', async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'okit-models-dev-'));
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'modelswap-models-dev-'));
     const cachePath = path.join(root, 'models-dev.json');
     __testing.setTestHooks({
       cachePath,
@@ -112,7 +112,7 @@ describe('models.dev directory resolution', () => {
   });
 
   it('quarantines a corrupt cache before rebuilding from the source', async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'okit-models-dev-'));
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'modelswap-models-dev-'));
     const cachePath = path.join(root, 'models-dev.json');
     await fs.writeFile(cachePath, '{not-json', 'utf8');
     __testing.setTestHooks({

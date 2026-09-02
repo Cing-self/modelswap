@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 
-const BUCKET_NAME = 'okit-sync';
+const BUCKET_NAME = 'modelswap-sync';
 const ACCOUNT_ID_RE = /^[a-f0-9]{32}$/i;
 
 function normalizeConfig(config) {

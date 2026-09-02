@@ -16,7 +16,7 @@ import { atomicWrite } from "../../utils/atomicWrite";
 const MIMO_CODE_DIR = path.join(os.homedir(), ".config", "mimocode");
 const MIMO_CODE_CONFIG_PATH = path.join(MIMO_CODE_DIR, "mimocode.jsonc");
 
-// Map OKIT's protocol type to the AI SDK package MiMo Code loads for it.
+// Map MODELSWAP's protocol type to the AI SDK package MiMo Code loads for it.
 function npmPackageFor(type: ProviderType): string {
   switch (type) {
     case "anthropic": return "@ai-sdk/anthropic";
@@ -192,7 +192,7 @@ export class MimoCodeAdapter extends BaseAdapter {
     return { written, skipped: [] };
   }
 
-  // Which OKIT provider ids currently have an entry in mimo's config.
+  // Which MODELSWAP provider ids currently have an entry in mimo's config.
   async listEnabledProviders(): Promise<string[]> {
     const data = await this.loadConfig();
     if (typeof data.provider !== "object" || data.provider === null) return [];

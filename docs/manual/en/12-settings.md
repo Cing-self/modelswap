@@ -11,4 +11,4 @@
 | About & Diagnostics | Local service health check, manual desktop update checks |
 | Activity Log | Key/config operation log |
 
-When the desktop app finds an update, it shows a download icon at the upper left of the window. Hover to read the release notes; after you download it, OKIT installs the update and relaunches automatically.
+When the desktop app finds an update, it shows a download icon at the upper left of the window. Hover to read the release notes; after you download it, ModelSwap installs the update and relaunches automatically.

@@ -6,7 +6,7 @@ import path from 'path';
 
 describe('MiMo browser-login controller', { timeout: 30000 }, () => {
   it('opens each MiMo card at its own console and never accepts an unrelated provider', () => {
-    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-mimo-usage-login-'));
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-mimo-usage-login-'));
     const root = path.resolve(__dirname, '../..');
     const script = `
       const path=require('path');
@@ -47,11 +47,11 @@ describe('MiMo browser-login controller', { timeout: 30000 }, () => {
       value: { success: false, error: '该 Provider 不支持浏览器登录' },
     });
     expect(result.commands).toEqual([
-      { action: 'navigate', params: { url: 'https://platform.xiaomimimo.com/console/plan-manage', workspace: 'okit' } },
-      { action: 'focus-window', params: { workspace: 'okit', hold: true } },
-      { action: 'navigate', params: { url: 'https://platform.xiaomimimo.com/console/balance', workspace: 'okit' } },
-      { action: 'focus-window', params: { workspace: 'okit', hold: true } },
-      { action: 'close-window', params: { workspace: 'okit' } },
+      { action: 'navigate', params: { url: 'https://platform.xiaomimimo.com/console/plan-manage', workspace: 'modelswap' } },
+      { action: 'focus-window', params: { workspace: 'modelswap', hold: true } },
+      { action: 'navigate', params: { url: 'https://platform.xiaomimimo.com/console/balance', workspace: 'modelswap' } },
+      { action: 'focus-window', params: { workspace: 'modelswap', hold: true } },
+      { action: 'close-window', params: { workspace: 'modelswap' } },
     ]);
   });
 });

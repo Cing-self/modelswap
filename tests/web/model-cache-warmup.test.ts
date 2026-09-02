@@ -6,7 +6,7 @@ import path from 'path';
 
 describe('configured model-cache startup warmup', { timeout: 30000 }, () => {
   it('discovers only missing configured sites once, bounds concurrency, and leaves sites/sync state untouched', () => {
-    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-model-cache-warmup-'));
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-model-cache-warmup-'));
     const root = path.resolve(__dirname, '../..');
     const script = `
       const fs=require('fs'), path=require('path'), http=require('http');
@@ -30,25 +30,25 @@ describe('configured model-cache startup warmup', { timeout: 30000 }, () => {
         });
         await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
         const base='http://127.0.0.1:'+server.address().port;
-        const okit=path.join(process.env.HOME,'.okit');
-        fs.mkdirSync(path.join(okit,'cache'),{recursive:true});
+        const modelswap=path.join(process.env.HOME,'.modelswap');
+        fs.mkdirSync(path.join(modelswap,'cache'),{recursive:true});
         const site=(id,key)=>({id,name:id,type:'openai',baseUrl:base+'/'+id,authMode:'api_key',vaultKey:key,endpoints:[{id:id+'-endpoint',type:'openai',baseUrl:base+'/'+id}]});
-        fs.writeFileSync(path.join(okit,'providers.json'),JSON.stringify({version:2,providers:[
+        fs.writeFileSync(path.join(modelswap,'providers.json'),JSON.stringify({version:2,providers:[
           site('missing-a','WARM_A'),site('missing-b','WARM_B'),site('empty','WARM_EMPTY'),site('missing-fail','WARM_FAIL'),
           {id:'network-fail',name:'network-fail',type:'openai',baseUrl:'http://127.0.0.1:1/network',authMode:'api_key',vaultKey:'WARM_NETWORK',endpoints:[{id:'network-fail-endpoint',type:'openai',baseUrl:'http://127.0.0.1:1/network'}]},
           site('existing','WARM_EXIST'),{id:'unconfigured',name:'unconfigured',type:'openai',baseUrl:base+'/unconfigured',authMode:'none',endpoints:[{id:'none',type:'openai',baseUrl:base+'/unconfigured'}]}
         ]}));
-        fs.writeFileSync(path.join(okit,'models-cache.json'),JSON.stringify({version:2,source:'okit',generation:0,sourceFetchedAt:null,cachedAt:'2026-08-28T00:00:00.000Z',sourceHash:null,status:'empty',lastError:null,providers:{
+        fs.writeFileSync(path.join(modelswap,'models-cache.json'),JSON.stringify({version:2,source:'modelswap',generation:0,sourceFetchedAt:null,cachedAt:'2026-08-28T00:00:00.000Z',sourceHash:null,status:'empty',lastError:null,providers:{
           existing:[{id:'existing-remote',source:'remote',confidence:'medium',origin:'remote'},{id:'existing-manual',source:'manual',confidence:'medium',origin:'user'}]
         }}));
-        fs.writeFileSync(path.join(okit,'user.json'),JSON.stringify({sync:{lastSyncAt:'2026-08-28T00:00:00.000Z',localChangedAt:{providers:'2026-08-28T00:00:00.000Z'}},agentProviders:{}}));
-        fs.writeFileSync(path.join(okit,'cache','models-dev.json'),JSON.stringify({source:'models.dev',version:2,generation:1,sourceFetchedAt:new Date().toISOString(),cachedAt:new Date().toISOString(),status:'fresh',data:{
+        fs.writeFileSync(path.join(modelswap,'user.json'),JSON.stringify({sync:{lastSyncAt:'2026-08-28T00:00:00.000Z',localChangedAt:{providers:'2026-08-28T00:00:00.000Z'}},agentProviders:{}}));
+        fs.writeFileSync(path.join(modelswap,'cache','models-dev.json'),JSON.stringify({source:'models.dev',version:2,generation:1,sourceFetchedAt:new Date().toISOString(),cachedAt:new Date().toISOString(),status:'fresh',data:{
           'missing-a':{api:'endpoint',models:{'a-live':{limit:{context:123456},reasoning:true},'a-catalog-only':{limit:{context:999999}}}},
           'missing-b':{api:'endpoint',models:{'b-live':{limit:{context:654321}},'b-catalog-only':{limit:{context:999999}}}}
         }}));
         const vault=new VaultStore();
         for (const key of ['WARM_A','WARM_B','WARM_EMPTY','WARM_FAIL','WARM_NETWORK','WARM_EXIST']) await vault.set(key,'token-'+key);
-        const providersPath=path.join(okit,'providers.json'), userPath=path.join(okit,'user.json'), cachePath=path.join(okit,'models-cache.json');
+        const providersPath=path.join(modelswap,'providers.json'), userPath=path.join(modelswap,'user.json'), cachePath=path.join(modelswap,'models-cache.json');
         const providersBefore=fs.readFileSync(providersPath,'utf8'), userBefore=fs.readFileSync(userPath,'utf8');
         const existingBefore=JSON.stringify(JSON.parse(fs.readFileSync(cachePath,'utf8')).providers.existing);
         const [first,second]=await Promise.all([
@@ -96,7 +96,7 @@ describe('configured model-cache startup warmup', { timeout: 30000 }, () => {
   });
 
   it('cleans a legacy catalog-only cache row before a single warmup computes missing candidates', () => {
-    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-model-cache-migration-warmup-'));
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-model-cache-migration-warmup-'));
     const root = path.resolve(__dirname, '../..');
     const script = `
       const fs=require('fs'), path=require('path'), http=require('http');
@@ -110,21 +110,21 @@ describe('configured model-cache startup warmup', { timeout: 30000 }, () => {
         });
         await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
         const endpoint='http://127.0.0.1:'+server.address().port+'/v1';
-        const okit=path.join(process.env.HOME,'.okit');
-        fs.mkdirSync(path.join(okit,'cache'),{recursive:true});
-        fs.writeFileSync(path.join(okit,'providers.json'),JSON.stringify({version:2,providers:[{
+        const modelswap=path.join(process.env.HOME,'.modelswap');
+        fs.mkdirSync(path.join(modelswap,'cache'),{recursive:true});
+        fs.writeFileSync(path.join(modelswap,'providers.json'),JSON.stringify({version:2,providers:[{
           id:'migration-glm',name:'Migration GLM',type:'openai',baseUrl:endpoint,authMode:'api_key',vaultKey:'MIGRATION_KEY',
           endpoints:[{id:'migration-endpoint',type:'openai',baseUrl:endpoint}]
         }]}));
-        fs.writeFileSync(path.join(okit,'models-cache.json'),JSON.stringify({version:2,source:'okit',generation:0,sourceFetchedAt:null,cachedAt:'2026-08-28T00:00:00.000Z',sourceHash:null,status:'fresh',lastError:null,providers:{
+        fs.writeFileSync(path.join(modelswap,'models-cache.json'),JSON.stringify({version:2,source:'modelswap',generation:0,sourceFetchedAt:null,cachedAt:'2026-08-28T00:00:00.000Z',sourceHash:null,status:'fresh',lastError:null,providers:{
           'migration-glm':[{id:'catalog-only',source:'modelsdev',origin:'modelsdev',confidence:'high'}]
         }}));
-        fs.writeFileSync(path.join(okit,'user.json'),JSON.stringify({sync:{lastSyncAt:'2026-08-28T00:00:00.000Z',localChangedAt:{providers:'2026-08-28T00:00:00.000Z'}},agentProviders:{}}));
-        fs.writeFileSync(path.join(okit,'cache','models-dev.json'),JSON.stringify({source:'models.dev',version:2,generation:1,sourceFetchedAt:new Date().toISOString(),cachedAt:new Date().toISOString(),status:'fresh',data:{
+        fs.writeFileSync(path.join(modelswap,'user.json'),JSON.stringify({sync:{lastSyncAt:'2026-08-28T00:00:00.000Z',localChangedAt:{providers:'2026-08-28T00:00:00.000Z'}},agentProviders:{}}));
+        fs.writeFileSync(path.join(modelswap,'cache','models-dev.json'),JSON.stringify({source:'models.dev',version:2,generation:1,sourceFetchedAt:new Date().toISOString(),cachedAt:new Date().toISOString(),status:'fresh',data:{
           'migration-glm':{api:'endpoint',models:{'actual-live':{limit:{context:111111},reasoning:true},'catalog-only':{limit:{context:999999}}}}
         }}));
         await new VaultStore().set('MIGRATION_KEY','test-key');
-        const providersPath=path.join(okit,'providers.json'), userPath=path.join(okit,'user.json'), cachePath=path.join(okit,'models-cache.json');
+        const providersPath=path.join(modelswap,'providers.json'), userPath=path.join(modelswap,'user.json'), cachePath=path.join(modelswap,'models-cache.json');
         const providersBefore=fs.readFileSync(providersPath,'utf8'), userBefore=fs.readFileSync(userPath,'utf8');
         const first=await service.discoverMissingConfiguredModels();
         const cacheAfterFirst=JSON.parse(fs.readFileSync(cachePath,'utf8'));

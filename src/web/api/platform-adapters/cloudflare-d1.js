@@ -1,6 +1,6 @@
 
 const API_BASE = 'https://api.cloudflare.com/client/v4';
-const DB_NAME = 'okit-sync';
+const DB_NAME = 'modelswap-sync';
 
 async function cfFetch(token, path, options = {}) {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -78,7 +78,7 @@ async function ensureSyncTable(token, accountId, databaseId) {
   let existingColumns = [];
 
   try {
-    const info = await queryD1(token, accountId, databaseId, 'PRAGMA table_info(okit_sync)');
+    const info = await queryD1(token, accountId, databaseId, 'PRAGMA table_info(modelswap_sync)');
     existingColumns = getD1Rows(info).map(row => row.name);
   } catch {
     existingColumns = [];
@@ -89,11 +89,11 @@ async function ensureSyncTable(token, accountId, databaseId) {
       || expectedColumns.some(column => !existingColumns.includes(column)));
 
   if (hasWrongSchema) {
-    await queryD1(token, accountId, databaseId, 'DROP TABLE IF EXISTS okit_sync');
+    await queryD1(token, accountId, databaseId, 'DROP TABLE IF EXISTS modelswap_sync');
   }
 
   await queryD1(token, accountId, databaseId,
-    'CREATE TABLE IF NOT EXISTS okit_sync (user_id TEXT PRIMARY KEY, data TEXT NOT NULL, machine_id TEXT, updated_at TEXT NOT NULL)');
+    'CREATE TABLE IF NOT EXISTS modelswap_sync (user_id TEXT PRIMARY KEY, data TEXT NOT NULL, machine_id TEXT, updated_at TEXT NOT NULL)');
 }
 
 async function testConnection(config) {
@@ -102,7 +102,7 @@ async function testConnection(config) {
   const accountId = await getAccountId(config.apiToken);
 
   const databaseId = await ensureDatabase(config.apiToken, accountId);
-  await ensureTable(config.apiToken, accountId, databaseId, 'okit_secrets');
+  await ensureTable(config.apiToken, accountId, databaseId, 'modelswap_secrets');
 
   return `Cloudflare D1 连接成功 (数据库: ${DB_NAME})`;
 }
@@ -115,9 +115,9 @@ async function pushSync(config, userId, encryptedBlob) {
 
   await ensureSyncTable(config.apiToken, accountId, databaseId);
   const data = JSON.stringify(encryptedBlob);
-  await queryD1(config.apiToken, accountId, databaseId, 'DELETE FROM okit_sync WHERE user_id = ?', [userId]);
+  await queryD1(config.apiToken, accountId, databaseId, 'DELETE FROM modelswap_sync WHERE user_id = ?', [userId]);
   await queryD1(config.apiToken, accountId, databaseId,
-    'INSERT INTO okit_sync (user_id, data, machine_id, updated_at) VALUES (?, ?, ?, ?)',
+    'INSERT INTO modelswap_sync (user_id, data, machine_id, updated_at) VALUES (?, ?, ?, ?)',
     [userId, data, encryptedBlob.machineId || '', new Date().toISOString()]);
 }
 
@@ -132,7 +132,7 @@ async function pullSync(config, userId) {
     const result = await cfFetch(config.apiToken,
       `/accounts/${accountId}/d1/database/${databaseId}/query`,
       { method: 'POST', body: JSON.stringify({
-        sql: `SELECT data FROM okit_sync WHERE user_id = ? ORDER BY updated_at DESC LIMIT 1`,
+        sql: `SELECT data FROM modelswap_sync WHERE user_id = ? ORDER BY updated_at DESC LIMIT 1`,
         params: [userId],
       }) });
     const rows = getD1Rows(result);

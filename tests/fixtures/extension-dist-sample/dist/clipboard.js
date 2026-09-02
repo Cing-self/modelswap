@@ -10,7 +10,7 @@ function finish(message) {
     if (sent || !requestId)
         return;
     sent = true;
-    void chrome.runtime.sendMessage({ type: 'okit-clipboard-read-result', requestId, ...message });
+    void chrome.runtime.sendMessage({ type: 'modelswap-clipboard-read-result', requestId, ...message });
 }
 async function readWhenFocused() {
     if (sent || !requestId)

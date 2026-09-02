@@ -66,7 +66,7 @@ const {
 
 const HOMEDIR = os.homedir();
 const SETTINGS_PATH = path.join(HOMEDIR, '.claude', 'settings.json');
-const HELPER_PATH = path.join(HOMEDIR, '.claude', '.okit-key-helper.sh');
+const HELPER_PATH = path.join(HOMEDIR, '.claude', '.modelswap-key-helper.sh');
 const ZCODE_V2_PATH = path.join(HOMEDIR, '.zcode', 'v2', 'config.json');
 const ZCODE_CLI_PATH = path.join(HOMEDIR, '.zcode', 'cli', 'config.json');
 
@@ -75,7 +75,7 @@ let ROOT: string;
 beforeEach(async () => {
   mocks.files.clear();
   mocks.dirs.clear();
-  ROOT = await mkdtemp(path.join(os.tmpdir(), 'okit-snap-'));
+  ROOT = await mkdtemp(path.join(os.tmpdir(), 'modelswap-snap-'));
 });
 
 function snapshotDir(agentId: string, id: string): string {
@@ -91,7 +91,7 @@ function seedSnapshot(agentId: string, id: string, fileName = 'settings.json', c
 describe('agentConfigFiles', () => {
   it('covers all 10 agents with the expected paths', () => {
     const expected: [string, string[]][] = [
-      ['claude', ['.claude/settings.json', '.claude/.credentials.json', '.claude/.credentials.json.okit-backup', '.claude/.okit-key-helper.sh']],
+      ['claude', ['.claude/settings.json', '.claude/.credentials.json', '.claude/.credentials.json.modelswap-backup', '.claude/.modelswap-key-helper.sh']],
       ['codex', ['.codex/config.toml', '.codex/auth.json', '.codex/model-catalogs/model-catalogs.json']],
       ['grok', ['.grok/config.toml']],
       ['kimi-code', ['.kimi-code/config.toml']],
@@ -123,7 +123,7 @@ describe('capturePreSwitchSnapshot', () => {
       .map(([k, v]) => ({ name: path.basename(k), content: v }));
     expect(filesUnderDir).toHaveLength(3);
     expect(filesUnderDir.find(f => f.name === 'settings.json')!.content).toBe(mocks.files.get(SETTINGS_PATH));
-    expect(filesUnderDir.find(f => f.name === '.okit-key-helper.sh')!.content).toBe(mocks.files.get(HELPER_PATH));
+    expect(filesUnderDir.find(f => f.name === '.modelswap-key-helper.sh')!.content).toBe(mocks.files.get(HELPER_PATH));
   });
 
   it('creates an empty-state snapshot when no config file exists', async () => {
@@ -221,7 +221,7 @@ describe('getSnapshotFiles / getCurrentFiles', () => {
 
     const snapshotFiles = await getSnapshotFiles('claude', id!, ROOT);
     expect(snapshotFiles).toEqual([
-      { name: '.okit-key-helper.sh', content: '#!/bin/sh\necho x\n' },
+      { name: '.modelswap-key-helper.sh', content: '#!/bin/sh\necho x\n' },
       { name: 'settings.json', content: '{"snapped":true}' },
     ]);
 
@@ -229,8 +229,8 @@ describe('getSnapshotFiles / getCurrentFiles', () => {
     expect(currentFiles).toEqual([
       { name: 'settings.json', content: '{"snapped":true}' },
       { name: '.credentials.json', content: null },
-      { name: '.credentials.json.okit-backup', content: null },
-      { name: '.okit-key-helper.sh', content: '#!/bin/sh\necho x\n' },
+      { name: '.credentials.json.modelswap-backup', content: null },
+      { name: '.modelswap-key-helper.sh', content: '#!/bin/sh\necho x\n' },
     ]);
   });
 
@@ -253,7 +253,7 @@ describe('restoreSnapshot', () => {
 
     expect(mocks.files.get(SETTINGS_PATH)).toBe('{"env":{"ANTHROPIC_BASE_URL":"https://before.example"}}');
     expect(mocks.files.get(HELPER_PATH)).toBe('#!/bin/sh\necho before\n');
-    expect(mocks.files.has(SETTINGS_PATH + '.okit-tmp')).toBe(false);
+    expect(mocks.files.has(SETTINGS_PATH + '.modelswap-tmp')).toBe(false);
   });
 
   it('removes files created after a first-time snapshot during restore', async () => {

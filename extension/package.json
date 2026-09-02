@@ -1,7 +1,7 @@
 {
-  "name": "okit-extension",
+  "name": "modelswap-extension",
   "version": "2.0.0",
-  "description": "OKIT — Chrome extension that bridges OKIT to the user's logged-in browser sessions",
+  "description": "MODELSWAP — Chrome extension that bridges MODELSWAP to the user's logged-in browser sessions",
   "private": true,
   "scripts": {
     "build": "tsc",

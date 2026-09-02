@@ -2,7 +2,7 @@
 // P0 反向验证证据工具（不进入 vitest 收集）。
 //
 // 场景：“普通/未知扩展在线”——一个声称 available=true 的 cdp-status（模拟
-// 日常 Chrome 的产品扩展连着 OKIT 服务），但没有任何验收会话记录/心跳证明。
+// 日常 Chrome 的产品扩展连着 MODELSWAP 服务），但没有任何验收会话记录/心跳证明。
 // 走真实编排管线（健康检查→身份闸门→委托），证明：
 //   * create-cleanup 以 unverified_extension_identity 拒绝（exit 1）；
 //   * 创建委托完全不被调用（DELEGATE-ATTEMPTED 哨兵不出现）。
@@ -16,7 +16,7 @@ import process from 'node:process';
 
 import { runAcceptance } from '../../scripts/lib/live-acceptance/orchestrate.mjs';
 
-// 本地假 OKIT 服务：只回答 /api/vault/cdp-status，永远 available=true。
+// 本地假 MODELSWAP 服务：只回答 /api/vault/cdp-status，永远 available=true。
 const fakeServer = http.createServer((req, res) => {
   if (req.url === '/api/vault/cdp-status') {
     res.writeHead(200, { 'content-type': 'application/json' });

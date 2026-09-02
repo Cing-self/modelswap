@@ -2,7 +2,7 @@
 
 ![配置历史](../images/snapshots.png)
 
-OKIT 每次切换 Provider / 模型前，都会自动保存当时的配置快照。
+ModelSwap 每次切换 Provider / 模型前，都会自动保存当时的配置快照。
 
 1. 进入 **设置 → 配置历史**
 2. 按 Agent 筛选（或查看全部），列表显示每个版本的时间

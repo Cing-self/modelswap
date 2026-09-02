@@ -22,9 +22,9 @@ const { createProviderAuthService } = require('./provider-auth-service');
 const { createProviderStatusService } = require('./provider-status-service');
 const { createProviderLifecycleService } = require('./provider-lifecycle-service');
 
-const OKIT_DIR = path.join(os.homedir(), '.okit');
-const PROVIDERS_PATH = path.join(OKIT_DIR, 'providers.json');
-const USER_CONFIG_PATH = path.join(OKIT_DIR, 'user.json');
+const MODELSWAP_DIR = path.join(os.homedir(), '.modelswap');
+const PROVIDERS_PATH = path.join(MODELSWAP_DIR, 'providers.json');
+const USER_CONFIG_PATH = path.join(MODELSWAP_DIR, 'user.json');
 
 
 // Sort models by "capability descending": higher version first, then size tier.
@@ -376,7 +376,7 @@ const AGENT_CONFIG_FILES = {
   'openclaw': ['.openclaw/openclaw.json'],
   'workbuddy': ['.workbuddy/models.json'],
   // v2/config.json holds the provider entries; cli/config.json is the agent
-  // kernel's settings file where OKIT mirrors modelCatalog.overrides
+  // kernel's settings file where MODELSWAP mirrors modelCatalog.overrides
   // (supportsImages gating for text-only models).
   'zcode': ['.zcode/v2/config.json', '.zcode/cli/config.json'],
   'hermes': ['.hermes/config.yaml'],
@@ -385,7 +385,7 @@ const AGENT_CONFIG_FILES = {
   'mimo-code': ['.config/mimocode/mimocode.jsonc'],
 };
 
-const MASKED_PLACEHOLDER = '___OKIT_MASKED___';
+const MASKED_PLACEHOLDER = '___MODELSWAP_MASKED___';
 
 // Key names whose VALUES are credentials. Matched case-insensitively as
 // substrings of the config key / env var name.

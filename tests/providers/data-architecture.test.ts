@@ -8,7 +8,7 @@ import { execFileSync } from 'child_process';
 const { __testing: providersApiTesting } = require('../../src/web/api/providers.js');
 
 function runInTemporaryHome(script: string) {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-data-architecture-'));
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-data-architecture-'));
   const root = path.resolve(__dirname, '../..');
   const output = execFileSync(process.execPath, ['-r', 'ts-node/register', '-e', script, root], {
     // Windows resolves os.homedir() from USERPROFILE, not HOME; the parent
@@ -56,7 +56,7 @@ describe('provider data architecture', { timeout: 30000 }, () => {
       const fs=require('fs'), path=require('path');
       const store=require(path.join(process.argv[1], 'src/providers/store'));
       (async()=>{
-        const dir=path.join(process.env.HOME,'.okit'); fs.mkdirSync(dir,{recursive:true});
+        const dir=path.join(process.env.HOME,'.modelswap'); fs.mkdirSync(dir,{recursive:true});
         const models=Array.from({length:1638},(_,index)=>({id:'legacy-'+index,name:'Legacy '+index,opaqueModelField:{index,padding:'x'.repeat(80)}}));
         const legacy={opaqueRootField:{keep:true},providers:[{id:'legacy-disk',name:'Legacy Disk',type:'openai',baseUrl:'https://legacy.test/v1',authMode:'none',opaqueSiteField:{keep:true},models}],platforms:[{rebuildable:true}]};
         const legacyText=JSON.stringify(legacy); fs.writeFileSync(path.join(dir,'providers.json'),legacyText);
@@ -109,9 +109,9 @@ describe('provider data architecture', { timeout: 30000 }, () => {
       const fs=require('fs'), path=require('path');
       const store=require(path.join(process.argv[1], 'src/providers/store'));
       (async()=>{
-        const dir=path.join(process.env.HOME,'.okit'); fs.mkdirSync(dir,{recursive:true});
+        const dir=path.join(process.env.HOME,'.modelswap'); fs.mkdirSync(dir,{recursive:true});
         fs.writeFileSync(path.join(dir,'providers.json'), JSON.stringify({version:2,providers:[{id:'deepseek',name:'DeepSeek',type:'openai',baseUrl:'https://api.deepseek.com',authMode:'api_key'}]}));
-        fs.writeFileSync(path.join(dir,'models-cache.json'), JSON.stringify({version:1,source:'okit',fetchedAt:'now',providers:{deepseek:[
+        fs.writeFileSync(path.join(dir,'models-cache.json'), JSON.stringify({version:1,source:'modelswap',fetchedAt:'now',providers:{deepseek:[
           {id:'deepseek-v4-flash',source:'legacy',confidence:'low'},
           {id:'deepseek-v4-pro',source:'legacy',confidence:'low'},
           {id:'deepseek-chat',source:'legacy',confidence:'low'},

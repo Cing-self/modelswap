@@ -34,7 +34,7 @@ describe('BrowserExtensionSection connection/install hierarchy', () => {
     expect(markup).toContain('Open extension folder');
     expect(markup).toContain('settings-extension-reveal-button');
     expect(markup).not.toContain('chrome://extensions');
-    expect(markup).not.toContain('~/.okit/extension');
+    expect(markup).not.toContain('~/.modelswap/extension');
     expect(markup).not.toContain('View installation steps');
   });
 
@@ -49,7 +49,7 @@ describe('BrowserExtensionSection connection/install hierarchy', () => {
     const expanded = renderCard('disconnected', true);
     expect(expanded).toContain('aria-expanded="true"');
     expect(expanded).toContain('chrome://extensions');
-    expect(expanded).toContain('~/.okit/extension');
+    expect(expanded).toContain('~/.modelswap/extension');
     expect(expanded).toContain('class="settings-extension-code"');
   });
 

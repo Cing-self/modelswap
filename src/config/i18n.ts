@@ -22,7 +22,7 @@ export interface Translations {
   vaultListTitle: string;
   vaultConfirmDelete: string;
   vaultDeleted: string;
-  vaultNoOkitEnv: string;
+  vaultNoModelSwapEnv: string;
   vaultNoKeys: string;
   vaultEnvWritten: string;
   vaultResolved: string;
@@ -79,11 +79,11 @@ const translations: Record<Language, Translations> = {
     vaultTargets: "个目标",
     vaultSynced: "已同步",
     vaultNotFound: "未找到:",
-    vaultEmpty: "Vault 为空，使用 okit vault set KEY value 添加",
+    vaultEmpty: "Vault 为空，使用 modelswap vault set KEY value 添加",
     vaultListTitle: "Vault 密钥列表",
     vaultConfirmDelete: "确认删除",
     vaultDeleted: "已删除:",
-    vaultNoOkitEnv: "当前目录未找到 .okitenv 文件",
+    vaultNoModelSwapEnv: "当前目录未找到 .modelswapenv 文件",
     vaultNoKeys: "未声明任何 key",
     vaultEnvWritten: "已写入:",
     vaultResolved: "已解析",
@@ -138,11 +138,11 @@ const translations: Record<Language, Translations> = {
     vaultTargets: "targets",
     vaultSynced: "Synced",
     vaultNotFound: "Not found:",
-    vaultEmpty: "Vault is empty, use okit vault set KEY value to add",
+    vaultEmpty: "Vault is empty, use modelswap vault set KEY value to add",
     vaultListTitle: "Vault Secrets",
     vaultConfirmDelete: "Delete",
     vaultDeleted: "Deleted:",
-    vaultNoOkitEnv: "No .okitenv file found in current directory",
+    vaultNoModelSwapEnv: "No .modelswapenv file found in current directory",
     vaultNoKeys: "No keys declared",
     vaultEnvWritten: "Written to:",
     vaultResolved: "Resolved",

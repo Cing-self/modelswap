@@ -23,7 +23,7 @@ export async function atomicWrite(
   data: string,
   options?: { mode?: number },
 ): Promise<void> {
-  const tmpPath = `${filePath}.${process.pid}.${++tmpCounter}.okit-tmp`;
+  const tmpPath = `${filePath}.${process.pid}.${++tmpCounter}.modelswap-tmp`;
   try {
     await fs.writeFile(tmpPath, data, options);
     await renameWithRetry(tmpPath, filePath);

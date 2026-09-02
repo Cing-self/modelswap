@@ -4,9 +4,9 @@ import path from 'path';
 
 const testRoot = vi.hoisted(() => {
   const p = require('path');
-  const d = '/tmp/test-okit-workbuddy';
+  const d = '/tmp/test-modelswap-workbuddy';
   return {
-    OKIT_DIR: d,
+    MODELSWAP_DIR: d,
     REGISTRY_PATH: p.join(d, 'registry.json'),
     LOGS_DIR: p.join(d, 'logs'),
     CACHE_DIR: p.join(d, 'cache'),
@@ -15,7 +15,7 @@ const testRoot = vi.hoisted(() => {
 
 const mocks = vi.hoisted(() => {
   const files = new Map<string, string>();
-  // Stateful stand-in for ~/.okit/user.json so managedModels tracking
+  // Stateful stand-in for ~/.modelswap/user.json so managedModels tracking
   // persists across adapter calls within a test, like the real config.
   const userConfig: any = { providers: {} };
   return {
@@ -32,7 +32,7 @@ const mocks = vi.hoisted(() => {
 vi.mock('fs-extra', () => ({ default: mocks }));
 
 vi.mock('../../../src/config/registry', () => ({
-  OKIT_DIR: testRoot.OKIT_DIR,
+  MODELSWAP_DIR: testRoot.MODELSWAP_DIR,
   REGISTRY_PATH: testRoot.REGISTRY_PATH,
   LOGS_DIR: testRoot.LOGS_DIR,
   CACHE_DIR: testRoot.CACHE_DIR,
@@ -73,7 +73,7 @@ vi.mock('../../../src/vault/store', () => ({
 const { WorkBuddyAdapter } = await import('../../../src/providers/adapters/workbuddy');
 
 const MODELS_PATH = path.join(os.homedir(), '.workbuddy', 'models.json');
-const OWNERSHIP_PATH = path.join(os.homedir(), '.workbuddy', '.okit-managed.json');
+const OWNERSHIP_PATH = path.join(os.homedir(), '.workbuddy', '.modelswap-managed.json');
 
 const testProvider = {
   id: 'glm-coding',
@@ -242,13 +242,13 @@ describe('WorkBuddyAdapter.applyConfig', () => {
     expect(readOwnership()).toEqual({ 'glm-coding': ['glm-4.7'] });
   });
 
-  it('REFUSES to overwrite an entry at a different endpoint (not written by OKIT)', async () => {
+  it('REFUSES to overwrite an entry at a different endpoint (not written by MODELSWAP)', async () => {
     mocks.files.set(MODELS_PATH, JSON.stringify([
       { id: 'glm-4.7', name: 'Official', vendor: 'WorkBuddy', url: 'https://old.com/chat/completions' },
     ]));
 
     const adapter = new WorkBuddyAdapter();
-    await expect(adapter.applyConfig(testProvider, 'glm-4.7')).rejects.toThrow(/非 OKIT 写入/);
+    await expect(adapter.applyConfig(testProvider, 'glm-4.7')).rejects.toThrow(/非 MODELSWAP 写入/);
 
     const written = readModelsFile();
     expect(written[0].vendor).toBe('WorkBuddy');
