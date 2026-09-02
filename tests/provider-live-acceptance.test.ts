@@ -1028,7 +1028,7 @@ describe('provider-live-acceptance session binding (P0 primitives)', () => {
 
   it('patches a CRLF checkout of the extension snapshot', () => {
     const source = fs.readFileSync(path.join(EXT_SAMPLE, 'dist', 'background.js'), 'utf8');
-    const crlfSource = source.replace(/\n/g, '\r\n');
+    const crlfSource = source.replace(/\r\n|\r|\n/g, '\r\n');
     const patched = patchExtensionBackgroundSource(crlfSource, {
       sessionId: 'abcd1234-0',
       witnessPort: 9341,
