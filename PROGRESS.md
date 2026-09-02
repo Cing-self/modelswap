@@ -361,6 +361,11 @@
 - 修复：首页用量摘要订阅 `providers/secrets` 数据变更并重新拉取 supported 目录；共享用量轮询 hook 记录已见 provider，新增 supported provider 立即请求一次，仍遵守 manual-only/extension-driving provider 的禁止自动拉取规则，provider 移除后重新出现也会刷新。
 - 验证：全量 106 文件/960 测试通过，完整构建 exit 0；真实页面刷新后“今日用量”包含“小米 MiMo Token Plan”。
 
+# DeepSeek 余额币种显示修复（2026-09-02）
+- 症状：首页余额里 DeepSeek 显示 `$103.61`，同屏其他国内平台显示 `CNY`。根因是 DeepSeek `/user/balance` 适配器已优先选择 CNY 余额，但返回对象漏传 `unit`；首页对缺失单位的 prepaid 余额兜底渲染 `$`。
+- 修复：DeepSeek 用量窗口显式携带官方余额响应中的 `currency`（优先 CNY，fallback 第一项），不再让前端猜币种。
+- 验证：全量 106 文件/960 测试通过；重启后真实调用 `/api/usage/deepseek` 返回 `remainingCredits=103.61`、`unit=CNY`。
+
 # 模型编辑器添加按钮位置调整（2026-09-02）
 - 移除模型列表顶部工具栏的“添加模型”按钮，在最后一条模型记录下方新增全宽虚线按钮；过滤/空状态下仍可添加，连续录入时无需回顶。样式沿用现有 provider form 添加按钮体系并适配深浅模式。
 - 真实页面验证：顶部工具栏无添加按钮，底部按钮位于模型列表内，点击后模型行从 10 增到 11，未保存取消后无残留。全量 106 文件/961 测试通过，完整构建 exit 0。

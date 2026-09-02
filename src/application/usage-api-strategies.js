@@ -747,9 +747,9 @@ async function queryXaiApiBalance() {
 
 // ── Goal ①: prepaid balance providers ────────────────────────
 //
-// Each returns a single "credits" window with absolute USD amounts (no reset
-// time — pay-as-you-go balances don't reset). The isPrepaid flag drives the
-// frontend's dollar-amount rendering instead of a percentage bar.
+// Each returns a single "credits" window with an absolute balance and explicit
+// currency (no reset time — pay-as-you-go balances don't reset). The isPrepaid
+// flag drives the frontend's balance rendering instead of a percentage bar.
 
 // DeepSeek — GET /user/balance returns { is_available, balance_infos: [{ currency, total_balance, granted_balance, topped_up_balance }] }.
 // Note: the field is balance_infos (plural array), not balance_info.
@@ -777,6 +777,7 @@ async function queryDeepseekUsage(apiKey) {
       usedCredits: null,
       limitCredits: total,
       remainingCredits: total,
+      unit: info.currency || 'CNY',
       isPrepaid: true,
     }],
     raw: d,
