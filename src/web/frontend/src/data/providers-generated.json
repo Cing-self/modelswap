@@ -436,6 +436,7 @@
           "plan": "agent"
         }
       ],
+      "modelCatalogId": "volcengine-agent-plan",
       "authMode": "api_key",
       "models": []
     },

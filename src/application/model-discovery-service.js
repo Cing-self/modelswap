@@ -232,25 +232,39 @@ async function fetchModels(input = {}) {
     }
 
     if (p?.id === 'volcengine-agent') {
+      // Agent Plan must never borrow the Coding Plan catalog just because both
+      // gateways share ark.cn-beijing.volces.com. Require the dedicated
+      // models.dev provider and fail closed until that catalog exists.
       const discoveredProvider = p && hasRequestedConfig ? {
         ...p,
+        modelCatalogId: p.modelCatalogId || 'volcengine-agent-plan',
         ...(Array.isArray(requestedEndpoints) ? {
           endpoints: requestedEndpoints,
           ...(requestedEndpoints[0]?.baseUrl ? { baseUrl: requestedEndpoints[0].baseUrl } : {}),
         } : {}),
         ...(Object.prototype.hasOwnProperty.call(input, 'vaultKey') ? { vaultKey: requestedVaultKey || undefined } : {}),
-      } : p;
+      } : {
+        ...p,
+        modelCatalogId: p.modelCatalogId || 'volcengine-agent-plan',
+      };
+      const catalog = await modelsDev.loadCatalog();
+      const catalogKey = modelsDev.resolveCatalogKey(catalog, discoveredProvider, { strict: true });
+      if (catalogKey !== 'volcengine-agent-plan') {
+        await _store.saveDiscoveredModels(p.id, []);
+        p.models = [];
+        return {
+          success: false,
+          models: [],
+          kept: [],
+          modelsDiscovered: false,
+          errors: [{ endpoint: 'models.dev', error: 'models.dev 尚未提供 volcengine-agent-plan 目录，禁止回退到 Coding Plan' }],
+        };
+      }
       const endpointEntries = Array.isArray(requestedEndpoints) && requestedEndpoints.length
         ? requestedEndpoints.map((endpoint, index) => ({ id: endpoint.id || `${providerId}:endpoint:${index}`, endpoint }))
         : providerEndpointEntries(discoveredProvider);
       if (!endpointEntries.length) throw Object.assign(new Error('至少需要一个有效端点'), { status: 400 });
-
-      // Agent Plan's gateway does not expose /models. There is no OKIT-owned
-      // provider allowlist: models.dev is the fallback catalog source. It has
-      // no dedicated volcengine-agent entry, so the Ark host maps to its
-      // closest maintained Volcengine catalog.
-      const catalog = await modelsDev.loadCatalog();
-      const models = modelsDev.listFreshProviderModels(catalog, discoveredProvider);
+      const models = modelsDev.listFreshProviderModels(catalog, discoveredProvider, undefined, { strict: true });
       if (!models.length) {
         return {
           success: false,
@@ -642,6 +656,11 @@ const PROVIDER_CODE_PREFIX = 'okit-provider:';
 const PROVIDER_CODE_SALT = 'okit-provider-salt';
 
 
-  return { readCodexCachedModels, readGrokCliModels, readCopilotCliModels, withNativeAvailability, replaceRemoteModels, fetchModels, discoverMissingConfiguredModels, fetchOpenAIModels, fetchQianfanCodingModels, fetchQianfanCodingAnthropicModels, fetchAnthropicModels };
+  return {
+    readCodexCachedModels, readGrokCliModels, readCopilotCliModels, withNativeAvailability,
+    replaceRemoteModels, fetchModels, discoverMissingConfiguredModels, fetchOpenAIModels,
+    fetchQianfanCodingModels, fetchQianfanCodingAnthropicModels, fetchAnthropicModels,
+    volcengineAgentPlanModelCatalogId: 'volcengine-agent-plan',
+  };
 }
 module.exports = { createModelDiscoveryService };

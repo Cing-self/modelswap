@@ -210,9 +210,13 @@ function getCatalogState() {
   };
 }
 
-function resolveCatalogKey(catalog, provider) {
-  if (provider.modelCatalogId && catalog.providers[provider.modelCatalogId]) return provider.modelCatalogId;
+function resolveCatalogKey(catalog, provider, options = {}) {
+  if (provider.modelCatalogId) {
+    if (catalog.providers[provider.modelCatalogId]) return provider.modelCatalogId;
+    if (options.strict) return null;
+  }
   if (catalog.providers[provider.id]) return provider.id;
+  if (options.strict) return null;
   const candidates = [provider.baseUrl, ...((provider.endpoints || []).map(endpoint => endpoint.baseUrl))]
     .filter(Boolean).map(normalizeHost).filter(Boolean);
   for (const host of candidates) {
@@ -292,8 +296,8 @@ function getFreshProviderMetadata(catalog, provider) {
   return { key, id: entry.id, name: entry.name, api: entry.api, doc: entry.doc, env: Array.isArray(entry.env) ? entry.env : [], npm: entry.npm };
 }
 
-function listFreshProviderModels(catalog, provider, fetchedAt) {
-  const key = resolveCatalogKey(catalog, provider);
+function listFreshProviderModels(catalog, provider, fetchedAt, options = {}) {
+  const key = resolveCatalogKey(catalog, provider, options);
   const catalogProvider = key ? catalog.providers[key] : null;
   if (!catalogProvider) return [];
   const sourceTime = fetchedAt || catalog.meta?.sourceFetchedAt || new Date().toISOString();
@@ -347,6 +351,7 @@ function resetTestHooks() {
 const exported = {
   enrichModels, loadCatalog, loadFreshCatalog, refreshCatalog, getCatalogState,
   listFreshProviderModels, enrichFreshRemoteModels, getFreshProviderMetadata,
+  resolveCatalogKey,
   clearCatalogCache,
   __testing: { indexCatalog, resolveCatalogKey, metadataFromCatalog, isFresh, canUseWithoutRefresh, stableHash, readDiskSnapshot, setTestHooks, resetTestHooks },
 };

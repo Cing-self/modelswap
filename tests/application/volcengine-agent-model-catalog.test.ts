@@ -34,6 +34,11 @@ describe('Volcengine Agent Plan models.dev fallback', () => {
       findCommand: () => null,
       modelsDev: {
         loadCatalog: async () => ({ meta: { sourceFetchedAt: '2026-09-01T00:00:00.000Z' } }),
+        resolveCatalogKey: (catalog: any, mappedProvider: any, options: any) => {
+          expect(options).toEqual({ strict: true });
+          expect(mappedProvider.modelCatalogId).toBe('volcengine-agent-plan');
+          return 'volcengine-agent-plan';
+        },
         listFreshProviderModels: (catalog: any, mappedProvider: any) => {
           expect(catalog).toEqual({ meta: { sourceFetchedAt: '2026-09-01T00:00:00.000Z' } });
           expect(mappedProvider.id).toBe(provider.id);
@@ -53,29 +58,6 @@ describe('Volcengine Agent Plan models.dev fallback', () => {
       expect(model.availability.map((item: any) => item.endpointId)).toHaveLength(2);
     }
     expect(saved).toHaveLength(1);
-  });
-
-  it('does not invent an OKIT-owned catalog when models.dev has no Agent Plan entry', async () => {
-    const service = createModelDiscoveryService({
-      fs: { pathExists: async () => false, readFile: async () => '' },
-      path: {},
-      os: { homedir: () => '/tmp' },
-      _store: { saveDiscoveredModels: async () => { throw new Error('unexpected save'); } },
-      loadProviders: async () => [provider],
-      saveProviders: async () => { throw new Error('unexpected provider save'); },
-      loadUserConfig: async () => ({ agentProviders: {} }),
-      providerEndpointEntries,
-      providerExecutionMode: () => 'http_endpoint',
-      normalizeRemoteModel: model => model,
-      detectOAuth: async () => null,
-      resolveVaultKey: async () => 'unused',
-      findCommand: () => null,
-      modelsDev: {
-        loadCatalog: async () => ({ meta: { sourceFetchedAt: '2026-09-01T00:00:00.000Z' } }),
-        listFreshProviderModels: () => [],
-      },
-    });
-
   });
 
   it('removes stale rows created by the retired OKIT-owned allowlist', async () => {
@@ -111,6 +93,11 @@ describe('Volcengine Agent Plan models.dev fallback', () => {
       findCommand: () => null,
       modelsDev: {
         loadCatalog: async () => ({ meta: { sourceFetchedAt: '2026-09-01T00:00:00.000Z' } }),
+        resolveCatalogKey: (catalog: any, mappedProvider: any, options: any) => {
+          expect(options).toEqual({ strict: true });
+          expect(mappedProvider.modelCatalogId).toBe('volcengine-agent-plan');
+          return 'volcengine-agent-plan';
+        },
         listFreshProviderModels: () => [
           { id: 'modelsdev-model-a', name: 'Model A', source: 'modelsdev' },
         ],
@@ -125,11 +112,12 @@ describe('Volcengine Agent Plan models.dev fallback', () => {
   });
 
   it('reports when models.dev has no Agent Plan entry', async () => {
+    const purged: any[][] = [];
     const service = createModelDiscoveryService({
       fs: { pathExists: async () => false, readFile: async () => '' },
       path: {},
       os: { homedir: () => '/tmp' },
-      _store: { saveDiscoveredModels: async () => { throw new Error('unexpected save'); } },
+      _store: { saveDiscoveredModels: async (_id: string, models: any[]) => { purged.push(models); } },
       loadProviders: async () => [provider],
       saveProviders: async () => { throw new Error('unexpected provider save'); },
       loadUserConfig: async () => ({ agentProviders: {} }),
@@ -141,6 +129,11 @@ describe('Volcengine Agent Plan models.dev fallback', () => {
       findCommand: () => null,
       modelsDev: {
         loadCatalog: async () => ({ meta: { sourceFetchedAt: '2026-09-01T00:00:00.000Z' } }),
+        resolveCatalogKey: (catalog: any, mappedProvider: any, options: any) => {
+          expect(options).toEqual({ strict: true });
+          expect(mappedProvider.modelCatalogId).toBe('volcengine-agent-plan');
+          return null;
+        },
         listFreshProviderModels: () => [],
       },
     });
@@ -149,7 +142,9 @@ describe('Volcengine Agent Plan models.dev fallback', () => {
     expect(result).toMatchObject({
       success: false,
       modelsDiscovered: false,
-      errors: [{ endpoint: 'models.dev', error: 'models.dev 未提供 Volcengine Agent Plan 模型目录' }],
+      models: [],
+      errors: [{ endpoint: 'models.dev', error: 'models.dev 尚未提供 volcengine-agent-plan 目录，禁止回退到 Coding Plan' }],
     });
+    expect(purged).toEqual([[]]);
   });
 });

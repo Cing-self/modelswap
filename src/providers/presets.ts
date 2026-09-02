@@ -279,6 +279,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
       { type: "openai", protocol: "chat", baseUrl: "https://ark.cn-beijing.volces.com/api/plan/v3", plan: "agent" },
       { type: "anthropic", baseUrl: "https://ark.cn-beijing.volces.com/api/plan", plan: "agent" },
     ],
+    modelCatalogId: "volcengine-agent-plan",
     authMode: "api_key",
     models: [],
   },

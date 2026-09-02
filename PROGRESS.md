@@ -347,6 +347,10 @@
 - 同时迁移上一版静态清单造成的本地 `manual/user` 残留：仅移除 retired allowlist 中且 models.dev 未列出的行，真实用户手工密钥仍保留。新增 4 个离线回归覆盖 models.dev 主目录、无目录时不伪造、残留清理和用户模型保护。
 - 验证：目标测试 4/4；全量 106 文件/960 测试；完整构建 exit 0。重启后真实刷新 Agent Plan 返回 models.dev 目录 8 个模型，`authState=verified`。
 
+# Agent Plan 禁止 Coding Plan host fallback（2026-09-02）
+- 用户确认 models.dev 只有 `volcengine` 与 `volcengine-coding-plan`，没有 Agent Plan 目录；旧 host fallback 因共用 `ark.cn-beijing.volces.com` 把 Agent Plan 错配成 Coding Plan。已把 models.dev 目录匹配支持 strict 模式，Agent Plan 显式要求 `volcengine-agent-plan`，无该目录时 fail closed 并清理 remote 模型缓存，不再借用 Coding Plan。
+- 验证：Agent Plan 目录回归 3/3，明确断言 strict 匹配、禁止 Coding Plan fallback、无目录时清理缓存；全量 106 文件/960 测试；完整构建 exit 0。重启后真实调用 `/fetch-models` 返回明确错误且模型缓存清空，Provider 鉴权仍 verified。
+
 # 火山方舟 API 平台 Anthropic 连接修复（2026-09-02）
 - 症状：同一 `VOLCENGINE_API_KEY` 在 Coding Plan 全部通过，但“火山方舟 API 平台”报 `API Key 无效`。只读拆解发现 OpenAI `/api/v3` 通过，Anthropic endpoint 配置错误：地址少 `/compatible`，且误用 `x-api-key`。
 - 修复：标准 Ark API 平台 Anthropic 兼容地址改为 `https://ark.cn-beijing.volces.com/api/compatible`，认证改为 `Authorization: Bearer`，探测模型改为 `doubao-seed-2-1-pro-260628`，并同步生成 provider 数据与回归测试。
