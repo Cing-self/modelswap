@@ -185,7 +185,7 @@ export function assertProbeScriptReadOnly(source) {
 // error message before it enters a report.
 export function redactSecrets(value) {
   return String(value || '')
-    .replace(/(?:sk|xai|tp|bce-v3)[-_/.A-Za-z0-9]{12,}/g, '[REDACTED]')
+    .replace(/\b(?:sk|xai|tp|bce-v3)[-_/.A-Za-z0-9]{12,}/g, '[REDACTED]')
     .replace(/AKLT[A-Za-z0-9_-]{8,}/g, '[REDACTED]')
     .replace(/eyJ[A-Za-z0-9_-]{20,}/g, '[REDACTED]')
     .replace(/Bearer\s+[A-Za-z0-9._-]{8,}/gi, '[REDACTED]')

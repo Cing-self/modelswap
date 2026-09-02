@@ -267,6 +267,11 @@ describe('provider-live-acceptance safety primitives', () => {
     expect(redactSecrets('state=0123456789abcdef0123456789abcdef')).toContain('[REDACTED]');
   });
 
+  it('does not mistake ordinary path fragments for API key prefixes', () => {
+    const path = '/tmp/live-acc-ogskur/delegate-report.json';
+    expect(redactSecrets(path)).toBe(path);
+  });
+
   it('sanitizeUrl strips credentials, query strings, and fragments', () => {
     expect(sanitizeUrl('https://user:pass@example.com/a/b?token=secret#frag')).toBe('https://example.com/a/b');
     expect(sanitizeUrl('not a url')).not.toMatch(/^https?:\/\//);
