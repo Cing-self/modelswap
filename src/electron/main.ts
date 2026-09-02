@@ -1,3 +1,6 @@
+// Keep first: migrates legacy ~/.okit into ~/.modelswap before any module
+// below touches the data dir.
+import "../config/boot";
 import { app, BrowserWindow, Menu, ipcMain, type MenuItemConstructorOptions, shell } from "electron";
 import { spawn } from "child_process";
 import fs from "fs-extra";

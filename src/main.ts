@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+// Keep first: migrates legacy ~/.okit into ~/.modelswap before the command
+// modules below construct VaultStore at import time.
+import "./config/boot";
 import { Command } from "commander";
 import kleur from "kleur";
 import prompts from "prompts";

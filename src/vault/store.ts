@@ -2,7 +2,7 @@ import fs from "fs-extra";
 import path from "path";
 import crypto from "crypto";
 import os from "os";
-import { MODELSWAP_DIR } from "../config/registry";
+import { MODELSWAP_DIR, migrateLegacyOkitDir } from "../config/registry";
 import { backupImportantData } from "../config/backup";
 import { atomicWrite, atomicWriteJSON } from "../utils/atomicWrite";
 
@@ -82,6 +82,11 @@ export class VaultStore {
   private cacheStamp: string | null = null;
 
   constructor() {
+    // Defense in depth: entry points import config/boot first; this guards
+    // store construction through any other import order (e.g. web API
+    // modules required directly) so a fresh master.key can never shadow the
+    // legacy vault before it is migrated.
+    migrateLegacyOkitDir();
     fs.ensureDirSync(VAULT_DIR);
     this.key = deriveMasterKey();
   }
