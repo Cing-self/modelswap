@@ -341,3 +341,8 @@
 - 根因：`/api/plan` 网关不提供公共 `/models` 目录，旧逻辑把它当普通 OpenAI endpoint，因此连接验证通过但模型列表为空。通过每模型 1-token 最小推理探测确认控制台目录中的可用 ID；`auto` 只是控制台路由展示值，`kimi-k3` 在当前 Small 套餐返回 `UnsupportedModel`，两者均不进入目录。
 - 修复：Agent Plan 模型发现改用静态官方控制台目录，包含 `ark-code-latest` 与 10 个实测可用直连模型，并在 OpenAI 与 Anthropic endpoint 上标记可用；保留用户手动模型与当前 Agent 选择的既有规则。
 - 验证：新增目录回归 1/1；全量 106 文件/957 测试通过；完整构建 exit 0。重启后真实调用 `/api/providers/fetch-models` 返回 11 个模型，provider 持久列表同步为 11 个且 authState 仍为 verified。
+
+# Agent Plan 模型目录去自持化（2026-09-02）
+- 按数据源分层纠正：Agent Plan 官方网关不提供 `/models` 时，模型成员改以 models.dev provider catalog 为主，不再保留 OKIT 自己的 11 条 Agent Plan allowlist。models.dev 没有 `volcengine-agent` 专属目录时，按 API host 映射到其 Volcengine 目录。
+- 同时迁移上一版静态清单造成的本地 `manual/user` 残留：仅移除 retired allowlist 中且 models.dev 未列出的行，真实用户手工密钥仍保留。新增 4 个离线回归覆盖 models.dev 主目录、无目录时不伪造、残留清理和用户模型保护。
+- 验证：目标测试 4/4；全量 106 文件/960 测试；完整构建 exit 0。重启后真实刷新 Agent Plan 返回 models.dev 目录 8 个模型，`authState=verified`。

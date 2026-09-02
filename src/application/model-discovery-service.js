@@ -1,45 +1,17 @@
 // Provider model discovery is transport/cache orchestration, independent of HTTP.
 const { describeRejection, modelDiscoveryFailure } = require('./error-normalization');
 
-// Agent Plan's /api/plan gateway intentionally has no public /models route.
-// This catalog mirrors the signed-in console's selectable model IDs. Kimi K3
-// is displayed for larger plans but returned UnsupportedModel on Small plans,
-// so it is deliberately excluded until plan-aware discovery exists.
-const VOLCENGINE_AGENT_PLAN_MODEL_CATALOG = Object.freeze([
-  { id: 'ark-code-latest', name: 'Ark Code Latest（自动路由）' },
-  { id: 'doubao-seed-evolving', name: 'Doubao Seed Evolving' },
-  { id: 'doubao-seed-2.1-turbo', name: 'Doubao Seed 2.1 Turbo' },
-  { id: 'doubao-seed-2.0-lite', name: 'Doubao Seed 2.0 Lite' },
-  { id: 'doubao-seed-2.0-mini', name: 'Doubao Seed 2.0 Mini' },
-  { id: 'glm-5.3-flash', name: 'GLM 5.3 Flash' },
-  { id: 'glm-5.3', name: 'GLM 5.3' },
-  { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro' },
-  { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash' },
-  { id: 'kimi-k2.7-code', name: 'Kimi K2.7 Code' },
-  { id: 'minimax-m3', name: 'MiniMax M3' },
-]);
-
-function volcengineAgentPlanModels(endpointEntries) {
-  const discoveredAt = new Date().toISOString();
-  return VOLCENGINE_AGENT_PLAN_MODEL_CATALOG.map(({ id, name }) => ({
-    id,
-    name,
-    origin: 'remote',
-    availability: endpointEntries.map(({ id: endpointId }) => ({
-      executionMode: 'http_endpoint',
-      endpointId,
-      remoteModelId: id,
-      status: 'available',
-      source: 'remote',
-      discoveredAt,
-      lastSeenAt: discoveredAt,
-    })),
-  }));
-}
-
 function createModelDiscoveryService(deps) {
-  const { fs, path, os, _store, loadProviders, saveProviders, loadUserConfig, providerEndpointEntries, providerExecutionMode, QIANFAN_CODING_PROBE_MODEL, isQianfanCodingEndpoint, isQianfanCodingAnthropicEndpoint, qianfanModelDirectoryUrl, qianfanCodingErrorCode, qianfanCodingErrorMessage, getAnthropicAuthMode, normalizeRemoteModel, detectOAuth, resolveVaultKey, findCommand } = deps;
+  const { fs, path, os, _store, loadProviders, saveProviders, loadUserConfig, providerEndpointEntries, providerExecutionMode, QIANFAN_CODING_PROBE_MODEL, isQianfanCodingEndpoint, isQianfanCodingAnthropicEndpoint, qianfanModelDirectoryUrl, qianfanCodingErrorCode, qianfanCodingErrorMessage, getAnthropicAuthMode, normalizeRemoteModel, detectOAuth, resolveVaultKey, findCommand, modelsDev = require('../web/api/models-dev') } = deps;
   const warmupInflight = new Map();
+  // These IDs were briefly shipped in an OKIT-owned Agent Plan allowlist. A
+  // provider entry marked manual by that old implementation is not a real user
+  // addition, so remove stale rows that models.dev does not also list.
+  const VOLCENGINE_AGENT_PLAN_RETIRED_LOCAL_MODEL_IDS = new Set([
+    'ark-code-latest',
+    'doubao-seed-2.0-mini',
+    'glm-5.3-flash',
+  ]);
 async function readCodexCachedModels() {
   const cachePath = path.join(os.homedir(), '.codex', 'models_cache.json');
   if (!(await fs.pathExists(cachePath))) {
@@ -273,7 +245,32 @@ async function fetchModels(input = {}) {
         : providerEndpointEntries(discoveredProvider);
       if (!endpointEntries.length) throw Object.assign(new Error('至少需要一个有效端点'), { status: 400 });
 
-      const models = volcengineAgentPlanModels(endpointEntries);
+      // Agent Plan's gateway does not expose /models. There is no OKIT-owned
+      // provider allowlist: models.dev is the fallback catalog source. It has
+      // no dedicated volcengine-agent entry, so the Ark host maps to its
+      // closest maintained Volcengine catalog.
+      const catalog = await modelsDev.loadCatalog();
+      const models = modelsDev.listFreshProviderModels(catalog, discoveredProvider);
+      if (!models.length) {
+        return {
+          success: false,
+          models: [],
+          kept: p.models || [],
+          modelsDiscovered: false,
+          errors: [{ endpoint: 'models.dev', error: 'models.dev 未提供 Volcengine Agent Plan 模型目录' }],
+        };
+      }
+      const modelsDevIds = new Set(models.map(model => model.id));
+      const staleOwnedRows = (p.models || []).filter(model =>
+        VOLCENGINE_AGENT_PLAN_RETIRED_LOCAL_MODEL_IDS.has(model.id)
+        && !modelsDevIds.has(model.id)
+        && (model.origin === 'user' || model.source === 'manual' || model.meta?.source === 'modelsdev'),
+      );
+      if (staleOwnedRows.length) {
+        const staleIds = new Set(staleOwnedRows.map(model => model.id));
+        p.models = (p.models || []).filter(model => !staleIds.has(model.id));
+        await saveProviders(providers);
+      }
       const userConfig = await loadUserConfig();
       const activeModelIds = new Set(
         Object.values(userConfig.agentProviders || {})
@@ -645,6 +642,6 @@ const PROVIDER_CODE_PREFIX = 'okit-provider:';
 const PROVIDER_CODE_SALT = 'okit-provider-salt';
 
 
-  return { readCodexCachedModels, readGrokCliModels, readCopilotCliModels, withNativeAvailability, replaceRemoteModels, fetchModels, discoverMissingConfiguredModels, fetchOpenAIModels, fetchQianfanCodingModels, fetchQianfanCodingAnthropicModels, fetchAnthropicModels, volcengineAgentPlanModels };
+  return { readCodexCachedModels, readGrokCliModels, readCopilotCliModels, withNativeAvailability, replaceRemoteModels, fetchModels, discoverMissingConfiguredModels, fetchOpenAIModels, fetchQianfanCodingModels, fetchQianfanCodingAnthropicModels, fetchAnthropicModels };
 }
 module.exports = { createModelDiscoveryService };
