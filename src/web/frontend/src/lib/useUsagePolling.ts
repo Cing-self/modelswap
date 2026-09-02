@@ -48,6 +48,7 @@ export function useUsagePolling(opts: UsagePollingOptions) {
   // to decide fast-vs-slow polling without re-subscribing.
   const resultsRef = useRef<Record<string, UsageResult>>({});
   const mountedRef = useRef(true);
+  const knownIdsRef = useRef<Set<string>>(new Set());
   const skipSetRef = useRef<Set<string>>(new Set());
   skipSetRef.current = new Set(skipIds || []);
 
@@ -79,10 +80,27 @@ export function useUsagePolling(opts: UsagePollingOptions) {
   // Initial fetch when supportedIds first becomes non-empty.
   const didInitialFetch = useRef(false);
   useEffect(() => {
-    if (supportedIds.length > 0 && !didInitialFetch.current) {
+    if (supportedIds.length === 0) return;
+
+    // A provider can become supported while this component is kept alive (for
+    // example, the user saves Xiaomi credentials on /usage then returns to
+    // home). Fetch newly added providers immediately instead of waiting for
+    // the next poll interval.
+    const freshIds = supportedIds.filter(id => !knownIdsRef.current.has(id));
+    for (const id of supportedIds) knownIdsRef.current.add(id);
+    for (const id of [...knownIdsRef.current]) {
+      if (!supportedIds.includes(id)) knownIdsRef.current.delete(id);
+    }
+
+    if (!didInitialFetch.current) {
       didInitialFetch.current = true;
       fetchAll();
+      return;
     }
+
+    freshIds
+      .filter(id => !skipSetRef.current.has(id))
+      .forEach(id => void fetchOne(id));
   }, [supportedIds, fetchAll]);
 
   // Polling interval: dynamically picks fast or slow based on whether any

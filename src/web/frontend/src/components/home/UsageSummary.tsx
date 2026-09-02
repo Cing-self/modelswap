@@ -13,6 +13,7 @@ import { useUsagePolling } from '../../lib/useUsagePolling';
 import { useCoalescedUsageMap } from '../../lib/useCoalescedUsageMap';
 import { checkAlerts, fireNotifications } from '../../lib/usageAlerts';
 import { useNavigate } from 'react-router-dom';
+import { useDataChanged } from '../../hooks/useDataChanged';
 import { getProviderIcon, getProviderIconClass } from '../../assets/providers';
 
 // Home prioritizes the shortest actionable window. When a provider reports
@@ -143,13 +144,16 @@ export default function UsageSummary() {
   // Provider display names from API (single source of truth = presets.ts).
   const [providerNames, setProviderNames] = useState<Record<string, string>>({});
 
+  const loadUsageCatalog = useCallback(async () => {
+    try {
+      const sup = await getSupportedUsageProviders();
+      setSupportedIds(sup.providers || []);
+      setManualOnlyIds(new Set(sup.manualOnly || []));
+    } catch {}
+  }, []);
+
   useEffect(() => {
-    getSupportedUsageProviders()
-      .then(sup => {
-        setSupportedIds(sup.providers || []);
-        setManualOnlyIds(new Set(sup.manualOnly || []));
-      })
-      .catch(() => {});
+    void loadUsageCatalog();
     // Load provider names from API (derived from presets.ts — single source).
     listProviders()
       .then(res => {
@@ -159,6 +163,12 @@ export default function UsageSummary() {
       })
       .catch(() => {});
   }, [translateProviderName]);
+
+  // The dashboard is keep-alive mounted. Credential/provider changes made on
+  // /usage must refresh the supported catalog even while this route is hidden.
+  useDataChanged(['providers', 'secrets'], () => {
+    void loadUsageCatalog();
+  });
 
   // Silent polling via shared hook (5-min base, 1-min if reset is imminent).
   const handlePollResult = useCallback((id: string, result: UsageResult) => {

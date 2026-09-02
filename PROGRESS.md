@@ -356,6 +356,11 @@
 - 修复：标准 Ark API 平台 Anthropic 兼容地址改为 `https://ark.cn-beijing.volces.com/api/compatible`，认证改为 `Authorization: Bearer`，探测模型改为 `doubao-seed-2-1-pro-260628`，并同步生成 provider 数据与回归测试。
 - 验证：endpoint profile 定向 7/7；全量 106 文件/961 测试；完整构建 exit 0。真实 `/verify-auth` 后 API 平台 OpenAI 与 Anthropic endpoint 均 verified，`authState=verified`。
 
+# 快速启动用量目录动态刷新（2026-09-02）
+- 症状：在用量统计新增小米后切回快速启动，“今日用量”仍只有旧列表。根因是首页路由 keep-alive 常驻，`UsageSummary` 只在首次挂载时拉取 supported provider 目录，且轮询 hook 不会立即拉取新增 provider。
+- 修复：首页用量摘要订阅 `providers/secrets` 数据变更并重新拉取 supported 目录；共享用量轮询 hook 记录已见 provider，新增 supported provider 立即请求一次，仍遵守 manual-only/extension-driving provider 的禁止自动拉取规则，provider 移除后重新出现也会刷新。
+- 验证：全量 106 文件/960 测试通过，完整构建 exit 0；真实页面刷新后“今日用量”包含“小米 MiMo Token Plan”。
+
 # 模型编辑器添加按钮位置调整（2026-09-02）
 - 移除模型列表顶部工具栏的“添加模型”按钮，在最后一条模型记录下方新增全宽虚线按钮；过滤/空状态下仍可添加，连续录入时无需回顶。样式沿用现有 provider form 添加按钮体系并适配深浅模式。
 - 真实页面验证：顶部工具栏无添加按钮，底部按钮位于模型列表内，点击后模型行从 10 增到 11，未保存取消后无残留。全量 106 文件/961 测试通过，完整构建 exit 0。
