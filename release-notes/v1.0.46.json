@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.46",
+  "publishedAt": "2026-09-03",
+  "summary": {
+    "zh": "ModelSwap 全新应用图标：星球与轨道意象，轨刃在星球上划出 S 形切口，寓意连接多模型平台与自由切换。提供深浅两色设计语言，本版默认采用浅色版本；同时修复更名后网页图标（favicon）与侧边栏 Logo 404 的问题。",
+    "en": "Brand-new ModelSwap app icon: a planet-and-orbit motif whose blade sweeps an S-shaped cut across the sphere — connecting multiple model platforms with free switching. This release ships the light variant by default, and fixes the favicon and sidebar logo 404 left over from the rename."
+  },
+  "highlights": [
+    {
+      "category": "new",
+      "zh": "全新应用图标（星球与轨道，浅色版）：Dock、访达、Cmd-Tab 与安装包全面换新。",
+      "en": "New app icon (planet & orbit, light variant): refreshed across the Dock, Finder, Cmd-Tab, and the installers."
+    },
+    {
+      "category": "improved",
+      "zh": "图标系统覆盖全部触点：桌面端十档尺寸 icns、网页 favicon、apple-touch-icon、侧边栏 Logo 与引导页品牌图统一换新。",
+      "en": "The icon system now covers every touchpoint: ten-step desktop icns, web favicon, apple-touch-icon, sidebar logo, and onboarding brand art are all unified."
+    },
+    {
+      "category": "fixed",
+      "zh": "修复更名遗留问题：网页 favicon 与侧边栏 Logo 引用的图标文件缺失导致 404，现已恢复显示。",
+      "en": "Fix a rename leftover: the favicon and sidebar logo referenced missing icon files and rendered blank; both are restored."
+    }
+  ]
+}
