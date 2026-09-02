@@ -1,3 +1,6 @@
+// Keep first: migrates legacy ~/.okit into ~/.modelswap before the API
+// modules below construct VaultStore at require time.
+require('../config/boot');
 const express = require('express');
 const path = require('path');
 const os = require('os');

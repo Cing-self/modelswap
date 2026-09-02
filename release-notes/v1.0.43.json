@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.43",
+  "publishedAt": "2026-09-02",
+  "summary": {
+    "zh": "修复 v1.0.42 更名引入的数据目录迁移缺陷：~/.okit → ~/.modelswap 的一次性迁移此前从未真正执行（旧目录常量在改名时被误替换成新目录本身，且迁移函数没有任何调用点），升级后密钥库与 Provider 配置会看起来\"消失\"。本版在 CLI、Web、桌面端所有入口接入迁移，已被 v1.0.42 初始化过空目录的用户首次运行即自动恢复。",
+    "en": "Fixes the broken data-directory migration shipped in v1.0.42: the one-time ~/.okit → ~/.modelswap copy never actually ran (the legacy-dir constant was accidentally replaced with the new dir itself during the rename, and the migration function had no call sites), so upgraded installs appeared to lose their vault and provider config. The migration now runs at every entry point (CLI, web, desktop); machines already touched by v1.0.42 self-heal on first run."
+  },
+  "highlights": [
+    {
+      "category": "fixed",
+      "zh": "修复数据目录迁移从未执行的问题：~/.okit 的密钥库、Provider 配置与设置现在会在首次运行时完整迁移到 ~/.modelswap，旧目录保留作为备份。",
+      "en": "Fix the never-running data migration: vaults, provider config, and settings under ~/.okit now copy over to ~/.modelswap on first run; the legacy directory is kept as a backup."
+    },
+    {
+      "category": "fixed",
+      "zh": "自动修复被 v1.0.42 初始化过的空 ~/.modelswap 目录：当新目录只含自动生成的 master.key 而没有任何用户数据时，首次运行会用旧目录内容自动恢复。",
+      "en": "Auto-heal a ~/.modelswap dir initialized by v1.0.42: when it holds only an auto-generated master.key and no user data, first run restores the legacy contents automatically."
+    },
+    {
+      "category": "fixed",
+      "zh": "修复桌面端启动即崩溃（Cannot find module './config/boot'）：入口模块路径笔误，且 tsc 不会检查纯副作用 import，现已由构建门禁静态校验所有入口的相对 require。",
+      "en": "Fix the desktop app crashing on launch (Cannot find module './config/boot'): a wrong entry import path that tsc cannot catch for side-effect-only imports; the build gate now statically resolves every relative require of the packaged entry points."
+    }
+  ]
+}

@@ -26,11 +26,35 @@ const ENTRY_POINTS = [
   'web/api/cloud-sync-core.js',
   'web/api/sync.js',
 ];
+// tsc silently accepts side-effect-only imports ("import './boot'") whose
+// target does not exist, so a wrong relative specifier in a top-level entry
+// compiles clean and only throws when the packaged app launches. Resolve
+// every literal relative require of each entry point here so the build
+// fails instead of shipping a broken binary.
+const STATIC_ENTRY_POINTS = ['main.js', 'electron/main.js', 'web/server.js'];
 
 function assertRuntimeFiles() {
   for (const modulePath of RUNTIME_MODULES) {
     const file = path.join(DIST, modulePath);
     if (!fs.existsSync(file)) throw new Error(`Missing packaged runtime module: dist/${modulePath}`);
+  }
+}
+
+function assertEntryRelativeRequires() {
+  for (const entryPath of STATIC_ENTRY_POINTS) {
+    const file = path.join(DIST, entryPath);
+    if (!fs.existsSync(file)) throw new Error(`Missing dist entry point: dist/${entryPath}`);
+    const requireFromEntry = Module.createRequire(file);
+    const source = fs.readFileSync(file, 'utf8');
+    const pattern = /require\(\s*["'](\.[^"']+)["']\s*\)/g;
+    let match;
+    while ((match = pattern.exec(source)) !== null) {
+      try {
+        requireFromEntry.resolve(match[1]);
+      } catch {
+        throw new Error(`Unresolvable require in dist/${entryPath}: ${match[1]}`);
+      }
+    }
   }
 }
 
@@ -100,6 +124,7 @@ async function verifyIsolatedRuntime() {
 
 async function main() {
   assertRuntimeFiles();
+  assertEntryRelativeRequires();
   await verifyIsolatedRuntime();
   console.log('Verified packaged runtime closure and /ping health check.');
 }
