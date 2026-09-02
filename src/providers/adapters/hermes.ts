@@ -12,7 +12,7 @@ import { atomicWrite } from "../../utils/atomicWrite";
 // ~/.hermes/config.yaml — NOT config.json. Custom providers live in a
 // `custom_providers:` list (entries matched by `name`, mirroring cc-switch's
 // hermes adapter) and the active model is the `model.default:` string in
-// "provider-name/model-id" form. The previous OKIT adapter wrote a
+// "provider-name/model-id" form. The previous MODELSWAP adapter wrote a
 // config.json with a models.providers/agents.defaults tree that no Hermes
 // version ever read.
 const HERMES_CONFIG_PATH = path.join(os.homedir(), ".hermes", "config.yaml");

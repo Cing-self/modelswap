@@ -14,7 +14,7 @@ async function createZhipuKey({ tokenName, run }) {
   const uniqueName = `${String(tokenName || '').slice(0, 13)}-${Date.now().toString(36).slice(-6)}`;
 
   // 1. Navigate to zhipu API key page (reuse logged-in cookies)
-  const nav = await sendCommand('navigate', { url: ZHIPU_URL, workspace: 'okit' }, 30000);
+  const nav = await sendCommand('navigate', { url: ZHIPU_URL, workspace: 'modelswap' }, 30000);
   if (!nav.ok) throw new Error(nav.error || 'navigate failed');
   const navData = nav.data || {};
   const tabId = navData.tabId;
@@ -33,7 +33,7 @@ async function createZhipuKey({ tokenName, run }) {
 
   // 2. Arm network capture BEFORE clicking create
   const capStart = await sendCommand('network-capture-start',
-    { pattern: '', workspace: 'okit', ...(tabId ? { tabId } : {}) }, 10000);
+    { pattern: '', workspace: 'modelswap', ...(tabId ? { tabId } : {}) }, 10000);
   if (!capStart.ok) throw new Error(capStart.error || 'network-capture-start failed');
   console.log('[auto-create] zhipu: capture armed');
 
@@ -201,7 +201,7 @@ async function createZhipuKey({ tokenName, run }) {
   for (let retry = 0; retry < 3 && !key; retry++) {
     await sleep(retry === 0 ? 3000 : 2000); // first wait 3s, then 2s increments
     const read = await sendCommand('network-capture-read',
-      { workspace: 'okit', ...(tabId ? { tabId } : {}) }, 10000);
+      { workspace: 'modelswap', ...(tabId ? { tabId } : {}) }, 10000);
     if (!read.ok) break;
     // network-capture-read drains the buffer, so accumulate across retries
     const newEntries = read.data || [];
@@ -229,13 +229,13 @@ async function createZhipuKey({ tokenName, run }) {
   // may not expose the secret in the captured request. In that case, reload
   // the exact key list and copy only the row whose full test name matches.
   if (!key) {
-    await sendCommand('navigate', { url: ZHIPU_URL, workspace: 'okit' }, 30000).catch(() => {});
+    await sendCommand('navigate', { url: ZHIPU_URL, workspace: 'modelswap' }, 30000).catch(() => {});
     await sleep(3000);
     await execJs(`(() => {
-      window.__okitCapturedKey = '';
+      window.__modelswapCapturedKey = '';
       try {
         const original = navigator.clipboard?.writeText?.bind(navigator.clipboard);
-        if (original) Object.defineProperty(navigator.clipboard, 'writeText', { configurable: true, value: text => { window.__okitCapturedKey = String(text || ''); return original(text); } });
+        if (original) Object.defineProperty(navigator.clipboard, 'writeText', { configurable: true, value: text => { window.__modelswapCapturedKey = String(text || ''); return original(text); } });
       } catch {}
       return 'interceptor-installed';
     })()`).catch(() => 'interceptor-failed');
@@ -257,13 +257,13 @@ async function createZhipuKey({ tokenName, run }) {
       let copyStateObj = {};
       try { copyStateObj = JSON.parse(copyState || '{}'); } catch {}
       await sleep(500);
-      const copied = await execJs('window.__okitCapturedKey || ""').catch(() => '');
+      const copied = await execJs('window.__modelswapCapturedKey || ""').catch(() => '');
       if (isValidZhipuApiKey(copied)) key = copied;
       if (!key && copyStateObj.ok === false) await sleep(700);
     }
     if (!key) {
       const clipboardRead = await sendCommand('clipboard-read', {
-        workspace: 'okit',
+        workspace: 'modelswap',
         clipboardPattern: '^[a-f0-9]{32}\\.[A-Za-z0-9]{6,}$',
       }, 5000).catch(() => ({ ok: false, data: {} }));
       const clipboardKey = clipboardRead.ok && clipboardRead.data?.matched ? clipboardRead.data.value : '';
@@ -277,15 +277,15 @@ async function createZhipuKey({ tokenName, run }) {
 
   if (key) {
     // Reload the page to get a fresh key list with the newly created key
-    await sendCommand('navigate', { url: ZHIPU_URL, workspace: 'okit' }, 30000).catch(() => {});
+    await sendCommand('navigate', { url: ZHIPU_URL, workspace: 'modelswap' }, 30000).catch(() => {});
     await sleep(3000);
 
     // Inject a clipboard interceptor to capture what the copy button puts on the clipboard
     await execJs(`(() => {
-      window.__okitCapturedKey = '';
+      window.__modelswapCapturedKey = '';
       const origWriteText = navigator.clipboard.writeText.bind(navigator.clipboard);
       navigator.clipboard.writeText = function(text) {
-        window.__okitCapturedKey = text;
+        window.__modelswapCapturedKey = text;
         return origWriteText(text);
       };
       // Also intercept execCommand('copy') as fallback
@@ -293,7 +293,7 @@ async function createZhipuKey({ tokenName, run }) {
       document.execCommand = function(cmd) {
         if (cmd === 'copy') {
           const sel = window.getSelection().toString();
-          if (sel) window.__okitCapturedKey = sel;
+          if (sel) window.__modelswapCapturedKey = sel;
         }
         return origExec(cmd);
       };
@@ -326,7 +326,7 @@ async function createZhipuKey({ tokenName, run }) {
 
     // Read the intercepted clipboard value
     await sleep(1000);
-    const capturedKey = await execJs('window.__okitCapturedKey || ""').catch(() => '');
+    const capturedKey = await execJs('window.__modelswapCapturedKey || ""').catch(() => '');
     console.log('[auto-create] zhipu: clipboard capture', capturedKey ? 'received' : 'empty');
     if (isValidZhipuApiKey(capturedKey)) {
       await closeAutomationWindow();

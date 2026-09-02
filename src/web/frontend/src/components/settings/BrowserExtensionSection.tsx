@@ -98,7 +98,7 @@ export function ExtensionConnectionCard({
             <ol className="settings-extension-steps" id="extension-install-steps">
               <li><span>{t('settings.extensionStep1Prefix')}</span>{' '}<code className="settings-extension-code">chrome://extensions</code></li>
               <li>{t('settings.extensionStep2')}</li>
-              <li><span>{t('settings.extensionStep3Prefix')}</span>{' '}<code className="settings-extension-code">~/.okit/extension</code>{' '}<small>{t('settings.extensionStep3Note')}</small></li>
+              <li><span>{t('settings.extensionStep3Prefix')}</span>{' '}<code className="settings-extension-code">~/.modelswap/extension</code>{' '}<small>{t('settings.extensionStep3Note')}</small></li>
             </ol>
           )}
         </div>
@@ -139,13 +139,13 @@ export default function BrowserExtensionSection() {
       const sections = (event as CustomEvent<{ sections?: string[] }>).detail?.sections;
       if (sections?.includes('extension')) void refresh();
     };
-    window.addEventListener('okit:data-changed', listener);
-    return () => window.removeEventListener('okit:data-changed', listener);
+    window.addEventListener('modelswap:data-changed', listener);
+    return () => window.removeEventListener('modelswap:data-changed', listener);
   }, [refresh]);
 
   async function revealExtension() {
     try {
-      const desktop = (window as any).okitDesktop;
+      const desktop = (window as any).modelswapDesktop;
       if (desktop?.revealExtension) {
         await desktop.revealExtension();
       } else {

@@ -37,7 +37,7 @@ function canonicalQuery(params) {
 /**
  * Native implementation of the Volcengine SDK's Signature V4 request shape.
  * Keeping this deterministic and dependency-free avoids shipping the SDK's
- * obsolete axios/protobuf dependency tree in the local OKIT server.
+ * obsolete axios/protobuf dependency tree in the local MODELSWAP server.
  */
 function createSignedRequest({ accessKey, secretKey, action, version, query = {}, body, region = 'cn-beijing', service = 'kms', now = new Date() }) {
   if (!accessKey || !secretKey) throw new Error('请配置 AccessKey 和 SecretKey');

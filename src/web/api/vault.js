@@ -119,7 +119,7 @@ async function exportVault(req, res) {
     const secrets = await store.exportAll();
     const bindings = await store.getBindings();
     const data = { secrets, bindings, exportedAt: new Date().toISOString() };
-    res.setHeader('Content-Disposition', 'attachment; filename="okit-vault-export.json"');
+    res.setHeader('Content-Disposition', 'attachment; filename="modelswap-vault-export.json"');
     res.setHeader('Content-Type', 'application/json');
     res.json(data);
   } catch (error) {
@@ -608,11 +608,11 @@ function resolveCanonicalGroup(key) {
 
   // ── 智谱/Z.AI (国内国际分站,key 不通用) ──
   if (k.startsWith('ZAI_API_KEY') || k.startsWith('ZAI_')) return '智谱AI · 国际';
-  if (k.startsWith('ZHIPU_') || k.startsWith('OKIT-ZHIPU') || k.startsWith('BIGMODEL_')) return '智谱AI · 国内';
+  if (k.startsWith('ZHIPU_') || k.startsWith('MODELSWAP-ZHIPU') || k.startsWith('BIGMODEL_')) return '智谱AI · 国内';
 
   // ── MiniMax (国内国际分站) ──
-  if (k.startsWith('MINIMAX_GLOBAL') || k.startsWith('OKIT-MINIMAX-GLOBAL')) return 'MiniMax · 国际';
-  if (k.startsWith('MINIMAX_') || k.startsWith('OKIT-MINIMAX')) return 'MiniMax · 国内';
+  if (k.startsWith('MINIMAX_GLOBAL') || k.startsWith('MODELSWAP-MINIMAX-GLOBAL')) return 'MiniMax · 国际';
+  if (k.startsWith('MINIMAX_') || k.startsWith('MODELSWAP-MINIMAX')) return 'MiniMax · 国内';
 
   // ── Kimi / Moonshot ──
   // Kimi is the mainland API platform; Moonshot is the international API
@@ -623,10 +623,10 @@ function resolveCanonicalGroup(key) {
   if (k.startsWith('KIMI_')) return 'Kimi';
 
   // ── 仅国内 ──
-  if (k.startsWith('DEEPSEEK_') || k === 'OKIT-DEEPSEEK' || k.startsWith('DEEPSEEK')) return 'DeepSeek';
+  if (k.startsWith('DEEPSEEK_') || k === 'MODELSWAP-DEEPSEEK' || k.startsWith('DEEPSEEK')) return 'DeepSeek';
   if (k.startsWith('DASHSCOPE_')) return '阿里云百炼';
   if (k.startsWith('QIANFAN_') || k.startsWith('QIANFAN')) return '百度千帆';
-  if (k.startsWith('VOLCENGINE_') || k === 'OKIT-VOLCENGINE' || k.startsWith('VOLC_')) return '火山引擎';
+  if (k.startsWith('VOLCENGINE_') || k === 'MODELSWAP-VOLCENGINE' || k.startsWith('VOLC_')) return '火山引擎';
   if (k.startsWith('TENCENT_') || k.startsWith('TECENT_') || k.startsWith('TENCENT')) return '腾讯云';
   if (k.startsWith('STEPFUN_')) return '阶跃星辰';
   if (k.startsWith('XIAOMI_MIMO') || k.startsWith('XIAOMI_')) return '小米 MiMo';

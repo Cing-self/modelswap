@@ -2,7 +2,7 @@
 
 ![Config history](../images/snapshots.png)
 
-OKIT automatically snapshots the current config **before every provider/model switch**.
+ModelSwap automatically snapshots the current config **before every provider/model switch**.
 
 1. Go to **Settings → Config History**
 2. Filter by agent (or view all); each version shows its timestamp

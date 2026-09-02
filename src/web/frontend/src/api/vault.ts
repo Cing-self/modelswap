@@ -46,7 +46,7 @@ export interface AgentKeyFinding {
 }
 
 // Reconciliation: plaintext keys found in agent config files. Keys NOT in
-// the vault are at risk — OKIT rewrites those files and could clobber them.
+// the vault are at risk — MODELSWAP rewrites those files and could clobber them.
 export async function scanAgentKeys(): Promise<{ findings: AgentKeyFinding[]; filesScanned: number }> {
   return api('/api/vault/scan-agent-keys');
 }

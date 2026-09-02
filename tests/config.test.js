@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import Module from 'module';
 import os from 'os';
 
-vi.spyOn(os, 'homedir').mockReturnValue('/tmp/test-okit-cloud-config');
+vi.spyOn(os, 'homedir').mockReturnValue('/tmp/test-modelswap-cloud-config');
 
 const mockFs = vi.hoisted(() => ({
   readJson: vi.fn(),

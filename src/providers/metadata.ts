@@ -9,7 +9,7 @@
 // no longer needs its own copy of these definitions.
 
 // ── Retired presets ──────────────────────────────────────────
-// These used to be bundled presets. Retire them on load so existing OKIT
+// These used to be bundled presets. Retire them on load so existing MODELSWAP
 // installations match the current UI.
 export const RETIRED_PRESET_PROVIDER_IDS = new Set([
   "google",

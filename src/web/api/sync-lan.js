@@ -7,7 +7,7 @@ const os = require('os');
 const crypto = require('crypto');
 const { execSync } = require('child_process');
 
-const LAN_CODE_PREFIX = 'okit-lan://';
+const LAN_CODE_PREFIX = 'modelswap-lan://';
 let cachedMachineName;
 let peerProbeCache = { at: 0, value: null };
 
@@ -145,7 +145,7 @@ async function handleSyncOverview(req, res) {
 function parseConnectionCode(raw) {
   const code = String(raw || '').trim();
   if (!code.startsWith(LAN_CODE_PREFIX)) {
-    throw new Error('配对码格式不正确，应以 okit-lan:// 开头');
+    throw new Error('配对码格式不正确，应以 modelswap-lan:// 开头');
   }
   let url;
   try {
@@ -346,7 +346,7 @@ async function handleLanPair(req, res) {
   if (!info.token) {
     return res
       .status(400)
-      .json({ error: '对端未返回访问令牌，请让对端升级 OKIT 后重试' });
+      .json({ error: '对端未返回访问令牌，请让对端升级 MODELSWAP 后重试' });
   }
 
   try {

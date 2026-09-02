@@ -30,14 +30,14 @@ describe('Volcengine OpenAPI signing', () => {
       ...credentials,
       action: 'CreateSecret',
       version: '2021-02-18',
-      query: { SecretName: 'okit-sync-u', SecretType: 'Generic' },
-      body: { SecretValue: '{"v":1}', Description: 'OKIT sync data' },
+      query: { SecretName: 'modelswap-sync-u', SecretType: 'Generic' },
+      body: { SecretValue: '{"v":1}', Description: 'MODELSWAP sync data' },
     });
 
     expect(signed.method).toBe('POST');
-    expect(signed.headers['X-Content-Sha256']).toBe('50be4c97d4714c67c3f5945cf8293d146159cf55a855ed0da3eacee2c73ff0b9');
+    expect(signed.headers['X-Content-Sha256']).toBe('a3de37d3613726f95a9fdfbaeecc26527d787615d23a4056189c9e37ab548aae');
     expect(signed.headers.Authorization).toBe(
-      'HMAC-SHA256 Credential=AKIDEXAMPLE/20260821/cn-beijing/kms/request, SignedHeaders=x-content-sha256;x-date, Signature=60a43747ad8572915c6a5ff5076e0c2b249ca8a8aa90d9c5e883d7e4b8d25de7',
+      'HMAC-SHA256 Credential=AKIDEXAMPLE/20260821/cn-beijing/kms/request, SignedHeaders=x-content-sha256;x-date, Signature=b2160de04eb94a42e72bea838e7e10b49f9e3cf9a7eb1b2fb81bacb0654163aa',
     );
   });
 });

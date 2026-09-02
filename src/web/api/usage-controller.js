@@ -6,7 +6,7 @@ const { createUsageBrowserStrategies } = require('../../application/usage-browse
 const { createUsageCloudStrategies } = require('../../application/usage-cloud-strategies');
 const { createUsageProviderRegistry } = require('../../application/usage-provider-registry');
 const parsers = require('../../application/usage-parsers');
-const PROVIDERS_PATH = path.join(os.homedir(), '.okit', 'providers.json');
+const PROVIDERS_PATH = path.join(os.homedir(), '.modelswap', 'providers.json');
 const MIMO_CONSOLE_URL = 'https://platform.xiaomimimo.com/console/plan-manage';
 const MIMO_BALANCE_CONSOLE_URL = 'https://platform.xiaomimimo.com/console/balance';
 const MIMO_BALANCE_URL = 'https://platform.xiaomimimo.com/api/v1/balance';
@@ -125,10 +125,10 @@ async function openXiaomiLogin(req, res) {
   if (!url) return res.status(400).json({ success: false, error: '该 Provider 不支持浏览器登录' });
   try {
     const { sendCommand, isExtensionConnected } = require('./ws-extension');
-    if (!isExtensionConnected()) return res.status(503).json({ success: false, error: 'OKIT 浏览器插件未连接，请先启动插件' });
-    const navigation = await sendCommand('navigate', { url, workspace: 'okit' }, 30000);
+    if (!isExtensionConnected()) return res.status(503).json({ success: false, error: 'MODELSWAP 浏览器插件未连接，请先启动插件' });
+    const navigation = await sendCommand('navigate', { url, workspace: 'modelswap' }, 30000);
     if (!navigation?.ok) return res.status(502).json({ success: false, error: navigation?.error || '无法打开 MiMo 控制台' });
-    await sendCommand('focus-window', { workspace: 'okit', hold: true }, 10000).catch(() => {});
+    await sendCommand('focus-window', { workspace: 'modelswap', hold: true }, 10000).catch(() => {});
     return res.json({ success: true, tabId: navigation.data?.tabId, url });
   } catch (error) {
     return res.status(503).json({ success: false, error: error.message || String(error) });
@@ -138,8 +138,8 @@ async function closeXiaomiLoginWindow(req, res) {
   if (!XIAOMI_LOGIN_URLS[req.params.providerId]) return res.status(400).json({ success: false, error: '该 Provider 不支持此操作' });
   try {
     const { sendCommand, isExtensionConnected } = require('./ws-extension');
-    if (!isExtensionConnected()) return res.status(503).json({ success: false, error: 'OKIT 浏览器插件未连接' });
-    const closed = await sendCommand('close-window', { workspace: 'okit' }, 10000);
+    if (!isExtensionConnected()) return res.status(503).json({ success: false, error: 'MODELSWAP 浏览器插件未连接' });
+    const closed = await sendCommand('close-window', { workspace: 'modelswap' }, 10000);
     if (!closed?.ok) return res.status(502).json({ success: false, error: closed?.error || '无法关闭控制台窗口' });
     return res.json({ success: true });
   } catch (error) {

@@ -40,10 +40,10 @@ import { atomicWriteJSON } from "../../utils/atomicWrite";
 // rejected with 400, so write the resolved directory/live limit when known.
 //
 // ZCode is an ADDITIVE agent: entries from every source coexist and the user
-// switches between them inside ZCode's own model picker. OKIT must therefore
+// switches between them inside ZCode's own model picker. MODELSWAP must therefore
 // never modify or remove entries it did not write. Ownership is tracked in
-// user.json (managedModels, keyed by OKIT providerId); entries at the same
-// base URL are adopted as OKIT's own so configs written by older OKIT versions
+// user.json (managedModels, keyed by MODELSWAP providerId); entries at the same
+// base URL are adopted as MODELSWAP's own so configs written by older MODELSWAP versions
 // (before tracking existed) keep working.
 //
 // kind/apiFormat mapping follows the documented ZCode custom-provider format
@@ -54,7 +54,7 @@ import { atomicWriteJSON } from "../../utils/atomicWrite";
 // "openai-chat-completions" (base URL with /v1).
 
 const ZCODE_CONFIG_PATH = path.join(os.homedir(), ".zcode", "v2", "config.json");
-const ZCODE_OWNERSHIP_PATH = path.join(os.homedir(), ".zcode", "v2", ".okit-managed.json");
+const ZCODE_OWNERSHIP_PATH = path.join(os.homedir(), ".zcode", "v2", ".modelswap-managed.json");
 
 // The agent process (spawned by the ZCode desktop app) resolves its user
 // settings from ~/.zcode/cli/config.json — the v2 config above is only the
@@ -69,8 +69,8 @@ const ZCODE_OWNERSHIP_PATH = path.join(os.homedir(), ".zcode", "v2", ".okit-mana
 const ZCODE_CLI_CONFIG_PATH = path.join(os.homedir(), ".zcode", "cli", "config.json");
 
 // ZCode's override-entry schema is passthrough, so this marker survives
-// validation and lets OKIT reclaim only the entries it wrote.
-const OKIT_OVERRIDE_TAG = "_okitManaged";
+// validation and lets MODELSWAP reclaim only the entries it wrote.
+const MODELSWAP_OVERRIDE_TAG = "_modelswapManaged";
 
 interface ZCodeFormat {
   kind: string;
@@ -78,7 +78,7 @@ interface ZCodeFormat {
   baseURL: string;
 }
 
-// Map an OKIT-resolved provider (endpoint already pinned by routing.ts) to the
+// Map an MODELSWAP-resolved provider (endpoint already pinned by routing.ts) to the
 // ZCode provider entry fields. Anthropic endpoints get the trailing /v1
 // stripped — ZCode appends /v1/messages itself; OpenAI-style endpoints keep it.
 function zcodeFormatFor(provider: Provider): ZCodeFormat {
@@ -195,11 +195,11 @@ function textOnlyModelIds(provider: Provider): string[] {
 }
 
 function ownsOverride(entry: any): boolean {
-  return entry && typeof entry === "object" && entry[OKIT_OVERRIDE_TAG] === true;
+  return entry && typeof entry === "object" && entry[MODELSWAP_OVERRIDE_TAG] === true;
 }
 
 // Mirror the provider's text-only models into cli/config.json
-// modelCatalog.overrides. Only OKIT-tagged entries for this provider are
+// modelCatalog.overrides. Only MODELSWAP-tagged entries for this provider are
 // touched; user-written overrides (same or other keys) are preserved.
 async function syncMediaOverrides(providerId: string, provider: Provider): Promise<void> {
   const cfg = await readCliConfig();
@@ -217,7 +217,7 @@ async function syncMediaOverrides(providerId: string, provider: Provider): Promi
     }
   }
   for (const modelId of textOnlyModelIds(provider)) {
-    overrides[`${prefix}${modelId}`] = { supportsImages: false, [OKIT_OVERRIDE_TAG]: true };
+    overrides[`${prefix}${modelId}`] = { supportsImages: false, [MODELSWAP_OVERRIDE_TAG]: true };
     dirty = true;
   }
   if (!dirty && !catalog) return;
@@ -239,9 +239,9 @@ async function clearMediaOverrides(providerId: string): Promise<void> {
   await writeCliConfig(cfg);
 }
 
-// OKIT owns an existing entry when the provider id is recorded in its managed
+// MODELSWAP owns an existing entry when the provider id is recorded in its managed
 // list, or when the entry already points at this provider's endpoint (legacy
-// OKIT writes / identical endpoint re-added via OKIT).
+// MODELSWAP writes / identical endpoint re-added via MODELSWAP).
 function ownsProviderEntry(
   entry: Record<string, any> | undefined,
   providerId: string,
@@ -300,7 +300,7 @@ export class ZCodeAdapter extends BaseAdapter {
     const existing = data.provider[provider.id];
     if (existing && !ownsProviderEntry(existing, provider.id, format, managed)) {
       throw new Error(
-        `ZCode 中已存在站点 "${provider.id}"（非 OKIT 写入，可能是手动添加），已跳过以免覆盖。如需 OKIT 管理，请先在 ZCode 中删除该站点。`,
+        `ZCode 中已存在站点 "${provider.id}"（非 MODELSWAP 写入，可能是手动添加），已跳过以免覆盖。如需 MODELSWAP 管理，请先在 ZCode 中删除该站点。`,
       );
     }
 
@@ -345,7 +345,7 @@ export class ZCodeAdapter extends BaseAdapter {
       if (!apiKeys.has(providerId)) {
         apiKeys.set(providerId, await this.resolveApiKey(group.provider));
       }
-      // The models map mirrors what OKIT currently curates for this site:
+      // The models map mirrors what MODELSWAP currently curates for this site:
       // the (caller-filtered) visible set + this batch. managedModels may
       // hold stale ids from older full-list writes — it is ownership
       // tracking, never the source of truth for what to write.
@@ -396,7 +396,7 @@ export class ZCodeAdapter extends BaseAdapter {
     try {
       // node:sqlite ships with Node ≥22.5. Resolve it indirectly so pkg's
       // Node 18 binary can still be built; at runtime that binary falls back
-      // to the persisted OKIT selection through the catch block below.
+      // to the persisted MODELSWAP selection through the catch block below.
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const runtimeRequire = eval("require") as NodeRequire;
       const { DatabaseSync } = runtimeRequire("node:" + "sqlite") as {
@@ -427,7 +427,7 @@ export class ZCodeAdapter extends BaseAdapter {
   async setProviderEnabled(providerId: string, enabled: boolean): Promise<void> {
     const sel = await this.getCurrentConfig();
     const managed = await this.readManaged();
-    // Nothing OKIT wrote for this provider and it isn't the current selection
+    // Nothing MODELSWAP wrote for this provider and it isn't the current selection
     // — nothing to flip.
     if (!(providerId in managed) && sel?.providerId !== providerId) return;
 
@@ -455,8 +455,8 @@ export class ZCodeAdapter extends BaseAdapter {
     const hasEntry = typeof data.provider === "object" && data.provider !== null && providerId in data.provider;
     // Owned = tracked in managedModels, the current selection, or a config
     // entry under a non-builtin id. managedModels can lose records to sync
-    // overwrites of user.json — the config entry itself (under an OKIT
-    // provider id, never a ZCode builtin:*) is evidence OKIT wrote it.
+    // overwrites of user.json — the config entry itself (under an MODELSWAP
+    // provider id, never a ZCode builtin:*) is evidence MODELSWAP wrote it.
     if (!(providerId in managed) && sel?.providerId !== providerId && (providerId.startsWith("builtin:") || !hasEntry)) return;
 
     if (hasEntry) {

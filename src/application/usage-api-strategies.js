@@ -819,7 +819,7 @@ async function queryQwenUsage(_apiKey) {
 }
 
 // The Coding Plan endpoint is intentionally restricted to supported coding
-// agents and does not expose a public quota endpoint for OKIT to call.
+// agents and does not expose a public quota endpoint for MODELSWAP to call.
 async function queryQwenCodingUsage(_apiKey) {
   return {
     supported: true,

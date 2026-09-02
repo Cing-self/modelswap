@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "OKIT",
+  "name": "MODELSWAP",
   "version": "2.0.7",
-  "description": "OKIT 密钥自动创建助手 — 复用 Chrome 已登录会话,一键自动创建 API Key 并回填 OKIT vault",
+  "description": "MODELSWAP 密钥自动创建助手 — 复用 Chrome 已登录会话,一键自动创建 API Key 并回填 MODELSWAP vault",
   "permissions": ["debugger", "tabs", "cookies", "alarms", "scripting", "clipboardRead"],
   "host_permissions": ["<all_urls>"],
   "background": {

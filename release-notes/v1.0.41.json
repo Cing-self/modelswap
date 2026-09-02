@@ -37,5 +37,5 @@
       "en": "Home usage now refreshes automatically when credentials or supported providers change, and DeepSeek balances correctly show CNY. A new pre-release provider acceptance workflow with safety isolation helps catch console changes and login-state issues before release."
     }
   ],
-  "releaseUrl": "https://github.com/Cing-self/okit/releases/tag/v1.0.41"
+  "releaseUrl": "https://github.com/Cing-self/modelswap/releases/tag/v1.0.41"
 }

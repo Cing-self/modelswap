@@ -25,7 +25,7 @@ describe('supabase adapter', () => {
     }, 'user-1', { nonce: 'n' });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://abcdefghijklmnopqrst.supabase.co/rest/v1/okit_sync?on_conflict=key',
+      'https://abcdefghijklmnopqrst.supabase.co/rest/v1/modelswap_sync?on_conflict=key',
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({ Prefer: 'resolution=merge-duplicates' }),

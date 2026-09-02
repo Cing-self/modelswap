@@ -5,7 +5,7 @@ function createGenericResultStrategy(deps) {
     const { platform, uniqueName, tabId } = state;
 	  if (platform.captureBeforeConfirm) {
 	    await sleep(300);
-	    const preCaptureRaw = await execJs(`(() => JSON.stringify(window.__okitPreConfirmCapture || {}))()`).catch(() => '{}');
+	    const preCaptureRaw = await execJs(`(() => JSON.stringify(window.__modelswapPreConfirmCapture || {}))()`).catch(() => '{}');
 	    let preCapture = {};
 	    try { preCapture = JSON.parse(preCaptureRaw || '{}'); } catch {}
 	    const clipboardKey = keyFromText(preCapture.clipboard || '', platform);
@@ -64,14 +64,14 @@ function createGenericResultStrategy(deps) {
   const hasPostCreateCopy = Boolean(platform.postCreateCopyTexts?.length || platform.postCreateRowCopySelector || platform.postCreateCopyByMaskedKeyPrefix);
   if (hasPostCreateCopy) {
     await execJs(`(() => {
-      window.__okitCapturedKey = '';
-      window.__okitCopyCaptureInfo = { source: '', length: 0, clipboardHooked: false, clipboardWriteHooked: false, execHooked: false };
+      window.__modelswapCapturedKey = '';
+      window.__modelswapCopyCaptureInfo = { source: '', length: 0, clipboardHooked: false, clipboardWriteHooked: false, execHooked: false };
       const capture = (value, source) => {
         const text = String(value || '');
         if (!text) return;
-        window.__okitCapturedKey = text;
-        window.__okitCopyCaptureInfo.source = source;
-        window.__okitCopyCaptureInfo.length = text.length;
+        window.__modelswapCapturedKey = text;
+        window.__modelswapCopyCaptureInfo.source = source;
+        window.__modelswapCopyCaptureInfo.length = text.length;
       };
       const captureSelectedControl = (control, source) => {
         if (!control || typeof control.value !== 'string') return;
@@ -96,7 +96,7 @@ function createGenericResultStrategy(deps) {
           if (navigator.clipboard.writeText !== wrappedWriteText) {
             try { Object.defineProperty(Object.getPrototypeOf(navigator.clipboard), 'writeText', { configurable: true, value: wrappedWriteText }); } catch {}
           }
-          window.__okitCopyCaptureInfo.clipboardHooked = navigator.clipboard.writeText === wrappedWriteText;
+          window.__modelswapCopyCaptureInfo.clipboardHooked = navigator.clipboard.writeText === wrappedWriteText;
         }
       } catch {}
       try {
@@ -119,7 +119,7 @@ function createGenericResultStrategy(deps) {
           if (navigator.clipboard.write !== wrappedWrite) {
             try { Object.defineProperty(Object.getPrototypeOf(navigator.clipboard), 'write', { configurable: true, value: wrappedWrite }); } catch {}
           }
-          window.__okitCopyCaptureInfo.clipboardWriteHooked = navigator.clipboard.write === wrappedWrite;
+          window.__modelswapCopyCaptureInfo.clipboardWriteHooked = navigator.clipboard.write === wrappedWrite;
         }
       } catch {}
       try {
@@ -137,20 +137,20 @@ function createGenericResultStrategy(deps) {
           }
           return originalExecCommand(command);
         };
-        window.__okitCopyCaptureInfo.execHooked = document.execCommand !== originalExecCommand;
+        window.__modelswapCopyCaptureInfo.execHooked = document.execCommand !== originalExecCommand;
       } catch {}
       // Copy-helper libraries commonly select a short-lived input
       // and invoke the browser's native copy routine. Record that value when
       // it is selected, rather than reading any external clipboard state.
       for (const Prototype of [window.HTMLInputElement?.prototype, window.HTMLTextAreaElement?.prototype]) {
-        if (!Prototype?.select || Prototype.__okitCopyHooked) continue;
+        if (!Prototype?.select || Prototype.__modelswapCopyHooked) continue;
         try {
           const originalSelect = Prototype.select;
           Prototype.select = function(...args) {
             captureSelectedControl(this, 'control-select');
             return originalSelect.apply(this, args);
           };
-          Object.defineProperty(Prototype, '__okitCopyHooked', { value: true });
+          Object.defineProperty(Prototype, '__modelswapCopyHooked', { value: true });
         } catch {}
       }
       document.addEventListener('copy', () => {
@@ -297,7 +297,7 @@ function createGenericResultStrategy(deps) {
       // deliberately stays in the background for normal navigation, so bring
       // it forward only for this exact verified Copy action.
       const focused = await sendCommand('focus-window', {
-        workspace: 'okit',
+        workspace: 'modelswap',
       }, 5000).catch(() => ({ ok: false }));
       if (!focused.ok) {
         console.log(`[auto-create] ${platform.id}: could not foreground copy window`);
@@ -307,13 +307,13 @@ function createGenericResultStrategy(deps) {
       const pressed = await sendCommand('cdp', {
         cdpMethod: 'Input.dispatchMouseEvent',
         cdpParams: { ...pointer, type: 'mousePressed' },
-        workspace: 'okit',
+        workspace: 'modelswap',
         ...(tabId ? { tabId } : {}),
       }, 5000).catch(() => ({ ok: false }));
       const released = await sendCommand('cdp', {
         cdpMethod: 'Input.dispatchMouseEvent',
         cdpParams: { ...pointer, type: 'mouseReleased', buttons: 0 },
-        workspace: 'okit',
+        workspace: 'modelswap',
         ...(tabId ? { tabId } : {}),
       }, 5000).catch(() => ({ ok: false }));
       if (!pressed.ok || !released.ok) {
@@ -323,18 +323,18 @@ function createGenericResultStrategy(deps) {
     } else if (platform.postCreateCopyNeedsForeground) {
       const pointer = { x: Number(copyState.x), y: Number(copyState.y), button: 'left', buttons: 1, clickCount: 1 };
       if (!Number.isFinite(pointer.x) || !Number.isFinite(pointer.y)) continue;
-      const focused = await sendCommand('focus-window', { workspace: 'okit' }, 5000).catch(() => ({ ok: false }));
+      const focused = await sendCommand('focus-window', { workspace: 'modelswap' }, 5000).catch(() => ({ ok: false }));
       if (!focused.ok) continue;
       await sleep(150);
       const pressed = await sendCommand('cdp', {
         cdpMethod: 'Input.dispatchMouseEvent',
         cdpParams: { ...pointer, type: 'mousePressed' },
-        workspace: 'okit', ...(tabId ? { tabId } : {}),
+        workspace: 'modelswap', ...(tabId ? { tabId } : {}),
       }, 5000).catch(() => ({ ok: false }));
       const released = await sendCommand('cdp', {
         cdpMethod: 'Input.dispatchMouseEvent',
         cdpParams: { ...pointer, type: 'mouseReleased', buttons: 0 },
-        workspace: 'okit', ...(tabId ? { tabId } : {}),
+        workspace: 'modelswap', ...(tabId ? { tabId } : {}),
       }, 5000).catch(() => ({ ok: false }));
       if (!pressed.ok || !released.ok) continue;
     }
@@ -344,7 +344,7 @@ function createGenericResultStrategy(deps) {
       // if the entire clipboard text matches this platform's key format.
       await sleep(500);
       const clipboardRead = await sendCommand('clipboard-read', {
-        workspace: 'okit',
+        workspace: 'modelswap',
         clipboardPattern: platform.keyPatterns?.[0] || '',
         clipboardAllowSurrounding: platform.id === 'zai-global',
       }, 5000).catch((error) => ({ ok: false, data: {}, error: error?.message || String(error) }));
@@ -365,13 +365,13 @@ function createGenericResultStrategy(deps) {
     // records only the text supplied by this explicit provider Copy action; it
     // never reads the user's system clipboard.
     await sleep(250);
-    const copiedText = await execJs('window.__okitCapturedKey || ""').catch(() => '');
+    const copiedText = await execJs('window.__modelswapCapturedKey || ""').catch(() => '');
     const captureInfo = await execJs(`(() => JSON.stringify({
-      source: window.__okitCopyCaptureInfo?.source || '',
-      length: Number(window.__okitCopyCaptureInfo?.length) || 0,
-      clipboardHooked: Boolean(window.__okitCopyCaptureInfo?.clipboardHooked),
-      clipboardWriteHooked: Boolean(window.__okitCopyCaptureInfo?.clipboardWriteHooked),
-      execHooked: Boolean(window.__okitCopyCaptureInfo?.execHooked),
+      source: window.__modelswapCopyCaptureInfo?.source || '',
+      length: Number(window.__modelswapCopyCaptureInfo?.length) || 0,
+      clipboardHooked: Boolean(window.__modelswapCopyCaptureInfo?.clipboardHooked),
+      clipboardWriteHooked: Boolean(window.__modelswapCopyCaptureInfo?.clipboardWriteHooked),
+      execHooked: Boolean(window.__modelswapCopyCaptureInfo?.execHooked),
     }))()`).catch(() => '{}');
     console.log(`[auto-create] ${platform.id}: created-row copy capture ${captureInfo}`);
     const copiedKey = keyFromText(copiedText, platform);
@@ -392,7 +392,7 @@ function createGenericResultStrategy(deps) {
     // creation, so inspect only the responses produced by this creation/copy
     // flow as a fallback. Validation still rejects masked values.
     const copyNetwork = await sendCommand('network-capture-read', {
-      workspace: 'okit',
+      workspace: 'modelswap',
       ...(tabId ? { tabId } : {}),
     }, 10000).catch(() => ({ ok: false, data: [] }));
     const copyEntries = copyNetwork.ok ? (copyNetwork.data || []) : [];
@@ -420,7 +420,7 @@ function createGenericResultStrategy(deps) {
   const entries = [];
   for (let attempt = 0; attempt < readAttempts; attempt += 1) {
     await sleep(attempt === 0 ? 2500 : 1500);
-    const read = await sendCommand('network-capture-read', { workspace: 'okit', ...(tabId ? { tabId } : {}) }, 10000);
+    const read = await sendCommand('network-capture-read', { workspace: 'modelswap', ...(tabId ? { tabId } : {}) }, 10000);
     if (!read.ok) throw new Error(read.error || '无法读取创建结果');
     entries.push(...(read.data || []));
 

@@ -19,7 +19,7 @@ import WebSocket from 'ws';
 import { assertDriverActionAllowed, assertSafeProfileDir } from './safety.mjs';
 import { buildProbeScript } from './probe.mjs';
 
-export const DEFAULT_DEBUG_PORT = Number(process.env.OKIT_LIVE_DEBUG_PORT || 9333);
+export const DEFAULT_DEBUG_PORT = Number(process.env.MODELSWAP_LIVE_DEBUG_PORT || 9333);
 
 const CHROME_CANDIDATES = {
   darwin: [
@@ -52,7 +52,7 @@ function windowsCandidates(env) {
 }
 
 export function findChromeBinary({ env = process.env, platform = process.platform, existsSync = fs.existsSync } = {}) {
-  if (env.OKIT_LIVE_CHROME_BIN && existsSync(env.OKIT_LIVE_CHROME_BIN)) return env.OKIT_LIVE_CHROME_BIN;
+  if (env.MODELSWAP_LIVE_CHROME_BIN && existsSync(env.MODELSWAP_LIVE_CHROME_BIN)) return env.MODELSWAP_LIVE_CHROME_BIN;
   const candidates = platform === 'win32'
     ? windowsCandidates(env)
     : CHROME_CANDIDATES[platform] || [];

@@ -11,7 +11,7 @@ describe('VaultStore cache coherence', () => {
   });
 
   it('reloads cached data when another store instance saves vault changes', async () => {
-    const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'okit-vault-cache-'));
+    const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'modelswap-vault-cache-'));
     const actualOs = await vi.importActual<typeof import('os')>('os');
 
     vi.doMock('os', () => ({

@@ -16,7 +16,7 @@ afterEach(async () => {
 
 describe('atomicWrite concurrency (real fs)', () => {
   it('survives concurrent writes to the same target', async () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-awc-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-awc-'));
     created.push(dir);
     const target = path.join(dir, 'user.json');
 
@@ -29,16 +29,16 @@ describe('atomicWrite concurrency (real fs)', () => {
     const final = JSON.parse(await fs.readFile(target, 'utf-8'));
     expect(final.payload.length).toBe(200);
     expect(final.i).toBeGreaterThanOrEqual(0);
-    const leftovers = (await fs.readdir(dir)).filter(f => f.includes('okit-tmp'));
+    const leftovers = (await fs.readdir(dir)).filter(f => f.includes('modelswap-tmp'));
     expect(leftovers).toEqual([]);
   });
 
   it('basic write leaves no tmp files', async () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-awb-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-awb-'));
     created.push(dir);
     const target = path.join(dir, 'target.json');
     await atomicWrite(target, '{"a":1}');
     expect(await fs.readFile(target, 'utf-8')).toBe('{"a":1}');
-    expect((await fs.readdir(dir)).filter(f => f.includes('okit-tmp'))).toEqual([]);
+    expect((await fs.readdir(dir)).filter(f => f.includes('modelswap-tmp'))).toEqual([]);
   });
 });

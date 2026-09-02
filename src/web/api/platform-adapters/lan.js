@@ -1,4 +1,4 @@
-// LAN peer adapter: talks to another OKIT instance's lan-sync-server. The
+// LAN peer adapter: talks to another MODELSWAP instance's lan-sync-server. The
 // remote endpoint is a dumb encrypted-blob store (like a WebDAV file), so
 // push/pull semantics match every other platform adapter exactly.
 const lanServer = require('../lan-sync-server');
@@ -25,7 +25,7 @@ async function machineHeader() {
   try {
     const { name, id } = await lanServer.getMachineIdentity();
     if (!id) return {};
-    return { 'x-okit-machine': `${encodeURIComponent(name)}#${id}` };
+    return { 'x-modelswap-machine': `${encodeURIComponent(name)}#${id}` };
   } catch {
     return {};
   }

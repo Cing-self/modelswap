@@ -7,9 +7,9 @@
 在 **设置 → 云备份** 中配置平台与同步密码后：
 
 ```bash
-okit vault push                 # 推送密钥与 Agent/Provider 配置到所有已启用平台
-okit vault pull                 # 拉取各平台最新数据并合并到本地
-okit vault test cloudflare-kv   # 测试某平台连接（如 supabase、cloudflare-kv）
+modelswap vault push                 # 推送密钥与 Agent/Provider 配置到所有已启用平台
+modelswap vault pull                 # 拉取各平台最新数据并合并到本地
+modelswap vault test cloudflare-kv   # 测试某平台连接（如 supabase、cloudflare-kv）
 ```
 
 ## 6.2 自动同步（推荐）
@@ -26,7 +26,7 @@ okit vault test cloudflare-kv   # 测试某平台连接（如 supabase、cloudfl
 
 同一局域网内的电脑之间直接同步，不需要任何云平台账号（设置 → 设备同步 → 添加设备）：
 
-- 在常开的那台电脑上「添加设备 → 本机作为主设备」开启监听，复制显示的 `okit-lan://` 配对码
+- 在常开的那台电脑上「添加设备 → 本机作为主设备」开启监听，复制显示的 `modelswap-lan://` 配对码
 - 其他电脑「添加设备」粘贴配对码点击「连接」即可；两台设备需使用**相同的同步密码**
 - 设备列表实时显示对端在线状态；数据端到端加密，主机 IP 变化后重新配对即可
-- 首次连接若被系统防火墙拦截，请允许 OKIT 的入站连接（局域网同步默认端口 3790）；可与云平台同时启用、互为备份
+- 首次连接若被系统防火墙拦截，请允许 ModelSwap 的入站连接（局域网同步默认端口 3790）；可与云平台同时启用、互为备份

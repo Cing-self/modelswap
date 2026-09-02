@@ -7,7 +7,7 @@ import { t } from "../config/i18n";
 
 const store = new VaultStore();
 
-// Parse .okitenv file
+// Parse .modelswapenv file
 // Format — each line: ENV_NAME: VAULT_KEY
 //
 // Examples:
@@ -18,15 +18,15 @@ const store = new VaultStore();
 //
 // envName = 项目 .env 里实际写入的变量名
 // vaultKey = vault 里存储的 key
-interface OkitEnvEntry {
+interface ModelSwapEnvEntry {
   envName: string;     // .env 里的变量名（如 OPENAI_API_KEY）
   vaultKey: string;    // vault 里的 key（如 OPENROUTER_KEY）
 }
 
-async function parseOkitEnv(filePath: string): Promise<OkitEnvEntry[]> {
+async function parseModelSwapEnv(filePath: string): Promise<ModelSwapEnvEntry[]> {
   if (!(await fs.pathExists(filePath))) return [];
   const content = await fs.readFile(filePath, "utf-8");
-  const entries: OkitEnvEntry[] = [];
+  const entries: ModelSwapEnvEntry[] = [];
 
   for (const rawLine of content.split("\n")) {
     const line = rawLine.trim();
@@ -55,9 +55,9 @@ async function parseOkitEnv(filePath: string): Promise<OkitEnvEntry[]> {
   return entries;
 }
 
-function findOkitEnv(dir?: string): string | null {
+function findModelSwapEnv(dir?: string): string | null {
   const cwd = dir || process.cwd();
-  const candidates = [".okitenv", ".okit-env"];
+  const candidates = [".modelswapenv", ".modelswap-env"];
   for (const name of candidates) {
     const fp = path.join(cwd, name);
     if (fs.existsSync(fp)) return fp;
@@ -65,14 +65,14 @@ function findOkitEnv(dir?: string): string | null {
   return null;
 }
 
-// okit vault set KEY value
+// modelswap vault set KEY value
 export async function vaultSet(key: string, value: string): Promise<void> {
   await store.set(key, value);
   console.log(kleur.green(`${t("vaultSaved")} ${key}`));
 
 }
 
-// okit vault get KEY
+// modelswap vault get KEY
 export async function vaultGet(key: string): Promise<void> {
   const value = await store.get(key);
   if (value === null) {
@@ -83,7 +83,7 @@ export async function vaultGet(key: string): Promise<void> {
   process.stdout.write(value);
 }
 
-// okit vault list
+// modelswap vault list
 export async function vaultList(options?: { json?: boolean }): Promise<void> {
   const entries = await store.list();
   if (entries.length === 0) {
@@ -116,7 +116,7 @@ export async function vaultList(options?: { json?: boolean }): Promise<void> {
   console.log();
 }
 
-// okit vault delete KEY
+// modelswap vault delete KEY
 export async function vaultDelete(key: string): Promise<void> {
   const confirm = await prompts({
     type: "confirm",
@@ -134,22 +134,22 @@ export async function vaultDelete(key: string): Promise<void> {
   }
 }
 
-// okit vault inject — output shell export statements
-// Reads .okitenv from current directory to know which keys to inject
+// modelswap vault inject — output shell export statements
+// Reads .modelswapenv from current directory to know which keys to inject
 export async function vaultInject(options?: { keys?: string; dir?: string; shell?: string }): Promise<void> {
   const dir = options?.dir || process.cwd();
   const targetShell = options?.shell || (process.platform === "win32" ? "powershell" : "bash");
-  let entries: OkitEnvEntry[];
+  let entries: ModelSwapEnvEntry[];
 
   if (options?.keys) {
     entries = options.keys.split(",").map((key) => ({ envName: key.trim(), vaultKey: key.trim() }));
   } else {
-    const envFile = findOkitEnv(dir);
+    const envFile = findModelSwapEnv(dir);
     if (!envFile) {
-      console.error(kleur.red(t("vaultNoOkitEnv")));
+      console.error(kleur.red(t("vaultNoModelSwapEnv")));
       process.exit(1);
     }
-    entries = await parseOkitEnv(envFile);
+    entries = await parseModelSwapEnv(envFile);
   }
 
   if (entries.length === 0) {
@@ -174,27 +174,27 @@ export async function vaultInject(options?: { keys?: string; dir?: string; shell
   // Tracking vars for shell hook cleanup
   if (loadedKeys.length > 0 && !options?.keys) {
     if (targetShell === "powershell") {
-      process.stdout.write(`$global:_OKIT_LOADED_KEYS = "${loadedKeys.join(" ")}"\n`);
-      process.stdout.write(`$global:_OKIT_LOADED_DIR = "${dir}"\n`);
+      process.stdout.write(`$global:_MODELSWAP_LOADED_KEYS = "${loadedKeys.join(" ")}"\n`);
+      process.stdout.write(`$global:_MODELSWAP_LOADED_DIR = "${dir}"\n`);
     } else {
-      process.stdout.write(`_OKIT_LOADED_KEYS="${loadedKeys.join(" ")}"\n`);
-      process.stdout.write(`_OKIT_LOADED_DIR="${dir}"\n`);
-      process.stdout.write(`export _OKIT_LOADED_KEYS _OKIT_LOADED_DIR\n`);
+      process.stdout.write(`_MODELSWAP_LOADED_KEYS="${loadedKeys.join(" ")}"\n`);
+      process.stdout.write(`_MODELSWAP_LOADED_DIR="${dir}"\n`);
+      process.stdout.write(`export _MODELSWAP_LOADED_KEYS _MODELSWAP_LOADED_DIR\n`);
     }
   }
 }
 
-// okit vault env [file] — write .env file from .okitenv
+// modelswap vault env [file] — write .env file from .modelswapenv
 export async function vaultEnv(targetFile?: string, options?: { dir?: string }): Promise<void> {
   const dir = options?.dir || process.cwd();
-  const envFile = findOkitEnv(dir);
+  const envFile = findModelSwapEnv(dir);
   if (!envFile) {
-    console.log(kleur.red(t("vaultNoOkitEnv")));
+    console.log(kleur.red(t("vaultNoModelSwapEnv")));
     process.exitCode = 1;
     return;
   }
 
-  const entries = await parseOkitEnv(envFile);
+  const entries = await parseModelSwapEnv(envFile);
   if (entries.length === 0) {
     console.log(kleur.yellow(t("vaultNoKeys")));
     process.exitCode = 1;

@@ -103,7 +103,7 @@ describe('auto-create strategy dependency wiring', () => {
       .rejects.toThrow('需要登录智谱 AI (https://account.example.test/login)');
     expect(detectLoginRequired).toHaveBeenCalledWith({ id: 'zhipu', label: '智谱 AI' });
     expect(sendCommand).toHaveBeenCalledTimes(1);
-    expect(sendCommand).toHaveBeenCalledWith('navigate', { url: 'https://console.example.test/zhipu', workspace: 'okit' }, 30000);
+    expect(sendCommand).toHaveBeenCalledWith('navigate', { url: 'https://console.example.test/zhipu', workspace: 'modelswap' }, 30000);
     expect(clickCreateAction).not.toHaveBeenCalled();
   });
 

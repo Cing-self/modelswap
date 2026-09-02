@@ -18,8 +18,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import path from 'path';
 import os from 'os';
 
-const OKIT_DIR = path.join(os.homedir(), '.okit');
-const PROVIDERS_PATH = path.join(OKIT_DIR, 'providers.json');
+const MODELSWAP_DIR = path.join(os.homedir(), '.modelswap');
+const PROVIDERS_PATH = path.join(MODELSWAP_DIR, 'providers.json');
 
 const memFiles = new Map<string, string>();
 

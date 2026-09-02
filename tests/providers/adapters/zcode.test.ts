@@ -4,9 +4,9 @@ import path from 'path';
 
 const testRoot = vi.hoisted(() => {
   const p = require('path');
-  const d = '/tmp/test-okit-zcode';
+  const d = '/tmp/test-modelswap-zcode';
   return {
-    OKIT_DIR: d,
+    MODELSWAP_DIR: d,
     REGISTRY_PATH: p.join(d, 'registry.json'),
     LOGS_DIR: p.join(d, 'logs'),
     CACHE_DIR: p.join(d, 'cache'),
@@ -28,7 +28,7 @@ const mocks = vi.hoisted(() => {
 vi.mock('fs-extra', () => ({ default: mocks }));
 
 vi.mock('../../../src/config/registry', () => ({
-  OKIT_DIR: testRoot.OKIT_DIR,
+  MODELSWAP_DIR: testRoot.MODELSWAP_DIR,
   REGISTRY_PATH: testRoot.REGISTRY_PATH,
   LOGS_DIR: testRoot.LOGS_DIR,
   CACHE_DIR: testRoot.CACHE_DIR,
@@ -76,7 +76,7 @@ const { ZCodeAdapter } = await import('../../../src/providers/adapters/zcode');
 const { loadUserConfig } = await import('../../../src/config/user');
 
 const CONFIG_PATH = path.join(os.homedir(), '.zcode', 'v2', 'config.json');
-const OWNERSHIP_PATH = path.join(os.homedir(), '.zcode', 'v2', '.okit-managed.json');
+const OWNERSHIP_PATH = path.join(os.homedir(), '.zcode', 'v2', '.modelswap-managed.json');
 const readOwnership = () => JSON.parse(mocks.files.get(OWNERSHIP_PATH) || '{}');
 
 const testProvider = {
@@ -192,7 +192,7 @@ describe('ZCodeAdapter.applyConfig (v2 config schema)', () => {
     expect(written.provider['builtin:bigmodel-coding-plan'].kind).toBe('anthropic');
   });
 
-  it('does not overwrite an existing provider entry OKIT does not own', async () => {
+  it('does not overwrite an existing provider entry MODELSWAP does not own', async () => {
     mocks.files.set(CONFIG_PATH, JSON.stringify({
       provider: {
         deepseek: { enabled: true, name: 'My DeepSeek', kind: 'anthropic', options: { baseURL: 'https://other.example.com' } },
@@ -207,7 +207,7 @@ describe('ZCodeAdapter.applyConfig (v2 config schema)', () => {
     expect(written.provider.deepseek.name).toBe('My DeepSeek');
   });
 
-  it('adopts an existing entry pointing at the same endpoint (legacy OKIT write)', async () => {
+  it('adopts an existing entry pointing at the same endpoint (legacy MODELSWAP write)', async () => {
     mocks.files.set(CONFIG_PATH, JSON.stringify({
       provider: {
         deepseek: { enabled: true, name: 'DeepSeek', kind: 'openai-compatible', options: { baseURL: 'https://api.deepseek.com' } },
@@ -298,7 +298,7 @@ describe('ZCodeAdapter.applyConfig (v2 config schema)', () => {
 
     const written = JSON.parse(mocks.files.get(CONFIG_PATH)!);
     const entry = written.provider.openrouter;
-    // ZCode knows gemma-4-26b-a4b-it:free itself — OKIT must not override it.
+    // ZCode knows gemma-4-26b-a4b-it:free itself — MODELSWAP must not override it.
     expect(entry.models['google/gemma-4-26b-a4b-it:free'].limit).toBeUndefined();
     expect(entry.models['cohere/north-mini-code:free'].limit).toEqual({ context: 256000, output: 64000 });
   });
@@ -317,7 +317,7 @@ describe('ZCodeAdapter.applyModels (additive home-site write)', () => {
     expect(Object.keys(written.provider).sort()).toEqual(['deepseek', 'zai']);
   });
 
-  it('skips providers whose existing entry OKIT does not own, keeps writing the rest', async () => {
+  it('skips providers whose existing entry MODELSWAP does not own, keeps writing the rest', async () => {
     mocks.files.set(CONFIG_PATH, JSON.stringify({
       provider: {
         deepseek: { enabled: true, name: 'My DeepSeek', kind: 'anthropic', options: { baseURL: 'https://other.example.com' } },
@@ -460,7 +460,7 @@ describe('ZCodeAdapter.getActiveModel', () => {
 });
 
 describe('ZCodeAdapter.removeProvider', () => {
-  it('removes only the OKIT-managed provider entry, preserving builtin entries', async () => {
+  it('removes only the MODELSWAP-managed provider entry, preserving builtin entries', async () => {
     await userConfigStore;
     mocks.files.set(CONFIG_PATH, JSON.stringify({
       provider: {
@@ -522,7 +522,7 @@ describe('ZCodeAdapter media capability overrides (cli/config.json)', () => {
     const cli = JSON.parse(mocks.files.get(CLI_CONFIG_PATH)!);
     expect(cli.mcp).toEqual({ servers: {} });  // user sections preserved
     expect(cli.modelCatalog.overrides['opencode-zen/deepseek-v4-flash-free'])
-      .toEqual({ supportsImages: false, _okitManaged: true });
+      .toEqual({ supportsImages: false, _modelswapManaged: true });
   });
 
   it('does not write overrides for vision or unknown-capability models', async () => {
@@ -545,13 +545,13 @@ describe('ZCodeAdapter media capability overrides (cli/config.json)', () => {
     expect(mocks.files.has(CLI_CONFIG_PATH)).toBe(false);
   });
 
-  it('removes only OKIT-tagged overrides on removeProvider and keeps user overrides', async () => {
+  it('removes only MODELSWAP-tagged overrides on removeProvider and keeps user overrides', async () => {
     mocks.files.set(CLI_CONFIG_PATH, JSON.stringify({
       modelCatalog: {
         overrides: {
-          'opencode-zen/deepseek-v4-flash-free': { supportsImages: false, _okitManaged: true },
+          'opencode-zen/deepseek-v4-flash-free': { supportsImages: false, _modelswapManaged: true },
           'opencode-zen/mimo-v2.5-free': { supportsImages: true },  // user-written, untagged
-          'other-provider/model': { supportsImages: false, _okitManaged: true },
+          'other-provider/model': { supportsImages: false, _modelswapManaged: true },
         },
       },
     }));

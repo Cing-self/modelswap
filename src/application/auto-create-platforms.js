@@ -24,7 +24,7 @@ const AUTO_CREATE_PLATFORMS = [
   // format is sk-tp-... .
   { id: 'tencent-token-plan', label: '腾讯云 Token Plan', keyHint: 'TENCENT_TOKEN_PLAN_API_KEY', groupHint: '腾讯云', mode: 'browser', url: 'https://console.cloud.tencent.com/tokenhub/tokenplan', createTexts: ['生成密钥', '生成 API Key', '生成API Key', '创建 API Key', '创建API Key', '复制'], creationActionOnly: true, reuseExistingMaskedKey: true, existingKeyRequired: true, existingMaskedKeyPrefix: 'sk-tp-', missingExistingKeyMessage: '腾讯云 Token Plan 当前没有可复用的订阅 Key；请在 Token Plan 页面生成或复制 sk-tp- 开头的专属 Key，自动化不会重置已有 Key。', confirmTexts: ['确认', '确定', '创建'], postCreateCopyTexts: ['复制', '复制密钥', 'Copy'], postCreateCopyByMaskedKeyPrefix: 'sk-tp-', postCreateCopyAttempts: 10, postCreateCopyRetryMs: 700, postCreateCopyNeedsForeground: true, allowExtensionClipboardRead: true, postCreateReadAttempts: 5, keyPatterns: ['sk-tp-[A-Za-z0-9_-]{10,}'], postCreateCopyFailureMessage: '腾讯云 Token Plan 页面没有读取到 sk-tp- 开头的明文 Key；为避免误存普通 API Key 或重置已有 Key，请在 Token Plan 页面手动复制后重试。' },
   // Tencent SecretId/SecretKey is a CAM identity credential used by the
-  // Billing API. Keep it manual-only: OKIT must not acknowledge primary-account
+  // Billing API. Keep it manual-only: MODELSWAP must not acknowledge primary-account
   // risk dialogs, choose an IAM identity, or create a credential it cannot
   // synchronize after deletion in the cloud console.
   { id: 'zhipu', label: '智谱 AI（国内站）', keyHint: 'ZHIPUAI_API_KEY', groupHint: '智谱AI', mode: 'browser', url: ZHIPU_URL, deleteConfirmWaitAttempts: 20, deleteConfirmTexts: ['确定'], deleteDialogText: '此操作将永久删除该行数据' },
@@ -79,7 +79,7 @@ const AUTO_CREATE_PLATFORMS = [
   // are created from 身份管理 > 用户 > 凭证管理, so this flow must never guess
   // which RAM user to mutate.
   // Alibaba Cloud AccessKey is an account-level RAM credential. Keep it out
-  // of browser auto-create so OKIT never acknowledges a root-account risk
+  // of browser auto-create so MODELSWAP never acknowledges a root-account risk
   // dialog or creates an identity credential on the user's behalf. The usage
   // adapter continues to accept manually stored, least-privilege RAM keys.
   // SiliconFlow exposes OpenAI-compatible Bearer keys from its account page.
@@ -138,7 +138,7 @@ const AUTO_CREATE_PLATFORMS = [
 
 // Provider-side credential limits. These are deliberately metadata and
 // warnings, not a local Vault count: users can create/delete keys outside
-// OKIT and there is no cross-platform synchronization API. The actual hard
+// MODELSWAP and there is no cross-platform synchronization API. The actual hard
 // stop happens when the provider returns a limit error; reuse-only plans are
 // blocked from submitting a duplicate create action above.
 const AUTO_CREATE_KEY_LIMITS = {

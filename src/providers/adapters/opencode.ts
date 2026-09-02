@@ -11,7 +11,7 @@ import { atomicWrite, atomicWriteJSON } from "../../utils/atomicWrite";
 // OpenCode reads ~/.config/opencode/opencode.json (NOT ~/.opencode/config.json).
 // The schema is additive: provider is an object keyed by provider id, each entry
 // carries the AI SDK npm package + options + models. Mirrors cc-switch's
-// opencode_config.rs + OpenCodeProviderConfig. Previous OKIT version wrote a
+// opencode_config.rs + OpenCodeProviderConfig. Previous MODELSWAP version wrote a
 // flat {provider, model, apiKey, baseUrl} shape that OpenCode never reads.
 //
 // OpenCode is the reference opencode client, so for opencode.ai endpoints it
@@ -19,7 +19,7 @@ import { atomicWrite, atomicWriteJSON } from "../../utils/atomicWrite";
 // official-client quota pool) — the headers written here are a no-op for those
 // endpoints but are still applied uniformly. Per-model `limit` matters for
 // free-tier models: opencode's own built-in catalog knows the zen limits, but
-// OKIT-authored providers (user-added sites) get explicit limits so max_tokens
+// MODELSWAP-authored providers (user-added sites) get explicit limits so max_tokens
 // never exceeds the gateway cap (see gateway.ts).
 const OPENCODE_CONFIG_PATH = path.join(os.homedir(), ".config", "opencode", "opencode.json");
 const OPENCODE_DESKTOP_APP_IDS = [
@@ -43,7 +43,7 @@ export function openCodeDesktopStorePaths(): string[] {
   return OPENCODE_DESKTOP_APP_IDS.map(id => path.join(appData, id, "opencode.global.dat"));
 }
 
-// Map OKIT's protocol type to the AI SDK package OpenCode loads for it.
+// Map MODELSWAP's protocol type to the AI SDK package OpenCode loads for it.
 function npmPackageFor(type: ProviderType): string {
   switch (type) {
     case "anthropic": return "@ai-sdk/anthropic";
@@ -173,7 +173,7 @@ export class OpenCodeAdapter extends BaseAdapter {
 
     // OpenCode is additive-mode: all configured providers coexist and OpenCode
     // itself picks which one to use (there is no "active provider" concept that
-    // OKIT needs to set — mirrors cc-switch where ProviderService::current()
+    // MODELSWAP needs to set — mirrors cc-switch where ProviderService::current()
     // returns empty for additive apps). We only ensure this provider + its
     // models are present.
 
@@ -200,7 +200,7 @@ export class OpenCodeAdapter extends BaseAdapter {
     return { written, skipped: [] };
   }
 
-  // Which OKIT provider ids currently have an entry in opencode's config.
+  // Which MODELSWAP provider ids currently have an entry in opencode's config.
   async listEnabledProviders(): Promise<string[]> {
     const data = await this.loadConfig();
     if (typeof data.provider !== "object" || data.provider === null) return [];

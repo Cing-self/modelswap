@@ -14,7 +14,7 @@ import { useDataChanged } from './useDataChanged';
  * The initial auto-check is silent (no error surfaced) so it can run on every
  * app open without nagging offline users. `restart()` only exists in the
  * Electron desktop build — it mounts the downloaded DMG, replaces
- * /Applications/OKIT.app, and relaunches; in a browser it falls back to the
+ * /Applications/MODELSWAP.app, and relaunches; in a browser it falls back to the
  * already-opened installer.
  *
  * Beyond the startup check, two silent paths keep a long-running app aware:
@@ -124,7 +124,7 @@ export function useAppUpdate(options?: { autoCheck?: boolean }) {
   const autoCheck = options?.autoCheck !== false;
   // Desktop owns installation after a completed download. Browsers keep the
   // manual installer flow after the server opens the DMG.
-  const isDesktop = typeof window !== 'undefined' && Boolean((window as any).okitDesktop?.installUpdate);
+  const isDesktop = typeof window !== 'undefined' && Boolean((window as any).modelswapDesktop?.installUpdate);
   const [update, setUpdate] = useState<UpdateState>({ status: 'idle' });
   const [download, setDownload] = useState<UpdateDownload | null>(null);
   const [restarting, setRestarting] = useState(false);
@@ -211,7 +211,7 @@ export function useAppUpdate(options?: { autoCheck?: boolean }) {
   }, [download?.status, download?.path]);
 
   const restart = useCallback(async () => {
-    const desktop = (window as any).okitDesktop;
+    const desktop = (window as any).modelswapDesktop;
     // Browser console: the server already opened the DMG on macOS, so there
     // is nothing to relaunch — the button only renders in the desktop app.
     if (!desktop?.installUpdate) return;

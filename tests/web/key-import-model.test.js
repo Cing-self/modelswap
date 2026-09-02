@@ -1,7 +1,7 @@
 // Regression tests for the wizard's model-key classification. Real-world
 // report (2026-08-25): on a fresh machine the wizard showed ONLY the two
 // zcode builtin keys — every other legit model key was hidden because
-// (a) the provider-store require had no dist fallback, so okitProviderIds
+// (a) the provider-store require had no dist fallback, so modelswapProviderIds
 // was always null, and (b) common shapes (claude env block, codex toml/api
 // root, workbuddy flat arrays) were never classified as model keys.
 import { describe, it, expect, vi } from 'vitest';
@@ -21,7 +21,7 @@ const ids = new Set(['xiaomi-coding', 'deepseek', 'zai', 'openrouter', 'anthropi
 const classify = (path, providerId) => isModelKey({ path, providerId }, ids);
 
 describe('isModelKey classification', () => {
-  it('accepts OKIT-known provider namespaces (the require-fallback case)', () => {
+  it('accepts MODELSWAP-known provider namespaces (the require-fallback case)', () => {
     expect(classify('provider.xiaomi-coding.options.apiKey', 'xiaomi-coding')).toBe(true);
     expect(classify('provider.deepseek.options.apiKey', 'deepseek')).toBe(true);
   });

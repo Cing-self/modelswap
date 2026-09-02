@@ -11,21 +11,21 @@ const WORKBUDDY_DIR = path.join(os.homedir(), ".workbuddy");
 const WORKBUDDY_MODELS_PATH = path.join(WORKBUDDY_DIR, "models.json");
 // Local ownership prevents deletion from touching models created by WorkBuddy.
 // It is deliberately neither user.json nor sync payload state.
-const WORKBUDDY_OWNERSHIP_PATH = path.join(WORKBUDDY_DIR, ".okit-managed.json");
+const WORKBUDDY_OWNERSHIP_PATH = path.join(WORKBUDDY_DIR, ".modelswap-managed.json");
 
 // WorkBuddy models.json is a TOP-LEVEL ARRAY of custom model entries — the
 // format WorkBuddy's own UI writes. (A legacy {models: [...], availableModels:
-// [...]} wrapper is still accepted by WorkBuddy's loader, but OKIT always
+// [...]} wrapper is still accepted by WorkBuddy's loader, but MODELSWAP always
 // writes the native array form and NEVER the availableModels field: that field
 // is a whitelist over the whole model catalog — when non-empty, every model
 // not listed (including all WorkBuddy presets) is hidden from the UI.)
 //
 // WorkBuddy is an ADDITIVE agent: entries from every source coexist and the
-// user switches between them inside WorkBuddy's own model picker. OKIT must
+// user switches between them inside WorkBuddy's own model picker. MODELSWAP must
 // therefore never modify or remove entries it did not write. Ownership is
-// tracked in user.json (managedModels, keyed by OKIT providerId); entries at
-// the same endpoint base URL are adopted as OKIT's own so configs written by
-// older OKIT versions (before tracking existed) keep working.
+// tracked in user.json (managedModels, keyed by MODELSWAP providerId); entries at
+// the same endpoint base URL are adopted as MODELSWAP's own so configs written by
+// older MODELSWAP versions (before tracking existed) keep working.
 //
 // Entries carry capability flags only when the shared resolved model has an
 // explicit fact. Unknown is intentionally omitted; adapters must not turn a
@@ -166,9 +166,9 @@ export class WorkBuddyAdapter extends BaseAdapter {
     return entry;
   }
 
-  // OKIT owns an existing entry when the model id is recorded in its managed
+  // MODELSWAP owns an existing entry when the model id is recorded in its managed
   // list, or when the entry already points at this provider's endpoint (legacy
-  // OKIT writes / identical endpoint re-added via OKIT).
+  // MODELSWAP writes / identical endpoint re-added via MODELSWAP).
   private ownsEntry(entry: WorkBuddyModelEntry | undefined, modelId: string, providerId: string, managed: ManagedModels, chatUrl: string): boolean {
     if ((managed[providerId] || []).includes(modelId)) return true;
     return Boolean(entry && endpointBase(entry.url) === endpointBase(chatUrl));
@@ -183,7 +183,7 @@ export class WorkBuddyAdapter extends BaseAdapter {
     const entry = models.find(m => m.id === modelId);
     if (entry && !this.ownsEntry(entry, modelId, provider.id, managed, chatUrl)) {
       throw new Error(
-        `WorkBuddy 中已存在模型 "${modelId}"（非 OKIT 写入，可能是官方预设），已跳过以免覆盖。如需 OKIT 管理，请先在 WorkBuddy 中删除该模型。`,
+        `WorkBuddy 中已存在模型 "${modelId}"（非 MODELSWAP 写入，可能是官方预设），已跳过以免覆盖。如需 MODELSWAP 管理，请先在 WorkBuddy 中删除该模型。`,
       );
     }
 
@@ -225,7 +225,7 @@ export class WorkBuddyAdapter extends BaseAdapter {
 
   async listEnabledProviders(): Promise<string[]> {
     // WorkBuddy config has no enabled flag — an entry present IS enabled.
-    // OKIT-managed provider ids are the ones we know were written and still
+    // MODELSWAP-managed provider ids are the ones we know were written and still
     // own entries for.
     return Object.keys(await this.readManaged());
   }
@@ -236,7 +236,7 @@ export class WorkBuddyAdapter extends BaseAdapter {
     const ids = managed[providerId] || [];
     if (!(providerId in managed) && sel?.providerId !== providerId) return;
 
-    // Keep entries still claimed by another OKIT provider (shared model ids
+    // Keep entries still claimed by another MODELSWAP provider (shared model ids
     // between merged families, e.g. kimi/moonshot).
     const claimedByOther = (id: string) =>
       Object.entries(managed).some(([pid, list]) => pid !== providerId && list.includes(id));

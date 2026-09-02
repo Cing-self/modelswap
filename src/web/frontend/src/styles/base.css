@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════
-   OKIT — Paper Cutout Collage Style
+   MODELSWAP — Paper Cutout Collage Style
    Layered paper, torn edges, bold shapes,
    handmade collage feel
    ═══════════════════════════════════════════ */
@@ -226,7 +226,7 @@ body {
 .desktop-titlebar-sidebar-toggle:focus-visible {
   outline-offset: 1px;
 }
-@keyframes okit-titlebar-spin { to { transform: rotate(360deg); } }
+@keyframes modelswap-titlebar-spin { to { transform: rotate(360deg); } }
 @keyframes titlebar-update-pulse {
   0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent, #2f6b3a) 30%, transparent); }
   50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent, #2f6b3a) 0%, transparent); }

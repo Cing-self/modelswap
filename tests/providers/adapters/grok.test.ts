@@ -4,9 +4,9 @@ import path from 'path';
 
 const testRoot = vi.hoisted(() => {
   const p = require('path');
-  const d = '/tmp/test-okit-grok';
+  const d = '/tmp/test-modelswap-grok';
   return {
-    OKIT_DIR: d,
+    MODELSWAP_DIR: d,
     REGISTRY_PATH: p.join(d, 'registry.json'),
     LOGS_DIR: p.join(d, 'logs'),
     CACHE_DIR: p.join(d, 'cache'),
@@ -29,7 +29,7 @@ const mocks = vi.hoisted(() => {
 vi.mock('fs-extra', () => ({ default: mocks }));
 
 vi.mock('../../../src/config/registry', () => ({
-  OKIT_DIR: testRoot.OKIT_DIR,
+  MODELSWAP_DIR: testRoot.MODELSWAP_DIR,
   REGISTRY_PATH: testRoot.REGISTRY_PATH,
   LOGS_DIR: testRoot.LOGS_DIR,
   CACHE_DIR: testRoot.CACHE_DIR,
@@ -99,14 +99,14 @@ describe('GrokAdapter', () => {
     await adapter.applyConfig(openAIProvider, 'my-model');
 
     const toml = mocks.files.get(CONFIG_PATH)!;
-    expect(toml).toContain('[model.okit-custom-openai-my-model]');
+    expect(toml).toContain('[model.modelswap-custom-openai-my-model]');
     expect(toml).toContain('model = "my-model"');
     expect(toml).toContain('base_url = "https://custom.api.com/v1"');
     expect(toml).toContain('api_backend = "chat_completions"');
     expect(toml).toContain('api_key = "sk-test-123"');
     // Unknown model facts stay unknown; the adapter must not invent a window.
     expect(toml).not.toContain('context_window = ');
-    expect(toml).toContain('[models]\ndefault = "okit-custom-openai-my-model"');
+    expect(toml).toContain('[models]\ndefault = "modelswap-custom-openai-my-model"');
   });
 
   it('registers every model of the provider', async () => {
@@ -114,8 +114,8 @@ describe('GrokAdapter', () => {
     await adapter.applyConfig(openAIProvider, 'my-model');
 
     const toml = mocks.files.get(CONFIG_PATH)!;
-    expect(toml).toContain('[model.okit-custom-openai-my-model]');
-    expect(toml).toContain('[model.okit-custom-openai-other-model]');
+    expect(toml).toContain('[model.modelswap-custom-openai-my-model]');
+    expect(toml).toContain('[model.modelswap-custom-openai-other-model]');
   });
 
   it('maps anthropic providers to the messages backend', async () => {
@@ -124,7 +124,7 @@ describe('GrokAdapter', () => {
 
     const toml = mocks.files.get(CONFIG_PATH)!;
     expect(toml).toContain('api_backend = "messages"');
-    expect(toml).toContain('[models]\ndefault = "okit-custom-anthropic-claude-model"');
+    expect(toml).toContain('[models]\ndefault = "modelswap-custom-anthropic-claude-model"');
   });
 
 it('routes ernie models through the local tool-schema proxy', async () => {
@@ -178,16 +178,16 @@ it('routes ernie models through the local tool-schema proxy', async () => {
 
   it('rewrites only its own tables, preserving other sites and settings', async () => {
     mocks.files.set(CONFIG_PATH, [
-      '[model.okit-custom-openai-my-model]',
+      '[model.modelswap-custom-openai-my-model]',
       'model = "my-model"',
       'base_url = "https://old.example.com"',
       '',
-      '[model.okit-other-site-some-model]',
+      '[model.modelswap-other-site-some-model]',
       'model = "some-model"',
       'base_url = "https://other.example.com"',
       '',
       '[models]',
-      'default = "okit-other-site-some-model"',
+      'default = "modelswap-other-site-some-model"',
       'web_search = "grok-4.6"',
       '',
       '[ui]',
@@ -200,20 +200,20 @@ it('routes ernie models through the local tool-schema proxy', async () => {
     const toml = mocks.files.get(CONFIG_PATH)!;
     expect(toml).toContain('base_url = "https://custom.api.com/v1"');
     expect(toml).not.toContain('https://old.example.com');
-    expect(toml).toContain('[model.okit-other-site-some-model]');
+    expect(toml).toContain('[model.modelswap-other-site-some-model]');
     expect(toml).toContain('web_search = "grok-4.6"');
-    expect(toml).toContain('[models]\ndefault = "okit-custom-openai-my-model"');
+    expect(toml).toContain('[models]\ndefault = "modelswap-custom-openai-my-model"');
     expect(toml).toContain('theme = "auto"');
   });
 
   it('applyModels is additive and does not touch the default', async () => {
     mocks.files.set(CONFIG_PATH, [
-      '[model.okit-other-site-some-model]',
+      '[model.modelswap-other-site-some-model]',
       'model = "some-model"',
       'base_url = "https://other.example.com"',
       '',
       '[models]',
-      'default = "okit-other-site-some-model"',
+      'default = "modelswap-other-site-some-model"',
     ].join('\n'));
 
     const adapter = new GrokAdapter();
@@ -221,9 +221,9 @@ it('routes ernie models through the local tool-schema proxy', async () => {
 
     expect(written).toEqual(['my-model']);
     const toml = mocks.files.get(CONFIG_PATH)!;
-    expect(toml).toContain('[model.okit-custom-openai-my-model]');
-    expect(toml).toContain('[model.okit-other-site-some-model]');
-    expect(toml).toContain('default = "okit-other-site-some-model"');
+    expect(toml).toContain('[model.modelswap-custom-openai-my-model]');
+    expect(toml).toContain('[model.modelswap-other-site-some-model]');
+    expect(toml).toContain('default = "modelswap-other-site-some-model"');
   });
 
   it('lists enabled providers, preferring the longest id on prefix collisions', async () => {
@@ -234,10 +234,10 @@ it('routes ernie models through the local tool-schema proxy', async () => {
       ],
     }));
     mocks.files.set(CONFIG_PATH, [
-      '[model.okit-xiaomi-coding-mimo-v2-5-pro]',
+      '[model.modelswap-xiaomi-coding-mimo-v2-5-pro]',
       'model = "mimo-v2.5-pro"',
       '',
-      '[model.okit-xiaomi-mimo-v2-5]',
+      '[model.modelswap-xiaomi-mimo-v2-5]',
       'model = "mimo-v2.5"',
     ].join('\n'));
 
@@ -247,16 +247,16 @@ it('routes ernie models through the local tool-schema proxy', async () => {
 
   it('removeProvider strips its tables and clears a default it owned', async () => {
     mocks.files.set(CONFIG_PATH, [
-      '[model.okit-custom-openai-my-model]',
+      '[model.modelswap-custom-openai-my-model]',
       'model = "my-model"',
       'base_url = "https://custom.api.com/v1"',
       '',
-      '[model.okit-other-site-some-model]',
+      '[model.modelswap-other-site-some-model]',
       'model = "some-model"',
       'base_url = "https://other.example.com"',
       '',
       '[models]',
-      'default = "okit-custom-openai-my-model"',
+      'default = "modelswap-custom-openai-my-model"',
       'web_search = "grok-4.6"',
     ].join('\n'));
 
@@ -266,7 +266,7 @@ it('routes ernie models through the local tool-schema proxy', async () => {
     const toml = mocks.files.get(CONFIG_PATH)!;
     expect(toml).not.toContain('custom-openai');
     expect(toml).not.toContain('default =');
-    expect(toml).toContain('[model.okit-other-site-some-model]');
+    expect(toml).toContain('[model.modelswap-other-site-some-model]');
     expect(toml).toContain('web_search = "grok-4.6"');
   });
 
@@ -279,7 +279,7 @@ it('routes ernie models through the local tool-schema proxy', async () => {
 
   it('does not strip another provider whose id is a prefix of this one', async () => {
     mocks.files.set(CONFIG_PATH, [
-      '[model.okit-xiaomi-mimo-v2-5]',
+      '[model.modelswap-xiaomi-mimo-v2-5]',
       'model = "mimo-v2.5"',
       'base_url = "https://x"',
     ].join('\n'));
@@ -289,8 +289,8 @@ it('routes ernie models through the local tool-schema proxy', async () => {
     await adapter.applyConfig(xiaomiCodingProvider, 'mimo-v2.5-pro');
 
     const toml = mocks.files.get(CONFIG_PATH)!;
-    // "okit-xiaomi-..." belongs to provider "xiaomi", not "xiaomi-coding".
-    expect(toml).toContain('[model.okit-xiaomi-mimo-v2-5]');
-    expect(toml).toContain('[model.okit-xiaomi-coding-mimo-v2-5-pro]');
+    // "modelswap-xiaomi-..." belongs to provider "xiaomi", not "xiaomi-coding".
+    expect(toml).toContain('[model.modelswap-xiaomi-mimo-v2-5]');
+    expect(toml).toContain('[model.modelswap-xiaomi-coding-mimo-v2-5-pro]');
   });
 });

@@ -122,7 +122,7 @@ export function assertSafeProfileDir({ root, dir, platform, home }) {
 // ─── Read-only driver action whitelist ──────────────────────────────
 // guest/auth-verify drive a dedicated Chrome over CDP and may only use
 // navigation + read-only probing atoms. create-cleanup never drives a browser
-// itself (it delegates to the OKIT server flow), so it allows none.
+// itself (it delegates to the MODELSWAP server flow), so it allows none.
 export const READONLY_DRIVER_ACTIONS = new Set([
   'ensure-launched',
   'open-tab',

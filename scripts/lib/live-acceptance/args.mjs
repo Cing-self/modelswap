@@ -21,7 +21,7 @@ export const USAGE = [
   '  --debug-port <port>     专用 Chrome 的 CDP 调试端口（默认 9333）',
   '  --list                  列出全部平台后退出',
   '',
-  '安全边界：绝不复用/复制/导出日常 Chrome 的任何数据；产物只写入 ~/.okit/provider-live-acceptance/。',
+  '安全边界：绝不复用/复制/导出日常 Chrome 的任何数据；产物只写入 ~/.modelswap/provider-live-acceptance/。',
 ].join('\n');
 
 export const SCREENSHOT_POLICIES = ['off', 'login-only', 'all'];
@@ -107,7 +107,7 @@ export function parseLiveAcceptanceArgs(argv) {
   }
 
   if (parsed.profileName !== '' && !isSimpleProfileName(parsed.profileName)) {
-    return fail('--profile 只接受简单标识符（字母/数字/./_/-，且不是路径）；如需隔离请使用不同名称，验收 profile 永远位于 ~/.okit/provider-live-acceptance/ 内');
+    return fail('--profile 只接受简单标识符（字母/数字/./_/-，且不是路径）；如需隔离请使用不同名称，验收 profile 永远位于 ~/.modelswap/provider-live-acceptance/ 内');
   }
 
   if (parsed.session !== '' && !/^[A-Za-z0-9-]{8,64}$/.test(parsed.session)) {

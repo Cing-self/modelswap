@@ -39,7 +39,7 @@ async function testConnection(config) {
 }
 
 function secretName(key) {
-  return 'okit-' + key.replace(/[^a-zA-Z0-9_-]/g, '_');
+  return 'modelswap-' + key.replace(/[^a-zA-Z0-9_-]/g, '_');
 }
 
 async function pushSync(config, userId, encryptedBlob) {
@@ -50,7 +50,7 @@ async function pushSync(config, userId, encryptedBlob) {
   try {
     await kmsCall(client, 'CreateSecret',
       { SecretName: name, SecretType: 'Generic' },
-      { SecretValue: value, Description: 'OKIT sync data' },
+      { SecretValue: value, Description: 'MODELSWAP sync data' },
     );
   } catch (e) {
     if (e.message?.includes('already exist') || e.message?.includes('Conflict') || e.message?.includes('already')) {

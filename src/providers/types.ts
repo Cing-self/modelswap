@@ -271,10 +271,10 @@ export interface AgentSelection {
   modelId: string;
 }
 
-// Additive agents (workbuddy): model ids OKIT has written into the agent's own
-// config, keyed by OKIT providerId. Entries outside this map were written by
+// Additive agents (workbuddy): model ids MODELSWAP has written into the agent's own
+// config, keyed by MODELSWAP providerId. Entries outside this map were written by
 // the agent itself (official presets / user-added in-app) and must never be
-// modified or removed by OKIT.
+// modified or removed by MODELSWAP.
 export type ManagedModels = Record<string, string[]>;
 
 // Adapter interface each agent implements
@@ -293,9 +293,9 @@ export interface AgentAdapter {
   resolveApiKey(provider: Provider): Promise<string | undefined>;
   // Additive agents only (workbuddy): batch-write routed models into the
   // agent config without changing the "current" selection. Models whose id
-  // collides with an entry OKIT did not write are skipped, not written.
+  // collides with an entry MODELSWAP did not write are skipped, not written.
   applyModels?(entries: Array<{ provider: Provider; modelId: string }>): Promise<{ written: string[]; skipped: string[] }>;
-  // Additive agents only: remove every entry OKIT wrote for this provider
+  // Additive agents only: remove every entry MODELSWAP wrote for this provider
   // (entries still claimed by another provider are kept) and clear the
   // current selection if it pointed at the removed provider.
   removeProvider?(providerId: string): Promise<void>;
@@ -312,7 +312,7 @@ export interface AgentAdapter {
   listEnabledProviders?(): Promise<string[]>;
   // Additive agents only: the provider/model the agent is ACTUALLY using right
   // now, read from the agent's own state (ZCode records it per task in its
-  // local sqlite). More accurate than OKIT's last-written selection. Absent =
+  // local sqlite). More accurate than MODELSWAP's last-written selection. Absent =
   // fall back to the user.json selection for the "current" badge.
   getActiveModel?(): Promise<{ providerId: string; modelId: string } | null>;
 }
@@ -323,7 +323,7 @@ export interface ProvidersData {
   providers: Array<Provider | ProviderSite>;
   /** Rebuildable local discovery/directory cache. Never included in sync. */
   modelCache?: {
-    source: "okit";
+    source: "modelswap";
     version: 1 | 2;
     /** Legacy v1 alias. New code uses sourceFetchedAt/cachedAt. */
     fetchedAt?: string;

@@ -184,7 +184,7 @@ const { createZhipuKey } = zhipuStrategy;
 // The registry is the single source of truth for the Vault UI and the API.
 // Every entry below maps to an online provider available in Model Management;
 // local runtimes and OAuth-only Codex intentionally do not appear here.
-// A browser flow always uses the user's already signed-in session in the OKIT
+// A browser flow always uses the user's already signed-in session in the MODELSWAP
 // automation window. It never receives or stores a platform password.
 
 function listAutoCreatePlatforms(_req, res) {
@@ -199,17 +199,17 @@ function listAutoCreatePlatforms(_req, res) {
  */
 async function openVerificationLoginTabs(_req, res) {
   if (!isExtensionConnected()) {
-    return res.status(503).json({ error: 'OKIT 浏览器扩展未连接。' });
+    return res.status(503).json({ error: 'MODELSWAP 浏览器扩展未连接。' });
   }
   try {
     const [first, ...remaining] = BROWSER_LOGIN_VERIFICATION_PLATFORMS;
     if (!first) return res.json({ opened: [], browserFocused: false });
 
-    const initial = await sendCommand('navigate', { url: first.url, workspace: 'okit' }, 30000);
+    const initial = await sendCommand('navigate', { url: first.url, workspace: 'modelswap' }, 30000);
     if (!initial.ok) throw new Error(initial.error || `无法打开 ${first.label}`);
 
     for (const platform of remaining) {
-      const opened = await sendCommand('tabs', { op: 'new', url: platform.url, workspace: 'okit' }, 15000);
+      const opened = await sendCommand('tabs', { op: 'new', url: platform.url, workspace: 'modelswap' }, 15000);
       if (!opened.ok) throw new Error(opened.error || `无法打开 ${platform.label}`);
     }
 
@@ -245,7 +245,7 @@ async function autoCreateKey(req, res) {
     if (!isExtensionConnected()) {
       return res.status(503).json({
         success: false,
-        error: 'OKIT 浏览器扩展未连接。请在 Chrome 打开 chrome://extensions，或在 Edge 打开 edge://extensions，然后选择“加载已解压的扩展程序”并选择 OKIT 扩展目录。',
+        error: 'MODELSWAP 浏览器扩展未连接。请在 Chrome 打开 chrome://extensions，或在 Edge 打开 edge://extensions，然后选择“加载已解压的扩展程序”并选择 MODELSWAP 扩展目录。',
       });
     }
 
@@ -296,8 +296,8 @@ async function autoCreateKey(req, res) {
           browserFocused,
           loginUrl: loginState.url || platformConfig?.url,
           error: browserFocused
-            ? `需要登录 ${label}。已将自动化浏览器窗口置前，请完成登录后回到 OKIT 重试。`
-            : `需要登录 ${label}。请在 OKIT 自动化浏览器窗口完成登录后重试。`,
+            ? `需要登录 ${label}。已将自动化浏览器窗口置前，请完成登录后回到 MODELSWAP 重试。`
+            : `需要登录 ${label}。请在 MODELSWAP 自动化浏览器窗口完成登录后重试。`,
         });
       }
       const keyLimitError = classifyKeyCreationLimitFailure(msg, platformConfig?.label || platform, platformConfig?.keyLimits);
@@ -325,7 +325,7 @@ async function deleteAutoCreateKey(req, res) {
     }
     const platformConfig = AUTO_CREATE_PLATFORM_MAP.get(platform);
     if (!platformConfig) return res.status(400).json({ success: false, error: `Unknown platform: ${platform}` });
-    if (!isExtensionConnected()) return res.status(503).json({ success: false, error: 'OKIT 浏览器扩展未连接' });
+    if (!isExtensionConnected()) return res.status(503).json({ success: false, error: 'MODELSWAP 浏览器扩展未连接' });
     return res.json(await deleteCreatedBrowserKey({ platform: platformConfig, createdName }));
   } catch (error) {
     return res.status(500).json({ success: false, error: error instanceof Error ? error.message : String(error) });

@@ -143,7 +143,7 @@ export async function runAcceptance(options) {
     sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
     settle = DEFAULT_SETTLE,
     fetchImpl = fetch,
-    baseUrl = process.env.OKIT_AUTO_CREATE_BASE_URL || 'http://127.0.0.1:3780',
+    baseUrl = process.env.MODELSWAP_AUTO_CREATE_BASE_URL || 'http://127.0.0.1:3780',
     delegateScriptPath = '',
     repoRoot = process.cwd(),
     spawnImpl = null,
@@ -447,7 +447,7 @@ async function runCreateCleanupMode({
       mode: platformConfig.mode,
       stage: 'plan',
       status: 'dry_run',
-      reason: '仅计划校验：未连接 OKIT 服务、未启动浏览器、未创建任何第三方密钥',
+      reason: '仅计划校验：未连接 MODELSWAP 服务、未启动浏览器、未创建任何第三方密钥',
       steps: [
         { step: 'verify-server', detail: `GET ${baseUrl}/api/vault/cdp-status，要求 available=true（有扩展在线）` },
         { step: 'verify-dedicated-chrome', detail: '校验 --session 一次性会话的启动记录：专用 profile 位于验收根内、补丁扩展副本完整、专用 Chrome CDP 存活' },
@@ -475,12 +475,12 @@ async function runCreateCleanupMode({
       mode: platformConfig.mode,
       stage: 'disabled',
       status: 'disabled',
-      reason: 'create-cleanup 真实创建当前禁用（裁定 2026-08-31）：单扩展槽位竞态未消除——witness 只能证明专用扩展“刚刚在线”，日常 Chrome 扩展随后重新认证即可替换服务端的 extWs，而自动创建命令不按 session 绑定，仍可能落到日常 Chrome。解禁二选一：① 在隔离 VM/独立机器运行专用 OKIT 服务与专用 Chrome；② 改产品 WS 协议（服务端记录 acceptanceSession、命令按 session 发送、连接被替换即拒绝）。当前仅 dry-run 可用。',
+      reason: 'create-cleanup 真实创建当前禁用（裁定 2026-08-31）：单扩展槽位竞态未消除——witness 只能证明专用扩展“刚刚在线”，日常 Chrome 扩展随后重新认证即可替换服务端的 extWs，而自动创建命令不按 session 绑定，仍可能落到日常 Chrome。解禁二选一：① 在隔离 VM/独立机器运行专用 MODELSWAP 服务与专用 Chrome；② 改产品 WS 协议（服务端记录 acceptanceSession、命令按 session 发送、连接被替换即拒绝）。当前仅 dry-run 可用。',
     });
     return 1;
   }
 
-  // Real run: the OKIT server + its extension must be alive first.
+  // Real run: the MODELSWAP server + its extension must be alive first.
   let health = { ok: false, payload: {} };
   try {
     const response = await fetchImpl(new URL('/api/vault/cdp-status', baseUrl));
@@ -495,7 +495,7 @@ async function runCreateCleanupMode({
       mode: platformConfig.mode,
       stage: 'verify-server',
       status: 'blocked_prerequisite',
-      reason: `OKIT 服务/浏览器扩展未就绪（${redactSecrets(health.payload?.error || (health.ok ? 'available=false' : '服务不可达'))}）；请先启动 OKIT 服务并用 provider-live-chrome.mjs --with-extension 打开专用 Chrome`,
+      reason: `MODELSWAP 服务/浏览器扩展未就绪（${redactSecrets(health.payload?.error || (health.ok ? 'available=false' : '服务不可达'))}）；请先启动 MODELSWAP 服务并用 provider-live-chrome.mjs --with-extension 打开专用 Chrome`,
     });
     return 2;
   }

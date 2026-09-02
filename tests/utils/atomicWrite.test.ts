@@ -70,6 +70,6 @@ describe('atomicWrite retry', () => {
     await atomicWrite('/tmp/uni-1.json', 'b');
     const tmp2 = mocks.lastTmp();
     expect(tmp1).not.toBe(tmp2);
-    expect(tmp1).toMatch(/\.okit-tmp$/);
+    expect(tmp1).toMatch(/\.modelswap-tmp$/);
   });
 });

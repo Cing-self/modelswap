@@ -37,8 +37,8 @@ export default function Sidebar({ collapsed }: { collapsed: boolean }) {
 function SidebarBrand() {
   return (
     <div className="sidebar-brand">
-      <img className="sidebar-brand-logo" src="/okit-icon-180.png" alt="OKIT" />
-      <span className="sidebar-brand-name">OKIT</span>
+      <img className="sidebar-brand-logo" src="/modelswap-icon-180.png" alt="MODELSWAP" />
+      <span className="sidebar-brand-name">MODELSWAP</span>
     </div>
   );
 }

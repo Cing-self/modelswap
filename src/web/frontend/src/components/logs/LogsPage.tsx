@@ -68,12 +68,12 @@ export default function LogsPage({ embedded = false }: { embedded?: boolean }) {
   }
 
   function exportLogs() {
-    const payload = { exportedAt: new Date().toISOString(), source: 'OKIT', logs };
+    const payload = { exportedAt: new Date().toISOString(), source: 'MODELSWAP', logs };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = `okit-logs-${new Date().toISOString().slice(0, 10)}.json`;
+    anchor.download = `modelswap-logs-${new Date().toISOString().slice(0, 10)}.json`;
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();

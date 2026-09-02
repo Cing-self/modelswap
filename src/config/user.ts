@@ -1,7 +1,7 @@
 import fs from "fs-extra";
 import path from "path";
 import os from "os";
-import { OKIT_DIR } from "./registry";
+import { MODELSWAP_DIR } from "./registry";
 import { backupImportantData } from "./backup";
 import { atomicWriteJSON } from "../utils/atomicWrite";
 
@@ -101,7 +101,7 @@ export type UserConfig = {
       };
     };
     // LAN peer sync hub: a token-authenticated blob-store listener on its own
-    // port (default 3790). Other machines pair via okit-lan:// connection codes.
+    // port (default 3790). Other machines pair via modelswap-lan:// connection codes.
     lan?: {
       enabled?: boolean;
       port?: number;
@@ -113,9 +113,9 @@ export type UserConfig = {
   };
 };
 
-const USER_CONFIG_PATH = path.join(OKIT_DIR, "user.json");
-const LEGACY_LANG_PATH = path.join(OKIT_DIR, "language.json");
-const LEGACY_CLAUDE_PATH = path.join(OKIT_DIR, "claude-current.json");
+const USER_CONFIG_PATH = path.join(MODELSWAP_DIR, "user.json");
+const LEGACY_LANG_PATH = path.join(MODELSWAP_DIR, "language.json");
+const LEGACY_CLAUDE_PATH = path.join(MODELSWAP_DIR, "claude-current.json");
 
 export async function loadUserConfig(): Promise<UserConfig> {
   const config = await readJson(USER_CONFIG_PATH);

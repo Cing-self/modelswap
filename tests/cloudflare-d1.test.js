@@ -23,10 +23,10 @@ describe('cloudflare-d1 adapter', () => {
       .rejects.toThrow('未找到 Cloudflare 账户');
   });
 
-  it('recreates wrong okit_sync schemas before pushing sync data', async () => {
+  it('recreates wrong modelswap_sync schemas before pushing sync data', async () => {
     fetchMock
       .mockResolvedValueOnce(ok([{ id: 'account-1' }]))
-      .mockResolvedValueOnce(ok([{ name: 'okit-sync', uuid: 'db-1' }]))
+      .mockResolvedValueOnce(ok([{ name: 'modelswap-sync', uuid: 'db-1' }]))
       .mockResolvedValueOnce(ok([{ name: 'name' }, { name: 'value' }, { name: 'updated_at' }]))
       .mockResolvedValueOnce(ok())
       .mockResolvedValueOnce(ok())
@@ -39,14 +39,14 @@ describe('cloudflare-d1 adapter', () => {
       .map(([, options]) => options?.body && JSON.parse(options.body).sql)
       .filter(Boolean);
 
-    expect(sqlStatements).toContain('DROP TABLE IF EXISTS okit_sync');
-    expect(sqlStatements).toContain('CREATE TABLE IF NOT EXISTS okit_sync (user_id TEXT PRIMARY KEY, data TEXT NOT NULL, machine_id TEXT, updated_at TEXT NOT NULL)');
-    expect(sqlStatements).toContain('DELETE FROM okit_sync WHERE user_id = ?');
-    expect(sqlStatements).toContain('INSERT INTO okit_sync (user_id, data, machine_id, updated_at) VALUES (?, ?, ?, ?)');
+    expect(sqlStatements).toContain('DROP TABLE IF EXISTS modelswap_sync');
+    expect(sqlStatements).toContain('CREATE TABLE IF NOT EXISTS modelswap_sync (user_id TEXT PRIMARY KEY, data TEXT NOT NULL, machine_id TEXT, updated_at TEXT NOT NULL)');
+    expect(sqlStatements).toContain('DELETE FROM modelswap_sync WHERE user_id = ?');
+    expect(sqlStatements).toContain('INSERT INTO modelswap_sync (user_id, data, machine_id, updated_at) VALUES (?, ?, ?, ?)');
 
     const insertCall = fetchMock.mock.calls.find(([, options]) => {
       const body = options?.body && JSON.parse(options.body);
-      return body?.sql === 'INSERT INTO okit_sync (user_id, data, machine_id, updated_at) VALUES (?, ?, ?, ?)';
+      return body?.sql === 'INSERT INTO modelswap_sync (user_id, data, machine_id, updated_at) VALUES (?, ?, ?, ?)';
     });
     expect(JSON.parse(insertCall[1].body).params[1]).toBe(JSON.stringify({ nonce: 'n', ciphertext: "has'quote" }));
   });

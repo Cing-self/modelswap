@@ -41,7 +41,7 @@ function createAutoCreateRunService(deps) {
       const resumed = new Promise((resolve, reject) => { resolveResume = resolve; rejectResume = reject; });
       run.resumeResolve = resolveResume; run.resumeReject = rejectResume; run.resumeAvailable = true;
       run.verification = { stage, platformId: platform.id, platformLabel: platform.label || platform.id,
-        message: `${platform.label || platform.id} 需要完成页面上的安全验证。请在自动化浏览器窗口完成验证后，回到 OKIT 点击“验证完成，继续”。` };
+        message: `${platform.label || platform.id} 需要完成页面上的安全验证。请在自动化浏览器窗口完成验证后，回到 MODELSWAP 点击“验证完成，继续”。` };
       mark(run, 'verification_required');
       run.browserFocused = await focusBrowser().catch(() => false);
       const timeout = setTimer(() => rejectResume(new Error(`${platform.label || platform.id} 安全验证等待超时，任务已停止；未提交新的密钥`)), verificationTimeoutMs);
@@ -54,7 +54,7 @@ function createAutoCreateRunService(deps) {
   const execute = async run => {
     const platform = run.platformConfig;
     try {
-      if (!extensionConnected()) throw new Error('OKIT 浏览器扩展未连接');
+      if (!extensionConnected()) throw new Error('MODELSWAP 浏览器扩展未连接');
       const result = await createBrowserKey(platform, run.tokenName, run);
       if (isAssetData(result.value)) throw new Error('Extracted asset data, not API key.');
       mark(run, 'succeeded', { result: { value: result.value, name: result.name, platform: platform.id,

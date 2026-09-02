@@ -198,7 +198,7 @@ function windowLabel(label: string, locale: AlertLocale): string {
 
 // ── Browser notification dedup ──────────────────────────────
 
-const NOTIFIED_KEY = 'okit:usage:notified';
+const NOTIFIED_KEY = 'modelswap:usage:notified';
 
 function getNotifiedSet(): Set<string> {
   try {
@@ -244,7 +244,7 @@ export async function fireNotifications(alerts: AlertItem[], locale: AlertLocale
     if (alert.severity !== 'danger') continue; // only notify on danger
     if (!shouldNotify(alert.notifyKey)) continue;
     try {
-      new Notification(locale === 'en' ? 'OKIT usage alert' : 'OKIT 用量预警', { body: alert.message });
+      new Notification(locale === 'en' ? 'MODELSWAP usage alert' : 'MODELSWAP 用量预警', { body: alert.message });
       markNotified(alert.notifyKey);
     } catch { /* ignore */ }
   }

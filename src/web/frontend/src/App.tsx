@@ -219,7 +219,7 @@ function LazyRoute({ children }: { children: React.ReactNode }) {
 
 /**
  * Keep document.title in sync with the active route. Every page used to ship
- * the plain "OKIT" title, which made browser history entries and assistive
+ * the plain "MODELSWAP" title, which made browser history entries and assistive
  * tech page lists indistinguishable.
  */
 function DocumentTitle() {
@@ -236,7 +236,7 @@ function DocumentTitle() {
       '/settings': t('nav.settings'),
     };
     const section = titles[pathname] ?? (pathname.startsWith('/settings') ? t('nav.settings') : null);
-    document.title = section ? `${section} · OKIT` : 'OKIT';
+    document.title = section ? `${section} · MODELSWAP` : 'MODELSWAP';
   }, [pathname, t]);
 
   return null;
@@ -277,7 +277,7 @@ function DataChangeEvents() {
         const detail = JSON.parse(event.data);
         if (detail?.type === 'data-changed' && Array.isArray(detail.sections)) {
           if (detail.sections.includes('providers')) invalidateProvidersCache();
-          window.dispatchEvent(new CustomEvent('okit:data-changed', { detail }));
+          window.dispatchEvent(new CustomEvent('modelswap:data-changed', { detail }));
         }
       } catch { /* Ignore malformed local events and stay connected. */ }
     };
@@ -299,7 +299,7 @@ function ModelCacheWarmupBootstrap() {
  * Electron's macOS window uses a hidden native title bar so its surface can
  * share the same material as the app. This small renderer-owned strip keeps
  * the window recognisable and supplies a safe drag area without affecting the
- * browser version of OKIT.
+ * browser version of MODELSWAP.
  */
 function DesktopWindowFrame({
   children,
@@ -326,12 +326,12 @@ function DesktopWindowFrameInner({
   onToggleSidebar?: () => void;
   showSidebarToggle?: boolean;
 }) {
-  const isDesktop = typeof window !== 'undefined' && Boolean((window as any).okitDesktop);
+  const isDesktop = typeof window !== 'undefined' && Boolean((window as any).modelswapDesktop);
   const { t } = useI18n();
   if (!isDesktop) return <>{children}</>;
   return (
     <div className="desktop-window-frame">
-      <div className="desktop-titlebar" aria-label="OKIT desktop window">
+      <div className="desktop-titlebar" aria-label="MODELSWAP desktop window">
         {showSidebarToggle && (
           <button
             type="button"
@@ -356,7 +356,7 @@ function DesktopWindowFrameInner({
  * action (download, retry, or restart) so the preview stays read-only.
  */
 function TitlebarUpdateIndicator() {
-  const isDesktop = typeof window !== 'undefined' && Boolean((window as any).okitDesktop);
+  const isDesktop = typeof window !== 'undefined' && Boolean((window as any).modelswapDesktop);
   const { t } = useI18n();
   const { showToast } = useApp() as any;
   const { update, download, downloading, check, startDownload, restart, restarting } = useUpdateDetails();
@@ -365,7 +365,7 @@ function TitlebarUpdateIndicator() {
   // macOS app-menu "检查更新…" → explicit check with a spoken result.
   useEffect(() => {
     if (!isDesktop) return;
-    const desktop = (window as any).okitDesktop;
+    const desktop = (window as any).modelswapDesktop;
     const off = desktop?.onCheckUpdate?.(async () => {
       const result = await check(false);
       if (result.status === 'upToDate') showToast(t('update.menuUpToDate'), 'success');
@@ -480,12 +480,12 @@ export default function App() {
     () => (primeOnboardingFromSession() ? 'app' : 'checking'),
   );
   const location = useLocation();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('okit-sidebar-collapsed') !== 'false');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('modelswap-sidebar-collapsed') !== 'false');
 
   const toggleSidebar = useCallback(() => {
     setSidebarCollapsed(collapsed => {
       const next = !collapsed;
-      localStorage.setItem('okit-sidebar-collapsed', String(next));
+      localStorage.setItem('modelswap-sidebar-collapsed', String(next));
       return next;
     });
   }, []);

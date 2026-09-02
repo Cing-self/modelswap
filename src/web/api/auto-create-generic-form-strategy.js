@@ -60,7 +60,7 @@ function createGenericFormStrategy(deps) {
       return true;
     })()`).catch(() => false);
     if (focusName !== true && focusName !== 'true') throw new Error(`${platform.label || platform.id} 名称输入框无法聚焦`);
-    const inserted = await sendCommand('insert-text', { text: uniqueName, workspace: 'okit', ...(tabId ? { tabId } : {}) }, 5000).catch(() => ({ ok: false }));
+    const inserted = await sendCommand('insert-text', { text: uniqueName, workspace: 'modelswap', ...(tabId ? { tabId } : {}) }, 5000).catch(() => ({ ok: false }));
     if (!inserted.ok) throw new Error(`${platform.label || platform.id} 名称无法通过真实输入提交`);
     await sleep(250);
   }
@@ -285,13 +285,13 @@ function createGenericFormStrategy(deps) {
       const openPressed = await sendCommand('cdp', {
         cdpMethod: 'Input.dispatchMouseEvent',
         cdpParams: { ...projectOpenMouse, type: 'mousePressed' },
-        workspace: 'okit',
+        workspace: 'modelswap',
         ...(tabId ? { tabId } : {}),
       }, 5000);
       const openReleased = await sendCommand('cdp', {
         cdpMethod: 'Input.dispatchMouseEvent',
         cdpParams: { ...projectOpenMouse, type: 'mouseReleased', buttons: 0 },
-        workspace: 'okit',
+        workspace: 'modelswap',
         ...(tabId ? { tabId } : {}),
       }, 5000);
       if (!openPressed.ok || !openReleased.ok) throw new Error('无法打开 Kimi 默认项目选择框');
@@ -329,13 +329,13 @@ function createGenericFormStrategy(deps) {
         await sendCommand('cdp', {
           cdpMethod: 'Input.dispatchMouseEvent',
           cdpParams: { ...retryOpenMouse, type: 'mousePressed' },
-          workspace: 'okit',
+          workspace: 'modelswap',
           ...(tabId ? { tabId } : {}),
         }, 5000);
         await sendCommand('cdp', {
           cdpMethod: 'Input.dispatchMouseEvent',
           cdpParams: { ...retryOpenMouse, type: 'mouseReleased', buttons: 0 },
-          workspace: 'okit',
+          workspace: 'modelswap',
           ...(tabId ? { tabId } : {}),
         }, 5000);
         await sleep(700);
@@ -363,32 +363,32 @@ function createGenericFormStrategy(deps) {
       }
     }
     if (!projectCommittedByMouse) {
-    await sendCommand('focus-window', { workspace: 'okit' }, 5000).catch(() => ({ ok: false }));
+    await sendCommand('focus-window', { workspace: 'modelswap' }, 5000).catch(() => ({ ok: false }));
     await sleep(150);
     const keyParams = { type: 'keyDown', key: 'ArrowDown', code: 'ArrowDown', windowsVirtualKeyCode: 40, nativeVirtualKeyCode: 40 };
     const keyDown = await sendCommand('cdp', {
       cdpMethod: 'Input.dispatchKeyEvent',
       cdpParams: keyParams,
-      workspace: 'okit',
+      workspace: 'modelswap',
       ...(tabId ? { tabId } : {}),
     }, 5000);
     const keyUp = await sendCommand('cdp', {
       cdpMethod: 'Input.dispatchKeyEvent',
       cdpParams: { ...keyParams, type: 'keyUp' },
-      workspace: 'okit',
+      workspace: 'modelswap',
       ...(tabId ? { tabId } : {}),
     }, 5000);
     const enterParams = { type: 'keyDown', key: 'Enter', code: 'Enter', text: '\r', unmodifiedText: '\r', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 };
     const enterDown = await sendCommand('cdp', {
       cdpMethod: 'Input.dispatchKeyEvent',
       cdpParams: enterParams,
-      workspace: 'okit',
+      workspace: 'modelswap',
       ...(tabId ? { tabId } : {}),
     }, 5000);
     const enterUp = await sendCommand('cdp', {
       cdpMethod: 'Input.dispatchKeyEvent',
       cdpParams: { ...enterParams, type: 'keyUp' },
-      workspace: 'okit',
+      workspace: 'modelswap',
       ...(tabId ? { tabId } : {}),
     }, 5000);
     if (!keyDown.ok || !keyUp.ok || !enterDown.ok || !enterUp.ok) {
@@ -479,8 +479,8 @@ function createGenericFormStrategy(deps) {
 	  await sleep(500);
 	  if (platform.captureBeforeConfirm) {
 	    await execJs(`(() => {
-	      if (window.__okitPreConfirmCapture?.armed) return 'already-armed';
-	      const state = window.__okitPreConfirmCapture = { armed: true, clipboard: '', dom: [], responses: [] };
+	      if (window.__modelswapPreConfirmCapture?.armed) return 'already-armed';
+	      const state = window.__modelswapPreConfirmCapture = { armed: true, clipboard: '', dom: [], responses: [] };
 	      const rememberDom = value => {
 	        const text = String(value || '');
 	        if (text && !state.dom.includes(text)) state.dom.push(text.slice(0, 20000));
@@ -521,15 +521,15 @@ function createGenericFormStrategy(deps) {
 	        const originalOpen = XMLHttpRequest.prototype.open;
 	        const originalSend = XMLHttpRequest.prototype.send;
 	        XMLHttpRequest.prototype.open = function(method, url, ...rest) {
-	          this.__okitMethod = String(method || 'GET').toUpperCase();
-	          this.__okitUrl = String(url || '');
+	          this.__modelswapMethod = String(method || 'GET').toUpperCase();
+	          this.__modelswapUrl = String(url || '');
 	          return originalOpen.call(this, method, url, ...rest);
 	        };
 	        XMLHttpRequest.prototype.send = function(...args) {
 	          this.addEventListener('load', () => {
 	            let body = '';
 	            try { body = this.responseType === '' || this.responseType === 'text' ? this.responseText : ''; } catch {}
-	            state.responses.push({ url: this.__okitUrl || '', method: this.__okitMethod || 'GET', status: this.status, body: body.slice(0, 250000) });
+	            state.responses.push({ url: this.__modelswapUrl || '', method: this.__modelswapMethod || 'GET', status: this.status, body: body.slice(0, 250000) });
 	          }, { once: true });
 	          return originalSend.apply(this, args);
 	        };
@@ -846,13 +846,13 @@ function createGenericFormStrategy(deps) {
               await sendCommand('cdp', {
                 cdpMethod: 'Input.dispatchKeyEvent',
                 cdpParams: enterParams,
-                workspace: 'okit',
+                workspace: 'modelswap',
                 ...(tabId ? { tabId } : {}),
               }, 5000);
               await sendCommand('cdp', {
                 cdpMethod: 'Input.dispatchKeyEvent',
                 cdpParams: { ...enterParams, type: 'keyUp' },
-                workspace: 'okit',
+                workspace: 'modelswap',
                 ...(tabId ? { tabId } : {}),
               }, 5000);
             }

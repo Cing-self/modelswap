@@ -20,11 +20,11 @@ type AuditResult = {
 };
 
 function runInTemporaryHome(script: string): AuditResult {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "okit-native-route-audit-"));
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "modelswap-native-route-audit-"));
   const root = path.resolve(__dirname, "../..");
   try {
     return JSON.parse(execFileSync(process.execPath, ["-r", "ts-node/register", "-e", script, root], {
-      env: { ...process.env, HOME: home, USERPROFILE: home, OKIT_AUDIT_HOME: home },
+      env: { ...process.env, HOME: home, USERPROFILE: home, MODELSWAP_AUDIT_HOME: home },
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
     }).trim());
@@ -45,7 +45,7 @@ const auditScript = String.raw`
   const { PRESET_PROVIDERS } = require(path.join(root, 'src/providers/presets'));
   const { getAdapters } = require(path.join(root, 'src/providers/registry'));
   const routing = require(path.join(root, 'src/providers/routing'));
-  const cacheDir = path.join(home, '.okit'); fs.mkdirSync(cacheDir, { recursive: true });
+  const cacheDir = path.join(home, '.modelswap'); fs.mkdirSync(cacheDir, { recursive: true });
   const adapters = getAdapters();
   const httpSites = PRESET_PROVIDERS.filter(site => routing.providerExecutionMode(site) === 'http_endpoint');
   const endpointId = entry => entry.id;
@@ -73,7 +73,7 @@ const auditScript = String.raw`
   };
   const sites = httpSites.map(site => ({ ...site, authMode: 'none', vaultKey: undefined, models: [] }));
   const cache = {
-    version: 2, source: 'okit', generation: 1, sourceFetchedAt: new Date().toISOString(), cachedAt: new Date().toISOString(), sourceHash: 'native-route-audit', status: 'fresh', lastError: null,
+    version: 2, source: 'modelswap', generation: 1, sourceFetchedAt: new Date().toISOString(), cachedAt: new Date().toISOString(), sourceHash: 'native-route-audit', status: 'fresh', lastError: null,
     providers: Object.fromEntries(httpSites.map(site => [site.id, fixtureModels(site)])),
   };
   fs.writeFileSync(path.join(cacheDir, 'providers.json'), JSON.stringify({ version: 2, providers: sites }));
@@ -136,7 +136,7 @@ const auditScript = String.raw`
         assert(contents.includes(flashRoute.remoteModelId), adapter.id + '/' + provider.id + ': B did not write routed ID');
         verified.push({ agentId: adapter.id, providerId: provider.id, modelId: models[1].id });
         await call(api.switchProvider, { body: { agentId: adapter.id, providerId: provider.id, modelId: models[0].id } });
-        const user = JSON.parse(fs.readFileSync(path.join(home, '.okit', 'user.json'), 'utf8'));
+        const user = JSON.parse(fs.readFileSync(path.join(home, '.modelswap', 'user.json'), 'utf8'));
         assert(user.agentProviders[adapter.id].activeProviderId === provider.id && user.agentProviders[adapter.id].activeModelId === models[0].id, adapter.id + '/' + provider.id + ': B remains current after A→B→A');
       }
     }
@@ -227,7 +227,7 @@ const auditScript = String.raw`
 
 describe("all registered Agent native routed-model acceptance", { timeout: 300_000 }, () => {
   const result = runInTemporaryHome(auditScript);
-  if (process.env.OKIT_AUDIT_REPORT === "1") {
+  if (process.env.MODELSWAP_AUDIT_REPORT === "1") {
     const excludedByReason = result.excluded.reduce<Record<string, number>>((counts, item) => {
       counts[item.reason] = (counts[item.reason] || 0) + 1;
       return counts;

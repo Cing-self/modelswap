@@ -15,7 +15,7 @@ const CLAUDE_SETTINGS_PATH = path.join(os.homedir(), ".claude", "settings.json")
 // and ANTHROPIC_API_KEY and refuses to start ("Auth conflict"). We back it up
 // so switching back to the official provider can restore it without re-login.
 const CLAUDE_CREDENTIALS_PATH = path.join(os.homedir(), ".claude", ".credentials.json");
-const CLAUDE_CREDENTIALS_BACKUP = path.join(os.homedir(), ".claude", ".credentials.json.okit-backup");
+const CLAUDE_CREDENTIALS_BACKUP = path.join(os.homedir(), ".claude", ".credentials.json.modelswap-backup");
 
 function shellQuote(value: string): string {
   return `'${String(value).replace(/'/g, `'\\''`)}'`;
@@ -176,7 +176,7 @@ export class ClaudeAdapter extends BaseAdapter {
         // conflict check (same trick we use for third-party providers).
         const hasOAuth = await hasKeychainOAuth();
         if (hasOAuth) {
-          const helperPath = path.join(os.homedir(), ".claude", ".okit-key-helper.sh");
+          const helperPath = path.join(os.homedir(), ".claude", ".modelswap-key-helper.sh");
           await atomicWrite(helperPath, `#!/bin/sh\necho ${shellQuote(apiKey)}\n`, { mode: 0o700 });
           data.apiKeyHelper = helperPath;
           delete env.ANTHROPIC_API_KEY;
@@ -242,7 +242,7 @@ export class ClaudeAdapter extends BaseAdapter {
           env.ANTHROPIC_AUTH_TOKEN = apiKey;
           delete data.apiKeyHelper;
         } else {
-          const helperPath = path.join(os.homedir(), ".claude", ".okit-key-helper.sh");
+          const helperPath = path.join(os.homedir(), ".claude", ".modelswap-key-helper.sh");
           await atomicWrite(helperPath, `#!/bin/sh\necho ${shellQuote(apiKey)}\n`, { mode: 0o700 });
           data.apiKeyHelper = helperPath;
           delete env.ANTHROPIC_AUTH_TOKEN;

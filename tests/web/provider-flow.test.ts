@@ -10,7 +10,7 @@ const { removeSite } = require('../../src/web/api/agent-providers.js');
 // API surface; cold compilation alone can exceed the 5s default timeout.
 describe('provider flow source of truth', { timeout: 30000 }, () => {
   it('writes each Claude tier from its own routed ID and resolved facts when a tier map reapplies the active site', () => {
-    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-claude-tier-route-'));
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-claude-tier-route-'));
     const root = path.resolve(__dirname, '../..');
     const script = `
       const fs=require('fs'), path=require('path');
@@ -49,7 +49,7 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
   });
 
   it('writes routed remote IDs through real Web switch and multi-model configuration paths', () => {
-    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-provider-route-'));
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-provider-route-'));
     const root = path.resolve(__dirname, '../..');
     const script = `
       const fs=require('fs'), path=require('path');
@@ -79,7 +79,7 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
   });
 
   it('runs API → store → Codex/Claude/OpenCode adapters in a temporary HOME', () => {
-    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-provider-flow-'));
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-provider-flow-'));
     const root = path.resolve(__dirname, '../..');
     const script = `
       const fs=require('fs'), path=require('path');
@@ -89,10 +89,10 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
         const open={id:'flow-open',name:'Flow Open',type:'openai',baseUrl:'https://flow.test/v1',vaultKey:'FLOW_OPEN_KEY',authMode:'none',models:[{id:'one',meta:{source:'modelsdev',context:262144}},{id:'two'}]};
         const claude={id:'flow-claude',name:'Flow Claude',type:'anthropic',baseUrl:'https://flow-claude.test',authMode:'none',models:[{id:'one'},{id:'two'}]};
         await call(api.createProvider,{body:open});
-        const created=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.okit','providers.json'),'utf8'));
+        const created=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.modelswap','providers.json'),'utf8'));
         await call(api.updateProvider,{params:{id:'flow-open'},body:{name:'Flow Open Renamed',baseUrl:'https://flow-renamed.test/v1'}});
         await call(api.createProvider,{body:claude});
-        const userPath=path.join(process.env.HOME,'.okit','user.json');
+        const userPath=path.join(process.env.HOME,'.modelswap','user.json');
         // Drain the config write queue before the fixture's raw user.json
         // write. Provider create/update handlers fire-and-forget
         // recordLocalChanged commits (saveProviders → markDirty); a queued
@@ -109,9 +109,9 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
         await call(api.switchProvider,{body:{agentId:'codex',providerId:'flow-open',modelId:'two'}});
         await call(api.configureAgentProvider,{params:{agentId:'claude',providerId:'flow-claude'},body:{modelIds:['one','two'],primaryModelId:'one'}});
         await call(api.configureAgentProvider,{params:{agentId:'opencode',providerId:'flow-open'},body:{modelIds:['one','two'],primaryModelId:'one'}});
-        const user=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.okit','user.json'),'utf8'));
-        const providers=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.okit','providers.json'),'utf8'));
-        const cache=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.okit','models-cache.json'),'utf8'));
+        const user=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.modelswap','user.json'),'utf8'));
+        const providers=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.modelswap','providers.json'),'utf8'));
+        const cache=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.modelswap','models-cache.json'),'utf8'));
         const codex=fs.readFileSync(path.join(process.env.HOME,'.codex','model-catalogs','model-catalogs.json'),'utf8');
         const claudeSettings=fs.readFileSync(path.join(process.env.HOME,'.claude','settings.json'),'utf8');
         const opencode=fs.readFileSync(path.join(process.env.HOME,'.config','opencode','opencode.json'),'utf8');
@@ -147,7 +147,7 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
   });
 
   it('atomically retains settings, Agent, and sync partitions during queued config mutations', () => {
-    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-provider-config-race-'));
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-provider-config-race-'));
     const root = path.resolve(__dirname, '../..');
     const script = `
       const fs=require('fs'), path=require('path');
@@ -157,7 +157,7 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
       const sync=require(path.join(process.argv[1], 'src/web/api/cloud-sync-core.js'));
       const call=(handler, req)=>new Promise((resolve,reject)=>handler(req,{status(c){this.code=c;return this},json(v){(this.code||200)>=400?reject(new Error(v.error)):resolve(v)}}));
       (async()=>{
-        const userPath=path.join(process.env.HOME,'.okit','user.json');
+        const userPath=path.join(process.env.HOME,'.modelswap','user.json');
         await call(api.createProvider,{body:{id:'race-open',name:'Race Open',type:'openai',baseUrl:'https://race.test/v1',authMode:'none',models:[{id:'one'}]}});
         fs.mkdirSync(path.dirname(userPath),{recursive:true}); fs.writeFileSync(userPath,'{}');
         const originalReadJson=fse.readJson;
@@ -195,13 +195,13 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
   });
 
   it('migrates legacy Agent selections through the atomic writer without dropping a queued patch', () => {
-    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-config-migration-race-'));
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-config-migration-race-'));
     const root = path.resolve(__dirname, '../..');
     const script = `
       const fs=require('fs'), path=require('path');
       const sync=require(path.join(process.argv[1], 'src/web/api/cloud-sync-core.js'));
       (async()=>{
-        const dir=path.join(process.env.HOME,'.okit'); fs.mkdirSync(dir,{recursive:true});
+        const dir=path.join(process.env.HOME,'.modelswap'); fs.mkdirSync(dir,{recursive:true});
         const userPath=path.join(dir,'user.json');
         fs.writeFileSync(userPath,JSON.stringify({providers:{codex:{providerId:'legacy-site',modelId:'legacy-model'}},sync:{localChangedAt:{providers:'old'}}}));
         await Promise.all([
@@ -228,7 +228,7 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
   });
 
   it('flips the stored enabled flag when re-enabling an additive site', () => {
-    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-site-enable-'));
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-site-enable-'));
     const root = path.resolve(__dirname, '../..');
     const script = `
       const fs=require('fs'), path=require('path');
@@ -238,10 +238,10 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
         await call(api.createProvider,{body:{id:'en-reg',name:'Enable Reg',type:'openai',baseUrl:'https://example.com/v1',authMode:'none',models:[{id:'m1'}]}});
         await call(api.configureAgentProvider,{params:{agentId:'kimi-code',providerId:'en-reg'},body:{modelIds:['m1'],primaryModelId:'m1'}});
         await call(api.setAgentProviderEnabled,{params:{agentId:'kimi-code',providerId:'en-reg'},body:{enabled:false}});
-        let user=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.okit','user.json'),'utf8'));
+        let user=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.modelswap','user.json'),'utf8'));
         if(user.agentProviders['kimi-code'].sites['en-reg'].enabled!==false) throw new Error('disable did not persist');
         await call(api.setAgentProviderEnabled,{params:{agentId:'kimi-code',providerId:'en-reg'},body:{enabled:true}});
-        user=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.okit','user.json'),'utf8'));
+        user=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.modelswap','user.json'),'utf8'));
         console.log(JSON.stringify({enabled:user.agentProviders['kimi-code'].sites['en-reg'].enabled}));
       })().catch(error=>{console.error(error.stack);process.exit(1)});
     `;
@@ -255,7 +255,7 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
   });
 
   it('persists site deletion to user.json through the tombstone op', () => {
-    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-site-delete-'));
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-site-delete-'));
     const root = path.resolve(__dirname, '../..');
     const script = `
       const fs=require('fs'), path=require('path');
@@ -265,7 +265,7 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
         await call(api.createProvider,{body:{id:'del-reg',name:'Del Reg',type:'openai',baseUrl:'https://example.com/v1',authMode:'none',models:[{id:'m1'}]}});
         await call(api.configureAgentProvider,{params:{agentId:'codex',providerId:'del-reg'},body:{modelIds:['m1'],primaryModelId:'m1'}});
         await call(api.removeAgentProvider,{params:{agentId:'codex',providerId:'del-reg'}});
-        console.log(fs.readFileSync(path.join(process.env.HOME,'.okit','user.json'),'utf8'));
+        console.log(fs.readFileSync(path.join(process.env.HOME,'.modelswap','user.json'),'utf8'));
       })().catch(error=>{console.error(error.stack);process.exit(1)});
     `;
     const result = JSON.parse(execFileSync(process.execPath, ['-r', 'ts-node/register/transpile-only', '-e', script, root], {
@@ -278,7 +278,7 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
   });
 
   it('uses real refresh, preview, home, tier-map, offline, and deletion API paths in a temporary HOME', () => {
-    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-provider-lifecycle-'));
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-provider-lifecycle-'));
     const root = path.resolve(__dirname, '../..');
     const script = `
       const fs=require('fs'), path=require('path'), http=require('http');
@@ -288,33 +288,33 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
         const server=http.createServer((req,res)=>{res.setHeader('content-type','application/json');res.end(JSON.stringify({data:[{id:'remote-one'},{id:'remote-two'}]}));});
         await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
         const endpoint='http://127.0.0.1:'+server.address().port+'/v1';
-        const catalogPath=path.join(process.env.HOME,'.okit','cache','models-dev.json'); fs.mkdirSync(path.dirname(catalogPath),{recursive:true});
+        const catalogPath=path.join(process.env.HOME,'.modelswap','cache','models-dev.json'); fs.mkdirSync(path.dirname(catalogPath),{recursive:true});
         fs.writeFileSync(catalogPath,JSON.stringify({source:'models.dev',version:1,fetchedAt:new Date().toISOString(),data:{local:{api:endpoint,models:{'remote-one':{limit:{context:262144,output:8192},tool_call:true,reasoning:true,modalities:{input:['text']}},'remote-two':{limit:{context:131072,output:4096},modalities:{input:['text','image']}}}}}}));
         const open={id:'life-open',name:'Lifecycle Open',type:'openai',baseUrl:endpoint,authMode:'none',endpoints:[{id:'life-http',type:'openai',baseUrl:endpoint}],models:[{id:'selected-before-refresh',name:'Selected before refresh'},{id:'directory-only',name:'Directory only'}]};
         const claude={id:'life-claude',name:'Lifecycle Claude',type:'anthropic',baseUrl:endpoint,authMode:'none',models:[{id:'remote-one'},{id:'remote-two'}]};
         await call(api.createProvider,{body:open});
         await call(api.createProvider,{body:claude});
         await call(api.configureAgentProvider,{params:{agentId:'codex',providerId:'life-open'},body:{modelIds:['selected-before-refresh'],primaryModelId:'selected-before-refresh'}});
-        const beforePreview=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.okit','user.json'),'utf8'));
+        const beforePreview=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.modelswap','user.json'),'utf8'));
         await call(api.fetchModels,{body:{providerId:'life-open',endpoints:[{id:'preview',type:'openai',baseUrl:endpoint}]}});
-        const afterPreview=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.okit','user.json'),'utf8'));
+        const afterPreview=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.modelswap','user.json'),'utf8'));
         const refreshed=await call(api.fetchModels,{body:{providerId:'life-open'}});
         await call(api.configureAgentProvider,{params:{agentId:'codex',providerId:'life-open'},body:{modelIds:['remote-one','remote-two'],primaryModelId:'remote-one'}});
         await call(api.configureAgentProvider,{params:{agentId:'claude',providerId:'life-claude'},body:{modelIds:['remote-one','remote-two'],primaryModelId:'remote-one'}});
         await call(api.setTierMap,{params:{providerId:'life-claude'},body:{haiku:'remote-two',sonnet:'remote-one',opus:'remote-two'}});
         await call(api.configureAgentProvider,{params:{agentId:'opencode',providerId:'life-open'},body:{modelIds:['remote-one','remote-two'],primaryModelId:'remote-one'}});
         const homeResult=await call(api.getAdaptersList,{});
-        const cachePath=path.join(process.env.HOME,'.okit','models-cache.json');
+        const cachePath=path.join(process.env.HOME,'.modelswap','models-cache.json');
         const cacheBefore=fs.readFileSync(cachePath,'utf8');
         await new Promise(resolve=>server.close(resolve));
         const offline=await call(api.fetchModels,{body:{providerId:'life-open'}});
         const cacheAfter=fs.readFileSync(cachePath,'utf8');
-        const userPath=path.join(process.env.HOME,'.okit','user.json');
+        const userPath=path.join(process.env.HOME,'.modelswap','user.json');
         const withOverride=JSON.parse(fs.readFileSync(userPath,'utf8')); withOverride.modelOverrides={'life-open':{'remote-one':{context:777}}}; fs.writeFileSync(userPath,JSON.stringify(withOverride));
         await call(api.deleteProvider,{params:{id:'life-open'}});
         await call(api.deleteProvider,{params:{id:'life-claude'}});
         const user=JSON.parse(fs.readFileSync(userPath,'utf8'));
-        const providers=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.okit','providers.json'),'utf8'));
+        const providers=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.modelswap','providers.json'),'utf8'));
         const codexCatalogPath=path.join(process.env.HOME,'.codex','model-catalogs','model-catalogs.json');
         const codexCatalogExists=fs.existsSync(codexCatalogPath);
         const codex=codexCatalogExists?JSON.parse(fs.readFileSync(codexCatalogPath,'utf8')):null;
@@ -354,13 +354,13 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
 
   it('migrates a legacy receiving site into its cache before merging synced v2 sites', () => {
     const root = path.resolve(__dirname, '../..');
-    const targetHome = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-sync-target-'));
+    const targetHome = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-sync-target-'));
     const targetScript = `
       const fs=require('fs'), path=require('path'); const store=require(path.join(process.argv[1], 'src/providers/store')); const sync=require(path.join(process.argv[1], 'src/web/api/cloud-sync-core.js'));
       (async()=>{
-        const dir=path.join(process.env.HOME,'.okit');fs.mkdirSync(dir,{recursive:true});
+        const dir=path.join(process.env.HOME,'.modelswap');fs.mkdirSync(dir,{recursive:true});
         fs.writeFileSync(path.join(dir,'providers.json'),JSON.stringify({opaqueRoot:{keep:true},providers:[{id:'legacy-custom',name:'Legacy custom',type:'openai',baseUrl:'https://legacy.test/v1',vaultKey:'LOCAL_LEGACY_KEY',authMode:'none',opaqueSite:{keep:true},models:[{id:'local-only-model',name:'Local only',opaqueModel:{keep:true}}]}],platforms:[{derived:true}]}));
-        await store.saveModelsCache({version:1,source:'okit',fetchedAt:'now',providers:{'legacy-custom':[ {id:'cache-only-model',name:'Cache only',source:'manual',confidence:'medium'} ]}});
+        await store.saveModelsCache({version:1,source:'modelswap',fetchedAt:'now',providers:{'legacy-custom':[ {id:'cache-only-model',name:'Cache only',source:'manual',confidence:'medium'} ]}});
         await sync.mergeSyncedProviderSites({providers:[{id:'legacy-custom',name:'Remote rename',type:'openai',baseUrl:'https://remote-legacy.test/v1',vaultKey:null,authMode:'none'},{id:'remote-site',name:'Remote site',type:'openai',baseUrl:'https://remote.test/v1',authMode:'none'}]});
         const providerFile=JSON.parse(fs.readFileSync(path.join(dir,'providers.json'),'utf8'));
         const cache=await store.loadModelsCache();const runtime=await store.loadProviders();

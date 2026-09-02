@@ -2,8 +2,8 @@ const fs = require('fs-extra');
 const path = require('path');
 const os = require('os');
 
-const OKIT_DIR = path.join(os.homedir(), '.okit');
-const BACKUP_DIR = path.join(OKIT_DIR, 'backups');
+const MODELSWAP_DIR = path.join(os.homedir(), '.modelswap');
+const BACKUP_DIR = path.join(MODELSWAP_DIR, 'backups');
 const MAX_BACKUPS = 3;
 const IMPORTANT_FILES = [
   'user.json',
@@ -25,7 +25,7 @@ async function backupImportantData(reason = 'data') {
     let copied = 0;
 
     for (const relPath of IMPORTANT_FILES) {
-      const src = path.join(OKIT_DIR, relPath);
+      const src = path.join(MODELSWAP_DIR, relPath);
       if (!(await fs.pathExists(src))) continue;
       const dest = path.join(snapshotDir, relPath);
       await fs.ensureDir(path.dirname(dest));

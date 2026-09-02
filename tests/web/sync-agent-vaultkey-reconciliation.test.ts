@@ -18,7 +18,7 @@ function reservePort() {
 
 function child(root: string, home: string, blob: string, script: string) {
   return execFileSync(process.execPath, ['-r', 'ts-node/register/transpile-only', '-e', script, root], {
-    env: { ...process.env, HOME: home, USERPROFILE: home, OKIT_SYNC_BLOB: blob },
+    env: { ...process.env, HOME: home, USERPROFILE: home, MODELSWAP_SYNC_BLOB: blob },
     encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
   });
 }
@@ -26,9 +26,9 @@ function child(root: string, home: string, blob: string, script: string) {
 describe('sync provider vault-reference reconciliation', { timeout: 30000 }, () => {
   it('keeps references through site edits, migrations, sync pull, discovery, and Codex reconciliation', async () => {
     const root = path.resolve(__dirname, '../..');
-    const machineA = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-sync-vault-a-'));
-    const machineB = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-sync-vault-b-'));
-    const blobDir = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-sync-vault-blob-'));
+    const machineA = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-sync-vault-a-'));
+    const machineB = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-sync-vault-b-'));
+    const blobDir = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-sync-vault-blob-'));
     const blob = path.join(blobDir, 'remote.json');
     const port = await reservePort();
     const origin = `http://127.0.0.1:${port}`;
@@ -37,8 +37,8 @@ describe('sync provider vault-reference reconciliation', { timeout: 30000 }, () 
       Module.prototype.require=function(id) {
         if (id === './platform-adapters/supabase') return {
           name:'Supabase', testConnection:async()=>true,
-          pushSync:async (_config,_id,data)=>transportFs.writeFileSync(process.env.OKIT_SYNC_BLOB, JSON.stringify(data)),
-          pullSync:async ()=>transportFs.existsSync(process.env.OKIT_SYNC_BLOB)?JSON.parse(transportFs.readFileSync(process.env.OKIT_SYNC_BLOB,'utf8')):null,
+          pushSync:async (_config,_id,data)=>transportFs.writeFileSync(process.env.MODELSWAP_SYNC_BLOB, JSON.stringify(data)),
+          pullSync:async ()=>transportFs.existsSync(process.env.MODELSWAP_SYNC_BLOB)?JSON.parse(transportFs.readFileSync(process.env.MODELSWAP_SYNC_BLOB,'utf8')):null,
         };
         return original.apply(this,arguments);
       };
@@ -75,9 +75,9 @@ describe('sync provider vault-reference reconciliation', { timeout: 30000 }, () 
         const glmRef=(await store.getProvider('glm-coding')).vaultKey;
         await call(api.fetchModels,{body:{providerId:provider.id}});
         const config={sync:{password:'shared-secret',platforms:{supabase:{enabled:true,projectId:'project',apiToken:'token'}}},agentProviders:{codex:{activeProviderId:provider.id,activeModelId:remote,sites:{[provider.id]:{modelIds:[remote]}}}}};
-        fs.writeFileSync(path.join(process.env.HOME,'.okit','user.json'),JSON.stringify(config));
+        fs.writeFileSync(path.join(process.env.HOME,'.modelswap','user.json'),JSON.stringify(config));
         await sync.syncPush();
-        const projection=await store.loadProviderSitesForSync(); const payload=fs.readFileSync(process.env.OKIT_SYNC_BLOB,'utf8');
+        const projection=await store.loadProviderSitesForSync(); const payload=fs.readFileSync(process.env.MODELSWAP_SYNC_BLOB,'utf8');
         await new Promise(resolve=>server.close(resolve));
         console.log(JSON.stringify({afterEdit,afterMissing,glmRef,projectionRef:projection.find(item=>item.id===provider.id)?.vaultKey,projectionHasSecret:JSON.stringify(projection).includes('vault-secret-never-printed'),projectionHasModels:/"models"\s*:|"modelCache"\s*:|"platforms"\s*:/.test(JSON.stringify(projection)),payloadHasSecret:payload.includes('vault-secret-never-printed')}));
       })().catch(error=>{console.error(error.stack||error);process.exit(1)});
@@ -86,11 +86,11 @@ describe('sync provider vault-reference reconciliation', { timeout: 30000 }, () 
       (async()=>{
         const server=await startDirectory(); const home=process.env.HOME;
         fs.mkdirSync(path.join(home,'.codex'),{recursive:true});
-        fs.mkdirSync(path.join(home,'.okit'),{recursive:true});
+        fs.mkdirSync(path.join(home,'.modelswap'),{recursive:true});
         // Reconciliation must actively remove this obsolete official-OAuth
         // flag from a third-party table and install only scoped Vault auth.
-        fs.writeFileSync(path.join(home,'.codex','config.toml'),'[model_providers.okit-sync-vault-provider]\\nrequires_openai_auth = true\\n');
-        fs.writeFileSync(path.join(home,'.okit','user.json'),JSON.stringify({sync:{password:'shared-secret',platforms:{supabase:{enabled:true,projectId:'project',apiToken:'token'}}}}));
+        fs.writeFileSync(path.join(home,'.codex','config.toml'),'[model_providers.modelswap-sync-vault-provider]\\nrequires_openai_auth = true\\n');
+        fs.writeFileSync(path.join(home,'.modelswap','user.json'),JSON.stringify({sync:{password:'shared-secret',platforms:{supabase:{enabled:true,projectId:'project',apiToken:'token'}}}}));
         const result=await sync.syncPull();
         const providerAfter=await store.getProvider(provider.id);
         const cache=await store.loadModelsCache();

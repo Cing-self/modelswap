@@ -1,6 +1,6 @@
 
 const API_BASE = 'https://api.cloudflare.com/client/v4';
-const KV_NAMESPACE_NAME = 'okit-sync';
+const KV_NAMESPACE_NAME = 'modelswap-sync';
 
 async function cfFetch(token, path, options = {}) {
   const res = await fetch(`${API_BASE}${path}`, {

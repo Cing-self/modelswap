@@ -14,7 +14,7 @@ async function createVolcengineKey({ tokenName, url = VOLC_URL, run, plan = 'sta
   const isAgentPlan = plan === 'agent';
   const keyManagementUrl = isAgentPlan ? VOLC_URL : url;
   const planLabel = isAgentPlan ? ' Agent Plan' : '';
-  const nav = await sendCommand('navigate', { url: keyManagementUrl, workspace: 'okit' }, 30000);
+  const nav = await sendCommand('navigate', { url: keyManagementUrl, workspace: 'modelswap' }, 30000);
   if (!nav.ok) throw new Error(nav.error || 'navigate failed');
   const tabId = nav.data && nav.data.tabId;
   console.log('[auto-create] volcengine: navigated (tab ' + tabId + ')');
@@ -29,7 +29,7 @@ async function createVolcengineKey({ tokenName, url = VOLC_URL, run, plan = 'sta
   }
 
   const capStart = await sendCommand('network-capture-start',
-    { pattern: '', workspace: 'okit', ...(tabId ? { tabId } : {}) }, 10000);
+    { pattern: '', workspace: 'modelswap', ...(tabId ? { tabId } : {}) }, 10000);
   if (!capStart.ok) throw new Error(capStart.error || 'network-capture-start failed');
   console.log('[auto-create] volcengine: capture armed');
 
@@ -150,7 +150,7 @@ async function createVolcengineKey({ tokenName, url = VOLC_URL, run, plan = 'sta
   for (let attempt = 0; attempt < 5 && !capturedCandidate; attempt += 1) {
     await sleep(700);
     const read = await sendCommand('network-capture-read',
-      { workspace: 'okit', ...(tabId ? { tabId } : {}) }, 10000);
+      { workspace: 'modelswap', ...(tabId ? { tabId } : {}) }, 10000);
     if (!read.ok) throw new Error(read.error || 'network-capture-read failed');
     for (const entry of (read.data || [])) {
       const identity = entryIdentity(entry);
@@ -231,7 +231,7 @@ async function createVolcengineAgentPlanKey({ platform }) {
   // Agent Plan keys live in the subscription console, not in Ark's generic
   // API Key manager. A generic Ark key can list standard models while still
   // being rejected by /api/plan, so this flow must never use that page.
-  const nav = await sendCommand('navigate', { url: VOLC_AGENT_PLAN_URL, workspace: 'okit' }, 30000);
+  const nav = await sendCommand('navigate', { url: VOLC_AGENT_PLAN_URL, workspace: 'modelswap' }, 30000);
   if (!nav.ok) throw new Error(nav.error || 'navigate failed');
   const tabId = nav.data && nav.data.tabId;
   const loginState = await detectLoginRequired();
@@ -332,7 +332,7 @@ async function createMinimaxKey({ tokenName, run }) {
   // Append timestamp suffix to avoid name collisions on the platform
   const uniqueName = tokenName + '-' + Date.now().toString(36).slice(-4);
 
-  const nav = await sendCommand('navigate', { url: MINIMAX_URL, workspace: 'okit' }, 30000);
+  const nav = await sendCommand('navigate', { url: MINIMAX_URL, workspace: 'modelswap' }, 30000);
   if (!nav.ok) throw new Error(nav.error || 'navigate failed');
   const tabId = nav.data && nav.data.tabId;
 
@@ -348,7 +348,7 @@ async function createMinimaxKey({ tokenName, run }) {
   await requireSignedIn();
 
   const capStart = await sendCommand('network-capture-start',
-    { pattern: '', workspace: 'okit', ...(tabId ? { tabId } : {}) }, 10000);
+    { pattern: '', workspace: 'modelswap', ...(tabId ? { tabId } : {}) }, 10000);
   if (!capStart.ok) throw new Error(capStart.error || 'network-capture-start failed');
   console.log('[auto-create] minimax: capture armed');
 
@@ -447,7 +447,7 @@ async function createMinimaxKey({ tokenName, run }) {
   const entryIdentity = entry => [entry?.url || '', entry?.method || '', entry?.timestamp || ''].join('|');
   const collectCapture = async () => {
     const read = await sendCommand('network-capture-read',
-      { workspace: 'okit', ...(tabId ? { tabId } : {}) }, 10000);
+      { workspace: 'modelswap', ...(tabId ? { tabId } : {}) }, 10000);
     if (!read.ok) throw new Error(read.error || 'network-capture-read failed');
     for (const entry of (read.data || [])) {
       const identity = entryIdentity(entry);
@@ -494,11 +494,11 @@ async function createMinimaxKey({ tokenName, run }) {
   // to an API-key dialog; never click an ambiguous page-wide copy button.
   if (!key) {
     await execJs(`(() => {
-      window.__okitMinimaxCopiedKey = '';
+      window.__modelswapMinimaxCopiedKey = '';
       const capture = value => {
         const text = String(value || '');
         const match = text.match(/sk-(?:api-)?[A-Za-z0-9_-]{20,}/);
-        if (match) window.__okitMinimaxCopiedKey = match[0];
+        if (match) window.__modelswapMinimaxCopiedKey = match[0];
       };
       try {
         const clipboard = navigator.clipboard;
@@ -541,11 +541,11 @@ async function createMinimaxKey({ tokenName, run }) {
       const clicked = await foregroundClick({ x: copyState.x, y: copyState.y, tabId });
       if (clicked) {
         await sleep(500);
-        const pageCopied = await execJs('window.__okitMinimaxCopiedKey || ""').catch(() => '');
+        const pageCopied = await execJs('window.__modelswapMinimaxCopiedKey || ""').catch(() => '');
         if (pageCopied && !isAssetData(pageCopied)) key = pageCopied;
         if (!key) {
           const clipboardRead = await sendCommand('clipboard-read', {
-            workspace: 'okit',
+            workspace: 'modelswap',
             clipboardPattern: 'sk-(?:api-)?[A-Za-z0-9_-]{20,}',
           }, 5000).catch(() => ({ ok: false, data: {} }));
           const clipboardValue = clipboardRead.ok && clipboardRead.data?.matched ? clipboardRead.data.value : '';

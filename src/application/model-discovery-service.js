@@ -4,7 +4,7 @@ const { describeRejection, modelDiscoveryFailure } = require('./error-normalizat
 function createModelDiscoveryService(deps) {
   const { fs, path, os, _store, loadProviders, saveProviders, loadUserConfig, providerEndpointEntries, providerExecutionMode, QIANFAN_CODING_PROBE_MODEL, isQianfanCodingEndpoint, isQianfanCodingAnthropicEndpoint, qianfanModelDirectoryUrl, qianfanCodingErrorCode, qianfanCodingErrorMessage, getAnthropicAuthMode, normalizeRemoteModel, detectOAuth, resolveVaultKey, findCommand, modelsDev = require('../web/api/models-dev') } = deps;
   const warmupInflight = new Map();
-  // These IDs were briefly shipped in an OKIT-owned Agent Plan allowlist. A
+  // These IDs were briefly shipped in an MODELSWAP-owned Agent Plan allowlist. A
   // provider entry marked manual by that old implementation is not a real user
   // addition, so remove stale rows that models.dev does not also list.
   const VOLCENGINE_AGENT_PLAN_RETIRED_LOCAL_MODEL_IDS = new Set([
@@ -123,7 +123,7 @@ function replaceRemoteModels(provider, discoveries, activeModelIds) {
   for (const model of provider.models || []) {
     const fresh = byId.get(model.id);
     // DeepSeek retired these two aliases in favor of V4 Flash modes. They
-    // used to be part of OKIT's default catalog, so an old agent selection
+    // used to be part of MODELSWAP's default catalog, so an old agent selection
     // must not make a successful refresh reintroduce them as selectable
     // models. Explicit user-added models remain untouched.
     if (
@@ -652,8 +652,8 @@ function httpReq(url, options) {
 
 // ─── Deep Link: Provider Export / Import ───
 
-const PROVIDER_CODE_PREFIX = 'okit-provider:';
-const PROVIDER_CODE_SALT = 'okit-provider-salt';
+const PROVIDER_CODE_PREFIX = 'modelswap-provider:';
+const PROVIDER_CODE_SALT = 'modelswap-provider-salt';
 
 
   return {

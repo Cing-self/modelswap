@@ -17,7 +17,7 @@
 | 候选 / base SHA | `e3781970299f781014e180a31a4a10d00ad760d0` / `19207a25eb50ea48728ee5ff927d8599b1c802a8` |
 | 开始 / 完成 | 2026-08-28 20:33 +0800 / 2026-08-28 20:40 +0800 |
 | QA 环境 | macOS；Node `v26.7.0`；npm `11.19.1`；每条命令 fresh HOME+USERPROFILE+isolated npm cache |
-| 测试 worktree | detached `/tmp/okit-qa-baseline-e378-nhGbVU`；文档 QA 分支 `/tmp/okit-qa-qianfan2-At55oJ` |
+| 测试 worktree | detached `/tmp/modelswap-qa-baseline-e378-nhGbVU`；文档 QA 分支 `/tmp/modelswap-qa-qianfan2-At55oJ` |
 | 真实 B | 否；未操作真实用户目录、B 或 3780 |
 | 全量测试数 | #1 `84 files / 768 tests`；#2 `84 / 768`；#3 `84 / 768` |
 | 缺陷报告 | `docs/testing/sync-agent-release-baseline-e378.md` |
@@ -55,7 +55,7 @@
 | R1-A10 | P0 | MiMo Code adapter | fresh B 原生输出、endpoint/model/auth/tier | **需新增全 adapter A→B matrix** | 临时原生文件 | BLOCKED | `QA-P0-GAP-001`。 |
 | R1-A11 | P0 | dynamic registry full set | `AGENTS_META` 与 `getAdapters()` 精确 10 个，新增 adapter 必须失败 | **需新增** `tests/web/sync-agent-all-adapters-reconcile.test.ts` | 动态集合 + 10 个 A→B 原生文件 assertions | BLOCKED | `QA-P0-GAP-001`：文件不存在；268 adapter/native tests 不可替代。 |
 | R1-R01 | P0 | packaged runtime | dist closure、CLI/server `/ping` 与 frontend runtime 齐全 | `tests/build/runtime-closure.test.ts` | dist 不依赖 src；健康检查 | PASS | 1 file / 1 test。 |
-| R1-R02 | P0 | package | 发布包包含运行时文件 | `npm pack --dry-run --json` | package JSON: 348 entries；`cing-self-okit-cli-1.0.30.tgz` | PASS | `size=3553341`、`shasum=62b8d5e3a2cfab8c81add556a7776c66e674bddb`。 |
+| R1-R02 | P0 | package | 发布包包含运行时文件 | `npm pack --dry-run --json` | package JSON: 348 entries；`cing-self-modelswap-cli-1.0.30.tgz` | PASS | `size=3553341`、`shasum=62b8d5e3a2cfab8c81add556a7776c66e674bddb`。 |
 | R1-R03 | P0 | build | extension、copy-web、runtime closure、frontend 全完成 | `npm run build` | exit 0；Vite build 通过 | PASS | 2026-08-28 R1。 |
 | R1-R04 | P0 | full #1 | 默认并行、无 retry/skip/serial 化 | `npm test -- --run` | 84 files / 768 tests | PASS | 16.51s。 |
 | R1-R05 | P0 | full #2 | 同上、独立 fresh HOME/cache | `npm test -- --run` | 84 files / 768 tests | PASS | 20.19s。 |
@@ -74,7 +74,7 @@ R1 结束时间、最终 defect 分类与集中修复批次在基线报告中固
 | 候选 / base SHA | `ab9f165a7aec073a4b0b0047989c0e68035ba035` / `19207a25eb50ea48728ee5ff927d8599b1c802a8` |
 | 开始 / 完成 | 2026-08-28 20:54 +0800 / 2026-08-28 21:03 +0800 |
 | QA 环境 | macOS；Node `v26.7.0`；npm `11.19.1`；每条有效命令 fresh HOME+USERPROFILE+isolated npm cache |
-| 测试 worktree | clean detached `/tmp/okit-qa-r2-ab9f165-wfkV78`；文档 QA 分支 `/tmp/okit-qa-qianfan2-At55oJ` |
+| 测试 worktree | clean detached `/tmp/modelswap-qa-r2-ab9f165-wfkV78`；文档 QA 分支 `/tmp/modelswap-qa-qianfan2-At55oJ` |
 | 真实 B | 否；未操作真实用户目录、B 或 3780 |
 | 全量测试数 | #1 `86 files / 770 tests`；#2 `86 / 770`；#3 `86 / 770` |
 | 缺陷报告 | `docs/testing/sync-agent-release-baseline-e378.md`（R2 append） |
@@ -129,7 +129,7 @@ R2 不覆盖 R1。R1 `QA-P0-GAP-002` 已由实际 vault lifecycle regression 关
 | --- | --- |
 | Round | R3（只复验 credential binding、vault lifecycle、hydration；不是完整发布门禁） |
 | 候选 / base SHA | `d4290f10194289b5625e94539535ba9ca30fba22` / `19207a25eb50ea48728ee5ff927d8599b1c802a8` |
-| QA 环境 | macOS；fresh HOME+USERPROFILE+isolated npm cache；clean detached worktree `/tmp/okit-qa-r3-d4290f1-4MNDIc` |
+| QA 环境 | macOS；fresh HOME+USERPROFILE+isolated npm cache；clean detached worktree `/tmp/modelswap-qa-r3-d4290f1-4MNDIc` |
 | 真实 B | 否；未操作真实用户目录、B 或 3780 |
 | 已执行命令 | `npx vitest run tests/web/sync-agent-all-adapters-reconcile.test.ts tests/web/sync-agent-vaultkey-reconciliation.test.ts tests/web/sync-agent-model-hydration.test.ts` → **3 files / 3 tests passed**（10.66s） |
 | 未执行 | build、package、full suite ×3、three-OS CI、release/DMG、真实 B smoke；本轮刻意不执行。 |

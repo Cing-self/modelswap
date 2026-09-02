@@ -1,6 +1,6 @@
-# OKIT User Manual
+# ModelSwap User Manual
 
-OKIT is a key & model control center for AI agents: a local encrypted key vault, 40 model provider presets, adapters for 10 agents, usage queries across 30+ subscription/balance sources, and **one-click API key creation** via the browser extension. Local-first — your data never leaves your machine unless you enable sync.
+ModelSwap is a key & model control center for AI agents: a local encrypted key vault, 40 model provider presets, adapters for 10 agents, usage queries across 30+ subscription/balance sources, and **one-click API key creation** via the browser extension. Local-first — your data never leaves your machine unless you enable sync.
 
 ---
 

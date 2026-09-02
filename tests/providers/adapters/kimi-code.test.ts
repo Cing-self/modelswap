@@ -4,9 +4,9 @@ import path from 'path';
 
 const testRoot = vi.hoisted(() => {
   const p = require('path');
-  const d = '/tmp/test-okit-kimi-code';
+  const d = '/tmp/test-modelswap-kimi-code';
   return {
-    OKIT_DIR: d,
+    MODELSWAP_DIR: d,
     REGISTRY_PATH: p.join(d, 'registry.json'),
     LOGS_DIR: p.join(d, 'logs'),
     CACHE_DIR: p.join(d, 'cache'),
@@ -29,7 +29,7 @@ const mocks = vi.hoisted(() => {
 vi.mock('fs-extra', () => ({ default: mocks }));
 
 vi.mock('../../../src/config/registry', () => ({
-  OKIT_DIR: testRoot.OKIT_DIR,
+  MODELSWAP_DIR: testRoot.MODELSWAP_DIR,
   REGISTRY_PATH: testRoot.REGISTRY_PATH,
   LOGS_DIR: testRoot.LOGS_DIR,
   CACHE_DIR: testRoot.CACHE_DIR,
@@ -108,9 +108,9 @@ describe('KimiCodeAdapter.applyConfig (v2 config format)', () => {
     await adapter.applyConfig(customProvider, 'my-model');
 
     const toml = mocks.files.get(CONFIG_PATH)!;
-    expect(toml).toContain('default_model = "okit-custom-openai-my-model"');
-    expect(toml).toContain('[models.okit-custom-openai-my-model]');
-    expect(toml).toContain('provider = "okit-custom-openai"');
+    expect(toml).toContain('default_model = "modelswap-custom-openai-my-model"');
+    expect(toml).toContain('[models.modelswap-custom-openai-my-model]');
+    expect(toml).toContain('provider = "modelswap-custom-openai"');
     expect(toml).toContain('model = "my-model"');
     expect(toml).toContain('protocol = "openai"');
     // Unknown model facts stay unknown; the adapter must not invent a window.
@@ -122,7 +122,7 @@ describe('KimiCodeAdapter.applyConfig (v2 config format)', () => {
     await adapter.applyConfig(customProvider, 'my-model');
 
     const toml = mocks.files.get(CONFIG_PATH)!;
-    expect(toml).toContain('[providers.okit-custom-openai]');
+    expect(toml).toContain('[providers.modelswap-custom-openai]');
     expect(toml).toContain('type = "openai"');
     expect(toml).toContain('base_url = "https://custom.api.com/v1"');
     expect(toml).toContain('api_key = "sk-test-123"');
@@ -142,7 +142,7 @@ describe('KimiCodeAdapter.applyConfig (v2 config format)', () => {
     expect(toml).toContain('max_output_size = 128000');
     // custom_headers uses the sub-table form kimi itself normalizes to —
     // never the inline form (duplicate key breaks TOML parsing).
-    expect(toml).toContain('[providers.okit-custom-openai.custom_headers]');
+    expect(toml).toContain('[providers.modelswap-custom-openai.custom_headers]');
     expect(toml).toContain('User-Agent = "opencode/1.18.15"');
     expect(toml).not.toContain('custom_headers = {');
   });
@@ -171,10 +171,10 @@ describe('KimiCodeAdapter.applyConfig (v2 config format)', () => {
     await adapter.applyConfig(multiModelProvider, 'my-model-pro');
 
     const toml = mocks.files.get(CONFIG_PATH)!;
-    expect(toml).toContain('[models.okit-custom-openai-my-model]');
-    expect(toml).toContain('[models.okit-custom-openai-my-model-lite]');
-    expect(toml).toContain('[models.okit-custom-openai-my-model-pro]');
-    expect(toml).toContain('default_model = "okit-custom-openai-my-model-pro"');
+    expect(toml).toContain('[models.modelswap-custom-openai-my-model]');
+    expect(toml).toContain('[models.modelswap-custom-openai-my-model-lite]');
+    expect(toml).toContain('[models.modelswap-custom-openai-my-model-pro]');
+    expect(toml).toContain('default_model = "modelswap-custom-openai-my-model-pro"');
     expect(toml).toContain('display_name = "Custom OpenAI my-model-lite"');
   });
 
@@ -183,20 +183,20 @@ describe('KimiCodeAdapter.applyConfig (v2 config format)', () => {
     await adapter.applyConfig(customProvider, 'remote-only-model');
 
     const toml = mocks.files.get(CONFIG_PATH)!;
-    expect(toml).toContain('[models.okit-custom-openai-remote-only-model]');
+    expect(toml).toContain('[models.modelswap-custom-openai-remote-only-model]');
     expect(toml).toContain('model = "remote-only-model"');
-    expect(toml).toContain('default_model = "okit-custom-openai-remote-only-model"');
+    expect(toml).toContain('default_model = "modelswap-custom-openai-remote-only-model"');
   });
 
   it('keeps OTHER sites tables intact when switching (multi-site additive)', async () => {
     mocks.files.set(CONFIG_PATH, [
-      '[providers.okit-old-provider]',
+      '[providers.modelswap-old-provider]',
       'type = "openai"',
       'base_url = "https://old.api.com/v1"',
       'api_key = "sk-old"',
       '',
-      '[models.okit-old-provider-old-model]',
-      'provider = "okit-old-provider"',
+      '[models.modelswap-old-provider-old-model]',
+      'provider = "modelswap-old-provider"',
       'model = "old-model"',
       'protocol = "openai"',
       'max_context_size = 262144',
@@ -209,30 +209,30 @@ describe('KimiCodeAdapter.applyConfig (v2 config format)', () => {
     await adapter.applyConfig(customProvider, 'my-model');
 
     const toml = mocks.files.get(CONFIG_PATH)!;
-    expect(toml).toContain('[providers.okit-old-provider]');
+    expect(toml).toContain('[providers.modelswap-old-provider]');
     expect(toml).toContain('sk-old');
-    expect(toml).toContain('[models.okit-old-provider-old-model]');
+    expect(toml).toContain('[models.modelswap-old-provider-old-model]');
     expect(toml).toContain('old-model');
     expect(toml).toContain('[thinking]');
     expect(toml).toContain('enabled = true');
-    expect(toml).toContain('[providers.okit-custom-openai]');
-    expect(toml).toContain('[models.okit-custom-openai-my-model]');
+    expect(toml).toContain('[providers.modelswap-custom-openai]');
+    expect(toml).toContain('[models.modelswap-custom-openai-my-model]');
   });
 
   it('switching a provider rewrites only ITS OWN tables (stale same-provider models dropped)', async () => {
     mocks.files.set(CONFIG_PATH, [
-      '[providers.okit-custom-openai]',
+      '[providers.modelswap-custom-openai]',
       'type = "openai"',
       'base_url = "https://old.api.com/v1"',
       'api_key = "sk-old"',
       '',
-      '[models.okit-custom-openai-old-model]',
-      'provider = "okit-custom-openai"',
+      '[models.modelswap-custom-openai-old-model]',
+      'provider = "modelswap-custom-openai"',
       'model = "old-model"',
       'protocol = "openai"',
       'max_context_size = 262144',
       '',
-      '[providers.okit-other-site]',
+      '[providers.modelswap-other-site]',
       'type = "openai"',
       'base_url = "https://other.api.com/v1"',
       'api_key = "sk-other"',
@@ -244,9 +244,9 @@ describe('KimiCodeAdapter.applyConfig (v2 config format)', () => {
     const toml = mocks.files.get(CONFIG_PATH)!;
     expect(toml).not.toContain('old-model');
     expect(toml).not.toContain('sk-old');
-    expect(toml).toContain('[models.okit-custom-openai-my-model]');
-    expect(toml).toContain('default_model = "okit-custom-openai-my-model"');
-    expect(toml).toContain('[providers.okit-other-site]');
+    expect(toml).toContain('[models.modelswap-custom-openai-my-model]');
+    expect(toml).toContain('default_model = "modelswap-custom-openai-my-model"');
+    expect(toml).toContain('[providers.modelswap-other-site]');
     expect(toml).toContain('sk-other');
   });
 
@@ -255,19 +255,19 @@ describe('KimiCodeAdapter.applyConfig (v2 config format)', () => {
     // that has since left the provider list can never be healed back. Kimi
     // 0.38 crashes at startup when default_model points at such an entry.
     mocks.files.set(CONFIG_PATH, [
-      'default_model = "okit-custom-openai-gone-model"',
+      'default_model = "modelswap-custom-openai-gone-model"',
       '',
-      '[providers.okit-custom-openai]',
+      '[providers.modelswap-custom-openai]',
       'type = "openai"',
       'base_url = "https://custom.api.com/v1"',
       'api_key = "sk-test"',
       '',
-      '[models.okit-custom-openai-gone-model]',
-      'provider = "okit-custom-openai"',
+      '[models.modelswap-custom-openai-gone-model]',
+      'provider = "modelswap-custom-openai"',
       'protocol = "openai"',
       '',
-      '[models.okit-custom-openai-healable]',
-      'provider = "okit-custom-openai"',
+      '[models.modelswap-custom-openai-healable]',
+      'provider = "modelswap-custom-openai"',
       'display_name = "heal me"',
     ].join('\n'));
 
@@ -281,7 +281,7 @@ describe('KimiCodeAdapter.applyConfig (v2 config format)', () => {
     // A healable entry (model still in the provider list) gets its model field
     // restored rather than dropped.
     expect(toml).toContain('model = "my-model"');
-    expect(toml).toContain('default_model = "okit-custom-openai-my-model"');
+    expect(toml).toContain('default_model = "modelswap-custom-openai-my-model"');
   });
 
   it('does not write .env (api key lives inline in config.toml)', async () => {
@@ -300,7 +300,7 @@ describe('KimiCodeAdapter.applyConfig (v2 config format)', () => {
     expect(toml).toContain('type = "kimi"');
     expect(toml).toContain('protocol = "kimi"');
     expect(toml).toContain('api_key = "sk-test-123"');
-    expect(toml).toContain('default_model = "okit-moonshot-moonshot-v1-128k"');
+    expect(toml).toContain('default_model = "modelswap-moonshot-moonshot-v1-128k"');
   });
 
   it('uses openai_responses type when endpoint protocol is responses', async () => {
@@ -362,7 +362,7 @@ describe('KimiCodeAdapter.applyConfig (v2 config format)', () => {
 
     const toml = mocks.files.get(CONFIG_PATH)!;
     expect(toml).toContain('max_output_size = 65536');
-    expect(toml).toContain('[models.okit-qianfan-coding-glm-5-2]');
+    expect(toml).toContain('[models.modelswap-qianfan-coding-glm-5-2]');
     // Only capped models get the key — glm-5.2 stays uncapped.
     expect((toml.match(/max_output_size = 65536/g) || []).length).toBe(1);
   });
@@ -384,12 +384,12 @@ describe('KimiCodeAdapter.applyConfig (v2 config format)', () => {
       '# legacy v1 config',
       'default_thinking = true',
       'model = "glm-5.2"',
-      'model_provider = "okit-qianfan-coding"',
+      'model_provider = "modelswap-qianfan-coding"',
       '',
-      '[model_providers.okit-qianfan-coding]',
+      '[model_providers.modelswap-qianfan-coding]',
       'name = "百度千帆 Token Plan"',
       'base_url = "https://qianfan.baidubce.com/v2/tokenplan/personal"',
-      'env_key = "OKIT_KIMI_CODE_QIANFAN_CODING_API_KEY"',
+      'env_key = "MODELSWAP_KIMI_CODE_QIANFAN_CODING_API_KEY"',
       'wire_api = "chat"',
     ].join('\n'));
 
@@ -403,7 +403,7 @@ describe('KimiCodeAdapter.applyConfig (v2 config format)', () => {
     expect(toml).not.toContain('env_key =');
     expect(toml).not.toContain('wire_api =');
     expect(toml).toContain('default_thinking = true');
-    expect(toml).toContain('default_model = "okit-custom-openai-my-model"');
+    expect(toml).toContain('default_model = "modelswap-custom-openai-my-model"');
   });
 
   it('records selection in user.json under "kimi-code" key', async () => {
@@ -417,18 +417,18 @@ describe('KimiCodeAdapter.applyConfig (v2 config format)', () => {
 describe('KimiCodeAdapter multi-site (additive)', () => {
   it('applyModels writes provider + model tables without touching other sites or default_model', async () => {
     mocks.files.set(CONFIG_PATH, [
-      '[providers.okit-other]',
+      '[providers.modelswap-other]',
       'type = "openai"',
       'base_url = "https://other.api.com/v1"',
       'api_key = "sk-other"',
       '',
-      '[models.okit-other-other-model]',
-      'provider = "okit-other"',
+      '[models.modelswap-other-other-model]',
+      'provider = "modelswap-other"',
       'model = "other-model"',
       'protocol = "openai"',
       'max_context_size = 262144',
       '',
-      'default_model = "okit-other-other-model"',
+      'default_model = "modelswap-other-other-model"',
     ].join('\n'));
 
     const adapter = new KimiCodeAdapter();
@@ -441,17 +441,17 @@ describe('KimiCodeAdapter multi-site (additive)', () => {
     expect(result.skipped).toEqual([]);
 
     const toml = mocks.files.get(CONFIG_PATH)!;
-    expect(toml).toContain('[providers.okit-custom-openai]');
+    expect(toml).toContain('[providers.modelswap-custom-openai]');
     expect(toml).toContain('base_url = "https://custom.api.com/v1"');
     expect(toml).toContain('api_key = "sk-test-123"');
-    expect(toml).toContain('[models.okit-custom-openai-my-model]');
+    expect(toml).toContain('[models.modelswap-custom-openai-my-model]');
     expect(toml).toContain('protocol = "openai"');
-    expect(toml).toContain('[models.okit-custom-openai-my-model-lite]');
+    expect(toml).toContain('[models.modelswap-custom-openai-my-model-lite]');
     // Other site untouched.
-    expect(toml).toContain('[providers.okit-other]');
+    expect(toml).toContain('[providers.modelswap-other]');
     expect(toml).toContain('sk-other');
     // Adding a site must not switch the default model.
-    expect(toml).toContain('default_model = "okit-other-other-model"');
+    expect(toml).toContain('default_model = "modelswap-other-other-model"');
   });
 
   it('applyModels with empty entries returns empty', async () => {
@@ -462,7 +462,7 @@ describe('KimiCodeAdapter multi-site (additive)', () => {
 
   it('listEnabledProviders returns provider ids present in config (kimi table → kimi-coding)', async () => {
     mocks.files.set(CONFIG_PATH, [
-      '[providers.okit-custom-openai]',
+      '[providers.modelswap-custom-openai]',
       'type = "openai"',
       'base_url = "https://custom.api.com/v1"',
       'api_key = "sk-1"',
@@ -488,23 +488,23 @@ describe('KimiCodeAdapter multi-site (additive)', () => {
 
   it('removeProvider strips only that provider and drops an owned default_model', async () => {
     mocks.files.set(CONFIG_PATH, [
-      '[providers.okit-custom-openai]',
+      '[providers.modelswap-custom-openai]',
       'type = "openai"',
       'base_url = "https://custom.api.com/v1"',
       'api_key = "sk-1"',
       '',
-      '[models.okit-custom-openai-my-model]',
-      'provider = "okit-custom-openai"',
+      '[models.modelswap-custom-openai-my-model]',
+      'provider = "modelswap-custom-openai"',
       'model = "my-model"',
       'protocol = "openai"',
       'max_context_size = 262144',
       '',
-      '[providers.okit-other]',
+      '[providers.modelswap-other]',
       'type = "openai"',
       'base_url = "https://other.api.com/v1"',
       'api_key = "sk-other"',
       '',
-      'default_model = "okit-custom-openai-my-model"',
+      'default_model = "modelswap-custom-openai-my-model"',
       '',
       '[thinking]',
       'enabled = true',
@@ -514,10 +514,10 @@ describe('KimiCodeAdapter multi-site (additive)', () => {
     await adapter.removeProvider('custom-openai');
 
     const toml = mocks.files.get(CONFIG_PATH)!;
-    expect(toml).not.toContain('okit-custom-openai');
+    expect(toml).not.toContain('modelswap-custom-openai');
     expect(toml).not.toContain('sk-1');
     expect(toml).not.toContain('default_model');
-    expect(toml).toContain('[providers.okit-other]');
+    expect(toml).toContain('[providers.modelswap-other]');
     expect(toml).toContain('sk-other');
     expect(toml).toContain('[thinking]');
     expect(toml).toContain('enabled = true');
@@ -530,13 +530,13 @@ describe('KimiCodeAdapter multi-site (additive)', () => {
       'base_url = "https://api.moonshot.ai/v1"',
       'api_key = "sk-2"',
       '',
-      '[models.okit-moonshot-moonshot-v1-128k]',
+      '[models.modelswap-moonshot-moonshot-v1-128k]',
       'provider = "kimi"',
       'model = "moonshot-v1-128k"',
       'protocol = "kimi"',
       'max_context_size = 262144',
       '',
-      'default_model = "okit-moonshot-moonshot-v1-128k"',
+      'default_model = "modelswap-moonshot-moonshot-v1-128k"',
     ].join('\n'));
 
     const adapter = new KimiCodeAdapter();
@@ -544,13 +544,13 @@ describe('KimiCodeAdapter multi-site (additive)', () => {
 
     const toml = mocks.files.get(CONFIG_PATH)!;
     expect(toml).not.toContain('[providers.kimi]');
-    expect(toml).not.toContain('okit-moonshot');
+    expect(toml).not.toContain('modelswap-moonshot');
     expect(toml).not.toContain('default_model');
   });
 
   it('removeProvider strips an orphaned provider child table', async () => {
     mocks.files.set(CONFIG_PATH, [
-      '[providers.okit-custom-openai.custom_headers]',
+      '[providers.modelswap-custom-openai.custom_headers]',
       'User-Agent = "openai"',
       '',
       '[thinking]',
@@ -561,7 +561,7 @@ describe('KimiCodeAdapter multi-site (additive)', () => {
     await adapter.removeProvider('custom-openai');
 
     const toml = mocks.files.get(CONFIG_PATH)!;
-    expect(toml).not.toContain('okit-custom-openai');
+    expect(toml).not.toContain('modelswap-custom-openai');
     expect(toml).toContain('[thinking]');
     expect(toml).toContain('enabled = true');
   });
@@ -592,21 +592,21 @@ describe('KimiCodeAdapter multi-site (additive)', () => {
       }));
       // kimi's rewrite: default provider's entries keep `model`, others lose it.
       mocks.files.set(CONFIG_PATH, [
-        'default_model = "okit-qianfan-coding-ernie-5-1"',
+        'default_model = "modelswap-qianfan-coding-ernie-5-1"',
         '',
-        '[providers.okit-xiaomi-coding]',
+        '[providers.modelswap-xiaomi-coding]',
         'type = "openai"',
         'base_url = "https://x"',
         'api_key = "sk-1"',
         '',
-        '[models.okit-xiaomi-coding-mimo-v2-5-pro]',
-        'provider = "okit-xiaomi-coding"',
+        '[models.modelswap-xiaomi-coding-mimo-v2-5-pro]',
+        'provider = "modelswap-xiaomi-coding"',
         'protocol = "openai"',
         'max_context_size = 1000000',
         'capabilities = [ "thinking" ]',
         '',
-        '[models.okit-xiaomi-coding-mimo-v2-5]',
-        'provider = "okit-xiaomi-coding"',
+        '[models.modelswap-xiaomi-coding-mimo-v2-5]',
+        'provider = "modelswap-xiaomi-coding"',
         'protocol = "openai"',
       ].join('\n'));
 
@@ -614,17 +614,17 @@ describe('KimiCodeAdapter multi-site (additive)', () => {
       expect(await adapter.healModelFields()).toBe(true);
 
       const healed = mocks.files.get(CONFIG_PATH)!;
-      expect(healed).toContain('[models.okit-xiaomi-coding-mimo-v2-5-pro]\nmodel = "mimo-v2.5-pro"');
-      expect(healed).toContain('[models.okit-xiaomi-coding-mimo-v2-5]\nmodel = "mimo-v2.5"');
+      expect(healed).toContain('[models.modelswap-xiaomi-coding-mimo-v2-5-pro]\nmodel = "mimo-v2.5-pro"');
+      expect(healed).toContain('[models.modelswap-xiaomi-coding-mimo-v2-5]\nmodel = "mimo-v2.5"');
       expect(healed).toContain('capabilities = [ "thinking" ]');
-      expect(healed).toContain('default_model = "okit-qianfan-coding-ernie-5-1"');
+      expect(healed).toContain('default_model = "modelswap-qianfan-coding-ernie-5-1"');
     });
 
-    it('does not touch entries whose provider is unknown to OKIT', async () => {
+    it('does not touch entries whose provider is unknown to MODELSWAP', async () => {
       mocks.files.set(PROVIDERS_JSON, JSON.stringify({ providers: [] }));
       mocks.files.set(CONFIG_PATH, [
-        '[models.okit-gone-ghost-1]',
-        'provider = "okit-gone"',
+        '[models.modelswap-gone-ghost-1]',
+        'provider = "modelswap-gone"',
         'protocol = "openai"',
       ].join('\n'));
 
@@ -636,8 +636,8 @@ describe('KimiCodeAdapter multi-site (additive)', () => {
     it('no-ops when nothing is stripped', async () => {
       mocks.files.set(PROVIDERS_JSON, JSON.stringify({ providers: [] }));
       mocks.files.set(CONFIG_PATH, [
-        '[models.okit-xiaomi-coding-mimo-v2-5-pro]',
-        'provider = "okit-xiaomi-coding"',
+        '[models.modelswap-xiaomi-coding-mimo-v2-5-pro]',
+        'provider = "modelswap-xiaomi-coding"',
         'model = "mimo-v2.5-pro"',
         'protocol = "openai"',
       ].join('\n'));
@@ -670,8 +670,8 @@ describe('KimiCodeAdapter multi-site (additive)', () => {
         ],
       }));
       mocks.files.set(CONFIG_PATH, [
-        '[models.okit-xiaomi-coding-mimo-v2-5-pro]',
-        'provider = "okit-xiaomi-coding"',
+        '[models.modelswap-xiaomi-coding-mimo-v2-5-pro]',
+        'provider = "modelswap-xiaomi-coding"',
         'protocol = "openai"',
       ].join('\n'));
 
@@ -695,8 +695,8 @@ describe('KimiCodeAdapter multi-site (additive)', () => {
         ],
       }));
       mocks.files.set(CONFIG_PATH, [
-        '[models.okit-xiaomi-coding-mimo-v2-5-pro]',
-        'provider = "okit-xiaomi-coding"',
+        '[models.modelswap-xiaomi-coding-mimo-v2-5-pro]',
+        'provider = "modelswap-xiaomi-coding"',
         'model = "mimo-v2.5-pro"',
         'protocol = "openai"',
       ].join('\n'));

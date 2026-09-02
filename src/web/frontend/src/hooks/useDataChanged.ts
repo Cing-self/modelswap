@@ -22,7 +22,7 @@ export function useDataChanged(sections: DataSection[], onChanged: () => void | 
         void handlerRef.current();
       }
     };
-    window.addEventListener('okit:data-changed', listener);
-    return () => window.removeEventListener('okit:data-changed', listener);
+    window.addEventListener('modelswap:data-changed', listener);
+    return () => window.removeEventListener('modelswap:data-changed', listener);
   }, [sectionKey]);
 }

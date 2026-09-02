@@ -1,11 +1,11 @@
 /**
- * OKIT extension — Service Worker (background script) v2.0
+ * MODELSWAP extension — Service Worker (background script) v2.0
  *
- * Connects to the OKIT server via WebSocket, receives atomic-capability
+ * Connects to the MODELSWAP server via WebSocket, receives atomic-capability
  * commands (exec, navigate, network-capture-start, etc.), dispatches them to
  * Chrome APIs (debugger/tabs/cookies), and returns results.
  *
- * Design (based on opencli, simplified for OKIT's single-user desktop model):
+ * Design (based on opencli, simplified for MODELSWAP's single-user desktop model):
  *   - Single automation window (no multi-workspace isolation)
  *   - WS reconnect with exponential backoff + chrome.alarms keepalive
  *   - /ping health probe before WS attempt (avoids console noise)
@@ -13,11 +13,11 @@
  *   - Network capture via CDP Network domain (getResponseBody for full API responses)
  *
  * The extension exposes ONLY generic atoms — platform-specific flows (which
- * button to click, which API to intercept) live in the OKIT server
+ * button to click, which API to intercept) live in the MODELSWAP server
  * (src/web/api/auto-create.js). This keeps the extension stable across
  * platform additions.
  */
-import { wsUrl, pingUrl, tokenUrl, OKIT_PORTS, WS_RECONNECT_BASE_DELAY, WS_RECONNECT_MAX_DELAY } from './protocol.js';
+import { wsUrl, pingUrl, tokenUrl, MODELSWAP_PORTS, WS_RECONNECT_BASE_DELAY, WS_RECONNECT_MAX_DELAY } from './protocol.js';
 import { generateStealthJs } from './stealth.js';
 import * as executor from './cdp.js';
 // ─── WebSocket connection state ─────────────────────────────────────
@@ -25,7 +25,7 @@ let ws = null;
 let reconnectTimer = null;
 let reconnectAttempts = 0;
 // ─── Console log forwarding ──────────────────────────────────────────
-// Forward service-worker console output to OKIT server for debugging.
+// Forward service-worker console output to MODELSWAP server for debugging.
 const _origLog = console.log.bind(console);
 const _origWarn = console.warn.bind(console);
 const _origError = console.error.bind(console);
@@ -43,19 +43,19 @@ console.warn = (...args) => { _origWarn(...args); forwardLog('warn', args); };
 console.error = (...args) => { _origError(...args); forwardLog('error', args); };
 // ─── WebSocket connection ────────────────────────────────────────────
 /**
- * Probe the OKIT server via its /ping HTTP endpoint before attempting a
+ * Probe the MODELSWAP server via its /ping HTTP endpoint before attempting a
  * WebSocket connection. fetch() failures are silently catchable; new
  * WebSocket() is not — Chrome logs ERR_CONNECTION_REFUSED to the extension
  * error page before any JS handler can intercept it.
  */
 /**
- * Probe the ports the OKIT server may occupy (3780 pinned, 3781+ fallback)
+ * Probe the ports the MODELSWAP server may occupy (3780 pinned, 3781+ fallback)
  * and return the first one that answers, or null when no server is running.
  * The short per-port timeout keeps the full sweep cheap on the ~20s keepalive
  * cadence when the server is down.
  */
 async function findServerPort() {
-    for (const port of OKIT_PORTS) {
+    for (const port of MODELSWAP_PORTS) {
         try {
             const res = await fetch(pingUrl(port), { signal: AbortSignal.timeout(600) });
             if (res.ok)
@@ -99,7 +99,7 @@ async function connect() {
         return;
     }
     ws.onopen = () => {
-        console.log('[OKIT] Connected to daemon');
+        console.log('[MODELSWAP] Connected to daemon');
         reconnectAttempts = 0;
         if (reconnectTimer) {
             clearTimeout(reconnectTimer);
@@ -127,7 +127,7 @@ async function connect() {
         if (msg?.type === 'auth-ok')
             return; // handshake ack — not a command
         if (msg?.type === 'auth-failed') {
-            console.error('[OKIT] WS auth rejected:', msg.error || 'unknown error');
+            console.error('[MODELSWAP] WS auth rejected:', msg.error || 'unknown error');
             ws?.close();
             return;
         }
@@ -137,11 +137,11 @@ async function connect() {
             ws?.send(JSON.stringify(result));
         }
         catch (err) {
-            console.error('[OKIT] Message handling error:', err);
+            console.error('[MODELSWAP] Message handling error:', err);
         }
     };
     ws.onclose = () => {
-        console.log('[OKIT] Disconnected from daemon');
+        console.log('[MODELSWAP] Disconnected from daemon');
         ws = null;
         scheduleReconnect();
     };
@@ -168,7 +168,7 @@ function scheduleReconnect() {
     }, delay);
 }
 // ─── Automation window (single, reused) ──────────────────────────────
-// OKIT is single-user, so we keep ONE dedicated automation window. The user's
+// MODELSWAP is single-user, so we keep ONE dedicated automation window. The user's
 // active browsing session is never touched. The window auto-closes after 30s
 // of idle (no commands).
 let automationWindowId = null;
@@ -194,7 +194,7 @@ function resetIdleTimer() {
         if (automationWindowId !== null) {
             try {
                 await chrome.windows.remove(automationWindowId);
-                console.log(`[OKIT] Automation window ${automationWindowId} closed (idle timeout)`);
+                console.log(`[MODELSWAP] Automation window ${automationWindowId} closed (idle timeout)`);
             }
             catch {
                 // Already gone
@@ -231,7 +231,7 @@ async function getAutomationWindow(initialUrl) {
         type: 'normal',
     });
     automationWindowId = win.id;
-    console.log(`[OKIT] Created automation window ${automationWindowId} (start=${startUrl})`);
+    console.log(`[MODELSWAP] Created automation window ${automationWindowId} (start=${startUrl})`);
     resetIdleTimer();
     // Wait for the initial tab to finish loading
     const tabs = await chrome.tabs.query({ windowId: win.id });
@@ -298,7 +298,7 @@ async function resolveTabId(explicitTabId, initialUrl) {
 // Clean up when the automation window is closed by the user
 chrome.windows.onRemoved.addListener((windowId) => {
     if (windowId === automationWindowId) {
-        console.log('[OKIT] Automation window closed');
+        console.log('[MODELSWAP] Automation window closed');
         if (idleTimer) {
             clearTimeout(idleTimer);
             idleTimer = null;
@@ -324,7 +324,7 @@ async function ensureStealthInjected(tabId) {
         source: generateStealthJs(),
     });
     stealthInjectedTabs.add(tabId);
-    console.log(`[OKIT] Stealth injected for tab ${tabId}`);
+    console.log(`[MODELSWAP] Stealth injected for tab ${tabId}`);
 }
 // When a tab navigates to a new page, re-verify stealth is registered.
 // Page.addScriptToEvaluateOnNewDocument persists across navigations within
@@ -353,7 +353,7 @@ function initialize() {
     chrome.alarms.create('keepalive', { periodInMinutes: 0.33 }); // ~20 seconds
     executor.registerListeners();
     void connect();
-    console.log('[OKIT] Extension initialized v' + chrome.runtime.getManifest().version);
+    console.log('[MODELSWAP] Extension initialized v' + chrome.runtime.getManifest().version);
 }
 chrome.runtime.onInstalled.addListener(() => {
     initialize();
@@ -378,7 +378,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 });
 const clipboardReadPending = new Map();
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-    if (msg?.type === 'okit-clipboard-read-result' && typeof msg.requestId === 'string') {
+    if (msg?.type === 'modelswap-clipboard-read-result' && typeof msg.requestId === 'string') {
         const pending = clipboardReadPending.get(msg.requestId);
         if (!pending)
             return false;
@@ -517,7 +517,7 @@ async function handleNavigate(cmd) {
         // Timeout fallback
         timeoutTimer = setTimeout(() => {
             timedOut = true;
-            console.warn(`[OKIT] Navigate to ${targetUrl} timed out after 15s`);
+            console.warn(`[MODELSWAP] Navigate to ${targetUrl} timed out after 15s`);
             finish();
         }, 15000);
     });
@@ -534,7 +534,7 @@ async function handleTabs(cmd) {
         case 'list': {
             // Discovery is read-only and must include the user's normal browser
             // windows. Usage integrations reuse an already-authenticated page
-            // instead of forcing a second login in the OKIT automation window.
+            // instead of forcing a second login in the MODELSWAP automation window.
             const tabs = await chrome.tabs.query({});
             const data = tabs
                 .filter(t => isDebuggableUrl(t.url))

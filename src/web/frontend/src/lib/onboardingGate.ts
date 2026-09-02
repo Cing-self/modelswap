@@ -5,7 +5,7 @@
 let cached: boolean | null = null;
 
 export function primeOnboardingFromSession(): boolean {
-  if (cached === null && sessionStorage.getItem('okit.onboarded') === '1') {
+  if (cached === null && sessionStorage.getItem('modelswap.onboarded') === '1') {
     cached = true;
   }
   return cached === true;
@@ -17,6 +17,6 @@ export function getOnboardingDoneCache(): boolean | null {
 
 export function setOnboardingDone(v: boolean) {
   cached = v;
-  if (v) sessionStorage.setItem('okit.onboarded', '1');
-  else sessionStorage.removeItem('okit.onboarded');
+  if (v) sessionStorage.setItem('modelswap.onboarded', '1');
+  else sessionStorage.removeItem('modelswap.onboarded');
 }

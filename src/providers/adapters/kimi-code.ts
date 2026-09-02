@@ -52,8 +52,8 @@ export class KimiCodeAdapter extends BaseAdapter {
     }
     toml = this.stripForeignTables(stripLegacyV1Keys(toml));
     // Multi-site mode: only rewrite THIS provider's tables so other enabled
-    // sites (other okit-* provider/model tables) stay intact.
-    toml = stripProviderTables(toml, getKimiCodeProviderId(provider), `okit-${sanitizeTomlKey(provider.id)}`);
+    // sites (other modelswap-* provider/model tables) stay intact.
+    toml = stripProviderTables(toml, getKimiCodeProviderId(provider), `modelswap-${sanitizeTomlKey(provider.id)}`);
 
     const providerId = getKimiCodeProviderId(provider);
     const openAIEndpoint = getProviderEndpoint(provider, "openai");
@@ -87,7 +87,7 @@ export class KimiCodeAdapter extends BaseAdapter {
   // /model switch, session create) and drops the REQUIRED `model` field from
   // every [models.*] entry whose provider is not the current default's —
   // breaking those models ("must define a wire-facing name"). Restore the
-  // missing fields from OKIT's provider store. Alias->model id is lossy
+  // missing fields from MODELSWAP's provider store. Alias->model id is lossy
   // (dots become dashes), so match each alias segment against the provider's
   // model list. Returns whether the config was modified.
   async healModelFields(): Promise<boolean> {
@@ -101,7 +101,7 @@ export class KimiCodeAdapter extends BaseAdapter {
       // otherwise swallow the longer provider's aliases.
       const ids = [...byId.keys()].sort((a, b) => b.length - a.length);
       for (const pid of ids) {
-        const prefix = `okit-${sanitizeTomlKey(pid)}-`;
+        const prefix = `modelswap-${sanitizeTomlKey(pid)}-`;
         if (!alias.startsWith(prefix)) continue;
         const seg = alias.slice(prefix.length);
         const provider = byId.get(pid);
@@ -109,12 +109,12 @@ export class KimiCodeAdapter extends BaseAdapter {
       }
       return null;
     };
-    // True only when the alias belongs to a provider OKIT still registers:
+    // True only when the alias belongs to a provider MODELSWAP still registers:
     // an unresolvable model under a KNOWN provider is stale and safe to drop,
     // while an unknown provider's entries are not ours to manage.
     const belongsToKnownProvider = (alias: string): boolean => {
       const ids = [...byId.keys()].sort((a, b) => b.length - a.length);
-      return ids.some(pid => alias.startsWith(`okit-${sanitizeTomlKey(pid)}-`));
+      return ids.some(pid => alias.startsWith(`modelswap-${sanitizeTomlKey(pid)}-`));
     };
 
     const source = toml.split("\n");
@@ -143,7 +143,7 @@ export class KimiCodeAdapter extends BaseAdapter {
           out.push(`model = ${tomlString(modelId)}`);
           changed = true;
         } else if (belongsToKnownProvider(header[1])) {
-          // An OKIT-registered alias that no longer resolves to any model in
+          // An MODELSWAP-registered alias that no longer resolves to any model in
           // the provider store is stale. Kimi 0.38 crashes at startup when
           // default_model points at an entry without a `model` field, so drop
           // the entry (and later the default) instead of leaving the trap.
@@ -214,7 +214,7 @@ export class KimiCodeAdapter extends BaseAdapter {
     return { written, skipped: [] };
   }
 
-  // Which OKIT provider ids currently have a provider table in kimi's config.
+  // Which MODELSWAP provider ids currently have a provider table in kimi's config.
   // A table present = the site is enabled (kimi has no per-site enabled flag).
   async listEnabledProviders(): Promise<string[]> {
     if (!(await fs.pathExists(KIMI_CODE_CONFIG_PATH))) return [];
@@ -224,14 +224,14 @@ export class KimiCodeAdapter extends BaseAdapter {
       const m = line.match(/^\s*\[providers\.([a-zA-Z0-9_-]+)\]\s*(?:#.*)?$/);
       if (!m) continue;
       const id = m[1];
-      // The `kimi` table hosts OKIT's kimi official presets (kimi-coding /
+      // The `kimi` table hosts MODELSWAP's kimi official presets (kimi-coding /
       // moonshot) — they share kimi's built-in provider slot.
       if (id === "kimi") {
         if (!ids.includes("kimi-coding")) ids.push("kimi-coding");
         continue;
       }
-      if (id.startsWith("okit-")) {
-        const real = id.slice(5);
+      if (id.startsWith("modelswap-")) {
+        const real = id.slice("modelswap-".length);
         if (!ids.includes(real)) ids.push(real);
       }
     }
@@ -245,7 +245,7 @@ export class KimiCodeAdapter extends BaseAdapter {
     if (!(await fs.pathExists(KIMI_CODE_CONFIG_PATH))) return;
     const toml = await fs.readFile(KIMI_CODE_CONFIG_PATH, "utf-8");
     const tableProviderId = getKimiCodeProviderIdFromId(providerId);
-    const aliasPrefix = `okit-${sanitizeTomlKey(providerId)}`;
+    const aliasPrefix = `modelswap-${sanitizeTomlKey(providerId)}`;
     const stripped = stripProviderTables(toml, tableProviderId, aliasPrefix);
     if (stripped === toml) return;
 
@@ -336,11 +336,11 @@ function getKimiCodeProviderId(provider: Provider): string {
 
 function getKimiCodeProviderIdFromId(providerId: string): string {
   if (providerId === "kimi-coding" || providerId === "moonshot") return "kimi";
-  return `okit-${sanitizeTomlKey(providerId)}`;
+  return `modelswap-${sanitizeTomlKey(providerId)}`;
 }
 
 function getModelAlias(providerId: string, modelId: string): string {
-  return `okit-${sanitizeTomlKey(providerId)}-${sanitizeTomlKey(modelId)}`;
+  return `modelswap-${sanitizeTomlKey(providerId)}-${sanitizeTomlKey(modelId)}`;
 }
 
 function getCapabilities(resolved: ResolvedModel): string[] {
@@ -352,7 +352,7 @@ function getCapabilities(resolved: ResolvedModel): string[] {
 
 // Kimi Code v1 (Claude Code fork lineage) used `model` / `model_provider` and
 // a `[model_providers.*]` table. The v2 engine ignores those keys entirely
-// (they show up as "Unknown top-level keys" in `kimi doctor`), so OKIT strips
+// (they show up as "Unknown top-level keys" in `kimi doctor`), so MODELSWAP strips
 // them when rewriting so the config stays clean for the v2 format.
 function stripLegacyV1Keys(toml: string): string {
   const source = toml.split("\n");
@@ -373,16 +373,16 @@ function stripLegacyV1Keys(toml: string): string {
   return out.join("\n").replace(/\n{3,}/g, "\n\n").trim() + "\n";
 }
 
-// Removes the OKIT-managed tables of ONE provider (its [providers.<id>] table
-// and its [models.okit-<providerId>-*] aliases) so a switch can rewrite that
-// site fresh. Tables of OTHER enabled sites and non-okit tables (kimi's own
+// Removes the MODELSWAP-managed tables of ONE provider (its [providers.<id>] table
+// and its [models.modelswap-<providerId>-*] aliases) so a switch can rewrite that
+// site fresh. Tables of OTHER enabled sites and non-modelswap tables (kimi's own
 // [thinking], [services.*], hand-written providers) are left untouched — that
 // is what makes multi-site (additive) configs work.
 function stripProviderTables(toml: string, tableProviderId: string, aliasPrefix: string): string {
   const source = toml.split("\n");
   const out: string[] = [];
   let skipping = false;
-  // Include child tables such as `[providers.okit-foo.custom_headers]`.
+  // Include child tables such as `[providers.modelswap-foo.custom_headers]`.
   // A previous interrupted cleanup could leave one of those behind without
   // its parent provider table, and treating only the parent as owned leaves a
   // ghost provider configuration on disk.

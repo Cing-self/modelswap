@@ -1,8 +1,8 @@
 // Wire-compatible encrypted blob and sync-code serialization.
 const crypto = require('crypto');
 
-const SYNC_CODE_PREFIX = 'okit-sync:';
-const SYNC_CODE_SALT = 'okit-sync-code-salt';
+const SYNC_CODE_PREFIX = 'modelswap-sync:';
+const SYNC_CODE_SALT = 'modelswap-sync-code-salt';
 
 function deriveSyncCodeKey(password) {
   return crypto.pbkdf2Sync(password, SYNC_CODE_SALT, 100000, 32, 'sha256');

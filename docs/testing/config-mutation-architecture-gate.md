@@ -1,6 +1,6 @@
 # User config mutation architecture gate
 
-Status: **final v4 design gate; implementation paused**. This document inventories every production path that reads or writes `~/.okit/user.json`. It does not authorize a product implementation by itself.
+Status: **final v4 design gate; implementation paused**. This document inventories every production path that reads or writes `~/.modelswap/user.json`. It does not authorize a product implementation by itself.
 
 The machine-readable registry at `docs/testing/config-mutation-registry.json` is normative. This document explains invariants and the QA acceptance mapping only; no area-level operation is sufficient without a matching machine registry entry, JSON Schema and isolated matrix participant.
 

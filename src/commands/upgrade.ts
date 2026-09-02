@@ -1,7 +1,7 @@
 import kleur from "kleur";
 import execa from "execa";
 
-export const PACKAGE_NAME = "@cing-self/okit-cli";
+export const PACKAGE_NAME = "modelswap";
 
 export interface UpgradeDeps {
   run: (cmd: string, args: string[]) => Promise<{ stdout: string }>;
@@ -58,7 +58,7 @@ export async function installPackage(
 }
 
 export async function upgradeSelf(deps: UpgradeDeps = defaultDeps): Promise<void> {
-  deps.log(kleur.cyan("\n⬆️  Upgrading OKIT...\n"));
+  deps.log(kleur.cyan("\n⬆️  Upgrading MODELSWAP...\n"));
 
   let currentVersion = "0.0.0";
   try {
@@ -93,6 +93,6 @@ export async function upgradeSelf(deps: UpgradeDeps = defaultDeps): Promise<void
     return;
   }
 
-  deps.log(kleur.green("✓ OKIT 升级成功"));
+  deps.log(kleur.green("✓ MODELSWAP 升级成功"));
   deps.exit(0);
 }

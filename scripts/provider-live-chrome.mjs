@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // provider-live-chrome — 启动“专用测试 Chrome”的登录辅助脚本。
 //
-// 它只做一件事：用专用 profile 目录（~/.okit/provider-live-acceptance/profiles/<name>）
+// 它只做一件事：用专用 profile 目录（~/.modelswap/provider-live-acceptance/profiles/<name>）
 // 启动一个独立的 Chrome/Edge 实例，供人工在各平台完成官方登录。可选
-// --with-extension 加载 OKIT 扩展（仅 create-cleanup 链路需要）。
+// --with-extension 加载 MODELSWAP 扩展（仅 create-cleanup 链路需要）。
 //
 // 硬边界：
 //  * 绝不使用/复制/备份/删除/导出日常 Chrome 的用户目录、Cookie、
@@ -66,7 +66,7 @@ function parseArgv(argv) {
     } else return { ok: false, error: `未知参数：${token}\n${USAGE}` };
   }
   if (!isSimpleProfileName(parsed.profileName)) {
-    return { ok: false, error: '--profile 只接受简单标识符（字母/数字/./_/-），不接受路径；专用 profile 永远位于 ~/.okit/provider-live-acceptance/profiles/ 内' };
+    return { ok: false, error: '--profile 只接受简单标识符（字母/数字/./_/-），不接受路径；专用 profile 永远位于 ~/.modelswap/provider-live-acceptance/profiles/ 内' };
   }
   return { ok: true, ...parsed };
 }
@@ -79,7 +79,7 @@ async function main() {
     return;
   }
 
-  const root = path.join(os.homedir(), '.okit', 'provider-live-acceptance');
+  const root = path.join(os.homedir(), '.modelswap', 'provider-live-acceptance');
   const profileDir = path.join(root, 'profiles', parsed.profileName);
   try {
     assertSafeProfileDir({ root, dir: profileDir });
@@ -102,7 +102,7 @@ async function main() {
 
   const binary = findChromeBinary();
   if (!binary) {
-    console.error('error\t未找到 Chrome/Chromium/Edge 可执行文件；请设置 OKIT_LIVE_CHROME_BIN 或安装任一受支持浏览器');
+    console.error('error\t未找到 Chrome/Chromium/Edge 可执行文件；请设置 MODELSWAP_LIVE_CHROME_BIN 或安装任一受支持浏览器');
     process.exitCode = 1;
     return;
   }

@@ -9,7 +9,7 @@ async function deleteCreatedBrowserKey({ platform, createdName, run = null }) {
   const url = platform.deleteUrl || getBrowserPlatformUrl(platform);
   if (!url) throw new Error(`${platform.label || platform.id} 没有可用的删除控制台地址`);
 
-  const nav = await sendCommand('navigate', { url, workspace: 'okit' }, 30000);
+  const nav = await sendCommand('navigate', { url, workspace: 'modelswap' }, 30000);
   if (!nav.ok) throw new Error(nav.error || '打开删除密钥页面失败');
   const tabId = nav.data?.tabId;
   if (isLoginUrl(nav.data?.url)) throw new Error(`${platform.label || platform.id} 删除前需要登录`);
@@ -75,7 +75,7 @@ async function deleteCreatedBrowserKey({ platform, createdName, run = null }) {
       try { state = JSON.parse(raw || '{}'); } catch {}
       if (state.ok && platform.deletePreNavigationUseHref && state.href) {
         const exactUrl = new URL(state.href, url).href;
-        const directNav = await sendCommand('navigate', { url: exactUrl, workspace: 'okit' }, 30000);
+        const directNav = await sendCommand('navigate', { url: exactUrl, workspace: 'modelswap' }, 30000);
         preNavigated = Boolean(directNav.ok);
       } else if (state.ok && platform.deletePreNavigationUseHref && Number.isFinite(state.x) && Number.isFinite(state.y)) {
         preNavigated = await foregroundClick({ x: state.x, y: state.y, tabId });

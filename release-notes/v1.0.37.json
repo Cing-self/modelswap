@@ -37,5 +37,5 @@
       "en": "Fixed concurrent configuration writes overwriting each other; parallel changes no longer lose data."
     }
   ],
-  "releaseUrl": "https://github.com/Cing-self/okit/releases/tag/v1.0.37"
+  "releaseUrl": "https://github.com/Cing-self/modelswap/releases/tag/v1.0.37"
 }

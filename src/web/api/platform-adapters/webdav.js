@@ -1,5 +1,5 @@
 
-const SYNC_DIR = 'okit-sync';
+const SYNC_DIR = 'modelswap-sync';
 
 function normalizeConfig(config) {
   const normalized = { ...config };

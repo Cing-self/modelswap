@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════
-   OKIT 界面风格包（data-style 属性驱动）
+   MODELSWAP 界面风格包（data-style 属性驱动）
    - 默认 command 风格由 dashboard-command.css 定义，
      此文件只定义可切换的风格包（kraft / ocean / mono / ember）
    - 每包两块：暗色 [data-style="x"] + 亮色 [data-style="x"][data-theme="light"]

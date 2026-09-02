@@ -34,7 +34,7 @@ if ! gh auth status >/dev/null 2>&1; then
   if [[ -z "${GH_TOKEN:-}" ]]; then
     token="$(python3 - <<'PY'
 import json, os, sys
-path = os.path.join(os.path.expanduser("~"), ".okit", "user.json")
+path = os.path.join(os.path.expanduser("~"), ".modelswap", "user.json")
 try:
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)

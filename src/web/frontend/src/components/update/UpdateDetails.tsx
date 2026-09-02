@@ -15,7 +15,7 @@ export function useUpdateDetails() {
 }
 
 export function UpdateDetailsProvider({ children }: { children: React.ReactNode }) {
-  const isDesktop = typeof window !== 'undefined' && Boolean((window as any).okitDesktop);
+  const isDesktop = typeof window !== 'undefined' && Boolean((window as any).modelswapDesktop);
   const updateApi = useAppUpdate({ autoCheck: isDesktop });
   const value = useMemo(() => updateApi, [updateApi]);
 

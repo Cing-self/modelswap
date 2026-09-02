@@ -11,7 +11,7 @@ const ICLOUD_ROOT = path.join(
   'com~apple~CloudDocs',
 );
 
-const SYNC_DIR = path.join(ICLOUD_ROOT, 'okit-sync');
+const SYNC_DIR = path.join(ICLOUD_ROOT, 'modelswap-sync');
 const SECRETS_DIR = path.join(SYNC_DIR, 'secrets');
 
 function isSupported() {
@@ -42,7 +42,7 @@ async function testConnection(config) {
   assertConfig(config);
   await fs.ensureDir(SYNC_DIR);
   await fs.ensureDir(SECRETS_DIR);
-  return 'iCloud 连接成功，数据将同步到 iCloud Drive 的 okit-sync 文件夹';
+  return 'iCloud 连接成功，数据将同步到 iCloud Drive 的 modelswap-sync 文件夹';
 }
 
 async function pushSync(config, userId, encryptedBlob) {

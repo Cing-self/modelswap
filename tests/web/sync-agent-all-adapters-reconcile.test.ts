@@ -24,7 +24,7 @@ function reservePort() {
 function run(root: string, home: string, script: string, blob: string) {
   try {
     return execFileSync(process.execPath, ['-r', 'ts-node/register/transpile-only', '-e', script, root], {
-      env: { ...process.env, HOME: home, USERPROFILE: home, OKIT_SYNC_BLOB: blob },
+      env: { ...process.env, HOME: home, USERPROFILE: home, MODELSWAP_SYNC_BLOB: blob },
       encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
     });
   } catch (error: unknown) {
@@ -57,9 +57,9 @@ function claudeHelperPermissionsArePortable(mode: number, platform: NodeJS.Platf
 describe('sync pull reconciles every registered Agent through local discovery', { timeout: 30000 }, () => {
   it('hydrates B-local models and writes every native Agent config from the dynamic registry', async () => {
     const root = path.resolve(__dirname, '../..');
-    const machineA = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-sync-all-adapters-a-'));
-    const machineB = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-sync-all-adapters-b-'));
-    const blobDir = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-sync-all-adapters-blob-'));
+    const machineA = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-sync-all-adapters-a-'));
+    const machineB = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-sync-all-adapters-b-'));
+    const blobDir = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-sync-all-adapters-blob-'));
     const blob = path.join(blobDir, 'remote.json');
     const port = await reservePort();
     const origin = `http://127.0.0.1:${port}`;
@@ -72,8 +72,8 @@ describe('sync pull reconciles every registered Agent through local discovery', 
       Module.prototype.require=function(id) {
         if (id === './platform-adapters/supabase') return {
           name:'Supabase', testConnection:async()=>true,
-          pushSync:async (_config,_id,data)=>transportFs.writeFileSync(process.env.OKIT_SYNC_BLOB, JSON.stringify(data)),
-          pullSync:async ()=>transportFs.existsSync(process.env.OKIT_SYNC_BLOB)?JSON.parse(transportFs.readFileSync(process.env.OKIT_SYNC_BLOB,'utf8')):null,
+          pushSync:async (_config,_id,data)=>transportFs.writeFileSync(process.env.MODELSWAP_SYNC_BLOB, JSON.stringify(data)),
+          pullSync:async ()=>transportFs.existsSync(process.env.MODELSWAP_SYNC_BLOB)?JSON.parse(transportFs.readFileSync(process.env.MODELSWAP_SYNC_BLOB,'utf8')):null,
         };
         return original.apply(this,arguments);
       };
@@ -122,7 +122,7 @@ describe('sync pull reconciles every registered Agent through local discovery', 
         const state={sync:{password:'shared-secret',platforms:{supabase:{enabled:true,projectId:'project',apiToken:'token'}}},agentProviders:{}};
         for(const id of ${JSON.stringify(EXPECTED_AGENT_IDS)}) state.agentProviders[id]={activeProviderId:provider.id,activeModelId:remote,sites:{[provider.id]:{modelIds:[remote]}}};
         state.agentProviders.claude.sites[provider.id].tierMap={haiku:remote,sonnet:remote,opus:remote};
-        fs.writeFileSync(path.join(process.env.HOME,'.okit','user.json'),JSON.stringify(state));
+        fs.writeFileSync(path.join(process.env.HOME,'.modelswap','user.json'),JSON.stringify(state));
         await sync.syncPush(); await new Promise(resolve=>server.close(resolve));
       })().catch(error=>{console.error(error.stack||error);process.exit(1)});
     `;
@@ -131,12 +131,12 @@ describe('sync pull reconciles every registered Agent through local discovery', 
         const { AGENTS_META }=require(path.join(root,'src/providers/agentsMeta'));
         const { getAdapters }=require(path.join(root,'src/providers/registry'));
         const server=await startDirectory();
-        const home=process.env.HOME, okit=path.join(home,'.okit'); fs.mkdirSync(okit,{recursive:true});
+        const home=process.env.HOME, modelswap=path.join(home,'.modelswap'); fs.mkdirSync(modelswap,{recursive:true});
         // Same-ID catalog data supplements facts only; it cannot create a
         // second model row and allows tier/token mappings to be asserted.
-        const now=new Date().toISOString(); fs.mkdirSync(path.join(okit,'cache'),{recursive:true});
-        fs.writeFileSync(path.join(okit,'cache','models-dev.json'),JSON.stringify({source:'models.dev',version:2,generation:1,sourceFetchedAt:now,cachedAt:now,status:'fresh',data:{'sync-all-adapters':{models:{[remote]:{name:'Sync All Remote',limit:{context:123456,output:8192},reasoning:true,modalities:{input:['text'],output:['text']}}}}}}));
-        fs.writeFileSync(path.join(home,'.okit','user.json'),JSON.stringify({sync:{password:'shared-secret',platforms:{supabase:{enabled:true,projectId:'project',apiToken:'token'}}}}));
+        const now=new Date().toISOString(); fs.mkdirSync(path.join(modelswap,'cache'),{recursive:true});
+        fs.writeFileSync(path.join(modelswap,'cache','models-dev.json'),JSON.stringify({source:'models.dev',version:2,generation:1,sourceFetchedAt:now,cachedAt:now,status:'fresh',data:{'sync-all-adapters':{models:{[remote]:{name:'Sync All Remote',limit:{context:123456,output:8192},reasoning:true,modalities:{input:['text'],output:['text']}}}}}}));
+        fs.writeFileSync(path.join(home,'.modelswap','user.json'),JSON.stringify({sync:{password:'shared-secret',platforms:{supabase:{enabled:true,projectId:'project',apiToken:'token'}}}}));
         const result=await sync.syncPull();
         const read=(...parts)=>fs.readFileSync(path.join(home,...parts),'utf8');
         const claude=JSON.parse(read('.claude','settings.json'));
@@ -150,8 +150,8 @@ describe('sync pull reconciles every registered Agent through local discovery', 
         const kimi=read('.kimi-code','config.toml');
         const grok=read('.grok','config.toml');
         const mimo=JSON.parse(read('.config','mimocode','mimocode.jsonc'));
-        const providersText=read('.okit','providers.json');
-        const cache=JSON.parse(read('.okit','models-cache.json'));
+        const providersText=read('.modelswap','providers.json');
+        const cache=JSON.parse(read('.modelswap','models-cache.json'));
         const vault=new VaultStore();
         const selectedValue=await vault.get(selectedRef);
         const distractorValue=await vault.get(distractorRef);
@@ -159,7 +159,7 @@ describe('sync pull reconciles every registered Agent through local discovery', 
         // catches an incorrectly wired-but-present credential without leaking
         // a test key into the Vitest report.
         const isSelectedCredential=value=>typeof value==='string'&&value===selectedValue&&value!==distractorValue;
-        const claudeHelperPath=path.join(home,'.claude','.okit-key-helper.sh');
+        const claudeHelperPath=path.join(home,'.claude','.modelswap-key-helper.sh');
         const claudeHelper=claude.apiKeyHelper===claudeHelperPath&&fs.existsSync(claudeHelperPath)?fs.readFileSync(claudeHelperPath,'utf8'):'';
         // Do not execute the POSIX helper: Windows has no /bin/sh. The
         // fixture's two values are simple shell atoms, so inspect the helper
@@ -222,7 +222,7 @@ describe('sync pull reconciles every registered Agent through local discovery', 
     expect(claudeHelperPermissionsArePortable(0o644, 'linux')).toBe(false);
     expect(claudeHelperPermissionsArePortable(0o644, 'win32')).toBe(true);
 
-    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-sync-redacted-child-'));
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-sync-redacted-child-'));
     try {
       let failure: Error | undefined;
       try {

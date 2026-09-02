@@ -3,13 +3,13 @@ import path from "path";
 import kleur from "kleur";
 
 export function bundledSkillPath(): string {
-  return path.resolve(__dirname, "../../skills/okit-cli/SKILL.md");
+  return path.resolve(__dirname, "../../skills/modelswap/SKILL.md");
 }
 
 export async function showSkillPath(): Promise<void> {
   const source = bundledSkillPath();
   if (!(await fs.pathExists(source))) {
-    console.error(kleur.red(`✗ Bundled OKIT Skill not found: ${source}`));
+    console.error(kleur.red(`✗ Bundled MODELSWAP Skill not found: ${source}`));
     process.exitCode = 1;
     return;
   }
@@ -19,13 +19,13 @@ export async function showSkillPath(): Promise<void> {
 export async function installSkill(targetDir = process.cwd(), options?: { force?: boolean }): Promise<void> {
   const source = bundledSkillPath();
   if (!(await fs.pathExists(source))) {
-    console.error(kleur.red(`✗ Bundled OKIT Skill not found: ${source}`));
+    console.error(kleur.red(`✗ Bundled MODELSWAP Skill not found: ${source}`));
     process.exitCode = 1;
     return;
   }
 
   const projectDir = path.resolve(targetDir);
-  const destination = path.join(projectDir, ".agents", "skills", "okit-cli", "SKILL.md");
+  const destination = path.join(projectDir, ".agents", "skills", "modelswap", "SKILL.md");
   if (await fs.pathExists(destination) && !options?.force) {
     console.error(kleur.red(`✗ Skill already exists: ${destination}`));
     console.error(kleur.gray("  Re-run with --force only if you intend to replace it."));
@@ -35,5 +35,5 @@ export async function installSkill(targetDir = process.cwd(), options?: { force?
 
   await fs.ensureDir(path.dirname(destination));
   await fs.copyFile(source, destination);
-  console.log(kleur.green(`✓ Installed OKIT CLI Skill: ${destination}`));
+  console.log(kleur.green(`✓ Installed MODELSWAP CLI Skill: ${destination}`));
 }

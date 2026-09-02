@@ -60,7 +60,7 @@ describe('Volcengine Agent Plan models.dev fallback', () => {
     expect(saved).toHaveLength(1);
   });
 
-  it('removes stale rows created by the retired OKIT-owned allowlist', async () => {
+  it('removes stale rows created by the retired MODELSWAP-owned allowlist', async () => {
     const staleModel = {
       id: 'ark-code-latest',
       name: 'Ark Code Latest',

@@ -5,8 +5,8 @@ import net from 'net';
 import fs from 'fs-extra';
 import path from 'path';
 
-// Redirect ~/.okit before any module under test computes paths from homedir().
-const TMP_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-lan-test-'));
+// Redirect ~/.modelswap before any module under test computes paths from homedir().
+const TMP_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-lan-test-'));
 vi.spyOn(os, 'homedir').mockReturnValue(TMP_HOME);
 
 const mockCore = vi.hoisted(() => ({
@@ -35,7 +35,7 @@ const mockLanServer = vi.hoisted(() => ({
   stopLanSyncServer: vi.fn(async () => {}),
   getStatus: vi.fn(() => ({ running: true, port: 3790, error: null })),
   listLanAddresses: vi.fn(() => ['192.168.1.5']),
-  buildConnectionCode: vi.fn((address: string, port: number, token: string) => `okit-lan://${address}:${port}/${token}`),
+  buildConnectionCode: vi.fn((address: string, port: number, token: string) => `modelswap-lan://${address}:${port}/${token}`),
   getRecentPeers: vi.fn(() => []),
   getMachineIdentity: vi.fn(async () => ({ name: 'Test Machine', id: 'm-test' })),
   createPairingCode: vi.fn(() => ({ code: 'paircode1', expiresAt: Date.now() + 300_000 })),
@@ -141,7 +141,7 @@ beforeEach(async () => {
 
   // Each test starts with an empty blob store (the module caches + persists
   // across restarts by design, which would leak between tests otherwise).
-  await fs.remove(path.join(TMP_HOME, '.okit', 'sync', 'lan-blob.json'));
+  await fs.remove(path.join(TMP_HOME, '.modelswap', 'sync', 'lan-blob.json'));
   await startListenerAtFreePort();
   baseUrl = `http://127.0.0.1:${port}`;
 });
@@ -306,7 +306,7 @@ describe('sync.js LAN handlers', () => {
     try {
       currentConfig = { sync: { password: 'pw' } };
       const res = mockRes();
-      const code = `okit-lan://192.168.1.5:3790/abc123def456?name=${encodeURIComponent('Peer Mac')}`;
+      const code = `modelswap-lan://192.168.1.5:3790/abc123def456?name=${encodeURIComponent('Peer Mac')}`;
       await syncHandlers.handleLanPair({ body: { code, password: 'pw' } } as any, res);
 
       expect(res.statusCode).toBe(200);
@@ -329,7 +329,7 @@ describe('sync.js LAN handlers', () => {
     try {
       currentConfig = { sync: { password: 'pw' } };
       const res = mockRes();
-      await syncHandlers.handleLanPair({ body: { code: `okit-lan://192.168.1.5:3790/stalecode`, password: 'pw' } } as any, res);
+      await syncHandlers.handleLanPair({ body: { code: `modelswap-lan://192.168.1.5:3790/stalecode`, password: 'pw' } } as any, res);
       expect(res.statusCode).toBe(400);
       expect(res.body.error).toContain('配对码无效或已过期');
       expect(currentConfig.sync.platforms).toBeUndefined();
@@ -348,7 +348,7 @@ describe('sync.js LAN handlers', () => {
     try {
       currentConfig = { sync: { password: 'pw' } };
       const res = mockRes();
-      await syncHandlers.handleLanPair({ body: { code: `okit-lan://192.168.1.5:3790/${TOKEN}`, password: 'pw' } } as any, res);
+      await syncHandlers.handleLanPair({ body: { code: `modelswap-lan://192.168.1.5:3790/${TOKEN}`, password: 'pw' } } as any, res);
       expect(res.statusCode).toBe(400);
       expect(res.body.error).toContain('同步密码不一致');
       expect(currentConfig.sync.platforms).toBeUndefined();
@@ -363,7 +363,7 @@ describe('sync.js LAN handlers', () => {
     try {
       currentConfig = { sync: { password: 'pw' } };
       const res = mockRes();
-      await syncHandlers.handleLanPair({ body: { code: `okit-lan://192.168.1.5:3790/${TOKEN}`, password: 'pw' } } as any, res);
+      await syncHandlers.handleLanPair({ body: { code: `modelswap-lan://192.168.1.5:3790/${TOKEN}`, password: 'pw' } } as any, res);
       expect(res.statusCode).toBe(400);
       expect(res.body.error).toContain('无法连接对端');
     } finally {
@@ -386,9 +386,9 @@ describe('sync.js LAN handlers', () => {
 });
 
 describe('peer tracking (hub side)', () => {
-  it('records machines that identify via x-okit-machine', async () => {
+  it('records machines that identify via x-modelswap-machine', async () => {
     await fetch(`${baseUrl}/ping`, {
-      headers: { Authorization: `Bearer ${TOKEN}`, 'x-okit-machine': `${encodeURIComponent('MacBook Pro')}#peer-1` },
+      headers: { Authorization: `Bearer ${TOKEN}`, 'x-modelswap-machine': `${encodeURIComponent('MacBook Pro')}#peer-1` },
     });
     const peer = lanServer.getRecentPeers().find(p => p.id === 'peer-1');
     expect(peer).toBeTruthy();
@@ -401,7 +401,7 @@ describe('peer tracking (hub side)', () => {
     const name = encodeURIComponent('Reinstalled Mac');
     for (const id of ['old-device-id', 'new-device-id']) {
       await fetch(`${baseUrl}/ping`, {
-        headers: { Authorization: `Bearer ${TOKEN}`, 'x-okit-machine': `${name}#${id}` },
+        headers: { Authorization: `Bearer ${TOKEN}`, 'x-modelswap-machine': `${name}#${id}` },
       });
     }
     const matches = lanServer.getRecentPeers().filter(peer => peer.name === 'Reinstalled Mac');

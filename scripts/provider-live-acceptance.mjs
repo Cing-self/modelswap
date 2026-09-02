@@ -4,7 +4,7 @@
 // 三种模式：
 //   guest          全新临时 Chrome 会话访问真实控制台，验证“未登录被识别为
 //                  需要登录/可交接登录”，绝不执行创建/确认/复制/删除。
-//   auth-verify    只用专用持久 profile（~/.okit/provider-live-acceptance/auth，
+//   auth-verify    只用专用持久 profile（~/.modelswap/provider-live-acceptance/auth，
 //                  用户自行登录），验证到达已登录控制台并找到预期安全入口，
 //                  绝不点击创建/确认/生成/删除。
 //   create-cleanup 默认禁止。必须 --platform <唯一平台> + --allow-create-and-cleanup，
@@ -12,7 +12,7 @@
 //                  读取→精确删除→确认消失；任何清理失败立即停止。
 //
 // 安全边界：专用 profile Chrome + CDP 只读探针（结构上没有创建通路）；
-// 绝不复用/复制/导出日常 Chrome 数据；产物只写入 ~/.okit/provider-live-acceptance/。
+// 绝不复用/复制/导出日常 Chrome 数据；产物只写入 ~/.modelswap/provider-live-acceptance/。
 // dry-run 只验证计划、参数校验和报告格式，不访问任何外部资源。
 
 import os from 'node:os';
@@ -59,7 +59,7 @@ async function main() {
     return;
   }
 
-  const root = path.join(os.homedir(), '.okit', 'provider-live-acceptance');
+  const root = path.join(os.homedir(), '.modelswap', 'provider-live-acceptance');
   await fsp.mkdir(root, { recursive: true });
 
   let platformConfigs = [];

@@ -11,7 +11,7 @@ describe('VaultStore descriptions', () => {
   });
 
   it('persists and updates an optional description for one key', async () => {
-    const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'okit-vault-desc-'));
+    const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'modelswap-vault-desc-'));
     const actualOs = await vi.importActual<typeof import('os')>('os');
     vi.doMock('os', () => ({
       ...actualOs,

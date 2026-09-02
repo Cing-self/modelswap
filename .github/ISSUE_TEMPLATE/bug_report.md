@@ -19,11 +19,11 @@ A clear description of what you expected to happen.
 
 ## Platform
 - OS: [e.g. macOS 15 / Linux (Ubuntu 24.04) / Windows 11]
-- OKIT version: `okit -V`
+- ModelSwap version: `modelswap -V`
 - Node.js version: `node -v`
 
 ## Logs
-Paste relevant logs from `~/.okit/logs/` or terminal output:
+Paste relevant logs from `~/.modelswap/logs/` or terminal output:
 
 ```
 ...

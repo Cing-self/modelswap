@@ -4,9 +4,9 @@ import path from 'path';
 
 const testRoot = vi.hoisted(() => {
   const p = require('path');
-  const d = '/tmp/test-okit-mimo-code';
+  const d = '/tmp/test-modelswap-mimo-code';
   return {
-    OKIT_DIR: d,
+    MODELSWAP_DIR: d,
     REGISTRY_PATH: p.join(d, 'registry.json'),
     LOGS_DIR: p.join(d, 'logs'),
     CACHE_DIR: p.join(d, 'cache'),
@@ -28,7 +28,7 @@ const mocks = vi.hoisted(() => {
 vi.mock('fs-extra', () => ({ default: mocks }));
 
 vi.mock('../../../src/config/registry', () => ({
-  OKIT_DIR: testRoot.OKIT_DIR,
+  MODELSWAP_DIR: testRoot.MODELSWAP_DIR,
   REGISTRY_PATH: testRoot.REGISTRY_PATH,
   LOGS_DIR: testRoot.LOGS_DIR,
   CACHE_DIR: testRoot.CACHE_DIR,

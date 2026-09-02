@@ -6,7 +6,7 @@ import path from 'path';
 
 describe('live model discovery is the sole runtime membership source', { timeout: 30000 }, () => {
   it('keeps GLM discovery/cache/views aligned and treats models.dev as same-id metadata only', () => {
-    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-live-model-source-'));
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-live-model-source-'));
     const root = path.resolve(__dirname, '../..');
     const script = `
       const fs=require('fs'), path=require('path'), http=require('http');
@@ -24,7 +24,7 @@ describe('live model discovery is the sole runtime membership source', { timeout
         });
         await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
         const endpoint='http://127.0.0.1:'+server.address().port+'/v1';
-        const catalogPath=path.join(process.env.HOME,'.okit','cache','models-dev.json');
+        const catalogPath=path.join(process.env.HOME,'.modelswap','cache','models-dev.json');
         fs.mkdirSync(path.dirname(catalogPath),{recursive:true});
         fs.writeFileSync(catalogPath, JSON.stringify({
           source:'models.dev', version:2, generation:1, sourceFetchedAt:new Date().toISOString(), cachedAt:new Date().toISOString(), status:'fresh', data:{
@@ -38,10 +38,10 @@ describe('live model discovery is the sole runtime membership source', { timeout
           }
         }));
         await api.updateProvider('glm-coding',{baseUrl:endpoint,endpoints:[{id:'glm-live',type:'openai',baseUrl:endpoint}],authMode:'none',models:[{id:'manual-kept',name:'Manual kept',origin:'user'}]});
-        const providersPath=path.join(process.env.HOME,'.okit','providers.json');
+        const providersPath=path.join(process.env.HOME,'.modelswap','providers.json');
         const providersBefore=fs.readFileSync(providersPath,'utf8');
         const refreshed=await api.fetchModels({providerId:'glm-coding'});
-        const cachePath=path.join(process.env.HOME,'.okit','models-cache.json');
+        const cachePath=path.join(process.env.HOME,'.modelswap','models-cache.json');
         const cacheAfterRefresh=fs.readFileSync(cachePath,'utf8');
         const providersAfter=fs.readFileSync(providersPath,'utf8');
         const listed=await api.listProviders();
@@ -97,22 +97,22 @@ describe('live model discovery is the sole runtime membership source', { timeout
   });
 
   it('purges legacy models.dev-only cache rows on the first v2 site read without deleting remote or user rows', () => {
-    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-legacy-model-cache-'));
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-legacy-model-cache-'));
     const root = path.resolve(__dirname, '../..');
     const script = `
       const fs=require('fs'), path=require('path');
       const api=require(path.join(process.argv[1], 'src/application/provider-service.js'));
       (async()=>{
-        const okit=path.join(process.env.HOME,'.okit');
-        fs.mkdirSync(okit,{recursive:true});
-        const providersPath=path.join(okit,'providers.json');
-        const cachePath=path.join(okit,'models-cache.json');
+        const modelswap=path.join(process.env.HOME,'.modelswap');
+        fs.mkdirSync(modelswap,{recursive:true});
+        const providersPath=path.join(modelswap,'providers.json');
+        const cachePath=path.join(modelswap,'models-cache.json');
         fs.writeFileSync(providersPath, JSON.stringify({version:2,providers:[{
           id:'glm-coding',name:'GLM Coding Plan',type:'openai',baseUrl:'https://example.invalid/v1',
           authMode:'none',executionMode:'http_endpoint'
         }]}));
         fs.writeFileSync(cachePath, JSON.stringify({
-          version:2,source:'okit',generation:1,sourceFetchedAt:null,cachedAt:'2026-08-28T00:00:00.000Z',
+          version:2,source:'modelswap',generation:1,sourceFetchedAt:null,cachedAt:'2026-08-28T00:00:00.000Z',
           sourceHash:null,status:'fresh',lastError:null,providers:{'glm-coding':[
             {id:'glm-live',source:'remote',confidence:'medium',origin:'remote'},
             {id:'manual-kept',source:'manual',confidence:'medium',origin:'user'},

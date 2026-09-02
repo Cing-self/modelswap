@@ -5,7 +5,7 @@ import prompts from "prompts";
 import { loadUserConfig } from "../config/user";
 
 /**
- * `okit sync` — CLI surface for the sync stack (previously web-only config).
+ * `modelswap sync` — CLI surface for the sync stack (previously web-only config).
  *
  * Everything reuses the same core as the web console (cloud-sync-core), so
  * CLI and Web operate on identical state. Secrets stay out of shell history:
@@ -47,7 +47,7 @@ const PLATFORM_FIELDS: Record<string, FieldDef[]> = {
   "cloudflare-d1": [
     { key: "apiToken", label: "API Token（可填 vault 密钥名）", secret: true },
     { key: "databaseId", label: "Database ID" },
-    { key: "tableName", label: "表名（默认 okit_sync）", optional: true },
+    { key: "tableName", label: "表名（默认 modelswap_sync）", optional: true },
   ],
   "cloudflare-r2": [
     { key: "accountId", label: "Account ID" },
@@ -94,11 +94,11 @@ function mask(value: string | undefined): string {
   return value ? "已设置 (***)" : "未设置";
 }
 
-/** `okit sync` — status overview. */
+/** `modelswap sync` — status overview. */
 export async function syncStatus(options?: { test?: boolean }): Promise<void> {
   const config = await loadUserConfig();
   const sync = config.sync || ({} as any);
-  console.log(kleur.cyan("\nOKIT 同步状态\n"));
+  console.log(kleur.cyan("\nMODELSWAP 同步状态\n"));
   console.log(`  同步密码: ${mask(sync.password)}`);
   console.log(`  自动同步: ${sync.autoSync ? kleur.green("开启（改动推送 + 定时拉取）") : "关闭"}`);
   const lan = sync.lan || ({} as any);
@@ -106,7 +106,7 @@ export async function syncStatus(options?: { test?: boolean }): Promise<void> {
 
   const platforms = Object.entries(sync.platforms || {}) as [string, any][];
   if (platforms.length === 0) {
-    console.log(kleur.gray("\n  尚未配置任何云平台。运行 okit sync enable <platform> 添加。"));
+    console.log(kleur.gray("\n  尚未配置任何云平台。运行 modelswap sync enable <platform> 添加。"));
   } else {
     console.log(kleur.cyan("\n  云端平台:"));
     for (const [id, plat] of platforms) {
@@ -134,7 +134,7 @@ async function testOneQuiet(platform: string): Promise<string> {
   }
 }
 
-/** `okit sync password [--stdin]` */
+/** `modelswap sync password [--stdin]` */
 export async function syncPassword(options?: { stdin?: boolean }): Promise<void> {
   let password: string;
   if (options?.stdin) {
@@ -158,7 +158,7 @@ export async function syncPassword(options?: { stdin?: boolean }): Promise<void>
   console.log(kleur.green("✓ 同步密码已保存（用于云端加密与跨机解密）"));
 }
 
-/** `okit sync enable <platform> [--set K=V ...] [--no-test]` */
+/** `modelswap sync enable <platform> [--set K=V ...] [--no-test]` */
 export async function syncEnable(
   platform: string,
   options?: { set?: string[]; test?: boolean },
@@ -212,7 +212,7 @@ export async function syncEnable(
   if (options?.test !== false) {
     const config2 = await loadUserConfig();
     if (!config2.sync?.password) {
-      console.log(kleur.yellow("  ⚠ 尚未设置同步密码 — 运行 okit sync password 后才能推送/拉取"));
+      console.log(kleur.yellow("  ⚠ 尚未设置同步密码 — 运行 modelswap sync password 后才能推送/拉取"));
     }
     process.stdout.write(kleur.gray("  测试连接… "));
     const extra = await testOneQuiet(platform);
@@ -220,7 +220,7 @@ export async function syncEnable(
   }
 }
 
-/** `okit sync disable <platform>` */
+/** `modelswap sync disable <platform>` */
 export async function syncDisable(platform: string): Promise<void> {
   const config = await loadUserConfig();
   const existing = (config.sync?.platforms as any)?.[platform];
@@ -233,7 +233,7 @@ export async function syncDisable(platform: string): Promise<void> {
   console.log(kleur.green(`✓ ${PLATFORM_LABELS[platform] || platform} 已停用（配置保留，可随时重新 enable）`));
 }
 
-/** `okit sync test [platform]` */
+/** `modelswap sync test [platform]` */
 export async function syncTest(platform?: string): Promise<void> {
   if (platform) {
     console.log(kleur.gray(`测试 ${PLATFORM_LABELS[platform] || platform} …`));
@@ -244,7 +244,7 @@ export async function syncTest(platform?: string): Promise<void> {
   await syncStatus({ test: true });
 }
 
-/** `okit sync push` */
+/** `modelswap sync push` */
 export async function syncPush(): Promise<void> {
   try {
     const result = await core().syncPush();
@@ -255,7 +255,7 @@ export async function syncPush(): Promise<void> {
   }
 }
 
-/** `okit sync pull` */
+/** `modelswap sync pull` */
 export async function syncPull(): Promise<void> {
   try {
     const result = await core().syncPull();
@@ -270,9 +270,9 @@ export async function syncPull(): Promise<void> {
 }
 
 /**
- * `okit sync export [--stdin]` — one-time encrypted code carrying the primary
+ * `modelswap sync export [--stdin]` — one-time encrypted code carrying the primary
  * platform's config (+ vault key references). Enter it on another machine
- * with `okit sync import` for zero-typing migration.
+ * with `modelswap sync import` for zero-typing migration.
  */
 export async function syncExport(options?: { stdin?: boolean }): Promise<void> {
   const config = await loadUserConfig();
@@ -286,7 +286,7 @@ export async function syncExport(options?: { stdin?: boolean }): Promise<void> {
   try {
     const result = await core().exportSyncCode(password);
     console.log(kleur.green(`✓ 同步码已生成（平台: ${result.platform}，含 ${result.secrets} 个密钥引用）`));
-    console.log(kleur.gray("  在另一台机器运行: okit sync import --stdin，然后粘贴此码\n"));
+    console.log(kleur.gray("  在另一台机器运行: modelswap sync import --stdin，然后粘贴此码\n"));
     process.stdout.write(`${result.code}\n`);
   } catch (error: any) {
     console.error(kleur.red(`✗ 导出失败: ${error.message}`));
@@ -294,7 +294,7 @@ export async function syncExport(options?: { stdin?: boolean }): Promise<void> {
   }
 }
 
-/** `okit sync import [--code <c>] [--stdin]` */
+/** `modelswap sync import [--code <c>] [--stdin]` */
 export async function syncImport(options?: { code?: string; stdin?: boolean }): Promise<void> {
   let code = options?.code;
   if (!code && options?.stdin) code = await readStdinLine();
@@ -317,7 +317,7 @@ export async function syncImport(options?: { code?: string; stdin?: boolean }): 
   try {
     const result = await core().importSyncCode(code.trim(), password);
     console.log(kleur.green(`✓ 已导入平台配置: ${result.syncPlatform || "ok"}（密钥引用 ${result.secrets ?? result.importedSecrets ?? ""}）`));
-    console.log(kleur.gray("  运行 okit sync test 验证连接，okit sync pull 拉取数据"));
+    console.log(kleur.gray("  运行 modelswap sync test 验证连接，modelswap sync pull 拉取数据"));
   } catch (error: any) {
     console.error(kleur.red(`✗ 导入失败（同步码无效或密码不匹配）: ${error.message}`));
     process.exitCode = 1;
@@ -325,7 +325,7 @@ export async function syncImport(options?: { code?: string; stdin?: boolean }): 
 }
 
 /**
- * LAN pairing needs the local OKIT server running (it owns the 3790
+ * LAN pairing needs the local MODELSWAP server running (it owns the 3790
  * listener), so this shells through the local HTTP API.
  */
 async function localApi(pathName: string, body?: unknown): Promise<any> {
@@ -339,10 +339,10 @@ async function localApi(pathName: string, body?: unknown): Promise<any> {
   return data;
 }
 
-/** `okit sync pair --create` / `okit sync pair --code <连接码>` */
+/** `modelswap sync pair --create` / `modelswap sync pair --code <连接码>` */
 export async function syncPair(options?: { create?: boolean; code?: string }): Promise<void> {
   if (!options?.create && !options?.code) {
-    console.error(kleur.red("✗ 用法: okit sync pair --create（生成配对码）或 okit sync pair --code <连接码>（加入对方）"));
+    console.error(kleur.red("✗ 用法: modelswap sync pair --create（生成配对码）或 modelswap sync pair --code <连接码>（加入对方）"));
     process.exitCode = 1;
     return;
   }
@@ -362,10 +362,10 @@ export async function syncPair(options?: { create?: boolean; code?: string }): P
       for (const c of codes) {
         console.log(`    ${kleur.gray(c.address)}  ${c.code}`);
       }
-      console.log(kleur.gray("\n  对方运行: okit sync pair --code <连接码>"));
+      console.log(kleur.gray("\n  对方运行: modelswap sync pair --code <连接码>"));
     } catch (error: any) {
       console.error(kleur.red(`✗ 生成配对码失败: ${error.message}`));
-      console.error(kleur.gray("  点对点同步需要 OKIT 服务在运行（okit web）且已开启局域网同步（设置 → 设备同步）。"));
+      console.error(kleur.gray("  点对点同步需要 MODELSWAP 服务在运行（modelswap web）且已开启局域网同步（设置 → 设备同步）。"));
       process.exitCode = 1;
     }
     return;
@@ -377,7 +377,7 @@ export async function syncPair(options?: { create?: boolean; code?: string }): P
     console.log(kleur.green(`✓ 配对成功${data.peer ? `（对方: ${data.peer}）` : ""}`));
   } catch (error: any) {
     console.error(kleur.red(`✗ 配对失败: ${error.message}`));
-    console.error(kleur.gray("  确认对方机器的 OKIT 正在运行，且连接码在有效期内（单次使用，5 分钟过期）。"));
+    console.error(kleur.gray("  确认对方机器的 MODELSWAP 正在运行，且连接码在有效期内（单次使用，5 分钟过期）。"));
     process.exitCode = 1;
   }
 }

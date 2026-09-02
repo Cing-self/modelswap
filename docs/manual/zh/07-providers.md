@@ -11,8 +11,8 @@
 - 命令行方式：
 
 ```bash
-okit provider list              # 列出所有 Provider（--json 供脚本解析）
-okit provider add               # 添加
-okit provider delete <name>     # 删除
-okit provider auth              # 查看所有 Provider 认证状态
+modelswap provider list              # 列出所有 Provider（--json 供脚本解析）
+modelswap provider add               # 添加
+modelswap provider delete <name>     # 删除
+modelswap provider auth              # 查看所有 Provider 认证状态
 ```

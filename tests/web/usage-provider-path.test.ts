@@ -6,14 +6,14 @@ import path from 'path';
 
 describe('usage provider path injection', { timeout: 30000 }, () => {
   it('uses the injected temporary providers path through registry and controller, including a missing file', () => {
-    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-usage-provider-path-'));
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-usage-provider-path-'));
     const root = path.resolve(__dirname, '../..');
     const script = `
       const fs=require('fs'), path=require('path');
       const usage=require(path.join(process.argv[1], 'src/web/api/usage-controller.js'));
       const call=(handler,req)=>new Promise((resolve,reject)=>handler(req,{status(code){this.code=code;return this},json(value){resolve({status:this.code||200,value})}}));
       (async()=>{
-        const providersPath=path.join(process.env.HOME,'.okit','providers.json');
+        const providersPath=path.join(process.env.HOME,'.modelswap','providers.json');
         fs.mkdirSync(path.dirname(providersPath),{recursive:true});
         fs.writeFileSync(providersPath,JSON.stringify({version:2,providers:[{
           id:'github-copilot',name:'GitHub Copilot',type:'openai',baseUrl:'https://api.githubcopilot.com',authMode:'oauth'
@@ -42,7 +42,7 @@ describe('usage provider path injection', { timeout: 30000 }, () => {
   });
 
   it('resolves a real encrypted GLM vault key through controller, registry, and the usage request', () => {
-    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-usage-glm-vault-'));
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-usage-glm-vault-'));
     const root = path.resolve(__dirname, '../..');
     const script = `
       const fs=require('fs'), path=require('path'), https=require('https'), {EventEmitter}=require('events');
@@ -51,7 +51,7 @@ describe('usage provider path injection', { timeout: 30000 }, () => {
       const call=(handler,req)=>new Promise(resolve=>handler(req,{status(code){this.code=code;return this},json(value){resolve({status:this.code||200,value})}}));
       (async()=>{
         const key='glm-test-'+('x'.repeat(40));
-        const providersPath=path.join(process.env.HOME,'.okit','providers.json');
+        const providersPath=path.join(process.env.HOME,'.modelswap','providers.json');
         fs.mkdirSync(path.dirname(providersPath),{recursive:true});
         fs.writeFileSync(providersPath,JSON.stringify({version:2,providers:[{
           id:'glm-coding',name:'GLM Coding',type:'openai',baseUrl:'https://open.bigmodel.cn/api/paas/v4',authMode:'api_key',
@@ -94,7 +94,7 @@ describe('usage provider path injection', { timeout: 30000 }, () => {
   });
 
   it('injects regional Kimi and Moonshot origins, decrypts their keys, and sends bearer authorization', () => {
-    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-usage-kimi-moonshot-vault-'));
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-usage-kimi-moonshot-vault-'));
     const root = path.resolve(__dirname, '../..');
     const script = `
       const fs=require('fs'), path=require('path'), http=require('http');
@@ -115,7 +115,7 @@ describe('usage provider path injection', { timeout: 30000 }, () => {
         const moonshotServer=await listen(56.78,moonshotCalls);
         const kimiOrigin='http://127.0.0.1:'+kimiServer.address().port+'/regional/kimi';
         const moonshotOrigin='http://127.0.0.1:'+moonshotServer.address().port+'/regional/moonshot';
-        const providersPath=path.join(process.env.HOME,'.okit','providers.json');
+        const providersPath=path.join(process.env.HOME,'.modelswap','providers.json');
         fs.mkdirSync(path.dirname(providersPath),{recursive:true});
         fs.writeFileSync(providersPath,JSON.stringify({version:2,providers:[
           {id:'kimi-coding',name:'Kimi',type:'openai',baseUrl:kimiOrigin,authMode:'api_key',vaultKey:'TEST_KIMI_KEY'},
@@ -152,14 +152,14 @@ describe('usage provider path injection', { timeout: 30000 }, () => {
   });
 
   it('returns a product state for every supported usage route without leaking implementation errors', () => {
-    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-usage-execution-matrix-'));
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-usage-execution-matrix-'));
     const root = path.resolve(__dirname, '../..');
     const script = `
       const fs=require('fs'), path=require('path'), https=require('https'), {EventEmitter}=require('events');
       const usage=require(path.join(process.argv[1], 'src/web/api/usage-controller.js'));
       const listed={}; usage.getSupportedUsageProviders({}, {json(value){Object.assign(listed,value)}});
       const providers=listed.providers.filter(id=>id!=='openai-codex').map(id=>({id,name:id,type:'openai',authMode:'api_key'}));
-      const providersPath=path.join(process.env.HOME,'.okit','providers.json');
+      const providersPath=path.join(process.env.HOME,'.modelswap','providers.json');
       fs.mkdirSync(path.dirname(providersPath),{recursive:true});
       fs.writeFileSync(providersPath,JSON.stringify({version:2,providers}));
       const requests=[]; const original=https.request;

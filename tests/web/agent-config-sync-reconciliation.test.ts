@@ -11,16 +11,16 @@ import { execFileSync } from 'child_process';
 describe('syncPull Agent configuration reconciliation', { timeout: 30000 }, () => {
   it('reconciles an empty B through missing-provider retry into native configs', () => {
     const root = path.resolve(__dirname, '../..');
-    const machineA = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-sync-agent-a-'));
-    const machineB = fs.mkdtempSync(path.join(os.tmpdir(), 'okit-sync-agent-b-'));
-    const blob = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'okit-sync-agent-blob-')), 'remote.json');
+    const machineA = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-sync-agent-a-'));
+    const machineB = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-sync-agent-b-'));
+    const blob = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-sync-agent-blob-')), 'remote.json');
     const transport = `
       const Module=require('module'), transportFs=require('fs'); const original=Module.prototype.require;
       Module.prototype.require=function(id) {
         if (id === './platform-adapters/supabase') return {
           name:'Supabase', testConnection:async()=>true,
-          pushSync:async (_config,_id,data)=>transportFs.writeFileSync(process.env.OKIT_SYNC_BLOB, JSON.stringify(data)),
-          pullSync:async ()=>transportFs.existsSync(process.env.OKIT_SYNC_BLOB)?JSON.parse(transportFs.readFileSync(process.env.OKIT_SYNC_BLOB,'utf8')):null,
+          pushSync:async (_config,_id,data)=>transportFs.writeFileSync(process.env.MODELSWAP_SYNC_BLOB, JSON.stringify(data)),
+          pullSync:async ()=>transportFs.existsSync(process.env.MODELSWAP_SYNC_BLOB)?JSON.parse(transportFs.readFileSync(process.env.MODELSWAP_SYNC_BLOB,'utf8')):null,
         };
         return original.apply(this,arguments);
       };
@@ -34,7 +34,7 @@ describe('syncPull Agent configuration reconciliation', { timeout: 30000 }, () =
       const open={id:'sync-open',name:'Sync Open',modelCatalogId:'sync-open-catalog',type:'openai',baseUrl:'https://sync-open.test/v1',authMode:'none',endpoints:[{id:'open-endpoint',type:'openai',baseUrl:'https://sync-open.test/v1'}],models:[{id:'open-canonical',name:'Open Canonical',meta:{source:'modelsdev',context:123456,output:7890,reasoning:true,reasoningOptions:[{type:'effort',values:['high']}],modalities:{input:['text','image']}},availability:[{executionMode:'http_endpoint',endpointId:'open-endpoint',remoteModelId:'open-canonical',status:'available',source:'remote'}]}]};
       const claude={id:'sync-claude',name:'Sync Claude',modelCatalogId:'sync-claude-catalog',type:'anthropic',baseUrl:'https://sync-claude.test',authMode:'none',endpoints:[{id:'claude-endpoint',type:'anthropic',baseUrl:'https://sync-claude.test'}],models:[{id:'claude-canonical',name:'Claude Canonical',meta:{source:'modelsdev',context:654321,reasoning:true,reasoningOptions:[{type:'effort',values:['high']}],modalities:{input:['text','image']}},availability:[{executionMode:'http_endpoint',endpointId:'claude-endpoint',remoteModelId:'claude-canonical',status:'available',source:'remote'}]}]};
       const unavailable={id:'sync-unavailable',name:'Sync Unavailable',type:'openai',baseUrl:'https://unavailable.test/v1',authMode:'none',models:[{id:'unavailable-canonical'}]};
-      const userPath=path.join(process.env.HOME,'.okit','user.json');
+      const userPath=path.join(process.env.HOME,'.modelswap','user.json');
     `;
     const push = `${shared}
       (async()=>{
@@ -51,14 +51,14 @@ describe('syncPull Agent configuration reconciliation', { timeout: 30000 }, () =
       })().catch(error=>{console.error(error.stack);process.exit(1)});
     `;
     execFileSync(process.execPath, ['-r', 'ts-node/register/transpile-only', '-e', push, root], {
-      env: { ...process.env, HOME: machineA, USERPROFILE: machineA, OKIT_SYNC_BLOB: blob }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, HOME: machineA, USERPROFILE: machineA, MODELSWAP_SYNC_BLOB: blob }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
     });
     const pull = `${shared}
       (async()=>{
         // B starts with no provider sites or agent selection. Its models.dev
         // snapshot is an independent, rebuildable source — never A's local
         // models-cache — and provides model facts once the remote sites arrive.
-        const catalogPath=path.join(process.env.HOME,'.okit','cache','models-dev.json');
+        const catalogPath=path.join(process.env.HOME,'.modelswap','cache','models-dev.json');
         fs.mkdirSync(path.dirname(catalogPath),{recursive:true});
         const now=new Date().toISOString();
         fs.writeFileSync(catalogPath,JSON.stringify({source:'models.dev',version:2,generation:1,sourceFetchedAt:now,cachedAt:now,sourceHash:'fixture',status:'fresh',lastError:null,data:{
@@ -68,7 +68,7 @@ describe('syncPull Agent configuration reconciliation', { timeout: 30000 }, () =
         // Model membership is device-local discovery state. B has previously
         // discovered these exact ids; the catalog fixture above may enrich
         // facts but must never manufacture the rows itself.
-        fs.writeFileSync(path.join(process.env.HOME,'.okit','models-cache.json'),JSON.stringify({version:2,source:'okit',generation:0,sourceFetchedAt:null,cachedAt:now,sourceHash:null,status:'empty',lastError:null,providers:{
+        fs.writeFileSync(path.join(process.env.HOME,'.modelswap','models-cache.json'),JSON.stringify({version:2,source:'modelswap',generation:0,sourceFetchedAt:null,cachedAt:now,sourceHash:null,status:'empty',lastError:null,providers:{
           'sync-open':[{id:'open-canonical',name:'Open Canonical',source:'remote',confidence:'medium',origin:'remote',context:123456,output:7890,reasoning:true,reasoningOptions:[{type:'effort',values:['high']}],modalities:{input:['text','image']},availability:[{executionMode:'http_endpoint',endpointId:'open-endpoint',remoteModelId:'open-canonical',status:'available',source:'remote'}]}],
           'sync-claude':[{id:'claude-canonical',name:'Claude Canonical',source:'remote',confidence:'medium',origin:'remote',context:654321,reasoning:true,reasoningOptions:[{type:'effort',values:['high']}],modalities:{input:['text','image']},availability:[{executionMode:'http_endpoint',endpointId:'claude-endpoint',remoteModelId:'claude-canonical',status:'available',source:'remote'}]}]
         }}));
@@ -91,7 +91,7 @@ describe('syncPull Agent configuration reconciliation', { timeout: 30000 }, () =
       })().catch(error=>{console.error(error.stack);process.exit(1)});
     `;
     const result = JSON.parse(execFileSync(process.execPath, ['-r', 'ts-node/register/transpile-only', '-e', pull, root], {
-      env: { ...process.env, HOME: machineB, USERPROFILE: machineB, OKIT_SYNC_BLOB: blob }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, HOME: machineB, USERPROFILE: machineB, MODELSWAP_SYNC_BLOB: blob }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
     }).trim());
 
     expect(result.user.agentProviders.codex).toMatchObject({ activeProviderId: 'sync-open', activeModelId: 'open-canonical' });

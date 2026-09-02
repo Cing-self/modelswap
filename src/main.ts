@@ -39,12 +39,12 @@ function showBanner(): void {
  ╚═════╝  ╚═╝  ╚═╝  ╚═╝     ╚═╝   
   `;
   console.log(kleur.cyan(banner));
-  console.log(kleur.gray(`  OKIT v${pkg.version} - macOS 开发工具管理器\n`));
+  console.log(kleur.gray(`  MODELSWAP v${pkg.version} - macOS 开发工具管理器\n`));
 }
 
 program
-  .name("okit")
-  .description("OKIT - Agent 基础设施管理工具")
+  .name("modelswap")
+  .description("MODELSWAP - Agent 基础设施管理工具")
   .version(pkg.version);
 
 function getUnknownSubcommand(): string | null {
@@ -74,7 +74,7 @@ async function selectLanguageIfNeeded(): Promise<void> {
     return;
   }
 
-  const nonInteractive = !process.stdin.isTTY || process.env.CI || process.env.OKIT_NO_PROMPT;
+  const nonInteractive = !process.stdin.isTTY || process.env.CI || process.env.MODELSWAP_NO_PROMPT;
   if (nonInteractive) {
     setLanguage(detectLanguageFromEnv());
     return;
@@ -168,7 +168,7 @@ program.action(async () => {
 // upgrade 子命令
 program
   .command("upgrade")
-  .description("升级 OKIT")
+  .description("升级 MODELSWAP")
   .action(async () => {
     await selectLanguageIfNeeded();
     await upgradeSelf();
@@ -226,7 +226,7 @@ vault
 
 vault
   .command("env [file]")
-  .description("根据 .okitenv 生成 .env 文件并注册关联")
+  .description("根据 .modelswapenv 生成 .env 文件并注册关联")
   .option("--dir <dir>", "指定项目目录")
   .action(async (file?: string, options?: { dir?: string }) => {
     await vaultEnv(file, options);
@@ -277,14 +277,14 @@ vault
     }
   });
 
-// hook 子命令已于 v1.0.3 移除：其唯一作用（检测 .okitenv 自动注入）随
+// hook 子命令已于 v1.0.3 移除：其唯一作用（检测 .modelswapenv 自动注入）随
 // 项目绑定功能一同删除，且它是产品中唯一主动写 shell rc 的功能，与
 // "零侵入"承诺冲突。已装用户的手动清理方式见手册 FAQ。
 
-// skill 子命令 - 安装供其他 Agent 使用的 OKIT CLI Skill
+// skill 子命令 - 安装供其他 Agent 使用的 MODELSWAP CLI Skill
 const skill = program
   .command("skill")
-  .description("定位或安装供 AI Agent 使用的 OKIT CLI Skill")
+  .description("定位或安装供 AI Agent 使用的 MODELSWAP CLI Skill")
   .action(async () => {
     await showSkillPath();
   });
@@ -405,7 +405,7 @@ syncCmd
 
 skill
   .command("install [dir]")
-  .description("安装到目标项目的 .agents/skills/okit-cli")
+  .description("安装到目标项目的 .agents/skills/modelswap")
   .option("--force", "覆盖已存在的 Skill")
   .action(async (dir: string | undefined, options: { force?: boolean }) => {
     await installSkill(dir || process.cwd(), options);
@@ -490,7 +490,7 @@ provider
 // web 子命令 - 启动 Web UI
 program
   .command("web")
-  .description("启动 OKIT 工具管理 Web UI")
+  .description("启动 MODELSWAP 工具管理 Web UI")
   .option("-p, --port <number>", "端口号", "3780")
   .option("-o, --open", "自动打开浏览器", false)
   .action(async (options: { port: string; open: boolean }) => {

@@ -12,10 +12,10 @@
 | --- | --- |
 | 候选 SHA | `e3781970299f781014e180a31a4a10d00ad760d0`（冻结；未合并、未发布） |
 | 基线 main SHA | `19207a25eb50ea48728ee5ff927d8599b1c802a8` |
-| 测试 worktree | clean detached `/tmp/okit-qa-baseline-e378-nhGbVU` |
+| 测试 worktree | clean detached `/tmp/modelswap-qa-baseline-e378-nhGbVU` |
 | 文档分支 | local-only `codex/qa/sync-agent-baseline-e378` |
 | 平台 | macOS；Node `v26.7.0`；npm `11.19.1` |
-| 隔离 | 每一条有效安装/测试/构建/package 命令以 fresh `HOME`、`USERPROFILE` 与独立 `npm_config_cache` 运行；不访问 `~/.okit`、`~/.codex` 或真实 B。 |
+| 隔离 | 每一条有效安装/测试/构建/package 命令以 fresh `HOME`、`USERPROFILE` 与独立 `npm_config_cache` 运行；不访问 `~/.modelswap`、`~/.codex` 或真实 B。 |
 | 监听 | 本轮没有启动 browser fixture；测试 mock 监听端口 `0` 并关闭。结束检查发现 PID 75039 在 `127.0.0.1:3780`，其命令为 `node -e require('./dist/web/server.js').startServer()`，启动时间早于本轮；未触碰。 |
 | diff check | `git diff --check main...HEAD` 无输出。 |
 
@@ -40,7 +40,7 @@
 | Frontend P1 | `npx vitest run tests/frontend/model-cache-warmup.test.ts` | **1 file / 1 test passed**。 |
 | Runtime closure | `npx vitest run tests/build/runtime-closure.test.ts` | **1 file / 1 test passed**，0.938s。 |
 | Build | `npm run build` | passed：tsc、presets、extension、copy-web、runtime closure `/ping`、frontend Vite build。 |
-| Package | `npm pack --dry-run --json` | passed：348 entries；`cing-self-okit-cli-1.0.30.tgz`，3,553,341 bytes，shasum `62b8d5e3a2cfab8c81add556a7776c66e674bddb`。 |
+| Package | `npm pack --dry-run --json` | passed：348 entries；`cing-self-modelswap-cli-1.0.30.tgz`，3,553,341 bytes，shasum `62b8d5e3a2cfab8c81add556a7776c66e674bddb`。 |
 | Full #1 | `npm test -- --run` | **84 files / 768 tests passed**，16.51s。 |
 | Full #2 | `npm test -- --run` | **84 files / 768 tests passed**，20.19s。 |
 | Full #3 | `npm test -- --run` | **84 files / 768 tests passed**，19.17s。 |

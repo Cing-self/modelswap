@@ -6,7 +6,7 @@ describe('createPrimaryPairing', () => {
     const create = vi.fn().mockResolvedValue({
       success: true,
       expiresAt: '2026-08-28T12:00:00.000Z',
-      codes: [{ address: '192.168.1.8', code: 'okit-lan://192.168.1.8:3790/example' }],
+      codes: [{ address: '192.168.1.8', code: 'modelswap-lan://192.168.1.8:3790/example' }],
     });
 
     await expect(createPrimaryPairing({ running: true }, create)).resolves.toMatchObject({ codes: [{ address: '192.168.1.8' }] });
@@ -26,7 +26,7 @@ describe('enableAndCreatePrimaryPairing', () => {
   const session = {
     success: true,
     expiresAt: '2026-08-28T12:00:00.000Z',
-    codes: [{ address: '192.168.1.8', code: 'okit-lan://192.168.1.8:3790/example' }],
+    codes: [{ address: '192.168.1.8', code: 'modelswap-lan://192.168.1.8:3790/example' }],
   };
 
   it('covers the first-device modal path in order: save password, enable, then show a generated code', async () => {

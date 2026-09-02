@@ -8,7 +8,7 @@ import { atomicWrite, atomicWriteJSON } from "../../utils/atomicWrite";
 
 const OPENCLAW_CONFIG_PATH = path.join(os.homedir(), ".openclaw", "openclaw.json");
 
-// Map OKIT's protocol type to the OpenClaw `api` field. OpenClaw routes by this
+// Map MODELSWAP's protocol type to the OpenClaw `api` field. OpenClaw routes by this
 // string, not by an internal type enum. Mirrors cc-switch presets.
 function apiProtocolFor(type: ProviderType): string {
   switch (type) {

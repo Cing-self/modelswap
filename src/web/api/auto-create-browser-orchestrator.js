@@ -137,11 +137,11 @@ async function createBrowserPlatformKey(platform, tokenName, run) {
 async function recoverLatestZaiGlobalKey() {
   const platform = AUTO_CREATE_PLATFORM_MAP.get('zai-global');
   if (!platform) throw new Error('Z.AI platform metadata unavailable');
-  const nav = await sendCommand('navigate', { url: platform.url, workspace: 'okit' }, 30000);
+  const nav = await sendCommand('navigate', { url: platform.url, workspace: 'modelswap' }, 30000);
   if (!nav.ok) throw new Error(nav.error || '打开 Z.AI 密钥列表失败');
   const tabId = nav.data && nav.data.tabId;
   const capStart = await sendCommand('network-capture-start', {
-    pattern: '', workspace: 'okit', ...(tabId ? { tabId } : {}),
+    pattern: '', workspace: 'modelswap', ...(tabId ? { tabId } : {}),
   }, 10000);
   if (!capStart.ok) throw new Error(capStart.error || '无法开始 Z.AI 复制接口抓取');
   await sleep(7000);
@@ -172,9 +172,9 @@ async function recoverLatestZaiGlobalKey() {
     throw new Error('Z.AI 最近已创建行的复制控件不可用');
   }
   await execJs(`(() => {
-    window.__okitRecoveryCopied = '';
-    if (window.__okitRecoveryCopyHooked) return 'already-hooked';
-    const capture = value => { if (typeof value === 'string' && value) window.__okitRecoveryCopied = value; };
+    window.__modelswapRecoveryCopied = '';
+    if (window.__modelswapRecoveryCopyHooked) return 'already-hooked';
+    const capture = value => { if (typeof value === 'string' && value) window.__modelswapRecoveryCopied = value; };
     try {
       if (navigator.clipboard?.writeText) {
         const original = navigator.clipboard.writeText.bind(navigator.clipboard);
@@ -187,27 +187,27 @@ async function recoverLatestZaiGlobalKey() {
       const selected = window.getSelection()?.toString() || '';
       capture(selected);
     });
-    window.__okitRecoveryCopyHooked = true;
+    window.__modelswapRecoveryCopyHooked = true;
     return 'hooked';
   })()`).catch(() => 'hook-failed');
-  const focused = await sendCommand('focus-window', { workspace: 'okit' }, 5000);
+  const focused = await sendCommand('focus-window', { workspace: 'modelswap' }, 5000);
   if (!focused.ok) throw new Error('无法将 Z.AI 复制窗口置前');
   await sleep(150);
   const pointer = { x: meta.x, y: meta.y, button: 'left', buttons: 1, clickCount: 1 };
   const pressed = await sendCommand('cdp', {
     cdpMethod: 'Input.dispatchMouseEvent',
     cdpParams: { ...pointer, type: 'mousePressed' },
-    workspace: 'okit', ...(tabId ? { tabId } : {}),
+    workspace: 'modelswap', ...(tabId ? { tabId } : {}),
   }, 5000);
   const released = await sendCommand('cdp', {
     cdpMethod: 'Input.dispatchMouseEvent',
     cdpParams: { ...pointer, type: 'mouseReleased', buttons: 0 },
-    workspace: 'okit', ...(tabId ? { tabId } : {}),
+    workspace: 'modelswap', ...(tabId ? { tabId } : {}),
   }, 5000);
   if (!pressed.ok || !released.ok) throw new Error('Z.AI 最近已创建行复制点击失败');
   await sleep(500);
   const copiedNetwork = await sendCommand('network-capture-read', {
-    workspace: 'okit', ...(tabId ? { tabId } : {}),
+    workspace: 'modelswap', ...(tabId ? { tabId } : {}),
   }, 10000).catch(() => ({ ok: false, data: [] }));
   const copiedNetworkKey = copiedNetwork.ok
     ? keyFromText(extractKeyFromCaptures(copiedNetwork.data || [], 'zai-global'), platform)
@@ -225,7 +225,7 @@ async function recoverLatestZaiGlobalKey() {
       secretFields: describeCapturedSecretFields(copiedNetwork.data || []),
     }));
   }
-  const pageCopied = await execJs('window.__okitRecoveryCopied || ""').catch(() => '');
+  const pageCopied = await execJs('window.__modelswapRecoveryCopied || ""').catch(() => '');
   const pageKey = keyFromText(pageCopied, platform);
   if (pageKey) {
     const { VaultStore } = require('../../vault/store');
@@ -241,15 +241,15 @@ async function recoverLatestZaiGlobalKey() {
     await sendCommand('cdp', {
       cdpMethod: 'Input.dispatchMouseEvent',
       cdpParams: { ...parentPointer, type: 'mousePressed' },
-      workspace: 'okit', ...(tabId ? { tabId } : {}),
+      workspace: 'modelswap', ...(tabId ? { tabId } : {}),
     }, 5000);
     await sendCommand('cdp', {
       cdpMethod: 'Input.dispatchMouseEvent',
       cdpParams: { ...parentPointer, type: 'mouseReleased', buttons: 0 },
-      workspace: 'okit', ...(tabId ? { tabId } : {}),
+      workspace: 'modelswap', ...(tabId ? { tabId } : {}),
     }, 5000);
     await sleep(500);
-    const parentCopied = await execJs('window.__okitRecoveryCopied || ""').catch(() => '');
+    const parentCopied = await execJs('window.__modelswapRecoveryCopied || ""').catch(() => '');
     const parentKey = keyFromText(parentCopied, platform);
     if (parentKey) {
       const { VaultStore } = require('../../vault/store');
@@ -260,7 +260,7 @@ async function recoverLatestZaiGlobalKey() {
     }
   }
   const clipboardRead = await sendCommand('clipboard-read', {
-    workspace: 'okit', clipboardPattern: platform.keyPatterns[0], clipboardAllowSurrounding: true,
+    workspace: 'modelswap', clipboardPattern: platform.keyPatterns[0], clipboardAllowSurrounding: true,
   }, 5000);
   const value = clipboardRead.ok && clipboardRead.data?.matched ? clipboardRead.data.value : '';
   const key = keyFromText(value, platform);

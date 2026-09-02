@@ -23,7 +23,7 @@
 - 不用自动化测试真实客户的 API key、订阅余额、模型权限或第三方服务 SLA；它们属于最后的、经授权的真实 B smoke。
 - 不把 `models.dev` 当作远端目录或授权来源；它只能为已发现且同 ID 的模型补能力元数据。
 - 不以 UI 展示、API 200 或 mock adapter 代替实际 adapter 文件断言。
-- 不以真实 `~/.okit`、`~/.codex`、`~/.claude`、`~/.config/opencode` 或端口 3780 承载 fixture。所有测试设 `HOME` 和 `USERPROFILE`；监听器使用端口 `0`，并在 `finally`/`afterAll` 关闭。
+- 不以真实 `~/.modelswap`、`~/.codex`、`~/.claude`、`~/.config/opencode` 或端口 3780 承载 fixture。所有测试设 `HOME` 和 `USERPROFILE`；监听器使用端口 `0`，并在 `finally`/`afterAll` 关闭。
 
 ## 架构不变量（P0）
 
@@ -31,7 +31,7 @@
 | --- | --- | --- |
 | 模型成员资格 | 仅认证的 provider 官方目录、等价官方发现 API、实际 Agent CLI，或显式 user/manual 模型可决定成员资格。 | selected desired state、预置列表、探针模型、`models.dev` catalog-only 行成为目录。 |
 | models.dev | 仅为同 `providerId + modelId` 的已发现模型 enrich context/output/reasoning/modalities 等字段。 | 增加模型 ID、在空目录/错误时 fallback。 |
-| 存储 | provider 站点写 `~/.okit/providers.json`；目录写本机 `~/.okit/models-cache.json`；选择/desired state 写 user config；密钥写 Vault。 | 在 `providers.json` 写 `models`、`platforms`、`modelCache`；发现时重写 providers 或标记 sync dirty。 |
+| 存储 | provider 站点写 `~/.modelswap/providers.json`；目录写本机 `~/.modelswap/models-cache.json`；选择/desired state 写 user config；密钥写 Vault。 | 在 `providers.json` 写 `models`、`platforms`、`modelCache`；发现时重写 providers 或标记 sync dirty。 |
 | 同步 payload | 仅 portable provider sites、Vault secret、`agentProviders`、`modelOverrides` 等可移植状态。 | A 的 `models-cache.json`、Agent 原生文件、运行时目录缓存。 |
 | Pull 顺序 | merge provider sites → 写 Vault → 持久化 desired state → 对 B 本机 selected provider 做 canonical discovery（并发最多 2）→ 既有 reconciler 写 Agent 文件。 | 无 cache 时先 reconcile；发现失败时盲写；用 A 的缓存或 selected state 假装发现。 |
 | 失败 | desired state 不丢；已有 remote/manual cache 保留；没有有效目录不生成新成员；返回结构化 `MODEL_DISCOVERY_FAILED` 或既有 `PROVIDER_NOT_FOUND`/`AUTH_REQUIRED`。 | 静态 fallback、清空手动模型、把失败写回远端、把未发现模型写入 Agent 文件。 |
@@ -137,8 +137,8 @@
 所有命令从候选 detached worktree 执行。每次使用新临时路径；Windows 子进程依赖 `USERPROFILE`，所以不可只设置 `HOME`。
 
 ```bash
-QA_HOME=$(mktemp -d /tmp/okit-sync-qa-home-XXXXXX)
-QA_NPM_CACHE=$(mktemp -d /tmp/okit-sync-qa-npm-cache-XXXXXX)
+QA_HOME=$(mktemp -d /tmp/modelswap-sync-qa-home-XXXXXX)
+QA_NPM_CACHE=$(mktemp -d /tmp/modelswap-sync-qa-npm-cache-XXXXXX)
 HOME="$QA_HOME" USERPROFILE="$QA_HOME" npm_config_cache="$QA_NPM_CACHE" npm ci --ignore-scripts
 HOME="$QA_HOME" USERPROFILE="$QA_HOME" npm_config_cache="$QA_NPM_CACHE" npm --prefix src/web/frontend ci --ignore-scripts
 HOME="$QA_HOME" USERPROFILE="$QA_HOME" npm_config_cache="$QA_NPM_CACHE" npx tsc

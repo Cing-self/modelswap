@@ -1,7 +1,7 @@
 // Offline safety/behavior tests for the provider live-acceptance tool.
 //
 // These never launch Chrome, never touch a real provider, and never talk to
-// the OKIT server. The browser is a fake driver; the spawn/fetch used by
+// the MODELSWAP server. The browser is a fake driver; the spawn/fetch used by
 // create-cleanup is injected. Subprocess cases run the real CLI/launcher
 // scripts under an isolated HOME/USERPROFILE with a dead server URL, so no
 // code path can reach the network even if a guard regresses.
@@ -227,7 +227,7 @@ describe('provider-live-acceptance args', () => {
 
 describe('provider-live-acceptance safety primitives', () => {
   const home = path.join(os.tmpdir(), 'live-safety-home');
-  const root = path.join(home, '.okit', 'provider-live-acceptance');
+  const root = path.join(home, '.modelswap', 'provider-live-acceptance');
 
   it('allows profile dirs inside the acceptance root', () => {
     expect(assertSafeProfileDir({ root, dir: path.join(root, 'profiles', 'auth'), platform: 'darwin', home })).toBe(true);
@@ -248,7 +248,7 @@ describe('provider-live-acceptance safety primitives', () => {
   });
 
   it('rejects a root that would sit inside a daily profile', () => {
-    const insideRoot = path.join(home, 'Library', 'Application Support', 'Google', 'Chrome', 'okit-live');
+    const insideRoot = path.join(home, 'Library', 'Application Support', 'Google', 'Chrome', 'modelswap-live');
     expect(() => assertSafeProfileDir({ root: insideRoot, dir: path.join(insideRoot, 'profiles', 'auth'), platform: 'darwin', home })).toThrow(/日常浏览器目录/);
   });
 
@@ -458,7 +458,7 @@ describe('provider-live-acceptance guest mode', () => {
 
 // ─── Real-page regressions from the 2026-08-31 auth-verify report ───
 // Each case replays the exact page evidence captured in
-// ~/.okit/provider-live-acceptance/reports/20260831171718115-d390-live-auth-verify.json.
+// ~/.modelswap/provider-live-acceptance/reports/20260831171718115-d390-live-auth-verify.json.
 // Written BEFORE the implementation change; all five misjudged classes must
 // stop being reported as failed / safe_entry_missing.
 describe('provider-live-acceptance auth-verify real-page regressions', () => {
@@ -826,7 +826,7 @@ describe('provider-live-acceptance create-cleanup mode', () => {
     expect(report.results[0].reason).toContain('隔离 VM');
   });
 
-  it('blocked_prerequisite when the OKIT server/extension is not reachable', async () => {
+  it('blocked_prerequisite when the MODELSWAP server/extension is not reachable', async () => {
     const root = tmpRoot();
     let spawned = 0;
     const result = await runAcceptance({
@@ -938,8 +938,8 @@ describe('provider-live-acceptance create-cleanup mode', () => {
         id: 'zhipu',
         status: 'cleanup_failed',
         cleanup: 'failed',
-        testName: 'OKIT_AUTOCHECK_ZHIPU_20260831120000',
-        createdName: 'OKIT_AUTOCHECK_ZHIPU_20260831120000',
+        testName: 'MODELSWAP_AUTOCHECK_ZHIPU_20260831120000',
+        createdName: 'MODELSWAP_AUTOCHECK_ZHIPU_20260831120000',
         reason: '删除失败（HTTP 500）：unknown error',
       }],
     }));
@@ -967,7 +967,7 @@ describe('provider-live-acceptance create-cleanup mode', () => {
     expect(spawnCalls).toHaveLength(1);
     const report = JSON.parse(fs.readFileSync(result.reportPath, 'utf8'));
     expect(report.results[0].status).toBe('cleanup_failed');
-    expect(report.results[0].createdName).toBe('OKIT_AUTOCHECK_ZHIPU_20260831120000');
+    expect(report.results[0].createdName).toBe('MODELSWAP_AUTOCHECK_ZHIPU_20260831120000');
     expect(report.results[0].delegateReport).toBe(delegateReportPath);
   });
 
@@ -1020,10 +1020,10 @@ describe('provider-live-acceptance session binding (P0 primitives)', () => {
     expect(built.patched).toEqual({ hello: 1, authOk: 1, keepalive: 1 });
     const background = fs.readFileSync(path.join(copyDir, 'dist', 'background.js'), 'utf8');
     expect(background).toContain(sessionId);
-    expect(background).toContain('acceptanceSession: globalThis.__OKIT_ACCEPTANCE__.sessionId');
+    expect(background).toContain('acceptanceSession: globalThis.__MODELSWAP_ACCEPTANCE__.sessionId');
     expect(background).toContain("reportAcceptance('acceptance-heartbeat')");
     expect(fs.existsSync(path.join(copyDir, 'manifest.json'))).toBe(true);
-    expect(fs.existsSync(path.join(copyDir, 'OKIT_ACCEPTANCE_SESSION.json'))).toBe(true);
+    expect(fs.existsSync(path.join(copyDir, 'MODELSWAP_ACCEPTANCE_SESSION.json'))).toBe(true);
     // The patched background must still be valid ESM (node --check on .mjs).
     const mjsPath = path.join(root, 'background-check.mjs');
     fs.copyFileSync(path.join(copyDir, 'dist', 'background.js'), mjsPath);
@@ -1250,10 +1250,10 @@ describe('provider live-acceptance CLI subprocess', { timeout: 30000 }, () => {
         HOME: home,
         USERPROFILE: home,
         // Belt and suspenders: even a guard regression cannot reach a live
-        // OKIT server or a real debugging port from these subprocesses.
-        OKIT_AUTO_CREATE_BASE_URL: 'http://127.0.0.1:9',
-        OKIT_LIVE_DEBUG_PORT: '39777',
-        OKIT_LIVE_CHROME_BIN: '',
+        // MODELSWAP server or a real debugging port from these subprocesses.
+        MODELSWAP_AUTO_CREATE_BASE_URL: 'http://127.0.0.1:9',
+        MODELSWAP_LIVE_DEBUG_PORT: '39777',
+        MODELSWAP_LIVE_CHROME_BIN: '',
       },
     });
   }
@@ -1265,7 +1265,7 @@ describe('provider live-acceptance CLI subprocess', { timeout: 30000 }, () => {
     const reportLine = run.stdout.split('\n').find((line) => line.startsWith('report\t'));
     expect(reportLine).toBeTruthy();
     const reportPath = reportLine!.slice('report\t'.length).trim();
-    expect(reportPath).toContain(path.join('.okit', 'provider-live-acceptance', 'reports'));
+    expect(reportPath).toContain(path.join('.modelswap', 'provider-live-acceptance', 'reports'));
     const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
     expect(report.mode).toBe('guest');
     expect(report.dryRun).toBe(true);

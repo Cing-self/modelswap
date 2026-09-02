@@ -31,7 +31,7 @@
 
 - 每轮在 `mkdtemp` 创建的 HOME 内运行；夹具没有 API key。
 - 预置 fresh 的空 models.dev 缓存，并将 `https.get` 设为失败：任何网络访问都会使测试失败。
-- 不 mock API、store 或 adapter；只隔离 HOME 与网络。测试不读取/写入真实 `~/.okit`、`~/.codex`。
+- 不 mock API、store 或 adapter；只隔离 HOME 与网络。测试不读取/写入真实 `~/.modelswap`、`~/.codex`。
 - 失败用例名直接给出 `agent / site / model`；结果含完整选择、当前选择、adapter 文件是否含路由模型、多站点是否完整。
 
 ## 运行

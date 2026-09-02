@@ -8,7 +8,7 @@ const root = path.resolve(__dirname, '../..');
 const temporaryDirectories: string[] = [];
 
 function isolatedEnvironment() {
-  const home = mkdtempSync(path.join(tmpdir(), 'okit-runtime-home-'));
+  const home = mkdtempSync(path.join(tmpdir(), 'modelswap-runtime-home-'));
   temporaryDirectories.push(home);
   return { ...process.env, HOME: home, USERPROFILE: home };
 }
@@ -21,7 +21,7 @@ function isolatedEnvironment() {
 // throwaway sandbox and build there instead: same real tsc + copy-web +
 // closure verification, zero writes to the shared tree.
 function makeBuildSandbox() {
-  const sandbox = mkdtempSync(path.join(tmpdir(), 'okit-runtime-build-'));
+  const sandbox = mkdtempSync(path.join(tmpdir(), 'modelswap-runtime-build-'));
   temporaryDirectories.push(sandbox);
   for (const file of ['package.json', 'tsconfig.json', 'scripts/copy-web.js', 'scripts/verify-runtime-closure.js']) {
     cpSync(path.join(root, file), path.join(sandbox, file));

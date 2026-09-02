@@ -3,7 +3,7 @@
 // adapter writes; this module intentionally contains no per-model facts.
 //
 // Two failure modes observed on the opencode.ai / OpenRouter gateways affect
-// every agent that OKIT points at them:
+// every agent that MODELSWAP points at them:
 //
 // 1. User-Agent pool rate limiting. The opencode.ai gateway rate-limits
 //    anonymous traffic separately from the official opencode client, which

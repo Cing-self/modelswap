@@ -24,14 +24,14 @@ import {
 // Grok Build (xAI) reads ~/.grok/config.toml (or $GROK_HOME/config.toml).
 // Custom models are registered as `[model.<id>]` tables; `[models] default`
 // names the active one. Model tables may carry an inline `api_key` (docs list
-// it; env_key is preferred but needs an env var OKIT cannot set persistently).
-// Multi-site (additive) works like kimi-code: many `[model.okit-*]` tables
+// it; env_key is preferred but needs an env var MODELSWAP cannot set persistently).
+// Multi-site (additive) works like kimi-code: many `[model.modelswap-*]` tables
 // coexist and only `[models] default` selects which one is active.
 const GROK_DIR = path.join(os.homedir(), ".grok");
 const GROK_CONFIG_PATH = path.join(GROK_DIR, "config.toml");
 
 function getModelAlias(providerId: string, modelId: string): string {
-  return `okit-${sanitizeTomlKey(providerId)}-${sanitizeTomlKey(modelId)}`;
+  return `modelswap-${sanitizeTomlKey(providerId)}-${sanitizeTomlKey(modelId)}`;
 }
 
 function modelTablePattern(providerId: string): RegExp {
@@ -49,7 +49,7 @@ function getApiBackend(provider: Provider): string {
 }
 
 // ERNIE-family models reject JSON Schema union types (`"type": ["integer", "null"]`)
-// that grok embeds in its tool definitions. Route them through OKIT's local
+// that grok embeds in its tool definitions. Route them through MODELSWAP's local
 // sanitizing proxy (src/web/api/grok-proxy.js), which rewrites union types to
 // a single type before forwarding to the upstream endpoint.
 const GROK_PROXY_ORIGIN = "http://127.0.0.1:3780/api/grok-proxy";
@@ -152,7 +152,7 @@ export class GrokAdapter extends BaseAdapter {
     return { written, skipped: [] };
   }
 
-  // Which OKIT provider ids currently have a model table in grok's config.
+  // Which MODELSWAP provider ids currently have a model table in grok's config.
   // Alias->provider is ambiguous (ids may shadow each other), so match the
   // longest known provider id first.
   async listEnabledProviders(): Promise<string[]> {
@@ -165,7 +165,7 @@ export class GrokAdapter extends BaseAdapter {
       const m = line.match(/^\s*\[model\.([a-zA-Z0-9_-]+)\]\s*(?:#.*)?$/);
       if (!m) continue;
       for (const pid of ids) {
-        if (m[1].startsWith(`okit-${sanitizeTomlKey(pid)}-`)) {
+        if (m[1].startsWith(`modelswap-${sanitizeTomlKey(pid)}-`)) {
           found.add(pid);
           break;
         }

@@ -11,8 +11,8 @@
 - Command line:
 
 ```bash
-okit provider list              # list all providers (--json for scripts)
-okit provider add               # add
-okit provider delete <name>     # delete
-okit provider auth              # auth status of all providers
+modelswap provider list              # list all providers (--json for scripts)
+modelswap provider add               # add
+modelswap provider delete <name>     # delete
+modelswap provider auth              # auth status of all providers
 ```

@@ -36,7 +36,7 @@ export function useApp() {
 function AppProviderInner({ children }: { children: React.ReactNode }) {
   const { t } = useI18n();
   const [themeMode, setThemeModeState] = useState<'system' | 'dark' | 'light'>(() => {
-    const saved = localStorage.getItem('okit-theme');
+    const saved = localStorage.getItem('modelswap-theme');
     if (saved === 'dark' || saved === 'light') return saved;
     return 'system';
   });
@@ -45,7 +45,7 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
   );
   const theme: 'dark' | 'light' = themeMode === 'system' ? systemTheme : themeMode;
   const [uiStyle, setUiStyleState] = useState(() => {
-    const saved = localStorage.getItem('okit-style');
+    const saved = localStorage.getItem('modelswap-style');
     return saved || 'command';
   });
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -82,19 +82,19 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
   }, [uiStyle]);
 
   const setUiStyle = useCallback((next: string) => {
-    localStorage.setItem('okit-style', next);
+    localStorage.setItem('modelswap-style', next);
     setUiStyleState(next);
   }, []);
 
   const toggleTheme = useCallback(() => {
     const next = theme === 'dark' ? 'light' : 'dark';
-    localStorage.setItem('okit-theme', next);
+    localStorage.setItem('modelswap-theme', next);
     setThemeModeState(next);
   }, [theme]);
 
   const setThemeMode = useCallback((next: 'system' | 'dark' | 'light') => {
-    if (next === 'system') localStorage.removeItem('okit-theme');
-    else localStorage.setItem('okit-theme', next);
+    if (next === 'system') localStorage.removeItem('modelswap-theme');
+    else localStorage.setItem('modelswap-theme', next);
     setThemeModeState(next);
   }, []);
 

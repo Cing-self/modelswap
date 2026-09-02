@@ -33,7 +33,7 @@ describe('focus re-check policy (useAppUpdate)', () => {
 describe('completed desktop download installation policy', () => {
   const completedDownload = {
     id: 'update-job-1', status: 'completed' as const, received: 1, total: 1,
-    path: '/tmp/OKIT-1.0.40-arm64.dmg',
+    path: '/tmp/MODELSWAP-1.0.40-arm64.dmg',
   };
 
   it('waits briefly so the completed state can render before quitting', () => {
@@ -57,8 +57,8 @@ import { beginUpdateCheck, failUpdateCheck, UpdateState } from '../../src/web/fr
 const AVAILABLE: UpdateState = {
   status: 'available',
   latest: 'v1.0.38',
-  dmgUrl: 'https://github.com/Cing-self/okit/releases/download/v1.0.38/OKIT-1.0.38-arm64.dmg',
-  releaseUrl: 'https://github.com/Cing-self/okit/releases/tag/v1.0.38',
+  dmgUrl: 'https://github.com/Cing-self/modelswap/releases/download/v1.0.38/MODELSWAP-1.0.38-arm64.dmg',
+  releaseUrl: 'https://github.com/Cing-self/modelswap/releases/tag/v1.0.38',
   publishedAt: '2026-08-30',
   releaseNotes: null,
 };
