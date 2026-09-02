@@ -62,6 +62,7 @@ describe('endpoint probe profiles', () => {
       'https://token-plan.cn-beijing.maas.aliyuncs.com/apps/anthropic',
       'https://open.bigmodel.cn/api/anthropic',
       'https://api.z.ai/api/anthropic',
+      'https://ark.cn-beijing.volces.com/api/compatible',
       'https://ark.cn-beijing.volces.com/api/coding',
       'https://ark.cn-beijing.volces.com/api/plan',
     ]) {
@@ -69,6 +70,16 @@ describe('endpoint probe profiles', () => {
     }
     expect(profiles.getAnthropicAuthMode('https://api.kimi.com/coding')).toBe('x-api-key');
     expect(profiles.getAnthropicAuthMode('https://api.minimaxi.com/anthropic')).toBe('x-api-key');
+  });
+
+  it('maps standard Ark Anthropic-compatible calls to a real probe model', () => {
+    expect(profiles.getEndpointProfile('https://ark.cn-beijing.volces.com/api/compatible')).toMatchObject({
+      id: 'volcengine',
+      probeModel: 'doubao-seed-2-1-pro-260628',
+      anthropicAuth: 'bearer',
+    });
+    expect(profiles.pickProbeModel('https://ark.cn-beijing.volces.com/api/compatible'))
+      .toBe('doubao-seed-2-1-pro-260628');
   });
 
   it('retries mutually exclusive Tencent plan tiers without treating model access as bad credentials', () => {

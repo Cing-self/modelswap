@@ -346,3 +346,8 @@
 - 按数据源分层纠正：Agent Plan 官方网关不提供 `/models` 时，模型成员改以 models.dev provider catalog 为主，不再保留 OKIT 自己的 11 条 Agent Plan allowlist。models.dev 没有 `volcengine-agent` 专属目录时，按 API host 映射到其 Volcengine 目录。
 - 同时迁移上一版静态清单造成的本地 `manual/user` 残留：仅移除 retired allowlist 中且 models.dev 未列出的行，真实用户手工密钥仍保留。新增 4 个离线回归覆盖 models.dev 主目录、无目录时不伪造、残留清理和用户模型保护。
 - 验证：目标测试 4/4；全量 106 文件/960 测试；完整构建 exit 0。重启后真实刷新 Agent Plan 返回 models.dev 目录 8 个模型，`authState=verified`。
+
+# 火山方舟 API 平台 Anthropic 连接修复（2026-09-02）
+- 症状：同一 `VOLCENGINE_API_KEY` 在 Coding Plan 全部通过，但“火山方舟 API 平台”报 `API Key 无效`。只读拆解发现 OpenAI `/api/v3` 通过，Anthropic endpoint 配置错误：地址少 `/compatible`，且误用 `x-api-key`。
+- 修复：标准 Ark API 平台 Anthropic 兼容地址改为 `https://ark.cn-beijing.volces.com/api/compatible`，认证改为 `Authorization: Bearer`，探测模型改为 `doubao-seed-2-1-pro-260628`，并同步生成 provider 数据与回归测试。
+- 验证：endpoint profile 定向 7/7；全量 106 文件/961 测试；完整构建 exit 0。真实 `/verify-auth` 后 API 平台 OpenAI 与 Anthropic endpoint 均 verified，`authState=verified`。

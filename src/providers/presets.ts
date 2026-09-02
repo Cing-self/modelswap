@@ -46,7 +46,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
     baseUrl: "https://ark.cn-beijing.volces.com/api/v3",
     endpoints: [
       { type: "openai", baseUrl: "https://ark.cn-beijing.volces.com/api/v3" },
-      { type: "anthropic", baseUrl: "https://ark.cn-beijing.volces.com/api/v3" },
+      { type: "anthropic", baseUrl: "https://ark.cn-beijing.volces.com/api/compatible" },
     ],
     authMode: "api_key",
     models: [],

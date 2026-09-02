@@ -122,6 +122,15 @@ const PROFILES = [
     probeModel: 'qianfan-code-latest',
   },
   {
+    id: 'volcengine',
+    // Standard Ark uses Bearer auth on both OpenAI- and
+    // Anthropic-compatible routes. x-api-key is rejected there and made the
+    // same valid key look invalid only on the Anthropic wire.
+    match: /^https?:\/\/ark\.cn-beijing\.volces\.com\/api\/compatible(?:\/|$)/i,
+    probeModel: 'doubao-seed-2-1-pro-260628',
+    anthropicAuth: 'bearer',
+  },
+  {
     id: 'volcengine-coding',
     // 火山引擎 Coding Plan — ark.cn-beijing.volces.com/api/coding/...
     match: /^https?:\/\/ark\.cn-beijing\.volces\.com\/api\/coding(?:\/|$)/i,

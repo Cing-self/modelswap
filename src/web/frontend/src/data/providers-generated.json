@@ -52,7 +52,7 @@
         },
         {
           "type": "anthropic",
-          "baseUrl": "https://ark.cn-beijing.volces.com/api/v3"
+          "baseUrl": "https://ark.cn-beijing.volces.com/api/compatible"
         }
       ],
       "authMode": "api_key",
@@ -1943,7 +1943,7 @@
           "providerId": "volcengine",
           "endpointIds": [
             "volcengine:endpoint:p1crjk",
-            "volcengine:endpoint:9b8jnk"
+            "volcengine:endpoint:1rdqqyh"
           ],
           "authMethodIds": [
             "volcengine:api-key"
@@ -2021,10 +2021,10 @@
           }
         },
         {
-          "id": "volcengine:endpoint:9b8jnk",
+          "id": "volcengine:endpoint:1rdqqyh",
           "name": "ANTHROPIC",
           "offeringId": "volcengine",
-          "baseUrl": "https://ark.cn-beijing.volces.com/api/v3",
+          "baseUrl": "https://ark.cn-beijing.volces.com/api/compatible",
           "protocol": {
             "family": "anthropic",
             "mode": "messages"
