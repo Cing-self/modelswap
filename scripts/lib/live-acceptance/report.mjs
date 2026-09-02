@@ -47,7 +47,10 @@ export function sanitizePlatformResult(result) {
   if (out.loginUrl !== undefined) out.loginUrl = sanitizeUrl(out.loginUrl);
   if (out.testName !== undefined) out.testName = redactSecrets(out.testName).slice(0, 200);
   if (out.createdName !== undefined) out.createdName = redactSecrets(out.createdName).slice(0, 200);
-  if (out.delegateReport !== undefined) out.delegateReport = sanitizeUrl(out.delegateReport) || redactSecrets(out.delegateReport).slice(0, 300);
+  // delegateReport is a local file path, not a page URL. URL sanitation would
+  // mistake a Windows drive path such as C:\... for a non-HTTP URL and erase
+  // the whole diagnostic pointer.
+  if (out.delegateReport !== undefined) out.delegateReport = redactSecrets(out.delegateReport).slice(0, 300);
   if (out.page) {
     out.page = {
       title: redactSecrets(out.page.title).slice(0, 120),

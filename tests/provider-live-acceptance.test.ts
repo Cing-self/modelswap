@@ -273,6 +273,12 @@ describe('provider-live-acceptance safety primitives', () => {
     expect(sanitizeUrl('javascript:alert(1)')).not.toContain('alert');
   });
 
+  it('preserves Windows-style delegate report paths as local diagnostics', () => {
+    const delegateReport = 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\live-acc-mr7LEV\\delegate-report.json';
+    expect(sanitizePlatformResult({ platform: 'zhipu', status: 'cleanup_failed', delegateReport }).delegateReport)
+      .toBe(delegateReport);
+  });
+
   it('enforces the read-only action whitelist per mode', () => {
     expect(assertDriverActionAllowed('guest', 'probe')).toBe(true);
     expect(assertDriverActionAllowed('auth-verify', 'screenshot')).toBe(true);
@@ -1018,6 +1024,17 @@ describe('provider-live-acceptance session binding (P0 primitives)', () => {
     fs.copyFileSync(path.join(copyDir, 'dist', 'background.js'), mjsPath);
     const check = spawnSync(process.execPath, ['--check', mjsPath], { encoding: 'utf8' });
     expect(check.status).toBe(0);
+  });
+
+  it('patches a CRLF checkout of the extension snapshot', () => {
+    const source = fs.readFileSync(path.join(EXT_SAMPLE, 'dist', 'background.js'), 'utf8');
+    const crlfSource = source.replace(/\n/g, '\r\n');
+    const patched = patchExtensionBackgroundSource(crlfSource, {
+      sessionId: 'abcd1234-0',
+      witnessPort: 9341,
+    });
+    expect(patched.counts).toEqual({ hello: 1, authOk: 1, keepalive: 1 });
+    expect(patched.patched).not.toContain('\r\n');
   });
 
   it('fails closed when the source lacks the built dist', async () => {

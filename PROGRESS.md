@@ -370,6 +370,10 @@
 - 按自 `origin/main` 以来的 32 个功能提交重写 `release-notes/v1.0.41.json`：覆盖桌面自动安装说明、自动创建密钥登录/依赖修复、火山方舟命名与 Agent Plan 专属 Key、标准 Ark Anthropic 端点、模型/密钥 UI，以及首页用量与发布前真实验收工具。明确 Agent Plan 模型名仍可手动填写，模型目录暂缺不作为推广阻断。
 - 验证：`release-notes.js validate v1.0.41` 与默认下一版 notes 门禁通过，渲染预览双语完整；随后推送 main 并等待三平台 CI。
 
+# v1.0.41 Windows CI 修复（2026-09-02）
+- 首次推送后 macOS/Ubuntu CI 通过，Windows 4 例失败。根因一：Git 在 Windows checkout 将扩展快照 LF 转为 CRLF，验收补丁锚点按 LF 精确匹配而 fail closed；修复为补丁前统一换行。根因二：`delegateReport` 是本地文件路径却走 URL 清洗，Windows `C:\...` 被判非 HTTP URL 后整段 `[REDACTED]`；修复为按本地诊断路径做密钥级脱敏。
+- 新增 CRLF 扩展快照与 Windows delegate 路径两处回归。目标测试 86/86；全量 106 文件/962 测试；完整构建 exit 0。重新推送并等待三平台 CI。
+
 # 模型编辑器添加按钮位置调整（2026-09-02）
 - 移除模型列表顶部工具栏的“添加模型”按钮，在最后一条模型记录下方新增全宽虚线按钮；过滤/空状态下仍可添加，连续录入时无需回顶。样式沿用现有 provider form 添加按钮体系并适配深浅模式。
 - 真实页面验证：顶部工具栏无添加按钮，底部按钮位于模型列表内，点击后模型行从 10 增到 11，未保存取消后无残留。全量 106 文件/961 测试通过，完整构建 exit 0。

@@ -182,9 +182,13 @@ function acceptancePrelude(sessionId, witnessPort) {
  *  closed — a rebuilt/reformatted extension must never load half-patched. */
 export function patchExtensionBackgroundSource(source, { sessionId, witnessPort }) {
   if (!source || typeof source !== 'string') throw new Error('background.js 源码缺失');
+  // Git can check text fixtures out with CRLF on Windows while the shipped
+  // anchors are authored with LF. Normalize before matching; the generated
+  // acceptance copy remains valid ESM with LF endings.
+  const normalizedSource = source.replace(/\r\n?/g, '\n');
   if (source.includes('reportAcceptance')) throw new Error('background.js 已包含验收补丁（不得重复打补丁）');
   const counts = Object.fromEntries(Object.entries(PATCH_ANCHORS).map(([name, anchor]) => {
-    const count = source.split(anchor).length - 1;
+    const count = normalizedSource.split(anchor).length - 1;
     return [name, count];
   }));
   for (const [name, count] of Object.entries(counts)) {
@@ -192,7 +196,7 @@ export function patchExtensionBackgroundSource(source, { sessionId, witnessPort 
       throw new Error(`验收补丁锚点 ${name} 出现 ${count} 次（要求恰好 1 次）——扩展产物格式已变化，拒绝加载半补丁副本`);
     }
   }
-  let patched = `${acceptancePrelude(sessionId, witnessPort)}\n${source}`;
+  let patched = `${acceptancePrelude(sessionId, witnessPort)}\n${normalizedSource}`;
   patched = patched.replace(PATCH_ANCHORS.hello,
     "            protocol: 'atomic-v2',\n            acceptanceSession: globalThis.__OKIT_ACCEPTANCE__.sessionId,\n        }));");
   patched = patched.replace(PATCH_ANCHORS.authOk,
