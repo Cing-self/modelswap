@@ -437,7 +437,6 @@ export function ProviderForm({ provider, platform, onSelectOffering, onOAuthLogi
                 <>
                   <div className="provider-editor-model-toolbar">
                     <input className="vault-input" type="search" value={modelQuery} onChange={event => setModelQuery(event.target.value)} placeholder={t('models.searchModels')} />
-                    <button type="button" onClick={addModel}>＋ {t('models.addModel')}</button>
                   </div>
                   <div className="provider-editor-model-head" aria-hidden="true">
                     <span />
@@ -454,6 +453,13 @@ export function ProviderForm({ provider, platform, onSelectOffering, onOAuthLogi
                         <button type="button" className="endpoint-remove-btn" onClick={() => removeModel(index)}>×</button>
                       </div>
                     ))}
+                    <button
+                      type="button"
+                      className="provider-editor-model-add model-add-btn"
+                      onClick={addModel}
+                    >
+                      ＋ {t('models.addModel')}
+                    </button>
                   </div>
                 </>
               )}

@@ -351,3 +351,7 @@
 - 症状：同一 `VOLCENGINE_API_KEY` 在 Coding Plan 全部通过，但“火山方舟 API 平台”报 `API Key 无效`。只读拆解发现 OpenAI `/api/v3` 通过，Anthropic endpoint 配置错误：地址少 `/compatible`，且误用 `x-api-key`。
 - 修复：标准 Ark API 平台 Anthropic 兼容地址改为 `https://ark.cn-beijing.volces.com/api/compatible`，认证改为 `Authorization: Bearer`，探测模型改为 `doubao-seed-2-1-pro-260628`，并同步生成 provider 数据与回归测试。
 - 验证：endpoint profile 定向 7/7；全量 106 文件/961 测试；完整构建 exit 0。真实 `/verify-auth` 后 API 平台 OpenAI 与 Anthropic endpoint 均 verified，`authState=verified`。
+
+# 模型编辑器添加按钮位置调整（2026-09-02）
+- 移除模型列表顶部工具栏的“添加模型”按钮，在最后一条模型记录下方新增全宽虚线按钮；过滤/空状态下仍可添加，连续录入时无需回顶。样式沿用现有 provider form 添加按钮体系并适配深浅模式。
+- 真实页面验证：顶部工具栏无添加按钮，底部按钮位于模型列表内，点击后模型行从 10 增到 11，未保存取消后无残留。全量 106 文件/961 测试通过，完整构建 exit 0。
