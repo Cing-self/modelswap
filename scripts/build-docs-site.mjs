@@ -268,7 +268,7 @@ fs.writeFileSync(
   path.join(OUT, 'llms.txt'),
   `# ModelSwap User Manual
 
-> Official user manual for ModelSwap — an open-source, local-first key & model control plane for AI agents (Claude Code, ChatGPT Codex, Kimi Code and 7 more adapters; 40 provider presets; AES-256-GCM local vault). ${built.zh.length} chapters in Chinese and English covering installation, the encrypted vault, provider & model switching, usage dashboards, sync, snapshots, the CLI and the Agent Skill.
+> Official user manual for ModelSwap — an open-source, local-first key & model control plane for AI agents (Claude Code, ChatGPT Codex, Kimi Code and 7 more adapters; 41 provider presets; AES-256-GCM local vault). ${built.zh.length} chapters in Chinese and English covering installation, the encrypted vault, provider & model switching, usage dashboards, sync, snapshots, the CLI and the Agent Skill.
 
 ## Chapters (中文)
 
