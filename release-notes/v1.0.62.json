@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.62",
+  "publishedAt": "2026-09-04",
+  "summary": {
+    "zh": "文档站与 README 的 SEO/GEO 基建：搜索引擎与 AI 助手更容易发现并准确引用 ModelSwap。",
+    "en": "SEO/GEO groundwork for the docs site and READMEs: search engines and AI assistants can discover and accurately cite ModelSwap."
+  },
+  "highlights": [
+    {
+      "category": "new",
+      "zh": "docs.modelswap.app 构建时自动产出 robots.txt、sitemap.xml（15 章 × 中英双语 hreflang）与 llms.txt，每章新增 canonical 与 OG 标签。",
+      "en": "docs.modelswap.app now emits robots.txt, sitemap.xml (15 chapters × zh/en with hreflang) and llms.txt at build time, plus per-chapter canonical and OG tags."
+    },
+    {
+      "category": "new",
+      "zh": "README 新增「支持的 Agent」清单（10 个适配器全列名），并链接 modelswap.app/llms.txt 机器可读产品档案。",
+      "en": "The READMEs gain a Supported agents section listing all 10 adapters by name, plus links to the machine-readable product reference at modelswap.app/llms.txt."
+    },
+    {
+      "category": "fixed",
+      "zh": "修正 README 过时描述：移除已下线的「项目绑定注入 .env」说法，自动创建平台数统一为 31（浏览器扩展）。",
+      "en": "Stale README claims corrected: the removed project-binding .env injection is gone, and the auto-create platform count is unified at 31 (browser extension)."
+    }
+  ]
+}
