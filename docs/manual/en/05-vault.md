@@ -30,12 +30,6 @@ modelswap vault inject                # print export statements (use with eval)
 modelswap vault inject --shell zsh    # shell format: bash/zsh/powershell
 ```
 
-## 5.3 Auto-inject on cd (optional)
+## 5.3 Auto-inject on cd (removed)
 
-```bash
-modelswap hook install               # cd hook: auto-export keys when entering a project
-modelswap hook status                # check installation
-modelswap hook uninstall             # remove
-```
-
-> **Shell config safety**: installing or upgrading ModelSwap **never** modifies your shell config (`~/.zshrc` / `~/.bashrc` etc.). Only an explicit `modelswap hook install` writes the cd hook, and `modelswap hook uninstall` removes it.
+The `modelswap hook` commands were removed in v1.0.3; there is no cd-hook feature in current versions. To auto-inject keys per project, combine `modelswap vault inject` with your own shell tooling (direnv etc.) — ModelSwap itself **never** modifies your shell config (`~/.zshrc` / `~/.bashrc` etc.). See chapter 14's FAQ for cleaning up hooks installed by older versions.
