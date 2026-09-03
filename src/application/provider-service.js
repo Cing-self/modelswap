@@ -779,6 +779,7 @@ module.exports = {
   triggerOAuthLogin,
   fetchModels,
   discoverMissingConfiguredModels,
+  reconcileVaultKey: input => agentConfigService.reconcileVaultKey(input),
   exportProviderCode,
   importProviderCode,
   __testing: {

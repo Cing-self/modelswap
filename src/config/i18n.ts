@@ -14,6 +14,7 @@ export interface Translations {
   // auth
   // vault
   vaultSaved: string;
+  vaultSetPropagated: string;
   vaultAutoSync: string;
   vaultTargets: string;
   vaultSynced: string;
@@ -75,6 +76,7 @@ const translations: Record<Language, Translations> = {
     // auth
     // vault
     vaultSaved: "已保存:",
+    vaultSetPropagated: "已同步更新 {count} 个 Agent 配置",
     vaultAutoSync: "自动同步到",
     vaultTargets: "个目标",
     vaultSynced: "已同步",
@@ -134,6 +136,7 @@ const translations: Record<Language, Translations> = {
     // auth
     // vault
     vaultSaved: "Saved:",
+    vaultSetPropagated: "Updated {count} agent config(s) with the new key",
     vaultAutoSync: "Auto-syncing to",
     vaultTargets: "targets",
     vaultSynced: "Synced",
@@ -222,6 +225,9 @@ export function getLanguage(): Language {
   return currentLang;
 }
 
-export function t(key: keyof Translations): string {
-  return translations[currentLang][key];
+// `{placeholder}` substitution, mirroring the frontend's useI18n().t params.
+export function t(key: keyof Translations, params?: Record<string, string | number>): string {
+  const template = translations[currentLang][key];
+  if (!params) return template;
+  return template.replace(/\{(\w+)\}/g, (match, name) => (params[name] === undefined ? match : String(params[name])));
 }

@@ -262,8 +262,13 @@ function createAgentConfigurationService(overrides = {}) {
     return { success: true, agentId, providerId, enabled: false, snapshotAvailable: Boolean(snapshotId) };
   }
 
-  async function reconcile(config) {
+  async function reconcile(config, options = {}) {
     const desired = config || await d.loadUserConfig();
+    // An optional provider scope keeps key-rotation and rebind reconciles
+    // from rewriting agents whose providers were not touched.
+    const scope = Array.isArray(options.providerIds) && options.providerIds.length
+      ? new Set(options.providerIds.map(String))
+      : null;
     const results = [];
     for (const [agentId, raw] of Object.entries(desired.agentProviders || {})) {
       const state = getAgentState(desired, agentId);
@@ -273,6 +278,7 @@ function createAgentConfigurationService(overrides = {}) {
           ? [[state.activeProviderId, state.sites[state.activeProviderId]]]
           : [];
       for (const [providerId, site] of sites) {
+        if (scope && !scope.has(providerId)) continue;
         try {
           const result = await applySelection({
             agentId, providerId, modelIds: site.modelIds, primaryModelId: state.activeProviderId === providerId ? state.activeModelId : site.modelIds?.[0],
@@ -288,15 +294,26 @@ function createAgentConfigurationService(overrides = {}) {
         }
       }
     }
-    // Several legacy adapters still persist their own current-model field as
-    // a side effect. Reassert the accepted canonical desired state without
+    // Several legacy adapters still persist their own current-model field as a
+    // side effect. Reassert the accepted canonical desired state without
     // scheduling a sync upload, so a remote wire ID can never replace the
     // canonical model ID in user.json on the receiving machine.
     if (typeof d.persistReconciledDesired === 'function') await d.persistReconciledDesired(desired);
     return results;
   }
 
-  return { applySelection, setClaudeTierMap, removeConfiguredSite, disableConfiguredSite, reconcile, prepareWrite };
+  // A rotated vault key value only reaches agents whose configs embedded the
+  // old plaintext (Codex reads the vault live, the others hold a copy from
+  // their last write). Re-apply every enabled/active site bound to the key.
+  async function reconcileVaultKey({ vaultKey, providers, config }) {
+    if (!vaultKey || typeof vaultKey !== 'string') return { providerIds: [], results: [], updated: 0 };
+    const all = providers || await d.loadProviders();
+    const providerIds = (all || []).filter(provider => provider && provider.vaultKey === vaultKey).map(provider => provider.id);
+    const results = providerIds.length ? await reconcile(config, { providerIds }) : [];
+    return { providerIds, results, updated: results.filter(result => result.success).length };
+  }
+
+  return { applySelection, setClaudeTierMap, removeConfiguredSite, disableConfiguredSite, reconcile, reconcileVaultKey, prepareWrite };
 }
 
 module.exports = { ADDITIVE_AGENTS, createAgentConfigurationService };
