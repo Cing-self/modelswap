@@ -212,7 +212,6 @@ export async function providerSwitch(agentId?: string): Promise<void> {
     providers,
     source: 'provider-cli-switch',
     activate: true,
-    preserveProviderModels: true,
   });
   console.log(kleur.green(`${t("providerSwitched")}: ${selectedProvider.name} / ${modelResponse.model}`));
 }
@@ -257,7 +256,6 @@ export async function providerUse(
       providers,
       source: 'provider-cli-use',
       activate: true,
-      preserveProviderModels: true,
     });
     console.log(kleur.green(`${adapter!.name}: ${t("providerSwitched")} → ${provider.name} / ${modelId}`));
   }

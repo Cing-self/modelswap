@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.56",
+  "publishedAt": "2026-09-03",
+  "summary": {
+    "zh": "修复 CLI 切换站点时把平台全量模型清单写进客户端的问题：此前 modelswap provider use/switch 会把站点的全部模型（例如 Google 的 55 个）镜像进 ZCode 等客户端的模型选择器，而你在 ModelSwap 里明明只勾选了一个。现在 CLI 与网页端行为一致——只镜像你选中的模型。",
+    "en": "Fixes the CLI flooding agent model pickers with the provider's full catalog: modelswap provider use/switch used to mirror every discovered model (e.g. all 55 from Google) into clients like ZCode even when only one was selected in ModelSwap. The CLI now matches the Web behavior — only your selected models are mirrored."
+  },
+  "highlights": [
+    {
+      "category": "fixed",
+      "zh": "CLI 切换（provider use / provider switch）不再传全量模型清单：只把你切换到的模型（以及 Claude 档位映射里的模型）写进客户端配置，网页端一直是这个行为，CLI 此前保留了大重构前的旧逻辑。",
+      "en": "CLI switches (provider use / provider switch) no longer pass the full model catalog: only the switched-to model (plus Claude tier mappings) is written to agent configs — the Web path always behaved this way; the CLI had kept the pre-refactor behavior."
+    },
+    {
+      "category": "improved",
+      "zh": "ZCode 模型选择器不再被长列表淹没：站点勾选几个就显示几个，与 ModelSwap 界面上的勾选一一对应。",
+      "en": "ZCode's model picker is no longer flooded: it shows exactly the models enabled for the site, one-to-one with your ModelSwap selections."
+    },
+    {
+      "category": "fixed",
+      "zh": "修复 Windows CI 上 provider 生命周期测试偶发的 EBUSY 文件锁（排队中的配置原子写入与测试裸读 user.json 竞态），此前该偶发问题曾两次阻塞发版流水线。",
+      "en": "Fixes an intermittent EBUSY file lock in the provider lifecycle test on Windows CI (queued atomic config writes racing the test's raw user.json reads); the flake had blocked the release pipeline twice."
+    }
+  ]
+}
