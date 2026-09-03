@@ -4,12 +4,16 @@ From a fresh install to your first model switch in ten minutes.
 
 ## 3.1 Install & open
 
+**Desktop app (recommended):** download the dmg from [GitHub Releases](https://github.com/Cing-self/modelswap/releases/latest), drag it into Applications, and open it — the console window appears automatically. If macOS blocks the first launch, follow the steps in [chapter 2](02-install) to allow it once.
+
+**CLI:**
+
 ```bash
 npm install -g modelswap
 modelswap web          # opens http://localhost:3780
 ```
 
-NPM is the recommended install — see chapter 1 for desktop app / source options.
+Other install options (build from source) are in [chapter 2](02-install).
 
 ## 3.2 Store a key
 
@@ -44,6 +48,11 @@ modelswap provider auth --json    # auth state per provider
 modelswap provider current        # what each agent resolves right now
 ```
 
-Then ask the agent a small prompt. If it still uses the old model, the running CLI session cached the old config — restart it (chapter 15 FAQ).
+Then ask the agent a small prompt. If it still uses the old model, the running CLI session cached the old config — restart it (see [FAQ](15-faq)).
 
-Next steps: create keys in bulk (chapters 4–5), usage alerts (chapter 8), multi-machine sync (chapter 11).
+You've now walked through the core flow. From here, explore what interests you:
+
+- **Key management**: create keys in bulk ([chapters 4–5](04-extension))
+- **Usage monitoring**: subscription balance queries and alerts ([chapter 8](08-usage))
+- **Multi-device sync**: end-to-end encrypted sync via iCloud / WebDAV / Cloudflare ([chapter 11](11-sync))
+- **More agents**: all supported agents and how to switch ([chapter 9](09-agents))

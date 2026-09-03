@@ -20,7 +20,7 @@ const TITLES = { zh: 'ModelSwap 用户手册', en: 'ModelSwap User Manual' };
 // files cleverly. Group labels are per-language.
 const NAV = {
   en: [
-    { group: 'Getting Started', chapters: ['01-install', '02-console', '03-quickstart'] },
+    { group: 'Getting Started', chapters: ['01-what-is-modelswap', '02-install', '03-quickstart'] },
     { group: 'Key Management', chapters: ['04-extension', '05-auto-create', '06-vault'] },
     { group: 'Models', chapters: ['07-providers', '08-usage'] },
     { group: 'Agents', chapters: ['09-agents', '10-agent-skill'] },
@@ -28,7 +28,7 @@ const NAV = {
     { group: 'Reference', chapters: ['13-settings', '14-cli', '15-faq'] },
   ],
   zh: [
-    { group: '快速开始', chapters: ['01-install', '02-console', '03-quickstart'] },
+    { group: '快速上手', chapters: ['01-what-is-modelswap', '02-install', '03-quickstart'] },
     { group: '密钥管理', chapters: ['04-extension', '05-auto-create', '06-vault'] },
     { group: '模型配置', chapters: ['07-providers', '08-usage'] },
     { group: 'Agent 配置', chapters: ['09-agents', '10-agent-skill'] },

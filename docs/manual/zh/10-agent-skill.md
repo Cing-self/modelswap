@@ -19,6 +19,6 @@ npx skills add Cing-self/modelswap --skill modelswap
 
 - **检查状态**：`modelswap provider current --json`、`provider list --json`、`provider auth --json`、`vault list --json`——均为脱敏输出，可安全读取
 - **免交互切换**：`modelswap provider use <provider> --agent <agent> --model <model>`——Skill 会要求 Agent 始终显式给出 agent 与 model ID，而不是依赖默认值
-- **知道边界在哪**：密钥绝不进入命令行参数或日志（用 `--stdin`）；`vault get` / `vault inject` 视为明文泄露，仅当任务确实需要时使用；`vault push` / `pull` 仅在明确要求时执行；`vault delete` 之前必须先看 `vault where`
+- **知道边界在哪**：密钥绝不进入命令行参数或日志（用 `--stdin`）；`vault get` / `vault inject` 视为明文泄露，仅当任务确实需要时使用；`vault push` / `pull` 仅在明确要求时执行；`vault delete` 之前必须确认没有别的流程还在引用该密钥
 
 原始命令清单见第 14 章。Skill 是给 Agent 用的——人还是直接用 Web 控制台或 CLI 更方便。

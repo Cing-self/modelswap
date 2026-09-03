@@ -19,6 +19,6 @@ npx skills add Cing-self/modelswap --skill modelswap
 
 - **Inspect**: `modelswap provider current --json`, `provider list --json`, `provider auth --json`, `vault list --json` — masked and safe to read
 - **Switch without prompting**: `modelswap provider use <provider> --agent <agent> --model <model>` — the skill tells the agent to always pass explicit agent + model ids instead of relying on defaults
-- **Know the boundaries**: secrets never appear in command arguments or logs (`--stdin` instead); `vault get` / `vault inject` are treated as plaintext disclosure and used only when the task truly needs them; `vault push` / `pull` only on explicit request; `vault delete` only after inspecting `vault where` first
+- **Know the boundaries**: secrets never appear in command arguments or logs (`--stdin` instead); `vault get` / `vault inject` are treated as plaintext disclosure and used only when the task truly needs them; `vault push` / `pull` only on explicit request; `vault delete` only after confirming nothing else still references the key
 
 Raw commands are in chapter 14. The skill is written for agents — humans can just use the web console or the CLI directly.

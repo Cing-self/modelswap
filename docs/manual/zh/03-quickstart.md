@@ -4,12 +4,16 @@
 
 ## 3.1 安装并启动
 
+**桌面版（推荐）：** 从 [GitHub Release](https://github.com/Cing-self/modelswap/releases/latest) 下载 dmg，拖入「应用程序」并打开——控制台窗口会自动出现。首次打开如被 macOS 拦截，按[第 2 章](02-install)的步骤放行一次。
+
+**CLI：**
+
 ```bash
 npm install -g modelswap
 modelswap web          # 打开 http://localhost:3780
 ```
 
-npm 安装是推荐方式——桌面版、从源码构建等选项见第 1 章。
+更多安装方式（源码构建等）见[第 2 章](02-install)。
 
 ## 3.2 存入一个密钥
 
@@ -44,6 +48,11 @@ modelswap provider auth --json    # 各平台认证状态
 modelswap provider current        # 各 Agent 当前解析到哪个模型
 ```
 
-然后找 Agent 问个小问题。如果它还在用旧模型，说明正在运行的 CLI 会话缓存了旧配置——重启该 Agent（见第 15 章 FAQ）。
+然后找 Agent 问个小问题。如果它还在用旧模型，说明正在运行的 CLI 会话缓存了旧配置——重启该 Agent（见 [常见问题](15-faq)）。
 
-下一步：批量创建密钥（第 4–5 章）、用量告警（第 8 章）、多设备同步（第 11 章）。
+到这里你已经跑通了核心流程。接下来可以按需深入：
+
+- **密钥管理**：批量创建密钥（[第 4–5 章](04-extension)）
+- **用量监控**：订阅余额查询与告警（[第 8 章](08-usage)）
+- **多设备同步**：iCloud / WebDAV / Cloudflare 等端到端加密同步（[第 11 章](11-sync)）
+- **更多 Agent**：查看全部支持的 Agent 与切换方式（[第 9 章](09-agents)）
