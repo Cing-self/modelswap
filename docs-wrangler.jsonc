@@ -1,0 +1,17 @@
+{
+  // docs.modelswap.app — standalone user-manual site.
+  // Build first: npm run build:docs  (outputs docs-site-dist/)
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "modelswap-docs",
+  "compatibility_date": "2026-08-18",
+  "assets": {
+    "directory": "docs-site-dist",
+    "not_found_handling": "none"
+  },
+  "routes": [
+    {
+      "pattern": "docs.modelswap.app",
+      "custom_domain": true
+    }
+  ]
+}

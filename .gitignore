@@ -26,3 +26,5 @@ src/web/public/
 output/
 nul
 src/public/
+# docs site build output (docs.modelswap.app)
+docs-site-dist/
