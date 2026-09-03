@@ -27,6 +27,7 @@ import xai from './xai.png';
 
 import zhipuBigModel from './zhipu-bigmodel.png';
 import zai from './zai.svg';
+import googleGemini from './google-gemini.svg';
 import moonshot from './moonshot-mark.png';
 import volcengine from './volcengine.png';
 import tencentCloud from './tencent-cloud.png';
@@ -44,6 +45,8 @@ const PROVIDER_ICON: Record<string, string> = {
   // OpenAI
   'openai': openai,
   'openai-codex': openai,
+  // Google AI Studio (Gemini) — official Gemini sparkle
+  'google': googleGemini,
   // DeepSeek
   'deepseek': deepseek,
   // 智谱国内站与 Z.AI 国际站使用不同品牌入口，不能共用旧智谱字标。
