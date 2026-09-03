@@ -14,6 +14,7 @@ export interface Translations {
   // auth
   // vault
   vaultSaved: string;
+  vaultSetPropagated: string;
   vaultAutoSync: string;
   vaultTargets: string;
   vaultSynced: string;
@@ -22,12 +23,7 @@ export interface Translations {
   vaultListTitle: string;
   vaultConfirmDelete: string;
   vaultDeleted: string;
-  vaultNoModelSwapEnv: string;
   vaultNoKeys: string;
-  vaultEnvWritten: string;
-  vaultResolved: string;
-  vaultMissing: string;
-  vaultNoBindings: string;
   vaultWhereTitle: string;
   vaultSyncing: string;
   vaultSyncResult: string;
@@ -75,6 +71,7 @@ const translations: Record<Language, Translations> = {
     // auth
     // vault
     vaultSaved: "已保存:",
+    vaultSetPropagated: "已同步更新 {count} 个 Agent 配置",
     vaultAutoSync: "自动同步到",
     vaultTargets: "个目标",
     vaultSynced: "已同步",
@@ -83,12 +80,7 @@ const translations: Record<Language, Translations> = {
     vaultListTitle: "Vault 密钥列表",
     vaultConfirmDelete: "确认删除",
     vaultDeleted: "已删除:",
-    vaultNoModelSwapEnv: "当前目录未找到 .modelswapenv 文件",
     vaultNoKeys: "未声明任何 key",
-    vaultEnvWritten: "已写入:",
-    vaultResolved: "已解析",
-    vaultMissing: "缺失",
-    vaultNoBindings: "未找到关联项目",
     vaultWhereTitle: "关联项目:",
     vaultSyncing: "正在同步所有关联文件...",
     vaultSyncResult: "同步结果:",
@@ -134,6 +126,7 @@ const translations: Record<Language, Translations> = {
     // auth
     // vault
     vaultSaved: "Saved:",
+    vaultSetPropagated: "Updated {count} agent config(s) with the new key",
     vaultAutoSync: "Auto-syncing to",
     vaultTargets: "targets",
     vaultSynced: "Synced",
@@ -142,12 +135,7 @@ const translations: Record<Language, Translations> = {
     vaultListTitle: "Vault Secrets",
     vaultConfirmDelete: "Delete",
     vaultDeleted: "Deleted:",
-    vaultNoModelSwapEnv: "No .modelswapenv file found in current directory",
     vaultNoKeys: "No keys declared",
-    vaultEnvWritten: "Written to:",
-    vaultResolved: "Resolved",
-    vaultMissing: "Missing",
-    vaultNoBindings: "No project bindings found",
     vaultWhereTitle: "Used in:",
     vaultSyncing: "Syncing all bound files...",
     vaultSyncResult: "Sync result:",
@@ -222,6 +210,9 @@ export function getLanguage(): Language {
   return currentLang;
 }
 
-export function t(key: keyof Translations): string {
-  return translations[currentLang][key];
+// `{placeholder}` substitution, mirroring the frontend's useI18n().t params.
+export function t(key: keyof Translations, params?: Record<string, string | number>): string {
+  const template = translations[currentLang][key];
+  if (!params) return template;
+  return template.replace(/\{(\w+)\}/g, (match, name) => (params[name] === undefined ? match : String(params[name])));
 }

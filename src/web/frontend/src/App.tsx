@@ -402,7 +402,6 @@ function TitlebarUpdateIndicator() {
         type="button"
         className={`titlebar-update titlebar-update-icon${downloading || restarting ? ' is-downloading' : ready ? ' is-ready' : failed ? ' is-failed' : ' is-available'}`}
         onClick={onClick}
-        title={title}
         aria-label={title}
         aria-expanded={showPreview}
         aria-haspopup="dialog"

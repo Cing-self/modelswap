@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo } from 'react';
-import { ArrowDownToLine, CheckCircle2, CircleAlert, Loader2, RefreshCw, RotateCcw } from 'lucide-react';
+import { Loader2, RefreshCw } from 'lucide-react';
 import { formatFileSize, ReleaseNoteCategory, UpdateState, useAppUpdate } from '../../hooks/useAppUpdate';
 import { useI18n } from '../../i18n';
 import { useApp } from '../Layout/AppContext';
@@ -63,9 +63,6 @@ export function UpdateHoverCard({ visible }: { visible: boolean }) {
   return (
     <section className="update-hover-card" role="dialog" aria-labelledby="update-hover-card-title" aria-describedby="update-hover-card-description">
       <header className="update-hover-card-header">
-        <span className={`update-hover-card-status-icon${downloadFailed ? ' is-error' : ''}`} aria-hidden="true">
-          {ready ? <CheckCircle2 size={17} /> : downloadFailed ? <CircleAlert size={17} /> : downloading || restarting ? <Loader2 size={17} className="spin" /> : <ArrowDownToLine size={17} />}
-        </span>
         <div>
           <h2 id="update-hover-card-title">{title}</h2>
           {version && <p className="update-hover-card-version">{t('update.detailsVersion', { version })}{date ? ` · ${date}` : ''}</p>}

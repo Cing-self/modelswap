@@ -419,7 +419,7 @@ export default {
   'vault.newRecord': 'NEW SECRET · NEW RECORD',
   'vault.editRecord': 'SECRET RECORD · EDIT',
   'vault.manualFormTitle': 'Register key details',
-  'vault.manualFormDesc': 'Create a recognizable record that is easy to bind to projects later.',
+  'vault.manualFormDesc': 'Create a secret record with a name you can easily recognize.',
   'vault.autoFormDesc': 'Choose a platform and MODELSWAP will open its flow to create a new key.',
   'vault.addMode': 'Key entry method',
   'vault.manualMode': 'Enter manually',

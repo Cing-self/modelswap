@@ -1,75 +1,25 @@
 import kleur from "kleur";
-import fs from "fs-extra";
-import path from "path";
 import prompts from "prompts";
 import { VaultStore } from "../vault/store";
 import { t } from "../config/i18n";
 
 const store = new VaultStore();
 
-// Parse .modelswapenv file
-// Format — each line: ENV_NAME: VAULT_KEY
-//
-// Examples:
-//   OPENAI_API_KEY: OPENROUTER_KEY       # vault 的 OPENROUTER_KEY → 注入为 OPENAI_API_KEY
-//   OPENAI_BASE_URL: OPENROUTER_BASE_URL # vault 的 OPENROUTER_BASE_URL → 注入为 OPENAI_BASE_URL
-//   GITHUB_TOKEN: GITHUB_TOKEN           # vault 的 GITHUB_TOKEN → 注入为 GITHUB_TOKEN
-//   DATABASE_URL                         # vault 的 DATABASE_URL → 注入为 DATABASE_URL
-//
-// envName = 项目 .env 里实际写入的变量名
-// vaultKey = vault 里存储的 key
-interface ModelSwapEnvEntry {
-  envName: string;     // .env 里的变量名（如 OPENAI_API_KEY）
-  vaultKey: string;    // vault 里的 key（如 OPENROUTER_KEY）
-}
-
-async function parseModelSwapEnv(filePath: string): Promise<ModelSwapEnvEntry[]> {
-  if (!(await fs.pathExists(filePath))) return [];
-  const content = await fs.readFile(filePath, "utf-8");
-  const entries: ModelSwapEnvEntry[] = [];
-
-  for (const rawLine of content.split("\n")) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith("#")) continue;
-
-    // Try "ENV_NAME: VAULT_SOURCE" format
-    const colonIdx = line.indexOf(":");
-    if (colonIdx > 0) {
-      const envName = line.slice(0, colonIdx).trim();
-      const source = line.slice(colonIdx + 1).trim();
-      if (source) {
-        entries.push({ envName, vaultKey: source });
-      } else {
-        // No source specified, envName = vaultKey
-        entries.push({ envName, vaultKey: envName });
-      }
-      continue;
-    }
-
-    // Simple format: just ENV_NAME (same as vault key)
-    if (/^[A-Z_][A-Z0-9_]*$/.test(line)) {
-      entries.push({ envName: line, vaultKey: line });
-    }
-  }
-
-  return entries;
-}
-
-function findModelSwapEnv(dir?: string): string | null {
-  const cwd = dir || process.cwd();
-  const candidates = [".modelswapenv", ".modelswap-env"];
-  for (const name of candidates) {
-    const fp = path.join(cwd, name);
-    if (fs.existsSync(fp)) return fp;
-  }
-  return null;
-}
-
 // modelswap vault set KEY value
 export async function vaultSet(key: string, value: string): Promise<void> {
   await store.set(key, value);
   console.log(kleur.green(`${t("vaultSaved")} ${key}`));
 
+  // Propagate the new value into agent configs whose providers bind this
+  // key (Codex reads the vault live; the others embed the value at write
+  // time and need the re-apply). Failures are logged, never fatal here.
+  try {
+    const { agentConfigService } = await import("./provider");
+    const { updated } = await agentConfigService().reconcileVaultKey({ vaultKey: key });
+    if (updated > 0) console.log(kleur.gray(t("vaultSetPropagated", { count: updated })));
+  } catch (error) {
+    console.warn(kleur.yellow(`vault: ${(error as Error).message}`));
+  }
 }
 
 // modelswap vault get KEY
@@ -134,95 +84,24 @@ export async function vaultDelete(key: string): Promise<void> {
   }
 }
 
-// modelswap vault inject — output shell export statements
-// Reads .modelswapenv from current directory to know which keys to inject
-export async function vaultInject(options?: { keys?: string; dir?: string; shell?: string }): Promise<void> {
-  const dir = options?.dir || process.cwd();
+// modelswap vault inject — output shell export statements for explicit keys
+export async function vaultInject(options?: { keys?: string; shell?: string }): Promise<void> {
   const targetShell = options?.shell || (process.platform === "win32" ? "powershell" : "bash");
-  let entries: ModelSwapEnvEntry[];
+  const keys = (options?.keys || "").split(",").map((key) => key.trim()).filter(Boolean);
 
-  if (options?.keys) {
-    entries = options.keys.split(",").map((key) => ({ envName: key.trim(), vaultKey: key.trim() }));
-  } else {
-    const envFile = findModelSwapEnv(dir);
-    if (!envFile) {
-      console.error(kleur.red(t("vaultNoModelSwapEnv")));
-      process.exit(1);
-    }
-    entries = await parseModelSwapEnv(envFile);
-  }
-
-  if (entries.length === 0) {
+  if (keys.length === 0) {
     console.error(kleur.red(t("vaultNoKeys")));
     process.exit(1);
   }
 
-  const loadedKeys: string[] = [];
-  for (const entry of entries) {
-    const value = await store.get(entry.vaultKey);
-    if (value !== null) {
-      const escaped = value.replace(/'/g, "'\\''");
-      if (targetShell === "powershell") {
-        process.stdout.write(`$env:${entry.envName} = '${escaped}'\n`);
-      } else {
-        process.stdout.write(`export ${entry.envName}='${escaped}'\n`);
-      }
-      loadedKeys.push(entry.envName);
-    }
-  }
-
-  // Tracking vars for shell hook cleanup
-  if (loadedKeys.length > 0 && !options?.keys) {
+  for (const key of keys) {
+    const value = await store.get(key);
+    if (value === null) continue;
+    const escaped = value.replace(/'/g, "'\''");
     if (targetShell === "powershell") {
-      process.stdout.write(`$global:_MODELSWAP_LOADED_KEYS = "${loadedKeys.join(" ")}"\n`);
-      process.stdout.write(`$global:_MODELSWAP_LOADED_DIR = "${dir}"\n`);
+      process.stdout.write(`$env:${key} = '${escaped}'\n`);
     } else {
-      process.stdout.write(`_MODELSWAP_LOADED_KEYS="${loadedKeys.join(" ")}"\n`);
-      process.stdout.write(`_MODELSWAP_LOADED_DIR="${dir}"\n`);
-      process.stdout.write(`export _MODELSWAP_LOADED_KEYS _MODELSWAP_LOADED_DIR\n`);
+      process.stdout.write(`export ${key}='${escaped}'\n`);
     }
   }
 }
-
-// modelswap vault env [file] — write .env file from .modelswapenv
-export async function vaultEnv(targetFile?: string, options?: { dir?: string }): Promise<void> {
-  const dir = options?.dir || process.cwd();
-  const envFile = findModelSwapEnv(dir);
-  if (!envFile) {
-    console.log(kleur.red(t("vaultNoModelSwapEnv")));
-    process.exitCode = 1;
-    return;
-  }
-
-  const entries = await parseModelSwapEnv(envFile);
-  if (entries.length === 0) {
-    console.log(kleur.yellow(t("vaultNoKeys")));
-    process.exitCode = 1;
-    return;
-  }
-
-  const dest = targetFile || ".env";
-  const lines: string[] = [];
-  let resolved = 0;
-  let missing = 0;
-
-  for (const entry of entries) {
-    const value = await store.get(entry.vaultKey);
-    if (value !== null) {
-      lines.push(`${entry.envName}=${value}`);
-      resolved++;
-    } else {
-      lines.push(`# ${entry.envName}= # ${t("vaultNotFound")} ${entry.vaultKey}`);
-      missing++;
-    }
-  }
-
-  const fullPath = path.isAbsolute(dest) ? dest : path.join(dir, dest);
-  await fs.ensureDir(path.dirname(fullPath));
-  await fs.writeFile(fullPath, lines.join("\n") + "\n");
-
-  console.log(kleur.green(`${t("vaultEnvWritten")} ${dest}`));
-  console.log(kleur.gray(`  ${t("vaultResolved")}: ${resolved}, ${t("vaultMissing")}: ${missing}`));
-}
-
-

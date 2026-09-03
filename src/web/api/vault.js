@@ -87,6 +87,14 @@ async function setVault(req, res) {
 
     // Auto-sync scheduler: debounced encrypted push (fire-and-forget)
     require('./sync-scheduler').markDirty('secrets');
+
+    // A changed key value must reach agents whose configs embedded the old
+    // plaintext (Codex reads the vault live, the rest hold a copy from their
+    // last write). Fire-and-forget: the secret save itself never waits on or
+    // fails because of an agent rewrite; reconcile logs its own failures.
+    void Promise.resolve()
+      .then(() => require('../application/provider-service').reconcileVaultKey({ vaultKey: key }))
+      .catch(error => console.warn(`[vault-set] agent reconcile failed for ${key}: ${error.message}`));
   } catch (error) {
     console.error('Error setting vault:', error);
     appendVaultLog('vault-set', req.body.key || '', false, error.message);

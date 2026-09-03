@@ -22,5 +22,11 @@ modelswap vault set <key>             # 交互式存密钥（推荐）
 printf '%s' "$SECRET" | modelswap vault set <key> --stdin   # 自动化场景，避免密钥进入命令历史
 modelswap vault get <key>             # 获取明文
 modelswap vault delete <key>          # 删除
-modelswap vault inject [--shell zsh]  # 输出 export 语句（配合 eval 使用）
+```
+
+把密钥注入当前终端（配合 `eval` 使用）：
+
+```bash
+eval "$(modelswap vault inject --keys OPENAI_API_KEY,OPENROUTER_KEY)"
+modelswap vault inject --keys GEMINI_API_KEY --shell zsh   # 指定 shell 格式（bash/zsh/powershell）
 ```

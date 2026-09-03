@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.59",
+  "publishedAt": "2026-09-03",
+  "summary": {
+    "zh": "更换或换绑密钥后，各 Agent 的配置会自动用上新密钥，不再需要手动重新切换站点。",
+    "en": "After changing or rebinding a key, agent configs pick up the new key automatically — no manual site re-switching needed."
+  },
+  "highlights": [
+    {
+      "category": "improved",
+      "zh": "在密钥管理里修改某个密钥的值后，所有用到它的 Agent 配置自动同步更新。",
+      "en": "Editing a key's value in the vault now automatically updates every agent config that uses it."
+    },
+    {
+      "category": "improved",
+      "zh": "站点换绑其他密钥（或修改接口地址）后，相关 Agent 配置同样自动更新。",
+      "en": "Rebinding a site to a different key (or changing its endpoint) also refreshes the affected agent configs automatically."
+    },
+    {
+      "category": "improved",
+      "zh": "命令行执行 modelswap vault set 保存密钥后，会提示已同步更新了几个 Agent 配置。",
+      "en": "The modelswap vault set command now reports how many agent configs were updated with the new key."
+    }
+  ]
+}

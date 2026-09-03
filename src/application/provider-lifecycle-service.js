@@ -54,6 +54,16 @@ function createProviderLifecycleService(deps) {
         });
       }
       await saveProviders(providers);
+      // A rebind (vaultKey/baseUrl/auth/type change) leaves embedded
+      // plaintext credentials and routes in agent configs stale. Codex reads
+      // the vault live, but every other agent holds the old copy until its
+      // site is re-applied. Fire-and-forget: the provider save must never
+      // fail or wait on agent writes; reconcile logs its own failures.
+      if (routeOrCredentialChanged && typeof agentConfigService?.reconcile === 'function') {
+        void Promise.resolve()
+          .then(() => agentConfigService.reconcile(null, { providerIds: [id] }))
+          .catch(error => console.warn(`[updateProvider] agent reconcile failed for ${id}: ${error.message}`));
+      }
       return { success: true, provider: providers[idx] };
   }
 

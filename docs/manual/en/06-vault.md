@@ -22,5 +22,11 @@ modelswap vault set <key>             # store a key (interactive, recommended)
 printf '%s' "$SECRET" | modelswap vault set <key> --stdin   # automation: keeps the secret out of shell history
 modelswap vault get <key>             # print plaintext
 modelswap vault delete <key>          # delete
-modelswap vault inject [--shell zsh]  # print export statements (use with eval)
+```
+
+Inject keys into your current terminal (use with `eval`):
+
+```bash
+eval "$(modelswap vault inject --keys OPENAI_API_KEY,OPENROUTER_KEY)"
+modelswap vault inject --keys GEMINI_API_KEY --shell zsh   # shell format: bash/zsh/powershell
 ```

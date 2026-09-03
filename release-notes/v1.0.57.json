@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.57",
+  "publishedAt": "2026-09-03",
+  "summary": {
+    "zh": "自动创建密钥的平台列表从 33 个精简到 31 个；Cloudflare 和 Google AI Studio 改为手动添加密钥，其余功能不变。",
+    "en": "The auto-create key list is streamlined from 33 platforms to 31; Cloudflare and Google AI Studio keys are now added manually. Everything else is unchanged."
+  },
+  "highlights": [
+    {
+      "category": "improved",
+      "zh": "自动创建列表移除了 Cloudflare 和 Google AI Studio 两个入口，保留 31 个一键创建的平台。",
+      "en": "Cloudflare and Google AI Studio entries are removed from the auto-create list; 31 one-click platforms remain."
+    },
+    {
+      "category": "improved",
+      "zh": "这两个平台仍可正常使用：手动添加密钥即可，模型和同步功能不受影响。",
+      "en": "Both platforms still work: add their keys manually — models and sync are unaffected."
+    },
+    {
+      "category": "improved",
+      "zh": "文档与界面中的平台数量说明统一更新为 31。",
+      "en": "Docs and UI copy now consistently say 31 platforms."
+    }
+  ]
+}

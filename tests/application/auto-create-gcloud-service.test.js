@@ -23,12 +23,10 @@ const PLATFORMS = createAutoCreatePlatforms({
 });
 
 describe('google-aistudio 平台目录', () => {
-  it('注册 mode:cli 条目并进入支持列表', () => {
-    const platform = PLATFORMS.AUTO_CREATE_PLATFORM_MAP.get('google-aistudio');
-    expect(platform).toBeTruthy();
-    expect(platform.mode).toBe('cli');
-    expect(platform.keyHint).toBe('GEMINI_API_KEY');
-    // cli 平台没有浏览器 url：不进 SPECIAL_PLATFORM_URLS
+  it('自动创建入口暂时下线：目录不注册 cli 条目', () => {
+    // v1.0.57 起 google-aistudio 不再出现在自动创建目录（服务代码保留，
+    // 恢复时重新加回 auto-create-platforms.js 条目即可）。
+    expect(PLATFORMS.AUTO_CREATE_PLATFORM_MAP.get('google-aistudio')).toBeFalsy();
     expect(PLATFORMS.getBrowserPlatformUrl('google-aistudio')).toBeFalsy();
   });
 });
