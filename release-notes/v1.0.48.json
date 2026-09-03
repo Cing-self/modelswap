@@ -1,0 +1,30 @@
+{
+  "version": "v1.0.48",
+  "publishedAt": "2026-09-03",
+  "summary": {
+    "zh": "文档与官网全面刷新：README 按「开源优先」重写（补多设备同步与 40 平台预置、对比表基于竞品官方 README 的 2026-09 事实、移除无依据的全平台定价声明），9 张产品截图全部重拍，用户手册数字修正并上线独立文档站 docs.modelswap.app。",
+    "en": "Docs and website refresh: README rewritten for the open-source-first story (multi-device sync and 40 provider presets added, comparison table rebuilt from competitors' official READMEs as of 2026-09, unverified all-platform pricing claims removed), all nine product screenshots re-captured, manual numbers corrected, and the standalone manual site launched at docs.modelswap.app."
+  },
+  "highlights": [
+    {
+      "category": "new",
+      "zh": "独立文档站 docs.modelswap.app：用户手册单独成册（中英双语、章节导航、上一章/下一章），由 docs/manual 源码一键构建部署。",
+      "en": "Standalone docs site docs.modelswap.app: the user manual now has its own book-like site (zh/en, chapter sidebar, prev/next), built straight from docs/manual."
+    },
+    {
+      "category": "improved",
+      "zh": "README 重写：「为什么选 ModelSwap」补上 40 平台预置与多设备同步（局域网点对点 + 9 种自托管云后端 + 一次性同步码），与 cc-switch / codex-router 的对比表改为基于两家官方 README 的可查证事实。",
+      "en": "README rewrite: Why ModelSwap now leads with 40 provider presets and multi-device sync (LAN peer-to-peer + 9 self-hosted backends + one-time sync codes); the cc-switch / codex-router comparison is rebuilt from both projects' official READMEs."
+    },
+    {
+      "category": "improved",
+      "zh": "移除无数据依据的「全平台官方定价与能力」宣传；功能总览全部改为代码可验证的数字（40 预置 / 10 适配器 / 32 一键建 Key 平台 / 37 用量来源）。",
+      "en": "Dropped the unverifiable all-platform pricing/capability claims; the feature overview now states only code-verified numbers (40 presets / 10 adapters / 32 auto-create platforms / 37 usage sources)."
+    },
+    {
+      "category": "improved",
+      "zh": "9 张产品截图按当前版本重拍；FAQ 扩充（同步数据去向、支持的 Agent、卸载方式）并与快速开始打通。",
+      "en": "All nine product screenshots re-captured from the current build; FAQ expanded (where sync data goes, supported agents, uninstall) and folded into the Quick Start flow."
+    }
+  ]
+}
