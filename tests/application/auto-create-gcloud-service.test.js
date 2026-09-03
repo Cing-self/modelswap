@@ -90,7 +90,7 @@ describe('gcloud key service', () => {
       const joined = args.join(' ');
       if (joined.startsWith('--version')) return cb(null, 'v');
       if (joined.startsWith('auth list')) return cb(null, 'user@example.com\n');
-      if (joined.startsWith('projects list')) return cb(null, JSON.stringify([{ projectId: 'gemini-test' }, { projectId: 'zzz' }]));
+      if (joined.startsWith('projects list')) return cb(null, JSON.stringify([{ projectId: 'gen-lang-client-123' }, { projectId: 'zzz' }]));
       if (joined.startsWith('projects create')) { projectCreated = true; return cb(null, ''); }
       if (joined.startsWith('services enable')) return cb(null, '');
       if (joined.startsWith('services api-keys create')) {
@@ -101,7 +101,7 @@ describe('gcloud key service', () => {
     const svc = createGcloudKeyService({ execFile: exec });
     const result = await svc.createKey({ tokenName: 'k' });
     expect(projectCreated).toBe(false);
-    expect(result.project).toBe('gemini-test');
+    expect(result.project).toBe('gen-lang-client-123');
   });
 
   it('deleteKey 用 uid + project 调 api-keys delete', async () => {

@@ -1,6 +1,8 @@
 # Google AI Studio（Gemini API）支持方案
 
-> 状态：方案待评审 ｜ 2026-09-03 ｜ 目标：支持 Google AI Studio 的 Gemini API（含 Gemini 3.8 Flash），Key 获取不走 RPA。
+> 状态：**POC 已通过（2026-09-03）**，实现已合入 ｜ 目标：支持 Google AI Studio 的 Gemini API，Key 获取不走 RPA。
+>
+> POC 记录：gcloud 新建无 billing 项目 `modelswap-gemini-poc` → CLI 创建 AIza Key → `gemini-flash-lite-latest:generateContent` 免费层真实生成成功。注意：2.5 系列模型对新用户已下架（提示改用 3.x），3.6-flash 高峰期可能 503。
 
 ## 一、结论
 

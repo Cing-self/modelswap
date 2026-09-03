@@ -10,7 +10,9 @@
 //   GCLOUD_API_ENABLE_FAILED / GCLOUD_CREATE_FAILED / GCLOUD_DELETE_FAILED
 
 const GEMINI_SERVICE = 'generativelanguage.googleapis.com';
-const PROJECT_PREFERRED_PATTERN = /modelswap|gemini|aicore/i;
+// gen-lang-client-* is the prefix AI Studio auto-creates its GCP projects
+// with (seen in POC on 2026-09-03) — reuse those too.
+const PROJECT_PREFERRED_PATTERN = /modelswap|gemini|aicore|gen-lang/i;
 const RUN_TIMEOUT_MS = 90_000;
 
 function createGcloudKeyService({ execFile }) {

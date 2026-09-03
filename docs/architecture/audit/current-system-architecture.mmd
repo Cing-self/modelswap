@@ -1,0 +1,68 @@
+flowchart LR
+  subgraph entry["入口"]
+    web["React Dashboard"]:::client
+    cli["CLI commands"]:::client
+    desktop["Electron main / preload"]:::client
+    extension["Browser Extension"]:::client
+  end
+
+  subgraph boundary["边界层"]
+    server["Express Server<br/>web/server.js"]:::api
+    handlers["API handlers<br/>providers · sync · vault · usage · settings"]:::api
+    ws["Extension WebSocket"]:::api
+  end
+
+  subgraph application["当前应用编排"]
+    providerflow["站点、模型与 Agent 配置流程<br/>providers.js + provider command"]:::app
+    syncflow["云端同步流程<br/>cloud-sync-core + scheduler"]:::app
+  end
+
+  subgraph domain["领域能力"]
+    provider["Provider / Model<br/>store · routing · metadata · migration"]:::domain
+    adapters["Agent adapters<br/>registry + 10 adapters"]:::domain
+    vault["Vault Store"]:::domain
+    userconfig["User Config / Snapshot"]:::domain
+  end
+
+  subgraph local["本机持久化"]
+    modelswapdata["~/.modelswap/<br/>user.json · providers.json · models-cache.json"]:::data
+    secrets["vault.enc"]:::data
+    native["Agent 原生配置<br/>Codex · Claude · OpenCode · …"]:::data
+  end
+
+  subgraph external["外部系统"]
+    modelapi["站点 API / models.dev"]:::external
+    syncplatform["WebDAV · iCloud · Cloudflare · LAN · …"]:::external
+    agentcli["Agent CLI / Desktop App"]:::external
+  end
+
+  web --> server
+  desktop --> server
+  server --> handlers
+  extension --> ws
+  ws --> handlers
+  handlers --> providerflow
+  handlers --> syncflow
+  cli --> providerflow
+  providerflow --> provider
+  providerflow --> adapters
+  providerflow --> vault
+  providerflow --> userconfig
+  syncflow --> provider
+  syncflow --> vault
+  syncflow --> userconfig
+  syncflow --> syncplatform
+  provider --> modelswapdata
+  provider --> modelapi
+  vault --> secrets
+  userconfig --> modelswapdata
+  adapters --> native
+  native --> agentcli
+  syncflow -. "现状缺口：未调用统一 Agent 配置下发" .-> adapters
+
+  classDef client fill:#dae8fc,stroke:#6c8ebf,color:#1b2638;
+  classDef api fill:#ffe6cc,stroke:#d79b00,color:#4f3300;
+  classDef app fill:#fce4d6,stroke:#c55a11,color:#4f2209;
+  classDef domain fill:#e1d5e7,stroke:#9673a6,color:#35253d;
+  classDef data fill:#d5e8d4,stroke:#82b366,color:#183d1e;
+  classDef external fill:#f5f5f5,stroke:#666666,color:#333;
