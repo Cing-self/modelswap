@@ -1,4 +1,4 @@
-# 14. FAQ
+# 15. FAQ
 
 **Q: The extension is installed but won't connect?**
 The extension auto-detects ModelSwap's port (tries 3780 and upward). Make sure ModelSwap is running and the extension isn't disabled in Chrome; if it still fails, restart ModelSwap and toggle the extension off/on in `chrome://extensions/`.
@@ -10,7 +10,7 @@ Closing it disconnects the extension. The banner is Chrome's mandatory notice fo
 Most likely the platform popped up a verification (security check / SMS). Complete it manually and the flow resumes; or start over.
 
 **Q: Why can't I see the full key in the vault?**
-Keys are stored AES-256-GCM encrypted and masked in the UI by default. Reveal the full value on demand in the dashboard, or run `modelswap vault get <key>`.
+Keys are stored AES-256-GCM encrypted and masked in the UI by default; reveal the full value on demand, or print it with `modelswap vault get <key>`.
 
 **Q: Port 3780 is occupied?**
 Find the occupant first: `lsof -i :3780`. If it's another program, stop it or let ModelSwap use another port (the extension auto-detects fallback ports). If it's a leftover ModelSwap process, kill it and start again.

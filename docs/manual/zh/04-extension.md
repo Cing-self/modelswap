@@ -1,10 +1,10 @@
-# 3. 浏览器扩展配置（自动创建密钥的前提）
+# 4. 浏览器扩展
 
 扩展 **ModelSwap**（MV3）复用 Chrome 已登录的平台会话，在官方控制台里替你点表单、创建 Key、复制并回填到 ModelSwap 加密库——全程只在你的浏览器和本机之间进行。
 
-## 3.1 获取扩展
+## 4.1 获取扩展
 
-**npm 安装的用户**：无需自己构建。运行下面的命令拿到扩展目录，然后直接按 3.2 加载该目录即可：
+**npm 安装的用户**：无需自己构建。运行下面的命令拿到扩展目录，然后直接按 4.2 加载该目录即可：
 
 ```bash
 modelswap extension path    # 输出可直接加载的扩展目录
@@ -20,7 +20,7 @@ npm install
 npm run build        # tsc 编译 → extension/dist/
 ```
 
-## 3.2 加载到 Chrome
+## 4.2 加载到 Chrome
 
 1. 打开 `chrome://extensions/`
 2. 右上角开启**开发者模式**
@@ -29,18 +29,18 @@ npm run build        # tsc 编译 → extension/dist/
 
 加载成功后扩展列表会出现 "ModelSwap"。
 
-## 3.3 确认连接
+## 4.3 确认连接
 
 1. 启动 ModelSwap（`modelswap web`）
 2. 扩展会依次探测 3780–3785 端口，锁定第一个应答的 ModelSwap 服务并通过 WebSocket 连接（连接前需通过一次性令牌认证）——ModelSwap 因端口占用落到 3781 等端口时扩展照常工作
 3. ModelSwap 启动日志出现 `[WS] Extension hello: v2.x.x protocol=...` 即连接成功
 4. 也可以在控制台**密钥管理 → 自动创建**入口查看扩展状态
 
-## 3.4 权限说明（重要）
+## 4.4 权限说明（重要）
 
 扩展申请了 `debugger`、`tabs`、`cookies` 等权限，因此 Chrome 顶部会显示**"ModelSwap 已开始调试此浏览器"**的信息条——**这是正常现象**：扩展需要 debugger 通道读取页面内容与执行点击。调试只发生在本机 ModelSwap 与你的浏览器之间，不会向任何外部服务器发送数据。
 
-## 3.5 更新扩展
+## 4.5 更新扩展
 
 - 扩展代码更新后：重新 `npm run build`，再到 `chrome://extensions/` 点扩展卡片上的 🔄 刷新
 - 若 `manifest.json` 的 `permissions` 有改动：必须**移除扩展 → 重新加载已解压的扩展程序**，仅刷新无效

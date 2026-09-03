@@ -1,4 +1,4 @@
-# 13. CLI Cheat Sheet
+# 14. CLI Cheat Sheet
 
 ```bash
 modelswap                            # print help
@@ -38,5 +38,5 @@ modelswap provider auth [--json]     # auth status
 
 # Agent skill (let AI agents drive ModelSwap)
 modelswap skill path                 # print the built-in skill file path
-modelswap skill install [dir]        # install into a project's .agents/skills/modelswap-cli
+modelswap skill install [dir]        # install into a project's .agents/skills/modelswap
 ```

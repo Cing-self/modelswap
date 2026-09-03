@@ -1,4 +1,4 @@
-# 13. CLI 命令速查
+# 14. CLI 命令速查
 
 ```bash
 modelswap                            # 查看帮助
@@ -38,5 +38,5 @@ modelswap provider auth [--json]     # 查看认证状态
 
 # Agent Skill（让 AI Agent 直接调用 ModelSwap）
 modelswap skill path                 # 输出内置 Skill 文件路径
-modelswap skill install [dir]        # 安装到目标项目 .agents/skills/modelswap-cli
+modelswap skill install [dir]        # 安装到目标项目 .agents/skills/modelswap
 ```

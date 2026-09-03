@@ -1,4 +1,4 @@
-# 14. 常见问题
+# 15. 常见问题
 
 **Q：扩展装好了但连不上？**
 扩展会自动探测 ModelSwap 的端口（3780 起逐个尝试）。确认 ModelSwap 正在运行、扩展没有被 Chrome 停用；仍连不上时重启 ModelSwap 和扩展（`chrome://extensions/` 里关开一次）。
