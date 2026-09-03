@@ -1,0 +1,3947 @@
+{
+  "generatedAt": "2026-08-27T12:53:46.398Z",
+  "commit": "f49edca",
+  "scope": "All tracked code files only; dependencies are static relative import/require/import() edges.",
+  "nodes": [
+    {
+      "id": "extension/src/background.ts",
+      "role": "Browser-extension module for background.",
+      "provides": [
+        "forwardLog",
+        "findServerPort",
+        "connect",
+        "scheduleReconnect",
+        "isDebuggableUrl",
+        "isSafeNavigationUrl",
+        "resetIdleTimer",
+        "getAutomationWindow"
+      ]
+    },
+    {
+      "id": "extension/src/cdp.ts",
+      "role": "Browser-extension module for cdp.",
+      "provides": [
+        "ensureAttached",
+        "evaluate",
+        "evaluateAsync",
+        "screenshot",
+        "setFileInputFiles",
+        "insertText",
+        "startNetworkCapture",
+        "readNetworkCapture"
+      ]
+    },
+    {
+      "id": "extension/src/clipboard.ts",
+      "role": "Browser-extension module for clipboard.",
+      "provides": [
+        "finish",
+        "readWhenFocused"
+      ]
+    },
+    {
+      "id": "extension/src/protocol.ts",
+      "role": "Browser-extension module for protocol.",
+      "provides": [
+        "Action",
+        "Command",
+        "Result",
+        "MODELSWAP_PORT",
+        "MODELSWAP_PORTS",
+        "MODELSWAP_HOST",
+        "wsUrl",
+        "pingUrl"
+      ]
+    },
+    {
+      "id": "extension/src/stealth.ts",
+      "role": "Browser-extension module for stealth.",
+      "provides": [
+        "generateStealthJs",
+        "log"
+      ]
+    },
+    {
+      "id": "scripts/auto-create-key-check.mjs",
+      "role": "Developer/release automation script for auto-create-key-check.",
+      "provides": [
+        "redact",
+        "testName",
+        "failureMessage",
+        "classifyCreateFailure",
+        "request",
+        "getJson",
+        "checkoutState",
+        "runOne"
+      ]
+    },
+    {
+      "id": "scripts/capture-manual-shots.js",
+      "role": "Developer/release automation script for capture-manual-shots.",
+      "provides": [
+        "main"
+      ]
+    },
+    {
+      "id": "scripts/copy-web.js",
+      "role": "Developer/release automation script for copy-web.",
+      "provides": [
+        "main"
+      ]
+    },
+    {
+      "id": "scripts/gen-presets.js",
+      "role": "Developer/release automation script for gen-presets.",
+      "provides": [
+        "mapToObj",
+        "setToArr",
+        "main"
+      ]
+    },
+    {
+      "id": "src/commands/extension.ts",
+      "role": "CLI command handler for extension.",
+      "provides": [
+        "bundledExtensionDir",
+        "showExtensionPath"
+      ]
+    },
+    {
+      "id": "src/commands/provider.ts",
+      "role": "CLI command handler for provider.",
+      "provides": [
+        "providerList",
+        "providerCurrent",
+        "providerSwitch",
+        "providerUse",
+        "providerAdd",
+        "providerDeleteAction",
+        "providerAuth",
+        "resolvedFactsForAdapterWrite"
+      ]
+    },
+    {
+      "id": "src/commands/skill.ts",
+      "role": "CLI command handler for skill.",
+      "provides": [
+        "bundledSkillPath",
+        "showSkillPath",
+        "installSkill"
+      ]
+    },
+    {
+      "id": "src/commands/sync.ts",
+      "role": "CLI command handler for sync.",
+      "provides": [
+        "supportedPlatforms",
+        "syncStatus",
+        "syncPassword",
+        "syncEnable",
+        "syncDisable",
+        "syncTest",
+        "syncPush",
+        "syncPull"
+      ]
+    },
+    {
+      "id": "src/commands/upgrade.ts",
+      "role": "CLI command handler for upgrade.",
+      "provides": [
+        "PACKAGE_NAME",
+        "UpgradeDeps",
+        "compareVersions",
+        "queryLatestVersion",
+        "installPackage",
+        "upgradeSelf"
+      ]
+    },
+    {
+      "id": "src/commands/vault.ts",
+      "role": "CLI command handler for vault.",
+      "provides": [
+        "vaultSet",
+        "vaultGet",
+        "vaultList",
+        "vaultDelete",
+        "vaultInject",
+        "vaultEnv",
+        "parseModelSwapEnv",
+        "findModelSwapEnv"
+      ]
+    },
+    {
+      "id": "src/config/backup.ts",
+      "role": "Configuration persistence, migration or shared configuration policy for backup.",
+      "provides": [
+        "backupImportantData",
+        "safeReason",
+        "pruneBackups"
+      ]
+    },
+    {
+      "id": "src/config/i18n.ts",
+      "role": "Configuration persistence, migration or shared configuration policy for i18n.",
+      "provides": [
+        "Language",
+        "Translations",
+        "loadLanguageConfig",
+        "saveLanguageConfig",
+        "initLanguage",
+        "setLanguage",
+        "getLanguage",
+        "t"
+      ]
+    },
+    {
+      "id": "src/config/registry.ts",
+      "role": "Configuration persistence, migration or shared configuration policy for registry.",
+      "provides": [
+        "MODELSWAP_DIR",
+        "LOGS_DIR",
+        "CACHE_DIR",
+        "ensureModelSwapDir"
+      ]
+    },
+    {
+      "id": "src/config/user.ts",
+      "role": "Configuration persistence, migration or shared configuration policy for user.",
+      "provides": [
+        "ClaudeTierMap",
+        "AgentProviderSite",
+        "AgentProviderState",
+        "AgentProviders",
+        "UserConfig",
+        "loadUserConfig",
+        "saveUserConfig",
+        "updateUserConfig"
+      ]
+    },
+    {
+      "id": "src/electron/main.ts",
+      "role": "Electron desktop-process bootstrap and native-window lifecycle.",
+      "provides": [
+        "bundledExtensionDir",
+        "revealExtensionInFinder",
+        "installUpdateAndRelaunch",
+        "createApplicationMenu",
+        "startModelSwapServer",
+        "createWindow"
+      ]
+    },
+    {
+      "id": "src/electron/preload.ts",
+      "role": "Electron renderer bridge with the exposed desktop API.",
+      "provides": [
+        "preload"
+      ]
+    },
+    {
+      "id": "src/main.ts",
+      "role": "CLI composition root: registers commands and starts the product runtime.",
+      "provides": [
+        "showBanner",
+        "getUnknownSubcommand",
+        "detectLanguageFromEnv",
+        "selectLanguageIfNeeded",
+        "configurePrompts",
+        "readStdinValue",
+        "resolveVaultValue",
+        "checkPlatform"
+      ]
+    },
+    {
+      "id": "src/providers/adapters/base.ts",
+      "role": "Native configuration adapter/shared adapter utility for base.",
+      "provides": [
+        "base"
+      ]
+    },
+    {
+      "id": "src/providers/adapters/claude.ts",
+      "role": "Native configuration adapter/shared adapter utility for claude.",
+      "provides": [
+        "ClaudeAdapter",
+        "shellQuote",
+        "usesAnthropicBearerAuth",
+        "hasKeychainOAuth"
+      ]
+    },
+    {
+      "id": "src/providers/adapters/codex.ts",
+      "role": "Native configuration adapter/shared adapter utility for codex.",
+      "provides": [
+        "CodexAdapter",
+        "getProviderEndpoint",
+        "writeModelCatalog",
+        "normalizeBaseUrl",
+        "getCodexProviderId",
+        "sanitizeTomlKey",
+        "upsertTopLevelTomlKey",
+        "removeTopLevelTomlKey"
+      ]
+    },
+    {
+      "id": "src/providers/adapters/gateway.ts",
+      "role": "Native configuration adapter/shared adapter utility for gateway.",
+      "provides": [
+        "OPENCODE_GATEWAY_UA",
+        "isOpenCodeGateway",
+        "isOpenRouter",
+        "gatewayHeadersFor"
+      ]
+    },
+    {
+      "id": "src/providers/adapters/grok.ts",
+      "role": "Native configuration adapter/shared adapter utility for grok.",
+      "provides": [
+        "GrokAdapter",
+        "getModelAlias",
+        "modelTablePattern",
+        "getApiBackend",
+        "needsToolSchemaProxy",
+        "effectiveBaseUrl",
+        "buildModelTable"
+      ]
+    },
+    {
+      "id": "src/providers/adapters/hermes.ts",
+      "role": "Native configuration adapter/shared adapter utility for hermes.",
+      "provides": [
+        "HermesAdapter"
+      ]
+    },
+    {
+      "id": "src/providers/adapters/kimi-code.ts",
+      "role": "Native configuration adapter/shared adapter utility for kimi-code.",
+      "provides": [
+        "KimiCodeAdapter",
+        "buildProviderTable",
+        "upsertProviderHeaders",
+        "buildModelTable",
+        "getProviderEndpoint",
+        "getProviderType",
+        "getWireProtocol",
+        "getKimiCodeProviderId"
+      ]
+    },
+    {
+      "id": "src/providers/adapters/mimo-code.ts",
+      "role": "Native configuration adapter/shared adapter utility for mimo-code.",
+      "provides": [
+        "MimoCodeAdapter",
+        "npmPackageFor",
+        "stripJsonc"
+      ]
+    },
+    {
+      "id": "src/providers/adapters/model-facts.ts",
+      "role": "Native configuration adapter/shared adapter utility for model-facts.",
+      "provides": [
+        "modelFacts",
+        "resolveModelFacts",
+        "modelTokenLimit"
+      ]
+    },
+    {
+      "id": "src/providers/adapters/openclaw.ts",
+      "role": "Native configuration adapter/shared adapter utility for openclaw.",
+      "provides": [
+        "OpenClawAdapter",
+        "apiProtocolFor"
+      ]
+    },
+    {
+      "id": "src/providers/adapters/opencode.ts",
+      "role": "Native configuration adapter/shared adapter utility for opencode.",
+      "provides": [
+        "openCodeDesktopStorePaths",
+        "OpenCodeAdapter",
+        "npmPackageFor"
+      ]
+    },
+    {
+      "id": "src/providers/adapters/toml-utils.ts",
+      "role": "Native configuration adapter/shared adapter utility for toml-utils.",
+      "provides": [
+        "sanitizeTomlKey",
+        "tomlString",
+        "escapeRegex",
+        "tomlInlineTable",
+        "normalizeToml",
+        "upsertTableKey",
+        "upsertTopLevelTomlKey",
+        "getTopLevelTomlValue"
+      ]
+    },
+    {
+      "id": "src/providers/adapters/workbuddy.ts",
+      "role": "Native configuration adapter/shared adapter utility for workbuddy.",
+      "provides": [
+        "WorkBuddyAdapter",
+        "chatUrlFor",
+        "endpointBase",
+        "readModelsFile",
+        "writeModelsFile"
+      ]
+    },
+    {
+      "id": "src/providers/adapters/zcode.ts",
+      "role": "Native configuration adapter/shared adapter utility for zcode.",
+      "provides": [
+        "ZCodeAdapter",
+        "zcodeFormatFor",
+        "buildProviderEntry",
+        "readV2Config",
+        "writeV2Config",
+        "readCliConfig",
+        "writeCliConfig",
+        "textOnlyModelIds"
+      ]
+    },
+    {
+      "id": "src/providers/agentsMeta.ts",
+      "role": "Provider/model domain module for agentsMeta.",
+      "provides": [
+        "AgentMeta",
+        "AGENTS_META"
+      ]
+    },
+    {
+      "id": "src/providers/auth.ts",
+      "role": "Provider/model domain module for auth.",
+      "provides": [
+        "checkAuthStatus",
+        "checkVaultKey",
+        "checkClaudeOAuth",
+        "checkCodexOAuth"
+      ]
+    },
+    {
+      "id": "src/providers/mappings/codex-mapping.ts",
+      "role": "Agent-to-provider capability/mapping data for codex-mapping.",
+      "provides": [
+        "codexMapping",
+        "getCodexReasoningLevels",
+        "getCodexDefaultReasoningLevel",
+        "getCodexConfigReasoningEffort",
+        "mapModelToCodexCatalog"
+      ]
+    },
+    {
+      "id": "src/providers/metadata.ts",
+      "role": "Provider/model domain module for metadata.",
+      "provides": [
+        "RETIRED_PRESET_PROVIDER_IDS",
+        "PRESET_BASE_URL_MIGRATIONS",
+        "PRESET_ENDPOINT_BASE_URL_MIGRATIONS",
+        "PRESET_AUTH_MODE_MIGRATIONS",
+        "PRESET_MODEL_ID_MIGRATIONS",
+        "PROVIDER_GROUPS",
+        "VariantOption",
+        "ProviderFamily"
+      ]
+    },
+    {
+      "id": "src/providers/migration.ts",
+      "role": "Provider/model domain module for migration.",
+      "provides": [
+        "migrateIfNeeded"
+      ]
+    },
+    {
+      "id": "src/providers/platforms.ts",
+      "role": "Provider/model domain module for platforms.",
+      "provides": [
+        "buildPlatforms",
+        "offeringType",
+        "authMethodsFor",
+        "buildPlatform"
+      ]
+    },
+    {
+      "id": "src/providers/presets.ts",
+      "role": "Provider/model domain module for presets.",
+      "provides": [
+        "PRESET_PROVIDERS"
+      ]
+    },
+    {
+      "id": "src/providers/registry.ts",
+      "role": "Provider/model domain module for registry.",
+      "provides": [
+        "getAdapters",
+        "getAdapter",
+        "getAdaptersByType"
+      ]
+    },
+    {
+      "id": "src/providers/routing.ts",
+      "role": "Provider/model domain module for routing.",
+      "provides": [
+        "ResolvedModelRoute",
+        "providerExecutionMode",
+        "providerEndpointEntries",
+        "providerSupportsAdapter",
+        "modelAvailability",
+        "resolveModelRoute",
+        "resolveModel",
+        "generatedEndpointId"
+      ]
+    },
+    {
+      "id": "src/providers/snapshots.ts",
+      "role": "Provider/model domain module for snapshots.",
+      "provides": [
+        "SnapshotMeta",
+        "agentConfigFiles",
+        "capturePreSwitchSnapshot",
+        "listSnapshots",
+        "getSnapshotFiles",
+        "getCurrentFiles",
+        "restoreSnapshot",
+        "validateAgentId"
+      ]
+    },
+    {
+      "id": "src/providers/store.ts",
+      "role": "Provider/model domain module for store.",
+      "provides": [
+        "ModelsCacheData",
+        "loadProviders",
+        "refreshModelsFromCatalog",
+        "loadProviderSites",
+        "saveProviders",
+        "saveDiscoveredModels",
+        "mergeProviderSites",
+        "getProvider"
+      ]
+    },
+    {
+      "id": "src/providers/types.ts",
+      "role": "Provider/model domain module for types.",
+      "provides": [
+        "ProviderType",
+        "OpenAIProtocol",
+        "ProviderEndpointPlan",
+        "OfferingType",
+        "AuthMethodType",
+        "EntitlementType",
+        "ExecutionMode",
+        "AvailabilitySource"
+      ]
+    },
+    {
+      "id": "src/scripts/auto-create-key.mjs",
+      "role": "MJS file: auto-create-key.",
+      "provides": [
+        "sleep",
+        "findElement",
+        "extractKeyFromPage",
+        "main"
+      ]
+    },
+    {
+      "id": "src/utils/atomicWrite.ts",
+      "role": "Cross-cutting utility for atomicWrite.",
+      "provides": [
+        "atomicWrite",
+        "atomicWriteJSON",
+        "renameWithRetry"
+      ]
+    },
+    {
+      "id": "src/utils/semver.ts",
+      "role": "Cross-cutting utility for semver.",
+      "provides": [
+        "SemVer",
+        "UpgradeLevel",
+        "parseSemVer",
+        "compareVersions",
+        "upgradeLevelLabel",
+        "upgradeAdvice"
+      ]
+    },
+    {
+      "id": "src/utils/sound.ts",
+      "role": "Cross-cutting utility for sound.",
+      "provides": [
+        "playSound",
+        "beep"
+      ]
+    },
+    {
+      "id": "src/vault/store.ts",
+      "role": "Encrypted vault repository for API keys and secret references.",
+      "provides": [
+        "SecretEntry",
+        "VaultData",
+        "VaultStore",
+        "deriveMasterKey",
+        "encrypt",
+        "decrypt",
+        "maskValue",
+        "escapeRegex"
+      ]
+    },
+    {
+      "id": "src/web/api/agent-path.js",
+      "role": "Web API handler or backend integration for agent-path.",
+      "provides": [
+        "extraPathEntries",
+        "augmentedPath",
+        "detectionEnv"
+      ]
+    },
+    {
+      "id": "src/web/api/agent-providers.js",
+      "role": "Web API handler or backend integration for agent-providers.",
+      "provides": [
+        "ensureAgent",
+        "mergeSite",
+        "getAgentState",
+        "migrateAgentProviders",
+        "setSite",
+        "replaceAgentState",
+        "removeSite"
+      ]
+    },
+    {
+      "id": "src/web/api/auto-create.js",
+      "role": "Web API handler or backend integration for auto-create.",
+      "provides": [
+        "createCloudflareToken",
+        "deleteCloudflareToken",
+        "isValidZhipuApiKey",
+        "isValidExtractionForPlatform",
+        "normalizeCredentialFieldName",
+        "findCredentialPair",
+        "serializeCredentialPair",
+        "parseCredentialPairText"
+      ]
+    },
+    {
+      "id": "src/web/api/backup.js",
+      "role": "Web API handler or backend integration for backup.",
+      "provides": [
+        "safeReason",
+        "backupImportantData",
+        "pruneBackups"
+      ]
+    },
+    {
+      "id": "src/web/api/cdp-connector.js",
+      "role": "Web API handler or backend integration for cdp-connector.",
+      "provides": [
+        "checkCDP",
+        "launchChromeCDP",
+        "getCDPInstructions",
+        "CDP_PORT"
+      ]
+    },
+    {
+      "id": "src/web/api/cloud-sync-core.js",
+      "role": "Web API handler or backend integration for cloud-sync-core.",
+      "provides": [
+        "atomicWriteJson",
+        "enqueueConfigWrite",
+        "readLiveConfig",
+        "mergeAgentProviderSelections",
+        "mergeModelOverrides",
+        "loadAdapter",
+        "loadConfig",
+        "saveConfig"
+      ]
+    },
+    {
+      "id": "src/web/api/cloudflare-sync.js",
+      "role": "Web API handler or backend integration for cloudflare-sync.",
+      "provides": [
+        "cfLog",
+        "stripAnsi",
+        "runWrangler",
+        "runWranglerDirect",
+        "parseTable",
+        "checkWrangler",
+        "listStores",
+        "listStoreSecrets"
+      ]
+    },
+    {
+      "id": "src/web/api/endpoint-profiles.js",
+      "role": "Web API handler or backend integration for endpoint-profiles.",
+      "provides": [
+        "getEndpointProfile",
+        "pickProbeModel",
+        "getProbeModels",
+        "getAnthropicAuthMode",
+        "requiresInferenceProbe",
+        "isModelAccessFailure",
+        "getAuthenticatedResourceFailureMessage",
+        "getFallbackModels"
+      ]
+    },
+    {
+      "id": "src/web/api/grok-proxy.js",
+      "role": "Web API handler or backend integration for grok-proxy.",
+      "provides": [
+        "sanitizeToolParameters",
+        "createGrokProxyHandler"
+      ]
+    },
+    {
+      "id": "src/web/api/key-import.js",
+      "role": "Web API handler or backend integration for key-import.",
+      "provides": [
+        "maskValue",
+        "looksLikeSecret",
+        "walkJson",
+        "scanJson",
+        "scanJsonc",
+        "scanToml",
+        "scanEnv",
+        "providerFromPath"
+      ]
+    },
+    {
+      "id": "src/web/api/lan-sync-server.js",
+      "role": "Web API handler or backend integration for lan-sync-server.",
+      "provides": [
+        "trackPeer",
+        "getRecentPeers",
+        "getMachineIdentity",
+        "createPairingCode",
+        "getPendingPairing",
+        "getMachineName",
+        "isPrivateV4",
+        "listLanAddresses"
+      ]
+    },
+    {
+      "id": "src/web/api/log-writer.d.ts",
+      "role": "Web API handler or backend integration for log-writer.d.",
+      "provides": [
+        "appendLog",
+        "HISTORY_FILE",
+        "ROTATED_FILE",
+        "MAX_LOG_BYTES"
+      ]
+    },
+    {
+      "id": "src/web/api/log-writer.js",
+      "role": "Web API handler or backend integration for log-writer.",
+      "provides": [
+        "rotateIfNeeded",
+        "appendLog",
+        "HISTORY_FILE",
+        "ROTATED_FILE",
+        "MAX_LOG_BYTES"
+      ]
+    },
+    {
+      "id": "src/web/api/logs.js",
+      "role": "Web API handler or backend integration for logs.",
+      "provides": [
+        "redactText",
+        "redactLog",
+        "readTailContent",
+        "recentFailures",
+        "getLogs"
+      ]
+    },
+    {
+      "id": "src/web/api/models-dev.js",
+      "role": "Web API handler or backend integration for models-dev.",
+      "provides": [
+        "normalizeHost",
+        "stableHash",
+        "fetchJson",
+        "snapshotMeta",
+        "isFresh",
+        "canUseWithoutRefresh",
+        "indexCatalog",
+        "makeSnapshot"
+      ]
+    },
+    {
+      "id": "src/web/api/platform-adapters/cloudflare-d1.js",
+      "role": "Cloud/LAN sync transport adapter for cloudflare-d1.",
+      "provides": [
+        "cfFetch",
+        "listAccounts",
+        "getAccountId",
+        "ensureDatabase",
+        "ensureTable",
+        "queryD1",
+        "getD1Rows",
+        "ensureSyncTable"
+      ]
+    },
+    {
+      "id": "src/web/api/platform-adapters/cloudflare-kv.js",
+      "role": "Cloud/LAN sync transport adapter for cloudflare-kv.",
+      "provides": [
+        "cfFetch",
+        "listAccounts",
+        "getAccountId",
+        "ensureNamespace",
+        "testConnection",
+        "pushSync",
+        "pullSync",
+        "name"
+      ]
+    },
+    {
+      "id": "src/web/api/platform-adapters/cloudflare-r2.js",
+      "role": "Cloud/LAN sync transport adapter for cloudflare-r2.",
+      "provides": [
+        "normalizeConfig",
+        "assertConfig",
+        "signRequest",
+        "s3ListBuckets",
+        "s3CreateBucket",
+        "s3PutObject",
+        "s3GetObject",
+        "testConnection"
+      ]
+    },
+    {
+      "id": "src/web/api/platform-adapters/cloudflare.js",
+      "role": "Cloud/LAN sync transport adapter for cloudflare.",
+      "provides": [
+        "cfFetch",
+        "listAccounts",
+        "testConnection",
+        "pushSync",
+        "pullSync",
+        "name"
+      ]
+    },
+    {
+      "id": "src/web/api/platform-adapters/icloud.js",
+      "role": "Cloud/LAN sync transport adapter for icloud.",
+      "provides": [
+        "isSupported",
+        "assertPlatform",
+        "normalizeConfig",
+        "assertConfig",
+        "testConnection",
+        "pushSync",
+        "pullSync",
+        "name"
+      ]
+    },
+    {
+      "id": "src/web/api/platform-adapters/lan.js",
+      "role": "Cloud/LAN sync transport adapter for lan.",
+      "provides": [
+        "normalizeConfig",
+        "assertConfig",
+        "machineHeader",
+        "request",
+        "testConnection",
+        "pushSync",
+        "pullSync",
+        "name"
+      ]
+    },
+    {
+      "id": "src/web/api/platform-adapters/supabase.js",
+      "role": "Cloud/LAN sync transport adapter for supabase.",
+      "provides": [
+        "getBaseUrl",
+        "headers",
+        "sbFetch",
+        "testConnection",
+        "pushSync",
+        "pullSync",
+        "name"
+      ]
+    },
+    {
+      "id": "src/web/api/platform-adapters/volcengine.js",
+      "role": "Cloud/LAN sync transport adapter for volcengine.",
+      "provides": [
+        "createClient",
+        "kmsCall",
+        "testConnection",
+        "secretName",
+        "pushSync",
+        "pullSync",
+        "name"
+      ]
+    },
+    {
+      "id": "src/web/api/platform-adapters/webdav.js",
+      "role": "Cloud/LAN sync transport adapter for webdav.",
+      "provides": [
+        "normalizeConfig",
+        "assertConfig",
+        "authHeader",
+        "fullUrl",
+        "ensureDir",
+        "testConnection",
+        "pushSync",
+        "pullSync"
+      ]
+    },
+    {
+      "id": "src/web/api/providers.js",
+      "role": "Web API handler or backend integration for providers.",
+      "provides": [
+        "sortModels",
+        "tagRecentModels",
+        "sortProviders",
+        "snapBeforeWrite",
+        "enrichCodexOfficialModels",
+        "loadProviders",
+        "saveProviders",
+        "loadUserConfig"
+      ]
+    },
+    {
+      "id": "src/web/api/qianfan-coding.js",
+      "role": "Web API handler or backend integration for qianfan-coding.",
+      "provides": [
+        "isQianfanCodingEndpoint",
+        "isQianfanCodingAnthropicEndpoint",
+        "qianfanCodingErrorCode",
+        "qianfanCodingErrorMessage",
+        "qianfanCodingModels",
+        "QIANFAN_CODING_MODELS",
+        "QIANFAN_CODING_PROBE_MODEL"
+      ]
+    },
+    {
+      "id": "src/web/api/settings.js",
+      "role": "Web API handler or backend integration for settings.",
+      "provides": [
+        "loadConfig",
+        "saveConfig",
+        "maskConfig",
+        "mergeSensitive",
+        "getSettings",
+        "updateSettings",
+        "testPlatformConnection",
+        "getPresets"
+      ]
+    },
+    {
+      "id": "src/web/api/snapshots.js",
+      "role": "Web API handler or backend integration for snapshots.",
+      "provides": [
+        "requireAgentId",
+        "requireSnapshotId",
+        "listSnapshotsHandler",
+        "snapshotDetailHandler",
+        "restoreSnapshotHandler"
+      ]
+    },
+    {
+      "id": "src/web/api/sync-scheduler.js",
+      "role": "Web API handler or backend integration for sync-scheduler.",
+      "provides": [
+        "isEnabled",
+        "runExclusive",
+        "isBusy",
+        "persistLocalChanged",
+        "markDirty",
+        "schedulePush",
+        "autoPush",
+        "autoPullCheck"
+      ]
+    },
+    {
+      "id": "src/web/api/sync.js",
+      "role": "Web API handler or backend integration for sync.",
+      "provides": [
+        "getMachineName",
+        "handlePush",
+        "handlePull",
+        "handleStatus",
+        "handleExportCode",
+        "handleImportCode",
+        "isLoopbackUrl",
+        "probeRemotePeer"
+      ]
+    },
+    {
+      "id": "src/web/api/ui-events.js",
+      "role": "Web API handler or backend integration for ui-events.",
+      "provides": [
+        "writeEvent",
+        "flushPending",
+        "publishDataChanged",
+        "subscribeUiEvents"
+      ]
+    },
+    {
+      "id": "src/web/api/update-check.js",
+      "role": "Web API handler or backend integration for update-check.",
+      "provides": [
+        "compareVersions",
+        "githubHeaders",
+        "fetchLatestRelease",
+        "pickAssets",
+        "downloadTarget",
+        "publicDownloadJob",
+        "expireDownloadJob",
+        "runDownload"
+      ]
+    },
+    {
+      "id": "src/web/api/usage.js",
+      "role": "Web API handler or backend integration for usage.",
+      "provides": [
+        "loadProviders",
+        "resolveVaultKey",
+        "httpRequest",
+        "queryCodexUsage",
+        "queryClaudeUsage",
+        "queryZaiCodingUsage",
+        "queryGlmCodingUsage",
+        "queryZaiGlobalCodingUsage"
+      ]
+    },
+    {
+      "id": "src/web/api/vault.js",
+      "role": "Web API handler or backend integration for vault.",
+      "provides": [
+        "safeFindFiles",
+        "walk",
+        "listVault",
+        "setVault",
+        "deleteVault",
+        "exportVault",
+        "importVault",
+        "getVaultValue"
+      ]
+    },
+    {
+      "id": "src/web/api/volcengine-openapi.js",
+      "role": "Web API handler or backend integration for volcengine-openapi.",
+      "provides": [
+        "sha256",
+        "hmac",
+        "uriEscape",
+        "canonicalQuery",
+        "createSignedRequest",
+        "requestOpenApi"
+      ]
+    },
+    {
+      "id": "src/web/api/ws-extension.js",
+      "role": "Web API handler or backend integration for ws-extension.",
+      "provides": [
+        "isExtensionOrigin",
+        "issueExtensionToken",
+        "consumeExtensionToken",
+        "setupWebSocket",
+        "sendCommand",
+        "sendToExtension",
+        "isExtensionConnected",
+        "getExtensionVersion"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/api/client.ts",
+      "role": "Frontend HTTP client wrapper for client.",
+      "provides": [
+        "api",
+        "apiRaw"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/api/logs.ts",
+      "role": "Frontend HTTP client wrapper for logs.",
+      "provides": [
+        "LogEntry",
+        "getLogs"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/api/providers.ts",
+      "role": "Frontend HTTP client wrapper for providers.",
+      "provides": [
+        "ProviderModel",
+        "ProviderModelAvailability",
+        "ProviderEndpoint",
+        "Provider",
+        "PlatformOffering",
+        "PlatformAuthMethod",
+        "PlatformEndpoint",
+        "PlatformModel"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/api/settings.ts",
+      "role": "Frontend HTTP client wrapper for settings.",
+      "provides": [
+        "PlatformConfig",
+        "Settings",
+        "getSettings",
+        "updateSettings",
+        "testPlatform",
+        "getOnboarding",
+        "dismissOnboarding",
+        "resetOnboarding"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/api/snapshots.ts",
+      "role": "Frontend HTTP client wrapper for snapshots.",
+      "provides": [
+        "SnapshotFile",
+        "Snapshot",
+        "SnapshotDetailFile",
+        "listSnapshots",
+        "getSnapshotDetail",
+        "restoreSnapshot"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/api/sync.ts",
+      "role": "Frontend HTTP client wrapper for sync.",
+      "provides": [
+        "pushSync",
+        "pullSync",
+        "getSyncStatus",
+        "exportSyncCode",
+        "importSyncCode",
+        "LanSyncStatus",
+        "getLanSyncStatus",
+        "enableLanSync"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/api/vault.ts",
+      "role": "Frontend HTTP client wrapper for vault.",
+      "provides": [
+        "VaultSecret",
+        "AutoCreatePlatform",
+        "listVault",
+        "getVaultValue",
+        "AgentKeyFinding",
+        "scanAgentKeys",
+        "importAgentKeys",
+        "setVault"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/App.tsx",
+      "role": "React route composition and page lifetime management.",
+      "provides": [
+        "App",
+        "SkeletonProviderRows",
+        "UsageRouteSkeleton",
+        "ModelsRouteSkeleton",
+        "SettingsRouteSkeleton",
+        "CompactRouteSkeleton",
+        "PageLoading",
+        "LazyRoute"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/assets/agents/index.ts",
+      "role": "Frontend visual asset or asset registry for index.",
+      "provides": [
+        "getAgentIcon",
+        "getAgentIconClass"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/assets/assets.d.ts",
+      "role": "Frontend visual asset or asset registry for assets.d.",
+      "provides": [
+        "assets.d"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/assets/providers/index.ts",
+      "role": "Frontend visual asset or asset registry for index.",
+      "provides": [
+        "getProviderIcon",
+        "getProviderIconClass"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/components/agents/AgentsPage.tsx",
+      "role": "React UI component/page for AgentsPage.",
+      "provides": [
+        "AgentsPage"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/components/home/HomePage.tsx",
+      "role": "React UI component/page for HomePage.",
+      "provides": [
+        "HomePage",
+        "loadSavedAgentOrder",
+        "saveAgentOrder",
+        "applySavedAgentOrder",
+        "handleSwitch",
+        "handleDisableSite"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/components/home/UsageSummary.tsx",
+      "role": "React UI component/page for UsageSummary.",
+      "provides": [
+        "UsageSummary",
+        "prioritizedWindows",
+        "toneForRemaining",
+        "remainingPercent",
+        "compactAlertMessage",
+        "compactWindowLabel",
+        "compactPrimaryValue",
+        "UsageGroupItem"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/components/Layout/AppContext.tsx",
+      "role": "React UI component/page for AppContext.",
+      "provides": [
+        "useApp",
+        "AppProvider",
+        "AppProviderInner",
+        "onKeyDown"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/components/Layout/Sidebar.tsx",
+      "role": "React UI component/page for Sidebar.",
+      "provides": [
+        "Sidebar",
+        "SidebarBrand",
+        "MainSidebar",
+        "renderNavItem",
+        "SettingsSidebar"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/components/logs/LogsPage.tsx",
+      "role": "React UI component/page for LogsPage.",
+      "provides": [
+        "LogsPage",
+        "loadLogs",
+        "getLogKey",
+        "toggleRow",
+        "formatTimeParts",
+        "formatDuration",
+        "compactText",
+        "exportLogs"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/components/models/ModelDataPage.tsx",
+      "role": "React UI component/page for ModelDataPage.",
+      "provides": [
+        "ModelDataPage",
+        "formatTokens",
+        "fact",
+        "formatCost",
+        "optionLabel",
+        "DataFact",
+        "Capability",
+        "coverage"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/components/models/ModelsPage.tsx",
+      "role": "React UI component/page for ModelsPage.",
+      "provides": [
+        "ModelsPage",
+        "providerProtocols",
+        "resolveFamilyProvider",
+        "groupOf",
+        "endpointProtocol",
+        "endpointPlan",
+        "normalizeEndpoint",
+        "createOpenAIEndpoint"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/components/onboarding/OnboardingPage.tsx",
+      "role": "React UI component/page for OnboardingPage.",
+      "provides": [
+        "OnboardingPage",
+        "check",
+        "adoptSelected",
+        "savePlatformKey",
+        "importSelected",
+        "openExtensionDirectory",
+        "enterApp",
+        "handleReset"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/components/settings/BrowserExtensionSection.tsx",
+      "role": "React UI component/page for BrowserExtensionSection.",
+      "provides": [
+        "BrowserExtensionSection",
+        "revealExtension"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/components/settings/DeviceSyncSection.tsx",
+      "role": "React UI component/page for DeviceSyncSection.",
+      "provides": [
+        "DeviceSyncSection",
+        "platformSummaryValue",
+        "lastSeenLabel",
+        "loadData",
+        "refreshOverview",
+        "saveSync",
+        "closePasswordModal",
+        "handleReplacePassword"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/components/settings/SettingsPage.tsx",
+      "role": "React UI component/page for SettingsPage.",
+      "provides": [
+        "SettingsPage",
+        "loadData",
+        "copyDiagnostics",
+        "revealExtension"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/components/settings/SnapshotsSection.tsx",
+      "role": "React UI component/page for SnapshotsSection.",
+      "provides": [
+        "SnapshotsSection",
+        "paneTitle",
+        "fileExt",
+        "jsonCompareMethod",
+        "changedLineCount",
+        "getLineChangeStats",
+        "formatSnapshotTime",
+        "formatShortTime"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/components/shared/autoCreateFormState.ts",
+      "role": "React UI component/page for autoCreateFormState.",
+      "provides": [
+        "AutoCreatePlatformFields",
+        "getAutoCreatePlatformFields"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/components/shared/configParsers.ts",
+      "role": "React UI component/page for configParsers.",
+      "provides": [
+        "parseTomlValue",
+        "tryParseToml",
+        "splitTopLevel",
+        "stripTomlComment",
+        "unquoteKey",
+        "setTomlNested"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/components/shared/CustomSelect.tsx",
+      "role": "React UI component/page for CustomSelect.",
+      "provides": [
+        "CustomSelect",
+        "openDropdown",
+        "select",
+        "toggle",
+        "handleKeyDown",
+        "close"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/components/shared/JsonTreeView.tsx",
+      "role": "React UI component/page for JsonTreeView.",
+      "provides": [
+        "JsonTreeView",
+        "truncate",
+        "formatString",
+        "JsonNode"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/components/shared/PageSidebar.tsx",
+      "role": "React UI component/page for PageSidebar.",
+      "provides": [
+        "PageSidebar"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/components/shared/ProviderImportModal.tsx",
+      "role": "React UI component/page for ProviderImportModal.",
+      "provides": [
+        "ProviderImportModal",
+        "handleImport"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/components/shared/VaultFormModal.tsx",
+      "role": "React UI component/page for VaultFormModal.",
+      "provides": [
+        "VaultFormModal",
+        "handleKeyDown",
+        "handleSave",
+        "applyAutoCreateResult",
+        "applyAutoCreatePlatformGroup",
+        "handleAutoPlatformChange",
+        "pollAutoCreateRun",
+        "handleResumeAutoCreate"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/components/shared/VaultPickerModal.tsx",
+      "role": "React UI component/page for VaultPickerModal.",
+      "provides": [
+        "VaultPickerModal",
+        "reload",
+        "onKeyDown",
+        "handleCreate",
+        "handleTest",
+        "resetCreate"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/components/usage/UsagePage.tsx",
+      "role": "React UI component/page for UsagePage.",
+      "provides": [
+        "UsagePage",
+        "providerName",
+        "providerType",
+        "handleUsageLogin",
+        "credentialGuideForProvider",
+        "isGuidedConfigurationMessage",
+        "UsageCard",
+        "VolcengineUsageGuide"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/components/vault/VaultPage.tsx",
+      "role": "React UI component/page for VaultPage.",
+      "provides": [
+        "VaultPage",
+        "escapeHtml",
+        "Icon",
+        "handleMoreMenuKeyDown",
+        "loadVault",
+        "openAddForm",
+        "openEditForm",
+        "handleFormSaved"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/data/providerDocs.ts",
+      "role": "Frontend static data or generated data for providerDocs.",
+      "provides": [
+        "ProviderDocsKind",
+        "ProviderDocumentation",
+        "PROVIDER_DOCS_LAST_AUDITED_AT",
+        "PROVIDER_DOCS",
+        "getProviderDocs"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/data/vault-groups.ts",
+      "role": "Frontend static data or generated data for vault-groups.",
+      "provides": [
+        "PREDEFINED_GROUPS",
+        "normalizeGroupName"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/hooks/useAppUpdate.ts",
+      "role": "Reusable React state/effect hook for useAppUpdate.",
+      "provides": [
+        "UpdateState",
+        "UpdateDownload",
+        "formatFileSize",
+        "useAppUpdate"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/hooks/useDataChanged.ts",
+      "role": "Reusable React state/effect hook for useDataChanged.",
+      "provides": [
+        "DataSection",
+        "useDataChanged"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/hooks/useTransientFeedback.ts",
+      "role": "Reusable React state/effect hook for useTransientFeedback.",
+      "provides": [
+        "useTransientFeedback"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/i18n/en.ts",
+      "role": "Frontend localization module for en.",
+      "provides": [
+        "en"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/i18n/index.tsx",
+      "role": "Frontend localization module for index.",
+      "provides": [
+        "useI18n",
+        "I18nProvider"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/i18n/zh.ts",
+      "role": "Frontend localization module for zh.",
+      "provides": [
+        "zh"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/lib/constants.ts",
+      "role": "Frontend domain/presentation helper for constants.",
+      "provides": [
+        "CATEGORY_COLORS",
+        "VAULT_COLORS",
+        "PLATFORM_FIELDS",
+        "PLATFORM_IDS",
+        "PLATFORM_DOCS"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/lib/groupOrdering.ts",
+      "role": "Frontend domain/presentation helper for groupOrdering.",
+      "provides": [
+        "compareGroupNames",
+        "sortGroupEntries"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/lib/lineDiff.ts",
+      "role": "Frontend domain/presentation helper for lineDiff.",
+      "provides": [
+        "DiffOp",
+        "DiffHunk",
+        "DiffResult",
+        "diffLines",
+        "splitLines",
+        "groupHunks"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/lib/logPresentation.ts",
+      "role": "Frontend domain/presentation helper for logPresentation.",
+      "provides": [
+        "LogCategory",
+        "LogPresentation",
+        "presentLog",
+        "categoryOf",
+        "targetLabel",
+        "secretCount",
+        "byteCount",
+        "portNumber"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/lib/onboardingGate.ts",
+      "role": "Frontend domain/presentation helper for onboardingGate.",
+      "provides": [
+        "primeOnboardingFromSession",
+        "getOnboardingDoneCache",
+        "setOnboardingDone"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/lib/syncImportStatus.ts",
+      "role": "Frontend domain/presentation helper for syncImportStatus.",
+      "provides": [
+        "SyncImportState",
+        "getSyncImportStatus"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/lib/usageAlerts.ts",
+      "role": "Frontend domain/presentation helper for usageAlerts.",
+      "provides": [
+        "UsageWindowLike",
+        "UsageResultLike",
+        "AlertItem",
+        "computeRemaining",
+        "msUntilReset",
+        "formatTimeUntilReset",
+        "checkAlerts",
+        "shouldNotify"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/lib/useCoalescedUsageMap.ts",
+      "role": "Frontend domain/presentation helper for useCoalescedUsageMap.",
+      "provides": [
+        "useCoalescedUsageMap"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/lib/useUsagePolling.ts",
+      "role": "Frontend domain/presentation helper for useUsagePolling.",
+      "provides": [
+        "UsagePollingOptions",
+        "useUsagePolling",
+        "hasImminentReset"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/lib/utils.ts",
+      "role": "Frontend domain/presentation helper for utils.",
+      "provides": [
+        "escapeHtml",
+        "formatDate",
+        "formatBytes",
+        "formatUptime",
+        "barColor"
+      ]
+    },
+    {
+      "id": "src/web/frontend/src/main.tsx",
+      "role": "React renderer entrypoint.",
+      "provides": [
+        "main"
+      ]
+    },
+    {
+      "id": "src/web/frontend/vite.config.ts",
+      "role": "Frontend build/runtime configuration or static asset for vite.config.",
+      "provides": [
+        "vite.config"
+      ]
+    },
+    {
+      "id": "src/web/server.js",
+      "role": "Express composition root: mounts API handlers, WebSocket and static UI.",
+      "provides": [
+        "createServer",
+        "startServer",
+        "GET /api/events",
+        "GET /api/logs",
+        "GET /api/vault",
+        "GET /api/vault/list",
+        "POST /api/vault",
+        "DELETE /api/vault"
+      ]
+    },
+    {
+      "id": "tests/auto-create-bilingual-resolver.test.ts",
+      "role": "Automated regression/acceptance test for auto-create-bilingual-resolver.test.",
+      "provides": [
+        "auto-create-bilingual-resolver.test"
+      ]
+    },
+    {
+      "id": "tests/auto-create-form-state.test.ts",
+      "role": "Automated regression/acceptance test for auto-create-form-state.test.",
+      "provides": [
+        "auto-create-form-state.test"
+      ]
+    },
+    {
+      "id": "tests/auto-create-platforms.test.ts",
+      "role": "Automated regression/acceptance test for auto-create-platforms.test.",
+      "provides": [
+        "auto-create-platforms.test"
+      ]
+    },
+    {
+      "id": "tests/cloudflare-d1.test.js",
+      "role": "Automated regression/acceptance test for cloudflare-d1.test.",
+      "provides": [
+        "cloudflare-d1.test"
+      ]
+    },
+    {
+      "id": "tests/cloudflare-kv.test.js",
+      "role": "Automated regression/acceptance test for cloudflare-kv.test.",
+      "provides": [
+        "cloudflare-kv.test"
+      ]
+    },
+    {
+      "id": "tests/cloudflare-r2.test.js",
+      "role": "Automated regression/acceptance test for cloudflare-r2.test.",
+      "provides": [
+        "cloudflare-r2.test"
+      ]
+    },
+    {
+      "id": "tests/commands/provider-route.test.ts",
+      "role": "Automated regression/acceptance test for provider-route.test.",
+      "provides": [
+        "expectRoutedConfig"
+      ]
+    },
+    {
+      "id": "tests/commands/provider.test.ts",
+      "role": "Automated regression/acceptance test for provider.test.",
+      "provides": [
+        "provider.test"
+      ]
+    },
+    {
+      "id": "tests/commands/skill.test.ts",
+      "role": "Automated regression/acceptance test for skill.test.",
+      "provides": [
+        "skill.test"
+      ]
+    },
+    {
+      "id": "tests/commands/upgrade.test.ts",
+      "role": "Automated regression/acceptance test for upgrade.test.",
+      "provides": [
+        "makeDeps"
+      ]
+    },
+    {
+      "id": "tests/config.test.js",
+      "role": "Automated regression/acceptance test for config.test.",
+      "provides": [
+        "config.test"
+      ]
+    },
+    {
+      "id": "tests/config/i18n.test.ts",
+      "role": "Automated regression/acceptance test for i18n.test.",
+      "provides": [
+        "i18n.test"
+      ]
+    },
+    {
+      "id": "tests/config/user.test.ts",
+      "role": "Automated regression/acceptance test for user.test.",
+      "provides": [
+        "user.test"
+      ]
+    },
+    {
+      "id": "tests/configParsers.test.ts",
+      "role": "Automated regression/acceptance test for configParsers.test.",
+      "provides": [
+        "configParsers.test"
+      ]
+    },
+    {
+      "id": "tests/frontend-sync-import-status.test.ts",
+      "role": "Automated regression/acceptance test for frontend-sync-import-status.test.",
+      "provides": [
+        "frontend-sync-import-status.test"
+      ]
+    },
+    {
+      "id": "tests/integration/agent-native-route-matrix.test.ts",
+      "role": "Automated regression/acceptance test for agent-native-route-matrix.test.",
+      "provides": [
+        "runInTemporaryHome"
+      ]
+    },
+    {
+      "id": "tests/platform.test.js",
+      "role": "Automated regression/acceptance test for platform.test.",
+      "provides": [
+        "MockVaultStore"
+      ]
+    },
+    {
+      "id": "tests/providers/adapters/claude-preserve.test.ts",
+      "role": "Automated regression/acceptance test for claude-preserve.test.",
+      "provides": [
+        "claude-preserve.test"
+      ]
+    },
+    {
+      "id": "tests/providers/adapters/claude.test.ts",
+      "role": "Automated regression/acceptance test for claude.test.",
+      "provides": [
+        "claude.test"
+      ]
+    },
+    {
+      "id": "tests/providers/adapters/codex.test.ts",
+      "role": "Automated regression/acceptance test for codex.test.",
+      "provides": [
+        "codex.test"
+      ]
+    },
+    {
+      "id": "tests/providers/adapters/gateway.test.ts",
+      "role": "Automated regression/acceptance test for gateway.test.",
+      "provides": [
+        "gateway.test"
+      ]
+    },
+    {
+      "id": "tests/providers/adapters/grok.test.ts",
+      "role": "Automated regression/acceptance test for grok.test.",
+      "provides": [
+        "grok.test"
+      ]
+    },
+    {
+      "id": "tests/providers/adapters/hermes.test.ts",
+      "role": "Automated regression/acceptance test for hermes.test.",
+      "provides": [
+        "readWritten"
+      ]
+    },
+    {
+      "id": "tests/providers/adapters/kimi-code.test.ts",
+      "role": "Automated regression/acceptance test for kimi-code.test.",
+      "provides": [
+        "kimi-code.test"
+      ]
+    },
+    {
+      "id": "tests/providers/adapters/mimo-code.test.ts",
+      "role": "Automated regression/acceptance test for mimo-code.test.",
+      "provides": [
+        "mimo-code.test"
+      ]
+    },
+    {
+      "id": "tests/providers/adapters/openclaw.test.ts",
+      "role": "Automated regression/acceptance test for openclaw.test.",
+      "provides": [
+        "openclaw.test"
+      ]
+    },
+    {
+      "id": "tests/providers/adapters/opencode.test.ts",
+      "role": "Automated regression/acceptance test for opencode.test.",
+      "provides": [
+        "opencode.test"
+      ]
+    },
+    {
+      "id": "tests/providers/adapters/workbuddy.test.ts",
+      "role": "Automated regression/acceptance test for workbuddy.test.",
+      "provides": [
+        "readModelsFile"
+      ]
+    },
+    {
+      "id": "tests/providers/adapters/zcode.test.ts",
+      "role": "Automated regression/acceptance test for zcode.test.",
+      "provides": [
+        "zcode.test"
+      ]
+    },
+    {
+      "id": "tests/providers/auth.test.ts",
+      "role": "Automated regression/acceptance test for auth.test.",
+      "provides": [
+        "auth.test"
+      ]
+    },
+    {
+      "id": "tests/providers/data-architecture.test.ts",
+      "role": "Automated regression/acceptance test for data-architecture.test.",
+      "provides": [
+        "runInTemporaryHome"
+      ]
+    },
+    {
+      "id": "tests/providers/mappings/codex.test.ts",
+      "role": "Automated regression/acceptance test for codex.test.",
+      "provides": [
+        "codex.test"
+      ]
+    },
+    {
+      "id": "tests/providers/migration.test.ts",
+      "role": "Automated regression/acceptance test for migration.test.",
+      "provides": [
+        "migration.test"
+      ]
+    },
+    {
+      "id": "tests/providers/presets-alignment.test.ts",
+      "role": "Automated regression/acceptance test for presets-alignment.test.",
+      "provides": [
+        "presets-alignment.test"
+      ]
+    },
+    {
+      "id": "tests/providers/presets.test.ts",
+      "role": "Automated regression/acceptance test for presets.test.",
+      "provides": [
+        "presets.test"
+      ]
+    },
+    {
+      "id": "tests/providers/registry.test.ts",
+      "role": "Automated regression/acceptance test for registry.test.",
+      "provides": [
+        "registry.test"
+      ]
+    },
+    {
+      "id": "tests/providers/routing.test.ts",
+      "role": "Automated regression/acceptance test for routing.test.",
+      "provides": [
+        "routing.test"
+      ]
+    },
+    {
+      "id": "tests/providers/snapshots.test.ts",
+      "role": "Automated regression/acceptance test for snapshots.test.",
+      "provides": [
+        "snapshotDir",
+        "seedSnapshot"
+      ]
+    },
+    {
+      "id": "tests/providers/store.test.ts",
+      "role": "Automated regression/acceptance test for store.test.",
+      "provides": [
+        "store.test"
+      ]
+    },
+    {
+      "id": "tests/qianfan-coding.test.ts",
+      "role": "Automated regression/acceptance test for qianfan-coding.test.",
+      "provides": [
+        "qianfan-coding.test"
+      ]
+    },
+    {
+      "id": "tests/setup-isolated-home.ts",
+      "role": "Automated regression/acceptance test for setup-isolated-home.",
+      "provides": [
+        "setup-isolated-home"
+      ]
+    },
+    {
+      "id": "tests/supabase-adapter.test.js",
+      "role": "Automated regression/acceptance test for supabase-adapter.test.",
+      "provides": [
+        "supabase-adapter.test"
+      ]
+    },
+    {
+      "id": "tests/sync-scheduler.test.ts",
+      "role": "Automated regression/acceptance test for sync-scheduler.test.",
+      "provides": [
+        "sync-scheduler.test"
+      ]
+    },
+    {
+      "id": "tests/sync.test.js",
+      "role": "Automated regression/acceptance test for sync.test.",
+      "provides": [
+        "MockVaultStore"
+      ]
+    },
+    {
+      "id": "tests/usage-alerts.test.ts",
+      "role": "Automated regression/acceptance test for usage-alerts.test.",
+      "provides": [
+        "usage-alerts.test"
+      ]
+    },
+    {
+      "id": "tests/usage.test.ts",
+      "role": "Automated regression/acceptance test for usage.test.",
+      "provides": [
+        "usage.test"
+      ]
+    },
+    {
+      "id": "tests/utils/atomicWrite-concurrency.test.ts",
+      "role": "Automated regression/acceptance test for atomicWrite-concurrency.test.",
+      "provides": [
+        "atomicWrite-concurrency.test"
+      ]
+    },
+    {
+      "id": "tests/utils/atomicWrite.test.ts",
+      "role": "Automated regression/acceptance test for atomicWrite.test.",
+      "provides": [
+        "atomicWrite.test"
+      ]
+    },
+    {
+      "id": "tests/utils/semver.test.ts",
+      "role": "Automated regression/acceptance test for semver.test.",
+      "provides": [
+        "semver.test"
+      ]
+    },
+    {
+      "id": "tests/vault-api.test.js",
+      "role": "Automated regression/acceptance test for vault-api.test.",
+      "provides": [
+        "MockVaultStore",
+        "createResponse"
+      ]
+    },
+    {
+      "id": "tests/vault-refs.test.js",
+      "role": "Automated regression/acceptance test for vault-refs.test.",
+      "provides": [
+        "MockVaultStore"
+      ]
+    },
+    {
+      "id": "tests/vault/store-cache.test.ts",
+      "role": "Automated regression/acceptance test for store-cache.test.",
+      "provides": [
+        "store-cache.test"
+      ]
+    },
+    {
+      "id": "tests/vault/store.test.ts",
+      "role": "Automated regression/acceptance test for store.test.",
+      "provides": [
+        "store.test"
+      ]
+    },
+    {
+      "id": "tests/web/agent-path.test.js",
+      "role": "Automated regression/acceptance test for agent-path.test.",
+      "provides": [
+        "agent-path.test"
+      ]
+    },
+    {
+      "id": "tests/web/agent-provider-switch-matrix.test.ts",
+      "role": "Automated regression/acceptance test for agent-provider-switch-matrix.test.",
+      "provides": [
+        "agent-provider-switch-matrix.test"
+      ]
+    },
+    {
+      "id": "tests/web/endpoint-profiles.test.ts",
+      "role": "Automated regression/acceptance test for endpoint-profiles.test.",
+      "provides": [
+        "endpoint-profiles.test"
+      ]
+    },
+    {
+      "id": "tests/web/extension-token-endpoint.test.js",
+      "role": "Automated regression/acceptance test for extension-token-endpoint.test.",
+      "provides": [
+        "extension-token-endpoint.test"
+      ]
+    },
+    {
+      "id": "tests/web/grok-proxy.test.ts",
+      "role": "Automated regression/acceptance test for grok-proxy.test.",
+      "provides": [
+        "listen"
+      ]
+    },
+    {
+      "id": "tests/web/key-import-model.test.js",
+      "role": "Automated regression/acceptance test for key-import-model.test.",
+      "provides": [
+        "key-import-model.test"
+      ]
+    },
+    {
+      "id": "tests/web/lan-sync.test.ts",
+      "role": "Automated regression/acceptance test for lan-sync.test.",
+      "provides": [
+        "freePort",
+        "holdPort",
+        "mockRes",
+        "startListenerAtFreePort"
+      ]
+    },
+    {
+      "id": "tests/web/lineDiff.test.ts",
+      "role": "Automated regression/acceptance test for lineDiff.test.",
+      "provides": [
+        "lineDiff.test"
+      ]
+    },
+    {
+      "id": "tests/web/models-dev.test.ts",
+      "role": "Automated regression/acceptance test for models-dev.test.",
+      "provides": [
+        "models-dev.test"
+      ]
+    },
+    {
+      "id": "tests/web/provider-auth.test.ts",
+      "role": "Automated regression/acceptance test for provider-auth.test.",
+      "provides": [
+        "provider"
+      ]
+    },
+    {
+      "id": "tests/web/provider-docs.test.ts",
+      "role": "Automated regression/acceptance test for provider-docs.test.",
+      "provides": [
+        "provider-docs.test"
+      ]
+    },
+    {
+      "id": "tests/web/provider-flow.test.ts",
+      "role": "Automated regression/acceptance test for provider-flow.test.",
+      "provides": [
+        "provider-flow.test"
+      ]
+    },
+    {
+      "id": "tests/web/switch-provider.test.ts",
+      "role": "Automated regression/acceptance test for switch-provider.test.",
+      "provides": [
+        "makeRes"
+      ]
+    },
+    {
+      "id": "tests/web/ui-events.test.ts",
+      "role": "Automated regression/acceptance test for ui-events.test.",
+      "provides": [
+        "ui-events.test"
+      ]
+    },
+    {
+      "id": "tests/web/update-check.test.js",
+      "role": "Automated regression/acceptance test for update-check.test.",
+      "provides": [
+        "update-check.test"
+      ]
+    },
+    {
+      "id": "tests/web/volcengine-openapi.test.ts",
+      "role": "Automated regression/acceptance test for volcengine-openapi.test.",
+      "provides": [
+        "volcengine-openapi.test"
+      ]
+    },
+    {
+      "id": "tests/web/ws-extension-auth.test.js",
+      "role": "Automated regression/acceptance test for ws-extension-auth.test.",
+      "provides": [
+        "ws-extension-auth.test"
+      ]
+    },
+    {
+      "id": "vitest.config.ts",
+      "role": "Vitest test-runner configuration.",
+      "provides": [
+        "vitest.config"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "source": "scripts/auto-create-key-check.mjs",
+      "target": "src/web/api/auto-create.js"
+    },
+    {
+      "source": "src/commands/provider.ts",
+      "target": "src/config/i18n.ts"
+    },
+    {
+      "source": "src/commands/provider.ts",
+      "target": "src/config/user.ts"
+    },
+    {
+      "source": "src/commands/provider.ts",
+      "target": "src/providers/adapters/model-facts.ts"
+    },
+    {
+      "source": "src/commands/provider.ts",
+      "target": "src/providers/auth.ts"
+    },
+    {
+      "source": "src/commands/provider.ts",
+      "target": "src/providers/presets.ts"
+    },
+    {
+      "source": "src/commands/provider.ts",
+      "target": "src/providers/registry.ts"
+    },
+    {
+      "source": "src/commands/provider.ts",
+      "target": "src/providers/routing.ts"
+    },
+    {
+      "source": "src/commands/provider.ts",
+      "target": "src/providers/snapshots.ts"
+    },
+    {
+      "source": "src/commands/provider.ts",
+      "target": "src/providers/store.ts"
+    },
+    {
+      "source": "src/commands/provider.ts",
+      "target": "src/providers/types.ts"
+    },
+    {
+      "source": "src/commands/provider.ts",
+      "target": "src/vault/store.ts"
+    },
+    {
+      "source": "src/commands/sync.ts",
+      "target": "src/config/user.ts"
+    },
+    {
+      "source": "src/commands/sync.ts",
+      "target": "src/web/api/cloud-sync-core.js"
+    },
+    {
+      "source": "src/commands/upgrade.ts",
+      "target": "package.json"
+    },
+    {
+      "source": "src/commands/vault.ts",
+      "target": "src/config/i18n.ts"
+    },
+    {
+      "source": "src/commands/vault.ts",
+      "target": "src/vault/store.ts"
+    },
+    {
+      "source": "src/config/backup.ts",
+      "target": "src/config/registry.ts"
+    },
+    {
+      "source": "src/config/i18n.ts",
+      "target": "src/config/user.ts"
+    },
+    {
+      "source": "src/config/user.ts",
+      "target": "src/config/backup.ts"
+    },
+    {
+      "source": "src/config/user.ts",
+      "target": "src/config/registry.ts"
+    },
+    {
+      "source": "src/config/user.ts",
+      "target": "src/utils/atomicWrite.ts"
+    },
+    {
+      "source": "src/config/user.ts",
+      "target": "src/web/api/cloud-sync-core.js"
+    },
+    {
+      "source": "src/main.ts",
+      "target": "package.json"
+    },
+    {
+      "source": "src/main.ts",
+      "target": "src/commands/extension.ts"
+    },
+    {
+      "source": "src/main.ts",
+      "target": "src/commands/provider.ts"
+    },
+    {
+      "source": "src/main.ts",
+      "target": "src/commands/skill.ts"
+    },
+    {
+      "source": "src/main.ts",
+      "target": "src/commands/sync.ts"
+    },
+    {
+      "source": "src/main.ts",
+      "target": "src/commands/upgrade.ts"
+    },
+    {
+      "source": "src/main.ts",
+      "target": "src/commands/vault.ts"
+    },
+    {
+      "source": "src/main.ts",
+      "target": "src/config/i18n.ts"
+    },
+    {
+      "source": "src/main.ts",
+      "target": "src/config/user.ts"
+    },
+    {
+      "source": "src/main.ts",
+      "target": "src/providers/migration.ts"
+    },
+    {
+      "source": "src/main.ts",
+      "target": "src/web/api/cloud-sync-core.js"
+    },
+    {
+      "source": "src/main.ts",
+      "target": "src/web/server.js"
+    },
+    {
+      "source": "src/providers/adapters/base.ts",
+      "target": "src/providers/types.ts"
+    },
+    {
+      "source": "src/providers/adapters/base.ts",
+      "target": "src/vault/store.ts"
+    },
+    {
+      "source": "src/providers/adapters/claude.ts",
+      "target": "src/config/user.ts"
+    },
+    {
+      "source": "src/providers/adapters/claude.ts",
+      "target": "src/providers/adapters/base.ts"
+    },
+    {
+      "source": "src/providers/adapters/claude.ts",
+      "target": "src/providers/auth.ts"
+    },
+    {
+      "source": "src/providers/adapters/claude.ts",
+      "target": "src/providers/routing.ts"
+    },
+    {
+      "source": "src/providers/adapters/claude.ts",
+      "target": "src/providers/types.ts"
+    },
+    {
+      "source": "src/providers/adapters/claude.ts",
+      "target": "src/utils/atomicWrite.ts"
+    },
+    {
+      "source": "src/providers/adapters/codex.ts",
+      "target": "src/config/user.ts"
+    },
+    {
+      "source": "src/providers/adapters/codex.ts",
+      "target": "src/providers/adapters/base.ts"
+    },
+    {
+      "source": "src/providers/adapters/codex.ts",
+      "target": "src/providers/adapters/gateway.ts"
+    },
+    {
+      "source": "src/providers/adapters/codex.ts",
+      "target": "src/providers/adapters/model-facts.ts"
+    },
+    {
+      "source": "src/providers/adapters/codex.ts",
+      "target": "src/providers/auth.ts"
+    },
+    {
+      "source": "src/providers/adapters/codex.ts",
+      "target": "src/providers/mappings/codex-mapping.ts"
+    },
+    {
+      "source": "src/providers/adapters/codex.ts",
+      "target": "src/providers/types.ts"
+    },
+    {
+      "source": "src/providers/adapters/codex.ts",
+      "target": "src/utils/atomicWrite.ts"
+    },
+    {
+      "source": "src/providers/adapters/codex.ts",
+      "target": "src/web/api/log-writer.js"
+    },
+    {
+      "source": "src/providers/adapters/grok.ts",
+      "target": "src/config/user.ts"
+    },
+    {
+      "source": "src/providers/adapters/grok.ts",
+      "target": "src/providers/adapters/base.ts"
+    },
+    {
+      "source": "src/providers/adapters/grok.ts",
+      "target": "src/providers/adapters/gateway.ts"
+    },
+    {
+      "source": "src/providers/adapters/grok.ts",
+      "target": "src/providers/adapters/model-facts.ts"
+    },
+    {
+      "source": "src/providers/adapters/grok.ts",
+      "target": "src/providers/adapters/toml-utils.ts"
+    },
+    {
+      "source": "src/providers/adapters/grok.ts",
+      "target": "src/providers/store.ts"
+    },
+    {
+      "source": "src/providers/adapters/grok.ts",
+      "target": "src/providers/types.ts"
+    },
+    {
+      "source": "src/providers/adapters/grok.ts",
+      "target": "src/utils/atomicWrite.ts"
+    },
+    {
+      "source": "src/providers/adapters/hermes.ts",
+      "target": "src/config/user.ts"
+    },
+    {
+      "source": "src/providers/adapters/hermes.ts",
+      "target": "src/providers/adapters/base.ts"
+    },
+    {
+      "source": "src/providers/adapters/hermes.ts",
+      "target": "src/providers/adapters/gateway.ts"
+    },
+    {
+      "source": "src/providers/adapters/hermes.ts",
+      "target": "src/providers/types.ts"
+    },
+    {
+      "source": "src/providers/adapters/hermes.ts",
+      "target": "src/utils/atomicWrite.ts"
+    },
+    {
+      "source": "src/providers/adapters/kimi-code.ts",
+      "target": "src/config/user.ts"
+    },
+    {
+      "source": "src/providers/adapters/kimi-code.ts",
+      "target": "src/providers/adapters/base.ts"
+    },
+    {
+      "source": "src/providers/adapters/kimi-code.ts",
+      "target": "src/providers/adapters/gateway.ts"
+    },
+    {
+      "source": "src/providers/adapters/kimi-code.ts",
+      "target": "src/providers/adapters/model-facts.ts"
+    },
+    {
+      "source": "src/providers/adapters/kimi-code.ts",
+      "target": "src/providers/adapters/toml-utils.ts"
+    },
+    {
+      "source": "src/providers/adapters/kimi-code.ts",
+      "target": "src/providers/store.ts"
+    },
+    {
+      "source": "src/providers/adapters/kimi-code.ts",
+      "target": "src/providers/types.ts"
+    },
+    {
+      "source": "src/providers/adapters/kimi-code.ts",
+      "target": "src/utils/atomicWrite.ts"
+    },
+    {
+      "source": "src/providers/adapters/mimo-code.ts",
+      "target": "src/config/user.ts"
+    },
+    {
+      "source": "src/providers/adapters/mimo-code.ts",
+      "target": "src/providers/adapters/base.ts"
+    },
+    {
+      "source": "src/providers/adapters/mimo-code.ts",
+      "target": "src/providers/adapters/gateway.ts"
+    },
+    {
+      "source": "src/providers/adapters/mimo-code.ts",
+      "target": "src/providers/adapters/model-facts.ts"
+    },
+    {
+      "source": "src/providers/adapters/mimo-code.ts",
+      "target": "src/providers/types.ts"
+    },
+    {
+      "source": "src/providers/adapters/mimo-code.ts",
+      "target": "src/utils/atomicWrite.ts"
+    },
+    {
+      "source": "src/providers/adapters/model-facts.ts",
+      "target": "src/providers/routing.ts"
+    },
+    {
+      "source": "src/providers/adapters/model-facts.ts",
+      "target": "src/providers/types.ts"
+    },
+    {
+      "source": "src/providers/adapters/openclaw.ts",
+      "target": "src/config/user.ts"
+    },
+    {
+      "source": "src/providers/adapters/openclaw.ts",
+      "target": "src/providers/adapters/base.ts"
+    },
+    {
+      "source": "src/providers/adapters/openclaw.ts",
+      "target": "src/providers/types.ts"
+    },
+    {
+      "source": "src/providers/adapters/openclaw.ts",
+      "target": "src/utils/atomicWrite.ts"
+    },
+    {
+      "source": "src/providers/adapters/opencode.ts",
+      "target": "src/config/user.ts"
+    },
+    {
+      "source": "src/providers/adapters/opencode.ts",
+      "target": "src/providers/adapters/base.ts"
+    },
+    {
+      "source": "src/providers/adapters/opencode.ts",
+      "target": "src/providers/adapters/gateway.ts"
+    },
+    {
+      "source": "src/providers/adapters/opencode.ts",
+      "target": "src/providers/adapters/model-facts.ts"
+    },
+    {
+      "source": "src/providers/adapters/opencode.ts",
+      "target": "src/providers/types.ts"
+    },
+    {
+      "source": "src/providers/adapters/opencode.ts",
+      "target": "src/utils/atomicWrite.ts"
+    },
+    {
+      "source": "src/providers/adapters/workbuddy.ts",
+      "target": "src/config/user.ts"
+    },
+    {
+      "source": "src/providers/adapters/workbuddy.ts",
+      "target": "src/providers/adapters/base.ts"
+    },
+    {
+      "source": "src/providers/adapters/workbuddy.ts",
+      "target": "src/providers/adapters/model-facts.ts"
+    },
+    {
+      "source": "src/providers/adapters/workbuddy.ts",
+      "target": "src/providers/types.ts"
+    },
+    {
+      "source": "src/providers/adapters/workbuddy.ts",
+      "target": "src/utils/atomicWrite.ts"
+    },
+    {
+      "source": "src/providers/adapters/zcode.ts",
+      "target": "src/config/user.ts"
+    },
+    {
+      "source": "src/providers/adapters/zcode.ts",
+      "target": "src/providers/adapters/base.ts"
+    },
+    {
+      "source": "src/providers/adapters/zcode.ts",
+      "target": "src/providers/adapters/gateway.ts"
+    },
+    {
+      "source": "src/providers/adapters/zcode.ts",
+      "target": "src/providers/adapters/model-facts.ts"
+    },
+    {
+      "source": "src/providers/adapters/zcode.ts",
+      "target": "src/providers/types.ts"
+    },
+    {
+      "source": "src/providers/adapters/zcode.ts",
+      "target": "src/utils/atomicWrite.ts"
+    },
+    {
+      "source": "src/providers/auth.ts",
+      "target": "src/providers/types.ts"
+    },
+    {
+      "source": "src/providers/auth.ts",
+      "target": "src/vault/store.ts"
+    },
+    {
+      "source": "src/providers/mappings/codex-mapping.ts",
+      "target": "src/providers/mappings/codex.json"
+    },
+    {
+      "source": "src/providers/mappings/codex-mapping.ts",
+      "target": "src/providers/types.ts"
+    },
+    {
+      "source": "src/providers/metadata.ts",
+      "target": "src/providers/types.ts"
+    },
+    {
+      "source": "src/providers/migration.ts",
+      "target": "src/config/registry.ts"
+    },
+    {
+      "source": "src/providers/migration.ts",
+      "target": "src/providers/types.ts"
+    },
+    {
+      "source": "src/providers/migration.ts",
+      "target": "src/utils/atomicWrite.ts"
+    },
+    {
+      "source": "src/providers/migration.ts",
+      "target": "src/vault/store.ts"
+    },
+    {
+      "source": "src/providers/platforms.ts",
+      "target": "src/providers/metadata.ts"
+    },
+    {
+      "source": "src/providers/platforms.ts",
+      "target": "src/providers/routing.ts"
+    },
+    {
+      "source": "src/providers/platforms.ts",
+      "target": "src/providers/types.ts"
+    },
+    {
+      "source": "src/providers/presets.ts",
+      "target": "src/providers/types.ts"
+    },
+    {
+      "source": "src/providers/registry.ts",
+      "target": "src/providers/adapters/claude.ts"
+    },
+    {
+      "source": "src/providers/registry.ts",
+      "target": "src/providers/adapters/codex.ts"
+    },
+    {
+      "source": "src/providers/registry.ts",
+      "target": "src/providers/adapters/grok.ts"
+    },
+    {
+      "source": "src/providers/registry.ts",
+      "target": "src/providers/adapters/hermes.ts"
+    },
+    {
+      "source": "src/providers/registry.ts",
+      "target": "src/providers/adapters/kimi-code.ts"
+    },
+    {
+      "source": "src/providers/registry.ts",
+      "target": "src/providers/adapters/mimo-code.ts"
+    },
+    {
+      "source": "src/providers/registry.ts",
+      "target": "src/providers/adapters/openclaw.ts"
+    },
+    {
+      "source": "src/providers/registry.ts",
+      "target": "src/providers/adapters/opencode.ts"
+    },
+    {
+      "source": "src/providers/registry.ts",
+      "target": "src/providers/adapters/workbuddy.ts"
+    },
+    {
+      "source": "src/providers/registry.ts",
+      "target": "src/providers/adapters/zcode.ts"
+    },
+    {
+      "source": "src/providers/registry.ts",
+      "target": "src/providers/types.ts"
+    },
+    {
+      "source": "src/providers/routing.ts",
+      "target": "src/providers/types.ts"
+    },
+    {
+      "source": "src/providers/snapshots.ts",
+      "target": "src/utils/atomicWrite.ts"
+    },
+    {
+      "source": "src/providers/store.ts",
+      "target": "src/config/backup.ts"
+    },
+    {
+      "source": "src/providers/store.ts",
+      "target": "src/config/registry.ts"
+    },
+    {
+      "source": "src/providers/store.ts",
+      "target": "src/providers/metadata.ts"
+    },
+    {
+      "source": "src/providers/store.ts",
+      "target": "src/providers/presets.ts"
+    },
+    {
+      "source": "src/providers/store.ts",
+      "target": "src/providers/types.ts"
+    },
+    {
+      "source": "src/providers/store.ts",
+      "target": "src/utils/atomicWrite.ts"
+    },
+    {
+      "source": "src/providers/store.ts",
+      "target": "src/web/api/models-dev.js"
+    },
+    {
+      "source": "src/vault/store.ts",
+      "target": "src/config/backup.ts"
+    },
+    {
+      "source": "src/vault/store.ts",
+      "target": "src/config/registry.ts"
+    },
+    {
+      "source": "src/vault/store.ts",
+      "target": "src/utils/atomicWrite.ts"
+    },
+    {
+      "source": "src/web/api/auto-create.js",
+      "target": "src/vault/store.ts"
+    },
+    {
+      "source": "src/web/api/auto-create.js",
+      "target": "src/web/api/ws-extension.js"
+    },
+    {
+      "source": "src/web/api/cloud-sync-core.js",
+      "target": "src/providers/store.ts"
+    },
+    {
+      "source": "src/web/api/cloud-sync-core.js",
+      "target": "src/vault/store.ts"
+    },
+    {
+      "source": "src/web/api/cloud-sync-core.js",
+      "target": "src/web/api/agent-providers.js"
+    },
+    {
+      "source": "src/web/api/cloud-sync-core.js",
+      "target": "src/web/api/backup.js"
+    },
+    {
+      "source": "src/web/api/cloud-sync-core.js",
+      "target": "src/web/api/log-writer.js"
+    },
+    {
+      "source": "src/web/api/cloud-sync-core.js",
+      "target": "src/web/api/ui-events.js"
+    },
+    {
+      "source": "src/web/api/cloudflare-sync.js",
+      "target": "src/vault/store.ts"
+    },
+    {
+      "source": "src/web/api/cloudflare-sync.js",
+      "target": "src/web/api/log-writer.js"
+    },
+    {
+      "source": "src/web/api/key-import.js",
+      "target": "src/vault/store.ts"
+    },
+    {
+      "source": "src/web/api/key-import.js",
+      "target": "src/web/api/log-writer.js"
+    },
+    {
+      "source": "src/web/api/key-import.js",
+      "target": "src/web/api/sync-scheduler.js"
+    },
+    {
+      "source": "src/web/api/key-import.js",
+      "target": "src/web/api/ui-events.js"
+    },
+    {
+      "source": "src/web/api/lan-sync-server.js",
+      "target": "src/web/api/cloud-sync-core.js"
+    },
+    {
+      "source": "src/web/api/platform-adapters/lan.js",
+      "target": "src/web/api/lan-sync-server.js"
+    },
+    {
+      "source": "src/web/api/platform-adapters/volcengine.js",
+      "target": "src/web/api/volcengine-openapi.js"
+    },
+    {
+      "source": "src/web/api/providers.js",
+      "target": "src/providers/agentsMeta.ts"
+    },
+    {
+      "source": "src/web/api/providers.js",
+      "target": "src/providers/mappings/codex.json"
+    },
+    {
+      "source": "src/web/api/providers.js",
+      "target": "src/providers/platforms.ts"
+    },
+    {
+      "source": "src/web/api/providers.js",
+      "target": "src/providers/registry.ts"
+    },
+    {
+      "source": "src/web/api/providers.js",
+      "target": "src/providers/routing.ts"
+    },
+    {
+      "source": "src/web/api/providers.js",
+      "target": "src/providers/snapshots.ts"
+    },
+    {
+      "source": "src/web/api/providers.js",
+      "target": "src/providers/store.ts"
+    },
+    {
+      "source": "src/web/api/providers.js",
+      "target": "src/vault/store.ts"
+    },
+    {
+      "source": "src/web/api/providers.js",
+      "target": "src/web/api/agent-path.js"
+    },
+    {
+      "source": "src/web/api/providers.js",
+      "target": "src/web/api/agent-providers.js"
+    },
+    {
+      "source": "src/web/api/providers.js",
+      "target": "src/web/api/backup.js"
+    },
+    {
+      "source": "src/web/api/providers.js",
+      "target": "src/web/api/cloud-sync-core.js"
+    },
+    {
+      "source": "src/web/api/providers.js",
+      "target": "src/web/api/endpoint-profiles.js"
+    },
+    {
+      "source": "src/web/api/providers.js",
+      "target": "src/web/api/log-writer.js"
+    },
+    {
+      "source": "src/web/api/providers.js",
+      "target": "src/web/api/models-dev.js"
+    },
+    {
+      "source": "src/web/api/providers.js",
+      "target": "src/web/api/qianfan-coding.js"
+    },
+    {
+      "source": "src/web/api/providers.js",
+      "target": "src/web/api/sync-scheduler.js"
+    },
+    {
+      "source": "src/web/api/providers.js",
+      "target": "src/web/api/ui-events.js"
+    },
+    {
+      "source": "src/web/api/providers.js",
+      "target": "src/web/api/vault.js"
+    },
+    {
+      "source": "src/web/api/settings.js",
+      "target": "src/web/api/backup.js"
+    },
+    {
+      "source": "src/web/api/settings.js",
+      "target": "src/web/api/cloud-sync-core.js"
+    },
+    {
+      "source": "src/web/api/settings.js",
+      "target": "src/web/api/lan-sync-server.js"
+    },
+    {
+      "source": "src/web/api/settings.js",
+      "target": "src/web/api/log-writer.js"
+    },
+    {
+      "source": "src/web/api/settings.js",
+      "target": "src/web/api/sync-scheduler.js"
+    },
+    {
+      "source": "src/web/api/snapshots.js",
+      "target": "src/providers/snapshots.ts"
+    },
+    {
+      "source": "src/web/api/snapshots.js",
+      "target": "src/web/api/log-writer.js"
+    },
+    {
+      "source": "src/web/api/sync-scheduler.js",
+      "target": "src/web/api/cloud-sync-core.js"
+    },
+    {
+      "source": "src/web/api/sync.js",
+      "target": "src/web/api/cloud-sync-core.js"
+    },
+    {
+      "source": "src/web/api/sync.js",
+      "target": "src/web/api/lan-sync-server.js"
+    },
+    {
+      "source": "src/web/api/sync.js",
+      "target": "src/web/api/sync-scheduler.js"
+    },
+    {
+      "source": "src/web/api/update-check.js",
+      "target": "package.json"
+    },
+    {
+      "source": "src/web/api/usage.js",
+      "target": "src/vault/store.ts"
+    },
+    {
+      "source": "src/web/api/usage.js",
+      "target": "src/web/api/ws-extension.js"
+    },
+    {
+      "source": "src/web/api/vault.js",
+      "target": "src/vault/store.ts"
+    },
+    {
+      "source": "src/web/api/vault.js",
+      "target": "src/web/api/endpoint-profiles.js"
+    },
+    {
+      "source": "src/web/api/vault.js",
+      "target": "src/web/api/log-writer.js"
+    },
+    {
+      "source": "src/web/api/vault.js",
+      "target": "src/web/api/qianfan-coding.js"
+    },
+    {
+      "source": "src/web/api/vault.js",
+      "target": "src/web/api/sync-scheduler.js"
+    },
+    {
+      "source": "src/web/api/vault.js",
+      "target": "src/web/api/ui-events.js"
+    },
+    {
+      "source": "src/web/api/ws-extension.js",
+      "target": "src/web/api/ui-events.js"
+    },
+    {
+      "source": "src/web/frontend/src/api/logs.ts",
+      "target": "src/web/frontend/src/api/client.ts"
+    },
+    {
+      "source": "src/web/frontend/src/api/providers.ts",
+      "target": "src/web/frontend/src/api/client.ts"
+    },
+    {
+      "source": "src/web/frontend/src/api/settings.ts",
+      "target": "src/web/frontend/src/api/client.ts"
+    },
+    {
+      "source": "src/web/frontend/src/api/snapshots.ts",
+      "target": "src/web/frontend/src/api/client.ts"
+    },
+    {
+      "source": "src/web/frontend/src/api/sync.ts",
+      "target": "src/web/frontend/src/api/client.ts"
+    },
+    {
+      "source": "src/web/frontend/src/api/vault.ts",
+      "target": "src/web/frontend/src/api/client.ts"
+    },
+    {
+      "source": "src/web/frontend/src/App.tsx",
+      "target": "src/web/frontend/src/api/providers.ts"
+    },
+    {
+      "source": "src/web/frontend/src/App.tsx",
+      "target": "src/web/frontend/src/api/settings.ts"
+    },
+    {
+      "source": "src/web/frontend/src/App.tsx",
+      "target": "src/web/frontend/src/components/Layout/AppContext.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/App.tsx",
+      "target": "src/web/frontend/src/components/Layout/Sidebar.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/App.tsx",
+      "target": "src/web/frontend/src/components/agents/AgentsPage.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/App.tsx",
+      "target": "src/web/frontend/src/components/home/HomePage.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/App.tsx",
+      "target": "src/web/frontend/src/components/models/ModelDataPage.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/App.tsx",
+      "target": "src/web/frontend/src/components/models/ModelsPage.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/App.tsx",
+      "target": "src/web/frontend/src/components/onboarding/OnboardingPage.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/App.tsx",
+      "target": "src/web/frontend/src/components/settings/SettingsPage.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/App.tsx",
+      "target": "src/web/frontend/src/components/shared/ProviderImportModal.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/App.tsx",
+      "target": "src/web/frontend/src/components/usage/UsagePage.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/App.tsx",
+      "target": "src/web/frontend/src/components/vault/VaultPage.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/App.tsx",
+      "target": "src/web/frontend/src/hooks/useAppUpdate.ts"
+    },
+    {
+      "source": "src/web/frontend/src/App.tsx",
+      "target": "src/web/frontend/src/lib/onboardingGate.ts"
+    },
+    {
+      "source": "src/web/frontend/src/assets/agents/index.ts",
+      "target": "src/web/frontend/src/assets/agents/chatgpt.png"
+    },
+    {
+      "source": "src/web/frontend/src/assets/agents/index.ts",
+      "target": "src/web/frontend/src/assets/agents/claude.png"
+    },
+    {
+      "source": "src/web/frontend/src/assets/agents/index.ts",
+      "target": "src/web/frontend/src/assets/agents/grok.png"
+    },
+    {
+      "source": "src/web/frontend/src/assets/agents/index.ts",
+      "target": "src/web/frontend/src/assets/agents/hermes.png"
+    },
+    {
+      "source": "src/web/frontend/src/assets/agents/index.ts",
+      "target": "src/web/frontend/src/assets/agents/kimi-code.png"
+    },
+    {
+      "source": "src/web/frontend/src/assets/agents/index.ts",
+      "target": "src/web/frontend/src/assets/agents/mimo-code.png"
+    },
+    {
+      "source": "src/web/frontend/src/assets/agents/index.ts",
+      "target": "src/web/frontend/src/assets/agents/openclaw.png"
+    },
+    {
+      "source": "src/web/frontend/src/assets/agents/index.ts",
+      "target": "src/web/frontend/src/assets/agents/opencode.png"
+    },
+    {
+      "source": "src/web/frontend/src/assets/agents/index.ts",
+      "target": "src/web/frontend/src/assets/agents/workbuddy.png"
+    },
+    {
+      "source": "src/web/frontend/src/assets/agents/index.ts",
+      "target": "src/web/frontend/src/assets/agents/zcode.png"
+    },
+    {
+      "source": "src/web/frontend/src/assets/providers/index.ts",
+      "target": "src/web/frontend/src/assets/agents/claude.png"
+    },
+    {
+      "source": "src/web/frontend/src/assets/providers/index.ts",
+      "target": "src/web/frontend/src/assets/agents/opencode.png"
+    },
+    {
+      "source": "src/web/frontend/src/assets/providers/index.ts",
+      "target": "src/web/frontend/src/assets/providers/baidu-cloud.png"
+    },
+    {
+      "source": "src/web/frontend/src/assets/providers/index.ts",
+      "target": "src/web/frontend/src/assets/providers/bailian.png"
+    },
+    {
+      "source": "src/web/frontend/src/assets/providers/index.ts",
+      "target": "src/web/frontend/src/assets/providers/deepseek.png"
+    },
+    {
+      "source": "src/web/frontend/src/assets/providers/index.ts",
+      "target": "src/web/frontend/src/assets/providers/github.png"
+    },
+    {
+      "source": "src/web/frontend/src/assets/providers/index.ts",
+      "target": "src/web/frontend/src/assets/providers/kimi.png"
+    },
+    {
+      "source": "src/web/frontend/src/assets/providers/index.ts",
+      "target": "src/web/frontend/src/assets/providers/litellm.png"
+    },
+    {
+      "source": "src/web/frontend/src/assets/providers/index.ts",
+      "target": "src/web/frontend/src/assets/providers/minimax-global.png"
+    },
+    {
+      "source": "src/web/frontend/src/assets/providers/index.ts",
+      "target": "src/web/frontend/src/assets/providers/minimax.png"
+    },
+    {
+      "source": "src/web/frontend/src/assets/providers/index.ts",
+      "target": "src/web/frontend/src/assets/providers/mistral.png"
+    },
+    {
+      "source": "src/web/frontend/src/assets/providers/index.ts",
+      "target": "src/web/frontend/src/assets/providers/moonshot-mark.png"
+    },
+    {
+      "source": "src/web/frontend/src/assets/providers/index.ts",
+      "target": "src/web/frontend/src/assets/providers/ollama.png"
+    },
+    {
+      "source": "src/web/frontend/src/assets/providers/index.ts",
+      "target": "src/web/frontend/src/assets/providers/openai.png"
+    },
+    {
+      "source": "src/web/frontend/src/assets/providers/index.ts",
+      "target": "src/web/frontend/src/assets/providers/openrouter.png"
+    },
+    {
+      "source": "src/web/frontend/src/assets/providers/index.ts",
+      "target": "src/web/frontend/src/assets/providers/siliconflow.png"
+    },
+    {
+      "source": "src/web/frontend/src/assets/providers/index.ts",
+      "target": "src/web/frontend/src/assets/providers/stepfun.png"
+    },
+    {
+      "source": "src/web/frontend/src/assets/providers/index.ts",
+      "target": "src/web/frontend/src/assets/providers/tencent-cloud.png"
+    },
+    {
+      "source": "src/web/frontend/src/assets/providers/index.ts",
+      "target": "src/web/frontend/src/assets/providers/volcengine.png"
+    },
+    {
+      "source": "src/web/frontend/src/assets/providers/index.ts",
+      "target": "src/web/frontend/src/assets/providers/xai.png"
+    },
+    {
+      "source": "src/web/frontend/src/assets/providers/index.ts",
+      "target": "src/web/frontend/src/assets/providers/xiaomi.png"
+    },
+    {
+      "source": "src/web/frontend/src/assets/providers/index.ts",
+      "target": "src/web/frontend/src/assets/providers/zai.svg"
+    },
+    {
+      "source": "src/web/frontend/src/assets/providers/index.ts",
+      "target": "src/web/frontend/src/assets/providers/zhipu-bigmodel.png"
+    },
+    {
+      "source": "src/web/frontend/src/components/home/HomePage.tsx",
+      "target": "src/web/frontend/src/api/providers.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/home/HomePage.tsx",
+      "target": "src/web/frontend/src/components/Layout/AppContext.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/components/home/HomePage.tsx",
+      "target": "src/web/frontend/src/components/home/UsageSummary.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/components/home/HomePage.tsx",
+      "target": "src/web/frontend/src/components/shared/CustomSelect.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/components/home/HomePage.tsx",
+      "target": "src/web/frontend/src/components/shared/JsonTreeView.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/components/home/HomePage.tsx",
+      "target": "src/web/frontend/src/hooks/useDataChanged.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/home/HomePage.tsx",
+      "target": "src/web/frontend/src/hooks/useTransientFeedback.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/home/UsageSummary.tsx",
+      "target": "src/web/frontend/src/api/providers.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/home/UsageSummary.tsx",
+      "target": "src/web/frontend/src/lib/usageAlerts.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/home/UsageSummary.tsx",
+      "target": "src/web/frontend/src/lib/useCoalescedUsageMap.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/home/UsageSummary.tsx",
+      "target": "src/web/frontend/src/lib/useUsagePolling.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/logs/LogsPage.tsx",
+      "target": "src/web/frontend/src/api/logs.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/logs/LogsPage.tsx",
+      "target": "src/web/frontend/src/components/Layout/AppContext.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/components/logs/LogsPage.tsx",
+      "target": "src/web/frontend/src/lib/logPresentation.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/models/ModelDataPage.tsx",
+      "target": "src/web/frontend/src/api/providers.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/models/ModelDataPage.tsx",
+      "target": "src/web/frontend/src/components/Layout/AppContext.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/components/models/ModelDataPage.tsx",
+      "target": "src/web/frontend/src/hooks/useDataChanged.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/models/ModelsPage.tsx",
+      "target": "src/web/frontend/src/api/client.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/models/ModelsPage.tsx",
+      "target": "src/web/frontend/src/api/providers.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/models/ModelsPage.tsx",
+      "target": "src/web/frontend/src/components/Layout/AppContext.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/components/models/ModelsPage.tsx",
+      "target": "src/web/frontend/src/components/shared/CustomSelect.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/components/models/ModelsPage.tsx",
+      "target": "src/web/frontend/src/components/shared/VaultPickerModal.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/components/models/ModelsPage.tsx",
+      "target": "src/web/frontend/src/data/providerDocs.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/models/ModelsPage.tsx",
+      "target": "src/web/frontend/src/data/providers-generated.json"
+    },
+    {
+      "source": "src/web/frontend/src/components/models/ModelsPage.tsx",
+      "target": "src/web/frontend/src/hooks/useDataChanged.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/onboarding/OnboardingPage.tsx",
+      "target": "src/web/frontend/src/api/providers.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/onboarding/OnboardingPage.tsx",
+      "target": "src/web/frontend/src/api/settings.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/onboarding/OnboardingPage.tsx",
+      "target": "src/web/frontend/src/api/vault.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/onboarding/OnboardingPage.tsx",
+      "target": "src/web/frontend/src/assets/branding/modelswap-icon-command-v1.png"
+    },
+    {
+      "source": "src/web/frontend/src/components/onboarding/OnboardingPage.tsx",
+      "target": "src/web/frontend/src/components/Layout/AppContext.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/components/onboarding/OnboardingPage.tsx",
+      "target": "src/web/frontend/src/lib/onboardingGate.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/settings/BrowserExtensionSection.tsx",
+      "target": "src/web/frontend/src/components/Layout/AppContext.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/components/settings/DeviceSyncSection.tsx",
+      "target": "src/web/frontend/src/api/settings.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/settings/DeviceSyncSection.tsx",
+      "target": "src/web/frontend/src/api/sync.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/settings/DeviceSyncSection.tsx",
+      "target": "src/web/frontend/src/api/vault.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/settings/DeviceSyncSection.tsx",
+      "target": "src/web/frontend/src/components/Layout/AppContext.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/components/settings/DeviceSyncSection.tsx",
+      "target": "src/web/frontend/src/components/shared/CustomSelect.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/components/settings/DeviceSyncSection.tsx",
+      "target": "src/web/frontend/src/components/shared/VaultFormModal.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/components/settings/DeviceSyncSection.tsx",
+      "target": "src/web/frontend/src/components/shared/VaultPickerModal.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/components/settings/DeviceSyncSection.tsx",
+      "target": "src/web/frontend/src/hooks/useTransientFeedback.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/settings/DeviceSyncSection.tsx",
+      "target": "src/web/frontend/src/lib/constants.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/settings/SettingsPage.tsx",
+      "target": "package.json"
+    },
+    {
+      "source": "src/web/frontend/src/components/settings/SettingsPage.tsx",
+      "target": "src/web/frontend/src/api/settings.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/settings/SettingsPage.tsx",
+      "target": "src/web/frontend/src/components/Layout/AppContext.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/components/settings/SettingsPage.tsx",
+      "target": "src/web/frontend/src/components/logs/LogsPage.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/components/settings/SettingsPage.tsx",
+      "target": "src/web/frontend/src/components/settings/BrowserExtensionSection.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/components/settings/SettingsPage.tsx",
+      "target": "src/web/frontend/src/components/settings/DeviceSyncSection.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/components/settings/SettingsPage.tsx",
+      "target": "src/web/frontend/src/components/settings/SnapshotsSection.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/components/settings/SettingsPage.tsx",
+      "target": "src/web/frontend/src/hooks/useAppUpdate.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/settings/SettingsPage.tsx",
+      "target": "src/web/frontend/src/hooks/useTransientFeedback.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/settings/SnapshotsSection.tsx",
+      "target": "src/web/frontend/src/api/providers.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/settings/SnapshotsSection.tsx",
+      "target": "src/web/frontend/src/api/snapshots.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/settings/SnapshotsSection.tsx",
+      "target": "src/web/frontend/src/components/Layout/AppContext.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/components/settings/SnapshotsSection.tsx",
+      "target": "src/web/frontend/src/components/shared/CustomSelect.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/components/shared/autoCreateFormState.ts",
+      "target": "src/web/frontend/src/api/vault.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/shared/autoCreateFormState.ts",
+      "target": "src/web/frontend/src/data/vault-groups.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/shared/JsonTreeView.tsx",
+      "target": "src/web/frontend/src/components/shared/configParsers.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/shared/ProviderImportModal.tsx",
+      "target": "src/web/frontend/src/api/providers.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/shared/ProviderImportModal.tsx",
+      "target": "src/web/frontend/src/components/Layout/AppContext.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/components/shared/VaultFormModal.tsx",
+      "target": "src/web/frontend/src/api/client.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/shared/VaultFormModal.tsx",
+      "target": "src/web/frontend/src/api/vault.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/shared/VaultFormModal.tsx",
+      "target": "src/web/frontend/src/components/shared/CustomSelect.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/components/shared/VaultFormModal.tsx",
+      "target": "src/web/frontend/src/components/shared/autoCreateFormState.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/shared/VaultFormModal.tsx",
+      "target": "src/web/frontend/src/data/vault-groups.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/shared/VaultPickerModal.tsx",
+      "target": "src/web/frontend/src/api/client.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/shared/VaultPickerModal.tsx",
+      "target": "src/web/frontend/src/api/vault.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/shared/VaultPickerModal.tsx",
+      "target": "src/web/frontend/src/components/shared/CustomSelect.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/components/shared/VaultPickerModal.tsx",
+      "target": "src/web/frontend/src/data/vault-groups.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/shared/VaultPickerModal.tsx",
+      "target": "src/web/frontend/src/lib/groupOrdering.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/usage/UsagePage.tsx",
+      "target": "src/web/frontend/src/api/providers.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/usage/UsagePage.tsx",
+      "target": "src/web/frontend/src/api/vault.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/usage/UsagePage.tsx",
+      "target": "src/web/frontend/src/components/Layout/AppContext.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/components/usage/UsagePage.tsx",
+      "target": "src/web/frontend/src/hooks/useDataChanged.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/usage/UsagePage.tsx",
+      "target": "src/web/frontend/src/lib/usageAlerts.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/usage/UsagePage.tsx",
+      "target": "src/web/frontend/src/lib/useCoalescedUsageMap.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/usage/UsagePage.tsx",
+      "target": "src/web/frontend/src/lib/useUsagePolling.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/vault/VaultPage.tsx",
+      "target": "src/web/frontend/src/api/vault.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/vault/VaultPage.tsx",
+      "target": "src/web/frontend/src/components/Layout/AppContext.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/components/vault/VaultPage.tsx",
+      "target": "src/web/frontend/src/components/shared/VaultFormModal.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/components/vault/VaultPage.tsx",
+      "target": "src/web/frontend/src/data/vault-groups.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/vault/VaultPage.tsx",
+      "target": "src/web/frontend/src/hooks/useDataChanged.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/vault/VaultPage.tsx",
+      "target": "src/web/frontend/src/hooks/useTransientFeedback.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/vault/VaultPage.tsx",
+      "target": "src/web/frontend/src/lib/groupOrdering.ts"
+    },
+    {
+      "source": "src/web/frontend/src/components/vault/VaultPage.tsx",
+      "target": "src/web/frontend/src/lib/utils.ts"
+    },
+    {
+      "source": "src/web/frontend/src/i18n/index.tsx",
+      "target": "src/web/frontend/src/i18n/en.ts"
+    },
+    {
+      "source": "src/web/frontend/src/i18n/index.tsx",
+      "target": "src/web/frontend/src/i18n/zh.ts"
+    },
+    {
+      "source": "src/web/frontend/src/lib/logPresentation.ts",
+      "target": "src/web/frontend/src/api/logs.ts"
+    },
+    {
+      "source": "src/web/frontend/src/lib/useCoalescedUsageMap.ts",
+      "target": "src/web/frontend/src/api/providers.ts"
+    },
+    {
+      "source": "src/web/frontend/src/lib/useUsagePolling.ts",
+      "target": "src/web/frontend/src/api/providers.ts"
+    },
+    {
+      "source": "src/web/frontend/src/main.tsx",
+      "target": "src/web/frontend/src/App.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/main.tsx",
+      "target": "src/web/frontend/src/components/Layout/AppContext.tsx"
+    },
+    {
+      "source": "src/web/frontend/src/main.tsx",
+      "target": "src/web/frontend/src/styles/index.css"
+    },
+    {
+      "source": "src/web/server.js",
+      "target": "package.json"
+    },
+    {
+      "source": "src/web/server.js",
+      "target": "src/web/api/agent-path.js"
+    },
+    {
+      "source": "src/web/server.js",
+      "target": "src/web/api/auto-create.js"
+    },
+    {
+      "source": "src/web/server.js",
+      "target": "src/web/api/cloudflare-sync.js"
+    },
+    {
+      "source": "src/web/server.js",
+      "target": "src/web/api/grok-proxy.js"
+    },
+    {
+      "source": "src/web/server.js",
+      "target": "src/web/api/key-import.js"
+    },
+    {
+      "source": "src/web/server.js",
+      "target": "src/web/api/lan-sync-server.js"
+    },
+    {
+      "source": "src/web/server.js",
+      "target": "src/web/api/logs.js"
+    },
+    {
+      "source": "src/web/server.js",
+      "target": "src/web/api/providers.js"
+    },
+    {
+      "source": "src/web/server.js",
+      "target": "src/web/api/settings.js"
+    },
+    {
+      "source": "src/web/server.js",
+      "target": "src/web/api/snapshots.js"
+    },
+    {
+      "source": "src/web/server.js",
+      "target": "src/web/api/sync-scheduler.js"
+    },
+    {
+      "source": "src/web/server.js",
+      "target": "src/web/api/sync.js"
+    },
+    {
+      "source": "src/web/server.js",
+      "target": "src/web/api/ui-events.js"
+    },
+    {
+      "source": "src/web/server.js",
+      "target": "src/web/api/update-check.js"
+    },
+    {
+      "source": "src/web/server.js",
+      "target": "src/web/api/usage.js"
+    },
+    {
+      "source": "src/web/server.js",
+      "target": "src/web/api/vault.js"
+    },
+    {
+      "source": "src/web/server.js",
+      "target": "src/web/api/ws-extension.js"
+    },
+    {
+      "source": "tests/auto-create-bilingual-resolver.test.ts",
+      "target": "src/web/api/auto-create.js"
+    },
+    {
+      "source": "tests/auto-create-form-state.test.ts",
+      "target": "src/web/frontend/src/components/shared/autoCreateFormState.ts"
+    },
+    {
+      "source": "tests/auto-create-form-state.test.ts",
+      "target": "src/web/frontend/src/data/vault-groups.ts"
+    },
+    {
+      "source": "tests/auto-create-platforms.test.ts",
+      "target": "src/web/api/auto-create.js"
+    },
+    {
+      "source": "tests/cloudflare-d1.test.js",
+      "target": "src/web/api/platform-adapters/cloudflare-d1.js"
+    },
+    {
+      "source": "tests/cloudflare-kv.test.js",
+      "target": "src/web/api/platform-adapters/cloudflare-kv.js"
+    },
+    {
+      "source": "tests/cloudflare-r2.test.js",
+      "target": "src/web/api/platform-adapters/cloudflare-r2.js"
+    },
+    {
+      "source": "tests/commands/provider-route.test.ts",
+      "target": "src/commands/provider.ts"
+    },
+    {
+      "source": "tests/commands/provider-route.test.ts",
+      "target": "src/providers/adapters/openclaw.ts"
+    },
+    {
+      "source": "tests/commands/provider.test.ts",
+      "target": "src/commands/provider.ts"
+    },
+    {
+      "source": "tests/commands/skill.test.ts",
+      "target": "src/commands/skill.ts"
+    },
+    {
+      "source": "tests/commands/upgrade.test.ts",
+      "target": "package.json"
+    },
+    {
+      "source": "tests/commands/upgrade.test.ts",
+      "target": "src/commands/upgrade.ts"
+    },
+    {
+      "source": "tests/config.test.js",
+      "target": "src/web/api/cloud-sync-core.js"
+    },
+    {
+      "source": "tests/config/i18n.test.ts",
+      "target": "src/config/i18n.ts"
+    },
+    {
+      "source": "tests/config/user.test.ts",
+      "target": "src/config/user.ts"
+    },
+    {
+      "source": "tests/configParsers.test.ts",
+      "target": "src/web/frontend/src/components/shared/configParsers.ts"
+    },
+    {
+      "source": "tests/frontend-sync-import-status.test.ts",
+      "target": "src/web/frontend/src/lib/syncImportStatus.ts"
+    },
+    {
+      "source": "tests/platform.test.js",
+      "target": "src/web/api/cloud-sync-core.js"
+    },
+    {
+      "source": "tests/providers/adapters/claude-preserve.test.ts",
+      "target": "src/config/user.ts"
+    },
+    {
+      "source": "tests/providers/adapters/claude-preserve.test.ts",
+      "target": "src/providers/adapters/claude.ts"
+    },
+    {
+      "source": "tests/providers/adapters/claude.test.ts",
+      "target": "src/config/user.ts"
+    },
+    {
+      "source": "tests/providers/adapters/claude.test.ts",
+      "target": "src/providers/adapters/claude.ts"
+    },
+    {
+      "source": "tests/providers/adapters/claude.test.ts",
+      "target": "src/providers/routing.ts"
+    },
+    {
+      "source": "tests/providers/adapters/codex.test.ts",
+      "target": "src/config/user.ts"
+    },
+    {
+      "source": "tests/providers/adapters/codex.test.ts",
+      "target": "src/providers/adapters/codex.ts"
+    },
+    {
+      "source": "tests/providers/adapters/gateway.test.ts",
+      "target": "src/providers/adapters/gateway.ts"
+    },
+    {
+      "source": "tests/providers/adapters/grok.test.ts",
+      "target": "src/config/user.ts"
+    },
+    {
+      "source": "tests/providers/adapters/grok.test.ts",
+      "target": "src/providers/adapters/grok.ts"
+    },
+    {
+      "source": "tests/providers/adapters/hermes.test.ts",
+      "target": "src/config/user.ts"
+    },
+    {
+      "source": "tests/providers/adapters/hermes.test.ts",
+      "target": "src/providers/adapters/hermes.ts"
+    },
+    {
+      "source": "tests/providers/adapters/hermes.test.ts",
+      "target": "src/providers/routing.ts"
+    },
+    {
+      "source": "tests/providers/adapters/kimi-code.test.ts",
+      "target": "src/config/user.ts"
+    },
+    {
+      "source": "tests/providers/adapters/kimi-code.test.ts",
+      "target": "src/providers/adapters/kimi-code.ts"
+    },
+    {
+      "source": "tests/providers/adapters/mimo-code.test.ts",
+      "target": "src/config/user.ts"
+    },
+    {
+      "source": "tests/providers/adapters/mimo-code.test.ts",
+      "target": "src/providers/adapters/mimo-code.ts"
+    },
+    {
+      "source": "tests/providers/adapters/openclaw.test.ts",
+      "target": "src/config/user.ts"
+    },
+    {
+      "source": "tests/providers/adapters/openclaw.test.ts",
+      "target": "src/providers/adapters/openclaw.ts"
+    },
+    {
+      "source": "tests/providers/adapters/openclaw.test.ts",
+      "target": "src/providers/routing.ts"
+    },
+    {
+      "source": "tests/providers/adapters/opencode.test.ts",
+      "target": "src/config/user.ts"
+    },
+    {
+      "source": "tests/providers/adapters/opencode.test.ts",
+      "target": "src/providers/adapters/opencode.ts"
+    },
+    {
+      "source": "tests/providers/adapters/workbuddy.test.ts",
+      "target": "src/providers/adapters/workbuddy.ts"
+    },
+    {
+      "source": "tests/providers/adapters/zcode.test.ts",
+      "target": "src/config/user.ts"
+    },
+    {
+      "source": "tests/providers/adapters/zcode.test.ts",
+      "target": "src/providers/adapters/zcode.ts"
+    },
+    {
+      "source": "tests/providers/auth.test.ts",
+      "target": "src/providers/auth.ts"
+    },
+    {
+      "source": "tests/providers/data-architecture.test.ts",
+      "target": "src/providers/routing.ts"
+    },
+    {
+      "source": "tests/providers/data-architecture.test.ts",
+      "target": "src/providers/store.ts"
+    },
+    {
+      "source": "tests/providers/data-architecture.test.ts",
+      "target": "src/web/api/providers.js"
+    },
+    {
+      "source": "tests/providers/mappings/codex.test.ts",
+      "target": "src/providers/mappings/codex-mapping.ts"
+    },
+    {
+      "source": "tests/providers/migration.test.ts",
+      "target": "src/providers/migration.ts"
+    },
+    {
+      "source": "tests/providers/presets-alignment.test.ts",
+      "target": "src/providers/presets.ts"
+    },
+    {
+      "source": "tests/providers/presets.test.ts",
+      "target": "src/providers/presets.ts"
+    },
+    {
+      "source": "tests/providers/registry.test.ts",
+      "target": "src/providers/registry.ts"
+    },
+    {
+      "source": "tests/providers/routing.test.ts",
+      "target": "src/providers/platforms.ts"
+    },
+    {
+      "source": "tests/providers/routing.test.ts",
+      "target": "src/providers/routing.ts"
+    },
+    {
+      "source": "tests/providers/routing.test.ts",
+      "target": "src/providers/types.ts"
+    },
+    {
+      "source": "tests/providers/snapshots.test.ts",
+      "target": "src/providers/snapshots.ts"
+    },
+    {
+      "source": "tests/providers/store.test.ts",
+      "target": "src/providers/presets.ts"
+    },
+    {
+      "source": "tests/providers/store.test.ts",
+      "target": "src/providers/store.ts"
+    },
+    {
+      "source": "tests/qianfan-coding.test.ts",
+      "target": "src/web/api/qianfan-coding.js"
+    },
+    {
+      "source": "tests/supabase-adapter.test.js",
+      "target": "src/web/api/platform-adapters/supabase.js"
+    },
+    {
+      "source": "tests/sync-scheduler.test.ts",
+      "target": "src/web/api/sync-scheduler.js"
+    },
+    {
+      "source": "tests/sync.test.js",
+      "target": "src/web/api/cloud-sync-core.js"
+    },
+    {
+      "source": "tests/usage-alerts.test.ts",
+      "target": "src/web/frontend/src/lib/usageAlerts.ts"
+    },
+    {
+      "source": "tests/usage.test.ts",
+      "target": "src/web/api/usage.js"
+    },
+    {
+      "source": "tests/utils/atomicWrite-concurrency.test.ts",
+      "target": "src/utils/atomicWrite.ts"
+    },
+    {
+      "source": "tests/utils/atomicWrite.test.ts",
+      "target": "src/utils/atomicWrite.ts"
+    },
+    {
+      "source": "tests/utils/semver.test.ts",
+      "target": "src/utils/semver.ts"
+    },
+    {
+      "source": "tests/vault-api.test.js",
+      "target": "src/web/api/vault.js"
+    },
+    {
+      "source": "tests/vault-refs.test.js",
+      "target": "src/web/api/cloud-sync-core.js"
+    },
+    {
+      "source": "tests/vault/store-cache.test.ts",
+      "target": "src/vault/store.ts"
+    },
+    {
+      "source": "tests/vault/store.test.ts",
+      "target": "src/vault/store.ts"
+    },
+    {
+      "source": "tests/web/agent-path.test.js",
+      "target": "src/web/api/agent-path.js"
+    },
+    {
+      "source": "tests/web/endpoint-profiles.test.ts",
+      "target": "src/providers/presets.ts"
+    },
+    {
+      "source": "tests/web/endpoint-profiles.test.ts",
+      "target": "src/web/api/endpoint-profiles.js"
+    },
+    {
+      "source": "tests/web/grok-proxy.test.ts",
+      "target": "src/web/api/grok-proxy.js"
+    },
+    {
+      "source": "tests/web/key-import-model.test.js",
+      "target": "src/web/api/key-import.js"
+    },
+    {
+      "source": "tests/web/lan-sync.test.ts",
+      "target": "src/web/api/lan-sync-server.js"
+    },
+    {
+      "source": "tests/web/lan-sync.test.ts",
+      "target": "src/web/api/platform-adapters/lan.js"
+    },
+    {
+      "source": "tests/web/lan-sync.test.ts",
+      "target": "src/web/api/sync.js"
+    },
+    {
+      "source": "tests/web/lineDiff.test.ts",
+      "target": "src/web/frontend/src/lib/lineDiff.ts"
+    },
+    {
+      "source": "tests/web/models-dev.test.ts",
+      "target": "src/web/api/models-dev.js"
+    },
+    {
+      "source": "tests/web/provider-auth.test.ts",
+      "target": "src/web/api/providers.js"
+    },
+    {
+      "source": "tests/web/provider-docs.test.ts",
+      "target": "src/providers/platforms.ts"
+    },
+    {
+      "source": "tests/web/provider-docs.test.ts",
+      "target": "src/providers/presets.ts"
+    },
+    {
+      "source": "tests/web/provider-docs.test.ts",
+      "target": "src/web/frontend/src/data/providerDocs.ts"
+    },
+    {
+      "source": "tests/web/provider-flow.test.ts",
+      "target": "src/config/user.ts"
+    },
+    {
+      "source": "tests/web/provider-flow.test.ts",
+      "target": "src/web/api/agent-providers.js"
+    },
+    {
+      "source": "tests/web/provider-flow.test.ts",
+      "target": "src/web/api/cloud-sync-core.js"
+    },
+    {
+      "source": "tests/web/switch-provider.test.ts",
+      "target": "src/web/api/providers.js"
+    },
+    {
+      "source": "tests/web/ui-events.test.ts",
+      "target": "src/web/api/ui-events.js"
+    },
+    {
+      "source": "tests/web/update-check.test.js",
+      "target": "src/web/api/update-check.js"
+    },
+    {
+      "source": "tests/web/volcengine-openapi.test.ts",
+      "target": "src/web/api/volcengine-openapi.js"
+    },
+    {
+      "source": "tests/web/ws-extension-auth.test.js",
+      "target": "src/web/api/ws-extension.js"
+    }
+  ]
+}

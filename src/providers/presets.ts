@@ -30,6 +30,17 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
     models: [],
   },
   {
+    id: "google",
+    name: "Google AI Studio",
+    type: "openai",
+    // Gemini API's OpenAI-compatible endpoint; keys are GCP API keys
+    // (AIza…) from AI Studio / gcloud — see
+    // docs/architecture/google-aistudio-support.md.
+    baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+    authMode: "api_key",
+    models: [],
+  },
+  {
     id: "openai-codex",
     name: "ChatGPT",
     type: "openai",

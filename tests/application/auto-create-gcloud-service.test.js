@@ -1,0 +1,127 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { createAutoCreatePlatforms } from '../../src/application/auto-create-platforms.js';
+import { createGcloudKeyService } from '../../src/application/auto-create-gcloud-service.js';
+
+// gcloud runs on the user's machine; CI runners never install it. All paths
+// are exercised through a scripted fake execFile.
+function fakeExec(script) {
+  const fn = (cmd, args, opts, cb) => {
+    const step = script.shift();
+    if (!step) throw new Error(`unexpected gcloud call: ${args.join(' ')}`);
+    if (step instanceof Error) return cb(step, '', step.message);
+    const [stdout, stderr = ''] = Array.isArray(step) ? step : [step];
+    cb(null, stdout, stderr);
+  };
+  return vi.fn(fn);
+}
+
+const PLATFORMS = createAutoCreatePlatforms({
+  ZHIPU_URL: 'https://open.bigmodel.cn/usercenter/apikeys',
+  VOLC_URL: 'https://console.volcengine.com/ark',
+  VOLC_AGENT_PLAN_URL: 'https://console.volcengine.com/ark',
+  MINIMAX_URL: 'https://platform.minimaxi.com/user-center/basic-information/interface-key',
+});
+
+describe('google-aistudio 平台目录', () => {
+  it('注册 mode:cli 条目并进入支持列表', () => {
+    const platform = PLATFORMS.AUTO_CREATE_PLATFORM_MAP.get('google-aistudio');
+    expect(platform).toBeTruthy();
+    expect(platform.mode).toBe('cli');
+    expect(platform.keyHint).toBe('GEMINI_API_KEY');
+    // cli 平台没有浏览器 url：不进 SPECIAL_PLATFORM_URLS
+    expect(PLATFORMS.getBrowserPlatformUrl('google-aistudio')).toBeFalsy();
+  });
+});
+
+describe('gcloud key service', () => {
+  beforeEach(() => { vi.restoreAllMocks(); });
+
+  it('未安装 gcloud → GCLOUD_NOT_INSTALLED（附安装指引）', async () => {
+    const exec = fakeExec([new Error('not found')]);
+    const svc = createGcloudKeyService({ execFile: exec });
+    await expect(svc.createKey({ tokenName: 'modelswap' })).rejects.toMatchObject({
+      code: 'GCLOUD_NOT_INSTALLED',
+      message: expect.stringContaining('brew install --cask google-cloud-sdk'),
+    });
+    expect(exec).toHaveBeenCalledTimes(1);
+  });
+
+  it('已安装但未登录 → GCLOUD_NOT_AUTHED（提示 gcloud auth login）', async () => {
+    const exec = fakeExec([['Google Cloud SDK 583.0.0'], ['']]);
+    const svc = createGcloudKeyService({ execFile: exec });
+    await expect(svc.createKey({ tokenName: 'modelswap' })).rejects.toMatchObject({
+      code: 'GCLOUD_NOT_AUTHED',
+      message: expect.stringContaining('gcloud auth login'),
+    });
+  });
+
+  it('登录但无匹配项目 → 新建 modelswap-gemini-* 项目后创建成功', async () => {
+    const created = [];
+    const exec = vi.fn((cmd, args, opts, cb) => {
+      const joined = args.join(' ');
+      if (joined.startsWith('--version')) return cb(null, 'Google Cloud SDK 583.0.0\n');
+      if (joined.startsWith('auth list')) return cb(null, 'user@example.com\n');
+      if (joined.startsWith('projects list')) return cb(null, JSON.stringify([{ projectId: 'other-project' }]));
+      if (joined.startsWith('projects create')) { created.push(args[args.length - 1]); return cb(null, ''); }
+      if (joined.startsWith('services enable')) return cb(null, '');
+      if (joined.startsWith('services api-keys create')) {
+        return cb(null, JSON.stringify({
+          keyString: 'AIzaSyA-test-key-1234567890abcdefghijklmnop',
+          displayName: 'modelswap',
+          name: 'projects/modelswap-gemini-abc123/locations/global/keys/12345',
+        }));
+      }
+      throw new Error('unexpected: ' + joined);
+    });
+    const svc = createGcloudKeyService({ execFile: exec });
+    const result = await svc.createKey({ tokenName: 'modelswap' });
+    expect(created[0]).toMatch(/^modelswap-gemini-/);
+    expect(result.value).toMatch(/^AIza/);
+    expect(result.id).toBe('12345');
+    expect(result.project).toBe(created[0]);
+    // api-keys create 必须带 --api-target 限定 Gemini API
+    const createCall = exec.mock.calls.find(([, args]) => args.join(' ').startsWith('services api-keys create'));
+    expect(createCall[1].join(' ')).toContain('--api-target=service=generativelanguage.googleapis.com');
+  });
+
+  it('已有 modelswap/gemini 项目 → 复用不新建', async () => {
+    let projectCreated = false;
+    const exec = vi.fn((cmd, args, opts, cb) => {
+      const joined = args.join(' ');
+      if (joined.startsWith('--version')) return cb(null, 'v');
+      if (joined.startsWith('auth list')) return cb(null, 'user@example.com\n');
+      if (joined.startsWith('projects list')) return cb(null, JSON.stringify([{ projectId: 'gen-lang-client-123' }, { projectId: 'zzz' }]));
+      if (joined.startsWith('projects create')) { projectCreated = true; return cb(null, ''); }
+      if (joined.startsWith('services enable')) return cb(null, '');
+      if (joined.startsWith('services api-keys create')) {
+        return cb(null, JSON.stringify({ keyString: 'AIzaSyB-test', displayName: 'k', name: 'projects/gemini-test/locations/global/keys/99' }));
+      }
+      throw new Error('unexpected: ' + joined);
+    });
+    const svc = createGcloudKeyService({ execFile: exec });
+    const result = await svc.createKey({ tokenName: 'k' });
+    expect(projectCreated).toBe(false);
+    expect(result.project).toBe('gen-lang-client-123');
+  });
+
+  it('deleteKey 用 uid + project 调 api-keys delete', async () => {
+    const exec = vi.fn((_cmd, args, _opts, cb) => {
+      expect(args.join(' ')).toBe('services api-keys delete 99 --project gemini-test');
+      cb(null, '');
+    });
+    const svc = createGcloudKeyService({ execFile: exec });
+    await expect(svc.deleteKey({ keyUid: '99', project: 'gemini-test' })).resolves.toBe(true);
+    await expect(svc.deleteKey({})).rejects.toMatchObject({ code: 'GCLOUD_DELETE_FAILED' });
+  });
+
+  it('status：未安装/未登录/就绪 三态', async () => {
+    const notInstalled = createGcloudKeyService({ execFile: fakeExec([new Error('enoent')]) });
+    await expect(notInstalled.status()).resolves.toMatchObject({ installed: false, hint: 'install' });
+
+    const notAuthed = createGcloudKeyService({ execFile: fakeExec([['v'], ['']]) });
+    await expect(notAuthed.status()).resolves.toMatchObject({ installed: true, hint: 'login' });
+
+    const ready = createGcloudKeyService({ execFile: fakeExec([['v'], ['user@example.com\n'], [JSON.stringify([{ projectId: 'gemini-test' }])]]) });
+    await expect(ready.status()).resolves.toMatchObject({ installed: true, account: 'user@example.com', project: 'gemini-test', hint: 'ready' });
+  });
+});

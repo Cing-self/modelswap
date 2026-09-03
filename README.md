@@ -28,7 +28,7 @@ Keys and models, one console. ModelSwap is a local-first open-source tool that m
 ## Why ModelSwap
 
 - **Switching never loses your config** — Surgical writes: only fields ModelSwap owns are touched; your hooks, statusLine, tui and MCP config stay intact. Every switch is snapshotted first — one-click diff and rollback in Settings.
-- **40 platforms out of the box** — Anthropic / OpenAI / Google / Volcengine / Zhipu / DeepSeek / Kimi… official, aggregator and China-based presets ready to go: pick a platform, paste a key, switch. No doc-diving for base URLs.
+- **41 platforms out of the box** — Anthropic / OpenAI / Google / Volcengine / Zhipu / DeepSeek / Kimi… official, aggregator and China-based presets ready to go: pick a platform, paste a key, switch. No doc-diving for base URLs.
 - **Switch models without leaving the terminal** — ModelSwap generates each agent's native model catalog; switch with `/model` right inside the CLI, no round-trip to ModelSwap.
 - **Multi-device sync, you own the data** — LAN peer-to-peer sync with pairing codes, or plug in your own cloud storage (Cloudflare / Supabase / WebDAV / iCloud and more, 9 backends); one-time sync codes migrate between machines. Payloads are encrypted — the server never sees plaintext.
 - **Zero daemons, zero interception** — No background process, nothing on your request path: ModelSwap writes config and exits; your agents talk to model platforms directly. Uninstall leaves nothing behind — configs keep working.
@@ -45,7 +45,7 @@ Keys and models, one console. ModelSwap is a local-first open-source tool that m
 | Request path | Never through ModelSwap | Direct, or via optional proxy (hot-switch/failover) | Routed through the local router service |
 | Agents supported | 10 | 8 | Codex-first (Harness/Gemini CLI bridges experimental) |
 | Key storage | AES-256-GCM encrypted vault + project binding | Local SQLite store (README does not mention encryption) | Stored locally (README does not mention encryption) |
-| Auto-create API keys | 32 platforms (browser extension) | — | — |
+| Auto-create API keys | 33 platforms (browser extension + gcloud CLI) | — | — |
 | Usage queries | 37 subscription/balance sources, direct | Usage dashboard (spend/requests/tokens) | — |
 | Multi-device sync | LAN peer-to-peer + 9 self-hosted cloud backends + sync codes | — | — |
 | Platforms | macOS / Linux / Windows | macOS / Linux / Windows | macOS / Linux / Windows |
@@ -74,7 +74,7 @@ modelswap web                              # web console (:3780)
 modelswap vault set <key>                  # store a secret interactively (AES-256-GCM)
 printf '%s' "$SECRET" | modelswap vault set <key> --stdin  # keep secrets out of argv in automation
 modelswap vault inject                     # print export statements (pair with eval)
-modelswap provider list                    # list 40 preset model platforms
+modelswap provider list                    # list 41 preset model platforms
 modelswap provider switch                  # interactive provider/model switch per agent
 modelswap provider use <provider>          # non-interactive switch (script/agent friendly)
 modelswap sync pair --create               # LAN pairing, or sync push/pull via self-hosted cloud
@@ -114,10 +114,10 @@ AES-256-GCM encrypted storage, masked display, per-project binding (auto-inject 
 - **One-time sync codes**: migrate all config and keys between two machines
 
 ### Provider / model management
-40 platform presets (official / aggregator / China-based), 10 agent adapters, multi-endpoint protocols (anthropic / OpenAI-compatible / responses), auth-state checks, and three credential modes (subscription / API / third-party). Adding a site starts from an empty model list — you write exactly what you choose.
+41 platform presets (official / aggregator / China-based), 10 agent adapters, multi-endpoint protocols (anthropic / OpenAI-compatible / responses), auth-state checks, and three credential modes (subscription / API / third-party). Adding a site starts from an empty model list — you write exactly what you choose.
 
 ### Auto-create keys
-The browser extension fills and submits key-creation forms inside official consoles and wires the key back (32 platforms, incl. Volcengine, Zhipu, Baidu Qianfan).
+The browser extension fills and submits key-creation forms inside official consoles (32 platforms); Google AI Studio keys are created via the gcloud CLI with no browser at all (33 platforms total).
 
 ### Usage queries
 37 subscription/balance sources queried directly, with threshold alerts (local notifications).

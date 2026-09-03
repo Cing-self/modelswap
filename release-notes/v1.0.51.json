@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.51",
+  "publishedAt": "2026-09-03",
+  "summary": {
+    "zh": "新增 Google AI Studio（Gemini API）支持：Provider 预置开箱即用，且支持通过官方 gcloud CLI 一键创建/删除 API Key——不需要浏览器 RPA、不需要绑定付费账号（免费层按配额限流）。POC 已实测：CLI 创建的 Key 在免费层真实生成成功。",
+    "en": "Google AI Studio (Gemini API) support: a ready-to-use provider preset plus one-click API key creation via the official gcloud CLI — no browser RPA, no billing account required (free tier is quota-limited, not paywalled). Verified by a live POC: a CLI-created key generated real completions on the free tier."
+  },
+  "highlights": [
+    {
+      "category": "new",
+      "zh": "Google AI Studio 平台：41 个预置平台之一，OpenAI 兼容端点（generativelanguage.googleapis.com/v1beta/openai），用 AIza Key 即可切换使用。",
+      "en": "Google AI Studio joins the preset list (41 total) on the OpenAI-compatible Gemini endpoint — paste an AIza key and switch."
+    },
+    {
+      "category": "new",
+      "zh": "gcloud CLI 一键创建 Key（新 mode:cli）：自动复用/创建 GCP 项目、启用 Gemini API、创建并回填 AIza Key；未装 gcloud 或未登录时给出逐步指引。",
+      "en": "One-click key creation via gcloud (new mode:cli): reuses or creates a GCP project, enables the Gemini API, and wires the AIza key back; step-by-step guidance when gcloud is missing or signed out."
+    },
+    {
+      "category": "improved",
+      "zh": "Google 预设的历史退役状态解除（当年因“看似必须绑定付费项目”被移除；已澄清 Gemini 免费层无需 Billing）。注意：2.5 系列模型对新账号已停用，建议使用 latest/3.x 系列。",
+      "en": "The Google preset is un-retired (it was removed when a billing account looked mandatory; the free tier needs none). Note: 2.5-series models are closed to new accounts — prefer the latest/3.x series."
+    }
+  ]
+}

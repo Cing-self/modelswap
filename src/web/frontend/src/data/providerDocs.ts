@@ -38,6 +38,10 @@ export const PROVIDER_DOCS: Record<string, ProviderDocumentation> = {
     kind: 'api',
     url: 'https://developers.openai.com/api/docs/quickstart/',
   },
+  google: {
+    kind: 'api',
+    url: 'https://ai.google.dev/gemini-api/docs/api-key',
+  },
   'openai-codex': {
     kind: 'agent_subscription',
     url: 'https://developers.openai.com/codex/auth/',

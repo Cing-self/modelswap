@@ -12,8 +12,8 @@ describe('PRESET_PROVIDERS alignment', () => {
     'opencode-go', 'opencode-zen', 'qwen-token-plan', 'ollama', 'litellm',
   ];
 
-  it('has exactly 40 presets', () => {
-    expect(PRESET_PROVIDERS.length).toBe(40);
+  it('has exactly 41 presets', () => {
+    expect(PRESET_PROVIDERS.length).toBe(41);
   });
 
   it('contains all expected provider IDs', () => {

@@ -9,6 +9,7 @@ const crypto = require('crypto');
 const { sendCommand, sendToExtension, isExtensionConnected } = require('./ws-extension');
 const { createAutoCreateRunService } = require('../../application/auto-create-run-service');
 const { createCloudflareKeyService } = require('../../application/auto-create-cloudflare-service');
+const { createGcloudKeyService } = require('../../application/auto-create-gcloud-service');
 const { createAutoCreateKeyParser } = require('../../application/auto-create-key-parser');
 const { listPlatformDirectory } = require('../../application/auto-create-platform-directory');
 const extraction = require('../../application/auto-create-extraction');
@@ -55,6 +56,7 @@ const AUTO_CREATE_RUNS = new Map();
 const AUTO_CREATE_VERIFICATION_TIMEOUT_MS = 30 * 60 * 1000;
 const AUTO_CREATE_RUN_RESULT_TTL_MS = 10 * 60 * 1000;
 const { createCloudflareToken, deleteCloudflareToken } = createCloudflareKeyService({ https });
+const gcloudKeyService = createGcloudKeyService({ execFile: require('child_process').execFile });
 
 const autoCreateRuntime = createAutoCreateRuntime({ sendCommand, sendToExtension, isExtensionConnected });
 const { sleep, execJs, closeAutomationWindow, focusAutomationWindow, foregroundClick } = autoCreateRuntime;
@@ -187,6 +189,15 @@ const { createZhipuKey } = zhipuStrategy;
 // A browser flow always uses the user's already signed-in session in the MODELSWAP
 // automation window. It never receives or stores a platform password.
 
+async function gcloudStatus(_req, res) {
+  try {
+    const status = await gcloudKeyService.status();
+    return res.json(status);
+  } catch (error) {
+    return res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
 function listAutoCreatePlatforms(_req, res) {
   // Do not expose selectors or implementation details to the browser.
   res.json({ platforms: listPlatformDirectory(AUTO_CREATE_PLATFORMS) });
@@ -239,6 +250,17 @@ async function autoCreateKey(req, res) {
       if (!parentToken) return res.status(400).json({ error: 'Cloudflare requires a parent token.' });
       const result = await createCloudflareToken({ parentToken, tokenName });
       return res.json({ success: true, ...result });
+    }
+
+    // Google AI Studio: local gcloud CLI orchestration (no browser, no RPA).
+    if (platform === 'google-aistudio') {
+      try {
+        const result = await gcloudKeyService.createKey({ tokenName });
+        return res.json({ success: true, ...result });
+      } catch (error) {
+        const status = error && error.code ? 400 : 500;
+        return res.status(error && error.code === 'GCLOUD_CREATE_FAILED' ? 500 : status).json({ success: false, error: error.message, errorCode: error.code });
+      }
     }
 
     // Browser platforms: use Chrome Extension (no login needed — shares cookies)
@@ -323,6 +345,11 @@ async function deleteAutoCreateKey(req, res) {
       await deleteCloudflareToken({ parentToken, tokenId });
       return res.json({ success: true, platform, name: createdName });
     }
+    if (platform === 'google-aistudio') {
+      const { project } = req.body || {};
+      await gcloudKeyService.deleteKey({ keyUid: tokenId, project });
+      return res.json({ success: true, platform, name: createdName });
+    }
     const platformConfig = AUTO_CREATE_PLATFORM_MAP.get(platform);
     if (!platformConfig) return res.status(400).json({ success: false, error: `Unknown platform: ${platform}` });
     if (!isExtensionConnected()) return res.status(503).json({ success: false, error: 'MODELSWAP 浏览器扩展未连接' });
@@ -398,6 +425,7 @@ module.exports = {
   resumeAutoCreateRun,
   deleteAutoCreateKey,
   createCloudflareToken,
+  gcloudStatus,
   deleteCloudflareToken,
   deleteCreatedBrowserKey,
   recoverLatestZaiGlobalKey,

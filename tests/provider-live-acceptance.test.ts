@@ -377,10 +377,13 @@ describe('provider-live-acceptance platform catalogue', () => {
     expect(platform?.maskedPrefix).toBe('sk-tp-');
   });
 
-  it('listAllPlatforms exposes all 32 platforms with modes', () => {
-    expect(listAllPlatforms()).toHaveLength(32);
+  it('listAllPlatforms exposes all 33 platforms with modes', () => {
+    expect(listAllPlatforms()).toHaveLength(33);
     expect(listAllPlatforms().filter((platform) => platform.mode === 'api')).toEqual([
       expect.objectContaining({ id: 'cloudflare' }),
+    ]);
+    expect(listAllPlatforms().filter((platform) => platform.mode === 'cli')).toEqual([
+      expect.objectContaining({ id: 'google-aistudio' }),
     ]);
   });
 });
@@ -1341,7 +1344,7 @@ describe('provider live-acceptance CLI subprocess', { timeout: 30000 }, () => {
   it('hardened auto-create-key-check still supports --list and explicit dry-run plans', () => {
     const listRun = runNode(OLD_CHECK_SCRIPT, ['--list']);
     expect(listRun.status).toBe(0);
-    expect(listRun.stdout.trim().split('\n')).toHaveLength(32);
+    expect(listRun.stdout.trim().split('\n')).toHaveLength(33);
 
     const dryRun = runNode(OLD_CHECK_SCRIPT, ['--dry-run', 'zhipu']);
     expect(dryRun.status).toBe(0);

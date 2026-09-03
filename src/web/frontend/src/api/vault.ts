@@ -15,7 +15,7 @@ export interface AutoCreatePlatform {
   keyHint: string;
   defaultKeyName?: string;
   groupHint: string;
-  mode: 'api' | 'browser';
+  mode: 'api' | 'browser' | 'cli';
   permissionNote?: 'volcengine-identity' | 'openrouter-management';
   keyLimits?: Array<{
     max: number;
@@ -73,6 +73,17 @@ export async function setVault(data: {
 
 export async function listAutoCreatePlatforms(): Promise<{ platforms: AutoCreatePlatform[] }> {
   return api('/api/vault/auto-create/platforms');
+}
+
+export interface GcloudStatus {
+  installed: boolean;
+  account: string | null;
+  project: string | null;
+  hint: 'install' | 'login' | 'ready';
+}
+
+export async function getGcloudStatus(): Promise<GcloudStatus> {
+  return api('/api/vault/auto-create/gcloud/status');
 }
 
 export async function deleteVault(key: string): Promise<{ success: boolean }> {
