@@ -109,7 +109,8 @@ deleteKey(uid)        // gcloud services api-keys delete <uid>
 
 | 风险 | 概率 | 对策 |
 |------|------|------|
-| gcloud 创建的 Key 不能走免费层（Google 只认 AI Studio Key） | 低 | 前置验证第 5 步拦截；失败则降级为手动录入模式 |
+| 全新无 billing 项目被自动封禁（403 project denied，2026-09-03 实测发生，约 1 小时内） | 高 | 建 key 后立即真实验证，失败删 key 换候选项目重试；优先复用已有项目；全败时提示先在 AI Studio 网页建一次 Key |
+| gcloud 创建的 Key 不能走免费层（Google 只认 AI Studio Key） | 低（实测已排除：已有项目内 CLI key 免费层生成成功） | 前置验证第 5 步拦截；失败则降级为手动录入模式 |
 | 用户机器没有 gcloud / 不愿装 | 中 | 检测不到 gcloud 时给出手动录入入口 + 打开 aistudio.google.com/apikeys |
 | 国内网络访问 Google | 高（已知） | 文档标注需代理，与 Anthropic/OpenAI 现状一致，不额外处理 |
 | 项目数配额（每账号约 30 个项目） | 低 | 优先复用已有项目，Key 名统一 `modelswap-` 前缀便于识别 |

@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.54",
+  "publishedAt": "2026-09-03",
+  "summary": {
+    "zh": "gcloud 一键创建 Google AI Studio Key 的可靠性加固：建 key 后立即真实调用验证，失败自动换项目重试。起因是实测发现 Google 会对全新且未绑定付款方式的项目自动封禁生成请求（403 project denied），而复用已有项目稳定可用。",
+    "en": "Hardens gcloud key creation for Google AI Studio: every freshly created key is verified with a real generation call, and failures automatically retry on another project. This follows a live finding — Google auto-denies generation on brand-new no-billing projects (403 project denied) while existing projects keep working."
+  },
+  "highlights": [
+    {
+      "category": "fixed",
+      "zh": "新建 key 后立即用最小生成调用验证可用性（models 列表不足以暴露项目封禁），失败即删除坏 key 并按候选项目顺序重试。",
+      "en": "New keys are verified with a minimal generation call (model listing cannot surface a project-level deny); on failure the bad key is deleted and the next candidate project is retried."
+    },
+    {
+      "category": "improved",
+      "zh": "项目选择策略：优先复用已有 AI Studio/ModelSwap 命名项目（Google 信任度高），新建仅作兜底；绝不触碰账号下无关项目。",
+      "en": "Project selection now prefers existing AI-Studio-style/ModelSwap projects (most trusted by Google); creating a new one is the fallback, and unrelated account projects are never touched."
+    },
+    {
+      "category": "fixed",
+      "zh": "全部候选失败时的报错附操作指引（先在 AI Studio 网页生成一次 Key 建立可信项目，再回来复用）。",
+      "en": "When every candidate fails, the error now includes actionable guidance (create one key in the AI Studio web console first to establish a trusted project, then reuse it here)."
+    }
+  ]
+}
