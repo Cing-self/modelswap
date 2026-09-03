@@ -18,7 +18,7 @@
 
 | Group | Platforms |
 |-------|-----------|
-| International | OpenAI, Anthropic, Cloudflare, xAI (Grok), Mistral, OpenRouter |
+| International | OpenAI, Anthropic, xAI (Grok), Mistral, OpenRouter |
 | Zhipu | Zhipu AI (CN), Z.AI (international) |
 | Volcengine | Volcengine, Volcengine Agent Plan |
 | Tencent Cloud | Tencent Cloud, Tencent Cloud Token Plan |

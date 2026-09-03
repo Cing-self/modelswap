@@ -21,9 +21,9 @@ const { AUTO_CREATE_PLATFORMS, BROWSER_LOGIN_VERIFICATION_PLATFORMS, isLoginFail
 describe('auto-create key platforms', () => {
   const ids = AUTO_CREATE_PLATFORMS.map(platform => platform.id);
 
-  it('covers every bundled remote API provider plus Cloudflare', () => {
+  it('covers every bundled remote API provider', () => {
     expect(ids).toEqual(expect.arrayContaining([
-      'cloudflare', 'openai', 'anthropic',
+      'openai', 'anthropic',
       'volcengine', 'zhipu', 'zai-global',
       'minimax', 'minimax-global', 'deepseek', 'moonshot', 'kimi-coding',
       'qwen', 'qwen-token-plan', 'qianfan', 'qianfan-coding', 'xiaomi', 'xiaomi-coding', 'stepfun', 'xai', 'mistral', 'openrouter',
@@ -36,6 +36,13 @@ describe('auto-create key platforms', () => {
     expect(ids).not.toContain('groq');
     expect(ids).not.toContain('fireworks');
     expect(ids).not.toContain('together');
+  });
+
+  it('keeps Cloudflare and Google AI Studio auto-create dormant', () => {
+    // api/cli auto-create channels are temporarily not offered; the service
+    // code stays behind for a future re-enable (see auto-create-platforms.js).
+    expect(ids).not.toContain('cloudflare');
+    expect(ids).not.toContain('google-aistudio');
   });
 
   it('declares the metadata needed to store a generated key safely', () => {

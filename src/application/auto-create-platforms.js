@@ -2,13 +2,10 @@
 function createAutoCreatePlatforms(deps) {
   const { ZHIPU_URL, VOLC_URL, VOLC_AGENT_PLAN_URL, MINIMAX_URL } = deps;
 const AUTO_CREATE_PLATFORMS = [
-  { id: 'cloudflare', label: 'Cloudflare', keyHint: 'CLOUDFLARE_TOKEN', groupHint: 'Cloudflare', mode: 'api' },
-  // Google AI Studio keys are GCP API keys scoped to the Gemini API; the
-  // official gcloud CLI can create/delete them without RPA and without a
-  // billing account (free tier is quota-limited, not paywalled). The only
-  // manual step is the one-time `gcloud auth login` browser OAuth.
-  // See docs/architecture/google-aistudio-support.md.
-  { id: 'google-aistudio', label: 'Google AI Studio', keyHint: 'GEMINI_API_KEY', groupHint: 'Google', mode: 'cli', manualUrl: 'https://aistudio.google.com/apikeys' },
+  // Cloudflare (api mode, needs a pre-existing parent token) and Google AI
+  // Studio (cli mode, gcloud) offerings are intentionally dormant: the
+  // platform entries are removed so the directory/UI/API no longer offer
+  // them, while their service code stays for a future re-enable.
   // Verified in the authenticated Platform console: the name field is
   // "My Test Key", and the dialog ends with "Create secret key".
   { id: 'openai', label: 'OpenAI', keyHint: 'OPENAI_API_KEY', groupHint: 'OpenAI', mode: 'browser', url: 'https://platform.openai.com/api-keys', createTexts: ['Create new secret key'], createWaitAttempts: 30, deleteReadyAttempts: 30, deleteButtonSelector: 'button[data-color="danger"]', nameSelectors: ['input[placeholder="My Test Key"]'], confirmTexts: ['Create secret key'], postCreateDomReadAttempts: 5, postCreateReadAttempts: 5, keyPatterns: ['sk-(?:proj-)?[A-Za-z0-9_-]{20,}'] },

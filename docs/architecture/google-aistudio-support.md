@@ -1,6 +1,8 @@
 # Google AI Studio（Gemini API）支持方案
 
-> 状态：**POC 已通过（2026-09-03）**，实现已合入 ｜ 目标：支持 Google AI Studio 的 Gemini API，Key 获取不走 RPA。
+> 状态：已实现（v1.0.51–54）；2026-09-03 起自动创建入口暂时下线 ｜ 目标：支持 Google AI Studio 的 Gemini API，Key 获取不走 RPA。
+>
+> **下线说明**：Provider（google preset）与模型发现不受影响；仅 Vault 自动创建目录移除 `google-aistudio` 条目（Cloudflare 的 api 通道同批下线）。gcloud 服务代码与测试保留，恢复时在 `auto-create-platforms.js` 重新加回条目即可。
 >
 > POC 记录：gcloud 新建无 billing 项目 `modelswap-gemini-poc` → CLI 创建 AIza Key → `gemini-flash-lite-latest:generateContent` 免费层真实生成成功。注意：2.5 系列模型对新用户已下架（提示改用 3.x），3.6-flash 高峰期可能 503。
 
