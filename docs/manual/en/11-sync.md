@@ -24,9 +24,26 @@ Turn on **Auto Sync** in settings and forget about manual push/pull:
 
 ## 11.3 LAN device sync
 
-Sync directly between machines on the same LAN — no cloud account needed (Settings → Device Sync → Add device):
+Sync directly between machines on the same LAN — no cloud account needed. Entry point: **Settings → Device Sync → Add device**.
 
-- On the always-on machine, choose **Add device → This machine as host**, then copy the `modelswap-lan://` pairing code
-- On the other machine, click **Add device**, paste the code, and **Connect**; both machines must use the **same sync password**
-- The device list shows live online status; data is end-to-end encrypted. Re-pair if the host IP changes
-- If the firewall blocks the first connection, allow inbound connections for ModelSwap (LAN sync defaults to port 3790). LAN and cloud sync can be enabled together as mutual backups
+> Prerequisites: both machines on the same LAN, using the **same sync password** (it is the root of the end-to-end encryption; if the primary machine has none yet, the dialog asks for one when you start).
+
+**① Start from the machine that has the data (primary)**
+
+1. **Settings → Device Sync** → click **Add device**
+2. Choose **"Start from this machine"** (this machine already has data)
+3. The dialog generates a one-time `modelswap-lan://` pairing code (expires after a short window) — copy it
+4. Keep ModelSwap running on this machine; it notifies you automatically once the peer pairs
+
+**② Join from the new machine**
+
+1. Install and start ModelSwap on the new machine, go to **Settings → Device Sync → Add device**
+2. Choose **"Join an existing sync"** (this machine is new)
+3. Paste the pairing code, enter the **same sync password** as the primary, click **Connect**
+
+**After pairing**
+
+- The device list shows live online status; a LAN peer acts as a sync platform — manual `modelswap vault push` / `pull` and auto sync both include it
+- Data is end-to-end encrypted; if the primary's IP changes (e.g. the router reassigns it), just re-pair once
+- If the firewall blocks the first connection, allow inbound connections for ModelSwap (default port 3790)
+- LAN and cloud sync can be enabled together as mutual backups; the **⋯** menu in the Device Sync section offers token reset and turning LAN sync off
