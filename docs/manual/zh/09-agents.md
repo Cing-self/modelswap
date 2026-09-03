@@ -1,10 +1,10 @@
-# 8. Agent 配置与模型切换
+# 9. Agent 配置与模型切换
 
 ![Agent 配置页](../images/agents.png)
 
 ModelSwap 适配 10 个 Agent：**Claude Code、ChatGPT (Codex)、Kimi Code、WorkBuddy、Hermes、OpenCode、OpenClaw、ZCode、Grok、MiMo Code**。
 
-## 8.1 切换模型（Web）
+## 9.1 切换模型（Web）
 
 1. **快速启动**页顶部选择 Agent
 2. 打开对应 Provider 的启用开关
@@ -12,9 +12,9 @@ ModelSwap 适配 10 个 Agent：**Claude Code、ChatGPT (Codex)、Kimi Code、Wo
 
 配置文件（`config.toml`、`auth.json`、`settings.json` 等）由 ModelSwap 自动写对，不需要手动编辑。
 
-> ModelSwap 采用**外科手术式写入**：只改 ModelSwap 管理的字段，你自己配置的 hooks、statusLine、MCP 等内容原样保留。每次切换前自动生成配置快照（见第 11 章），出问题随时恢复。
+> ModelSwap 采用**外科手术式写入**：只改 ModelSwap 管理的字段，你自己配置的 hooks、statusLine、MCP 等内容原样保留。每次切换前自动生成配置快照（见第 12 章），出问题随时恢复。
 
-## 8.2 切换模型（CLI）
+## 9.2 切换模型（CLI）
 
 ```bash
 modelswap provider switch            # 交互式切换（可指定 agent）
@@ -22,7 +22,7 @@ modelswap provider use <provider> --agent codex --model <model-id>   # 非交互
 modelswap provider current           # 查看所有 Agent 当前配置
 ```
 
-## 8.3 其他说明
+## 9.3 其他说明
 
 - **Codex 用户**：切换后 ModelSwap 会生成原生模型目录，你可以直接在 Codex CLI 里用 `/model` 切换，不必回到 ModelSwap
 - **配置查看器**：Agent 配置页可查看（并编辑）ModelSwap 为该 Agent 写入的配置文件内容

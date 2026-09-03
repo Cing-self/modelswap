@@ -14,16 +14,53 @@ const OUT = path.join(ROOT, 'docs-site-dist');
 const LANGS = { zh: '中文', en: 'English' };
 const TITLES = { zh: 'ModelSwap 用户手册', en: 'ModelSwap User Manual' };
 
+// Navigation: explicit chapter order & groups — NOT filename sort. The sidebar
+// should mirror the reader's journey (install → keys → models → agents → data →
+// reference), so adding/removing a chapter means updating NAV here, not naming
+// files cleverly. Group labels are per-language.
+const NAV = {
+  en: [
+    { group: 'Getting Started', chapters: ['01-install', '02-console', '03-quickstart'] },
+    { group: 'Key Management', chapters: ['04-extension', '05-auto-create', '06-vault'] },
+    { group: 'Models', chapters: ['07-providers', '08-usage'] },
+    { group: 'Agents', chapters: ['09-agents', '10-agent-skill'] },
+    { group: 'Data & Security', chapters: ['11-sync', '12-snapshots'] },
+    { group: 'Reference', chapters: ['13-settings', '14-cli', '15-faq'] },
+  ],
+  zh: [
+    { group: '快速开始', chapters: ['01-install', '02-console', '03-quickstart'] },
+    { group: '密钥管理', chapters: ['04-extension', '05-auto-create', '06-vault'] },
+    { group: '模型配置', chapters: ['07-providers', '08-usage'] },
+    { group: 'Agent 配置', chapters: ['09-agents', '10-agent-skill'] },
+    { group: '数据与安全', chapters: ['11-sync', '12-snapshots'] },
+    { group: '参考', chapters: ['13-settings', '14-cli', '15-faq'] },
+  ],
+};
+
 function chapters(lang) {
   const dir = path.join(SRC, lang);
   // README.md is the GitHub-facing manual index, not a chapter.
-  const files = fs.readdirSync(dir).filter((f) => f.endsWith('.md') && f !== 'README.md').sort();
-  return files.map((file) => {
+  const bySlug = new Map();
+  for (const file of fs.readdirSync(dir)) {
+    if (!file.endsWith('.md') || file === 'README.md') continue;
     const raw = fs.readFileSync(path.join(dir, file), 'utf-8');
     const h1 = (raw.match(/^#\s+(.+)$/m) || [, file])[1].replace(/^\d+\.\d*\s*/, '');
     const slug = file.replace(/\.md$/, '');
-    return { file, slug, title: h1, raw };
-  });
+    bySlug.set(slug, { file, slug, title: h1, raw });
+  }
+  // Fail loudly on drift between NAV and the chapter files on disk: a listed
+  // chapter that is missing, or a file no longer in NAV, would silently break.
+  const listed = NAV[lang].flatMap((g) => g.chapters);
+  for (const slug of listed) {
+    if (!bySlug.has(slug)) throw new Error(`chapters(): NAV lists "${slug}" but ${lang}/${slug}.md is missing`);
+  }
+  for (const slug of bySlug.keys()) {
+    if (!listed.includes(slug)) throw new Error(`chapters(): ${lang}/${slug}.md exists but is not in NAV`);
+  }
+  return NAV[lang].map(({ group, chapters: slugs }) => ({
+    group,
+    chapters: slugs.map((slug) => bySlug.get(slug)),
+  }));
 }
 
 // Rewrite relative md links to extensionless pretty URLs (Cloudflare Workers
@@ -55,6 +92,8 @@ header .lang{margin-left:auto;font-size:13px;color:var(--cream-38)}
 header .lang a{padding:4px 9px;border-radius:6px}header .lang a.on{background:var(--panel-2);color:var(--cream)}
 .wrap{display:flex;max-width:1180px;margin:0 auto;padding:0 28px}
 nav{width:256px;flex:none;padding:30px 14px 72px;position:sticky;top:61px;height:calc(100vh - 61px);overflow:auto;border-right:1px solid var(--hairline)}
+nav .nav-group{margin:22px 0 6px;padding:0 12px;font:600 11px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--cream-38)}
+nav .nav-group:first-child{margin-top:0}
 nav a{display:block;padding:6px 12px;border-radius:8px;font-size:13.5px;color:var(--cream-60)}
 nav a:hover{background:var(--panel);color:var(--cream)}
 nav a.on{background:var(--panel-2);color:var(--lime);font-weight:600}
@@ -89,12 +128,23 @@ main blockquote p{color:var(--cream)}
 @media(max-width:900px){nav{display:none}main{padding:24px 6px 80px}.docs-nav-mobile{display:block}}
 `;
 
+function renderNav(groups, currentSlug) {
+  return groups
+    .map(
+      ({ group, chapters }) =>
+        `<div class="nav-group">${group}</div>` +
+        chapters
+          .map((c) => `<a href="${c.slug}"${c.slug === currentSlug ? ' class="on"' : ''}>${c.title}</a>`)
+          .join('')
+    )
+    .join('');
+}
+
 function page({ lang, chapter, all, index }) {
   const body = rewrite(marked.parse(chapter.raw, { async: false }));
-  const prev = all[index - 1], next = all[index + 1];
-  const nav = all
-    .map((c) => `<a href="${c.slug}"${c === chapter ? ' class="on"' : ''}>${c.title}</a>`)
-    .join('');
+  const flat = all.flatMap((g) => g.chapters);
+  const prev = flat[index - 1], next = flat[index + 1];
+  const nav = renderNav(all, chapter.slug);
   const other = lang === 'zh' ? 'en' : 'zh';
   return `<!DOCTYPE html><html lang="${lang === 'zh' ? 'zh-CN' : 'en'}"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -122,14 +172,15 @@ ${body}
 fs.rmSync(OUT, { recursive: true, force: true });
 for (const lang of Object.keys(LANGS)) {
   const all = chapters(lang);
+  const flat = all.flatMap((g) => g.chapters);
   fs.mkdirSync(path.join(OUT, lang), { recursive: true });
-  all.forEach((chapter, index) => {
+  flat.forEach((chapter, index) => {
     fs.writeFileSync(path.join(OUT, lang, chapter.slug + '.html'), page({ lang, chapter, all, index }));
   });
   // images are shared (../images/) → copy once per lang dir
   fs.cpSync(path.join(SRC, 'images'), path.join(OUT, lang, 'images'), { recursive: true });
   // /zh/ index → first chapter
-  fs.writeFileSync(path.join(OUT, lang, 'index.html'), `<meta http-equiv="refresh" content="0;url=${all[0].slug}">`);
+  fs.writeFileSync(path.join(OUT, lang, 'index.html'), `<meta http-equiv="refresh" content="0;url=${flat[0].slug}">`);
 }
 fs.writeFileSync(path.join(OUT, 'style.css'), CSS);
 fs.writeFileSync(path.join(OUT, 'index.html'), `<meta http-equiv="refresh" content="0;url=/zh/">`);

@@ -2,7 +2,7 @@
 
 ![Models page](../images/models.png)
 
-- The **Models** page ships 40 provider presets (official APIs, aggregators, Chinese platforms) — click a card to configure
+- The **Models** page ships 41 provider presets (official APIs, aggregators, Chinese platforms) — click a card to configure
 - Each provider takes three things: **endpoint** (official API or compatible endpoint), **auth method** (API key / OAuth, mutually exclusive), and the **key** (pick from the vault or paste)
 - Card menu (top right):
   - **Connect**: test connectivity and pull the platform's model list

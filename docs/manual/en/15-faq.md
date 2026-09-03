@@ -1,4 +1,4 @@
-# 14. FAQ
+# 15. FAQ
 
 **Q: The extension is installed but won't connect?**
 The extension auto-detects ModelSwap's port (tries 3780 and upward). Make sure ModelSwap is running and the extension isn't disabled in Chrome; if it still fails, restart ModelSwap and toggle the extension off/on in `chrome://extensions/`.

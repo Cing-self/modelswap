@@ -1,4 +1,4 @@
-# 11. Config Snapshots & Restore
+# 12. Config Snapshots & Restore
 
 ![Config history](../images/snapshots.png)
 

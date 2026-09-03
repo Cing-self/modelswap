@@ -1,4 +1,4 @@
-# 12. Settings Reference
+# 13. Settings Reference
 
 ![Settings page](../images/settings.png)
 
@@ -7,7 +7,7 @@
 | Language & Appearance | UI language, light/dark mode, color scheme |
 | Device Sync | LAN device status, device list, pairing entry |
 | Cloud Backup | Sync platforms, sync password, auto sync toggle |
-| Config History | Snapshots & restore (chapter 11) |
+| Config History | Snapshots & restore (chapter 12) |
 | About & Diagnostics | Local service health check, manual desktop update checks |
 | Activity Log | Key/config operation log |
 

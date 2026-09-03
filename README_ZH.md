@@ -84,12 +84,12 @@ modelswap sync pair --create               # 局域网配对，或 sync push/pul
 
 ### 给 AI Agent 使用
 
-安装包随附 [`modelswap-cli` Agent Skill](skills/modelswap-cli/SKILL.md)。运行 `modelswap skill install /path/to/project` 会将它安装到目标项目的 `.agents/skills/modelswap-cli/`；`modelswap skill path` 可输出内置原文件位置。Skill 说明了可解析的只读命令、非交互式模型切换，以及密钥明文与云同步的安全边界。
+安装包随附 [`modelswap` Agent Skill](skills/modelswap/SKILL.md)。运行 `modelswap skill install /path/to/project` 会将它安装到目标项目的 `.agents/skills/modelswap/`；`modelswap skill path` 可输出内置原文件位置。Skill 说明了可解析的只读命令、非交互式模型切换，以及密钥明文与云同步的安全边界。
 
 也可以通过 [skills.sh](https://skills.sh/) 直接从公开仓库安装：
 
 ```bash
-npx skills add Cing-self/modelswap --skill modelswap-cli
+npx skills add Cing-self/modelswap --skill modelswap
 ```
 
 ### 从源码构建与开发

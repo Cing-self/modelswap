@@ -1,6 +1,6 @@
-# 6. Key Sync
+# 11. Multi-Device Sync
 
-## 6.1 Cloud sync
+## 11.1 Cloud sync
 
 End-to-end encrypted cross-machine sync. The cloud only ever sees ciphertext; the master key stays on your machine. All machines use the **same sync password**. Supported platforms: iCloud, WebDAV, Cloudflare (R2 / KV / D1 / Workers Secrets), Supabase, Volcengine.
 
@@ -12,7 +12,7 @@ modelswap vault pull                 # pull the newest copy from each platform a
 modelswap vault test cloudflare-kv   # test one platform's connection (e.g. supabase, cloudflare-kv)
 ```
 
-## 6.2 Auto sync (recommended)
+## 11.2 Auto sync (recommended)
 
 Turn on **Auto Sync** in settings and forget about manual push/pull:
 
@@ -22,7 +22,7 @@ Turn on **Auto Sync** in settings and forget about manual push/pull:
 - On service start, ModelSwap merges remotes first, then pushes any unsent local changes
 - The first enable pushes once immediately to establish a cloud baseline
 
-## 6.3 LAN device sync
+## 11.3 LAN device sync
 
 Sync directly between machines on the same LAN — no cloud account needed (Settings → Device Sync → Add device):
 

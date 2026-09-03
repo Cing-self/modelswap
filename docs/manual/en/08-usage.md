@@ -1,4 +1,4 @@
-# 9. Usage & Alerts
+# 8. Usage & Alerts
 
 ![Usage page](../images/usage.png)
 
