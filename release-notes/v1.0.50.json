@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.50",
+  "publishedAt": "2026-09-03",
+  "summary": {
+    "zh": "文档站视觉与官网统一：改用官网 Command Luxe 深色设计语言（同画布色、奶油白文字、荧光绿强调、Fraunces/Inter/IBM Plex Mono 字体族），阅读体验与品牌一致性提升。",
+    "en": "Docs site visual language now matches the main site: same Command Luxe dark palette (canvas, cream text, lime accent, Fraunces/Inter/IBM Plex Mono type stack) for brand consistency."
+  },
+  "highlights": [
+    {
+      "category": "improved",
+      "zh": "docs.modelswap.app 整体换装官网深色设计系统：同色画布与强调色、同字体族，标题衬线体 + 正文 Inter。",
+      "en": "docs.modelswap.app adopts the main site dark design system: same canvas and accent colors, same type stack, serif headings + Inter body."
+    },
+    {
+      "category": "improved",
+      "zh": "侧边栏/章节抽屉/翻页/表格/代码块/引用全部按新令牌重制，链接与当前章高亮使用官方荧光绿。",
+      "en": "Sidebar, chapter drawer, pager, tables, code blocks and quotes restyled on the new tokens; links and the active chapter use the official lime accent."
+    },
+    {
+      "category": "improved",
+      "zh": "窄屏章节抽屉样式同步换装，行为与断点不变。",
+      "en": "The narrow-viewport chapter drawer follows the new look; behavior and breakpoints unchanged."
+    }
+  ]
+}
