@@ -7,7 +7,7 @@ const os = require('os');
 const fs = require('fs-extra');
 const { spawn } = require('child_process');
 const { listVault, setVault, deleteVault, exportVault, importVault, getVaultValue, testApiKey, migrateGroups } = require('./api/vault');
-const { autoCreateKey, autoCreateRunStatus, resumeAutoCreateRun, deleteAutoCreateKey, recoverLatestZaiGlobalKey, cdpStatus, listAutoCreatePlatforms, openVerificationLoginTabs } = require('./api/auto-create');
+const { autoCreateKey, autoCreateRunStatus, resumeAutoCreateRun, deleteAutoCreateKey, recoverLatestZaiGlobalKey, cdpStatus, listAutoCreatePlatforms, openVerificationLoginTabs, gcloudStatus } = require('./api/auto-create');
 const { getLogs } = require('./api/logs');
 const { getSettings, updateSettings, testPlatformConnection, getPresets, getOnboarding, dismissOnboarding, resetOnboarding } = require('./api/settings');
 const { checkWrangler, listStores, listStoreSecrets, syncToCloudflare } = require('./api/cloudflare-sync');
@@ -76,6 +76,7 @@ function createServer(port = 3780) {
     }
   });
   app.get('/api/vault/auto-create/platforms', listAutoCreatePlatforms);
+  app.get('/api/vault/auto-create/gcloud/status', gcloudStatus);
   app.post('/api/vault/auto-create/open-login-tabs', openVerificationLoginTabs);
   app.get('/api/vault/cdp-status', cdpStatus);
 

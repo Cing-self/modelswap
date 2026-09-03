@@ -29,6 +29,14 @@
       "models": []
     },
     {
+      "id": "google",
+      "name": "Google AI Studio",
+      "type": "openai",
+      "baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai",
+      "authMode": "api_key",
+      "models": []
+    },
+    {
       "id": "openai-codex",
       "name": "ChatGPT",
       "type": "openai",
@@ -2485,6 +2493,57 @@
       "models": []
     },
     {
+      "id": "google",
+      "name": "Google AI Studio",
+      "providerIds": [
+        "google"
+      ],
+      "offerings": [
+        {
+          "id": "google",
+          "type": "api",
+          "label": "API 平台",
+          "providerId": "google",
+          "endpointIds": [
+            "google:endpoint:yn3vp8"
+          ],
+          "authMethodIds": [
+            "google:api-key"
+          ],
+          "executionMode": "http_endpoint"
+        }
+      ],
+      "authMethods": [
+        {
+          "id": "google:api-key",
+          "type": "api_key",
+          "label": "API Key",
+          "providerId": "google",
+          "status": "unconfigured"
+        }
+      ],
+      "endpoints": [
+        {
+          "id": "google:endpoint:yn3vp8",
+          "name": "OPENAI",
+          "offeringId": "google",
+          "baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai",
+          "protocol": {
+            "family": "openai",
+            "mode": "chat"
+          },
+          "authMethodIds": [
+            "google:api-key"
+          ],
+          "modelDiscovery": {
+            "type": "remote",
+            "path": "/models"
+          }
+        }
+      ],
+      "models": []
+    },
+    {
       "id": "deepseek",
       "name": "DeepSeek",
       "providerIds": [
@@ -2964,6 +3023,7 @@
         "anthropic",
         "anthropic-agent",
         "openai",
+        "google",
         "openai-codex",
         "xai",
         "xai-grok-build",
@@ -3318,7 +3378,6 @@
     }
   ],
   "retired": [
-    "google",
     "google-agent",
     "groq",
     "fireworks",

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getVaultValue, listAutoCreatePlatforms, setVault, type AutoCreatePlatform, type VaultSecret } from '../../api/vault';
+import { getGcloudStatus, getVaultValue, listAutoCreatePlatforms, setVault, type AutoCreatePlatform, type GcloudStatus, type VaultSecret } from '../../api/vault';
 import { apiRaw } from '../../api/client';
 import { useI18n } from '../../i18n';
 import CustomSelect from './CustomSelect';
@@ -40,6 +40,7 @@ export default function VaultFormModal({ groups, initialSecret, onBeforeSave, on
   const [autoRunId, setAutoRunId] = useState<string | null>(null);
   const [parentToken, setParentToken] = useState('');
   const [autoPlatforms, setAutoPlatforms] = useState<AutoCreatePlatform[]>([]);
+  const [gcloudStatus, setGcloudStatus] = useState<GcloudStatus | null>(null);
   const [loadingPlatforms, setLoadingPlatforms] = useState(false);
 
   useEffect(() => {
@@ -142,6 +143,7 @@ export default function VaultFormModal({ groups, initialSecret, onBeforeSave, on
     setAutoNotice('');
     setLoginHandoff(null);
     setVerificationHandoff(null);
+    setGcloudStatus(null);
   }
 
   async function pollAutoCreateRun(runId: string, platform: AutoCreatePlatform, tokenName: string) {
@@ -257,6 +259,15 @@ export default function VaultFormModal({ groups, initialSecret, onBeforeSave, on
 
   const selectedPlatform = autoPlatforms.find(p => p.id === autoPlatform);
 
+  useEffect(() => {
+    if (selectedPlatform?.mode !== 'cli' || gcloudStatus) return;
+    let cancelled = false;
+    getGcloudStatus()
+      .then((status) => { if (!cancelled) setGcloudStatus(status); })
+      .catch(() => { if (!cancelled) setGcloudStatus(null); });
+    return () => { cancelled = true; };
+  }, [selectedPlatform?.mode, gcloudStatus]);
+
   function formatKeyLimit(limit: NonNullable<AutoCreatePlatform['keyLimits']>[number]) {
     const scopeLabels: Record<string, string> = {
       user: t('vault.autoCreateKeyLimitScopeUser'),
@@ -337,7 +348,7 @@ export default function VaultFormModal({ groups, initialSecret, onBeforeSave, on
                     placeholder={loadingPlatforms ? t('common.loading') : t('vault.autoCreateSelectPlatform')}
                     options={autoPlatforms.map(p => ({
                       value: p.id,
-                      label: `${p.label}${p.mode === 'api' ? ' (API)' : ` (${t('vault.browserMode')})`}`,
+                      label: `${p.label}${p.mode === 'api' ? ' (API)' : p.mode === 'cli' ? ' (CLI)' : ` (${t('vault.browserMode')})`}`,
                     }))}
                   />
                   {selectedPlatform?.permissionNote === 'volcengine-identity' && (
@@ -370,6 +381,14 @@ export default function VaultFormModal({ groups, initialSecret, onBeforeSave, on
                   </div>
                 )}
                 {selectedPlatform?.mode === 'browser' && <p className="vault-auto-create-hint">{t('vault.autoCreateBrowserHint')}</p>}
+                {selectedPlatform?.mode === 'cli' && (
+                  <p className="vault-auto-create-hint">
+                    {!gcloudStatus && t('vault.autoCreateCliChecking')}
+                    {gcloudStatus?.hint === 'install' && t('vault.autoCreateCliInstallHint')}
+                    {gcloudStatus?.hint === 'login' && t('vault.autoCreateCliLoginHint')}
+                    {gcloudStatus?.hint === 'ready' && t('vault.autoCreateCliReadyHint', { account: gcloudStatus.account || '', project: gcloudStatus.project || '' })}
+                  </p>
+                )}
                 {verificationHandoff && (
                   <div className="vault-auto-create-login" role="alert">
                     <strong>{t('vault.autoCreateVerificationRequired')}: {verificationHandoff.platformLabel}</strong>

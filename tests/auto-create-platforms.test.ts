@@ -42,9 +42,13 @@ describe('auto-create key platforms', () => {
     for (const platform of AUTO_CREATE_PLATFORMS) {
       expect(platform.keyHint).toMatch(/^[A-Z0-9_]+$/);
       expect(platform.groupHint).toBeTruthy();
-      expect(['api', 'browser']).toContain(platform.mode);
+      expect(['api', 'browser', 'cli']).toContain(platform.mode);
       if (platform.mode === 'browser') {
         expect(platform.url).toMatch(/^https:\/\//);
+      }
+      if (platform.mode === 'cli') {
+        // cli 平台给一个手动创建 Key 的官方入口兜底
+        expect(platform.manualUrl).toMatch(/^https:\/\//);
       }
     }
   });

@@ -12,7 +12,8 @@
 // These used to be bundled presets. Retire them on load so existing MODELSWAP
 // installations match the current UI.
 export const RETIRED_PRESET_PROVIDER_IDS = new Set([
-  "google",
+  // "google" rejoined the preset list (2026-09): Gemini API keys need no
+  // billing account — see docs/architecture/google-aistudio-support.md.
   "google-agent",
   "groq",
   "fireworks",
@@ -83,7 +84,7 @@ export const PRESET_MODEL_ID_MIGRATIONS = new Map<string, string[][]>([
 
 // ── Provider groups (left-nav in models page) ────────────────
 export const PROVIDER_GROUPS: { key: string; labelKey: string; ids: string[] }[] = [
-  { key: "official", labelKey: "models.groupOfficial", ids: ["anthropic", "anthropic-agent", "openai", "openai-codex", "xai", "xai-grok-build", "github-copilot", "mistral"] },
+  { key: "official", labelKey: "models.groupOfficial", ids: ["anthropic", "anthropic-agent", "openai", "google", "openai-codex", "xai", "xai-grok-build", "github-copilot", "mistral"] },
   { key: "aggregator", labelKey: "models.groupAggregator", ids: ["openrouter", "opencode-go", "opencode-zen"] },
   { key: "china", labelKey: "models.groupChina", ids: [
     // 智谱
