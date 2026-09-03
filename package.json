@@ -1,6 +1,6 @@
 {
   "name": "modelswap",
-  "version": "1.0.57",
+  "version": "1.0.58",
   "description": "ModelSwap — the key & model console for AI coding agents. Vault, provider switching, usage monitoring.",
   "main": "dist/main.js",
   "bin": {
