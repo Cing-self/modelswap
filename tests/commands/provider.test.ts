@@ -64,7 +64,12 @@ describe("provider CLI resolved-model propagation", () => {
     await providerSwitch("openclaw");
 
     expect(fixture.adapter.applyConfig).toHaveBeenCalledWith(
-      fixture.routedProvider,
+      // The CLI mirrors only the switched-to model into agent configs, the
+      // same curated set the Web path sends — never the full provider catalog.
+      expect.objectContaining({
+        baseUrl: "https://gateway.example/routed",
+        models: [expect.objectContaining({ id: "remote-canonical", canonicalId: "canonical" })],
+      }),
       "remote-canonical",
       expect.objectContaining({
         id: "canonical", name: "User override", context: 64000, output: 8192,
@@ -80,7 +85,12 @@ describe("provider CLI resolved-model propagation", () => {
     await providerUse("gateway", { agent: "openclaw", model: "canonical" });
 
     expect(fixture.adapter.applyConfig).toHaveBeenCalledWith(
-      fixture.routedProvider,
+      // The CLI mirrors only the switched-to model into agent configs, the
+      // same curated set the Web path sends — never the full provider catalog.
+      expect.objectContaining({
+        baseUrl: "https://gateway.example/routed",
+        models: [expect.objectContaining({ id: "remote-canonical", canonicalId: "canonical" })],
+      }),
       "remote-canonical",
       expect.objectContaining({ id: "canonical", name: "User override", context: 64000 }),
       expect.objectContaining({

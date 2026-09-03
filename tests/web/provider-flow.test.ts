@@ -284,6 +284,13 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
       const fs=require('fs'), path=require('path'), http=require('http');
       const api=require(path.join(process.argv[1], 'src/web/api/providers.js'));
       const call=(handler, req={})=>new Promise((resolve,reject)=>handler(req,{status(c){this.code=c;return this},json(v){(this.code||200)>=400?reject(new Error(v.error)):resolve(v)}}));
+      // Handlers fire-and-forget recordLocalChange commits; a raw user.json
+      // access racing the queued atomic write surfaces as EBUSY on Windows
+      // (run 33744669091) and as a lost raw write on Ubuntu. Awaiting one
+      // more queued commit serializes behind every pending one first — the
+      // same drain the earlier flow test applies.
+      const syncCore=require(path.join(process.argv[1], 'src/web/api/cloud-sync-core.js'));
+      const drain=()=>syncCore.recordLocalChange('providers', new Date().toISOString());
       (async()=>{
         const server=http.createServer((req,res)=>{res.setHeader('content-type','application/json');res.end(JSON.stringify({data:[{id:'remote-one'},{id:'remote-two'}]}));});
         await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
@@ -295,8 +302,10 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
         await call(api.createProvider,{body:open});
         await call(api.createProvider,{body:claude});
         await call(api.configureAgentProvider,{params:{agentId:'codex',providerId:'life-open'},body:{modelIds:['selected-before-refresh'],primaryModelId:'selected-before-refresh'}});
+        await drain();
         const beforePreview=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.modelswap','user.json'),'utf8'));
         await call(api.fetchModels,{body:{providerId:'life-open',endpoints:[{id:'preview',type:'openai',baseUrl:endpoint}]}});
+        await drain();
         const afterPreview=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.modelswap','user.json'),'utf8'));
         const refreshed=await call(api.fetchModels,{body:{providerId:'life-open'}});
         await call(api.configureAgentProvider,{params:{agentId:'codex',providerId:'life-open'},body:{modelIds:['remote-one','remote-two'],primaryModelId:'remote-one'}});
@@ -310,9 +319,11 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
         const offline=await call(api.fetchModels,{body:{providerId:'life-open'}});
         const cacheAfter=fs.readFileSync(cachePath,'utf8');
         const userPath=path.join(process.env.HOME,'.modelswap','user.json');
+        await drain();
         const withOverride=JSON.parse(fs.readFileSync(userPath,'utf8')); withOverride.modelOverrides={'life-open':{'remote-one':{context:777}}}; fs.writeFileSync(userPath,JSON.stringify(withOverride));
         await call(api.deleteProvider,{params:{id:'life-open'}});
         await call(api.deleteProvider,{params:{id:'life-claude'}});
+        await drain();
         const user=JSON.parse(fs.readFileSync(userPath,'utf8'));
         const providers=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.modelswap','providers.json'),'utf8'));
         const codexCatalogPath=path.join(process.env.HOME,'.codex','model-catalogs','model-catalogs.json');
