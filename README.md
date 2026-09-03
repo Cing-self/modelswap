@@ -34,6 +34,12 @@ Keys and models, one console. ModelSwap is a local-first open-source tool that m
 - **Zero daemons, zero interception** — No background process, nothing on your request path: ModelSwap writes config and exits; your agents talk to model platforms directly. Uninstall leaves nothing behind — configs keep working.
 - **Key vault** — AES-256-GCM encrypted local storage with machine-bound key derivation; inject keys into your terminal on demand with `modelswap vault inject --keys …`.
 
+## Supported agents
+
+Ten built-in adapters, each writing that agent's native config files (e.g. `config.toml` + `auth.json` for Codex, `settings.json` for Claude Code):
+
+**Claude Code · ChatGPT Codex · OpenCode · OpenClaw · WorkBuddy · ZCode · Hermes · Kimi Code · Grok · MiMo Code**
+
 ## Comparison
 
 > Based on both projects' official READMEs as of 2026-09 ([cc-switch](https://github.com/farion1231/cc-switch) · [codex-router](https://github.com/duolahypercho/codex-router)). Different tools, different trade-offs — pick what fits.
@@ -148,6 +154,7 @@ LAN mode is peer-to-peer. Cloud sync goes to storage you create yourself (Cloudf
 ## Docs
 
 - [docs.modelswap.app](https://docs.modelswap.app) — user manual ([GitHub source](docs/manual/en/))
+- [llms.txt](https://modelswap.app/llms.txt) / [llms-full.txt](https://modelswap.app/llms-full.txt) — machine-readable product reference for AI assistants
 - [Contributing](CONTRIBUTING.md)
 
 ## License

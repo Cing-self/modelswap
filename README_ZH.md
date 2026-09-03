@@ -32,7 +32,13 @@ English · [官网](https://modelswap.app) · [文档](https://docs.modelswap.ap
 - **切模型不离开终端** — 为每个 Agent 生成原生模型目录，在 CLI 里 `/model` 直接切换，不用回到 ModelSwap。
 - **多设备同步，数据自己做主** — 局域网点对点配对同步（配对码），或接入你自己的云存储（Cloudflare / Supabase / WebDAV / iCloud 等 9 种后端）；也可用一次性同步码在机器间迁移。密文传输，服务器看不到明文。
 - **零常驻、零侵入** — 没有后台进程、不在请求路径上：ModelSwap 写完配置就退出，你的 Agent 直连模型平台。卸载不留痕，配置照常工作。
-- **密钥保险库** — AES-256-GCM 本地加密存储，密钥派生绑定本机，支持与项目绑定自动注入 `.env`。
+- **密钥保险库** — AES-256-GCM 本地加密存储，密钥派生绑定本机，`modelswap vault inject --keys …` 可按需输出 shell export 语句注入终端。
+
+## 支持的 Agent
+
+内置 10 个适配器，各自写入对应 Agent 的原生配置文件（如 Codex 写 `config.toml` + `auth.json`、Claude Code 写 `settings.json`）：
+
+**Claude Code · ChatGPT Codex · OpenCode · OpenClaw · WorkBuddy · ZCode · Hermes · Kimi Code · Grok · MiMo Code**
 
 ## 与同类工具对比
 
@@ -44,8 +50,8 @@ English · [官网](https://modelswap.app) · [文档](https://docs.modelswap.ap
 | 配置写入 | 字段级合并 + 切换前自动快照、一键回滚 | 原子写入 + 自动备份（保留 10 份）+ 通用配置片段 | 托管块（managed block）注入 |
 | 请求路径 | 不经过 ModelSwap | 直连，或经可选代理（热切换/故障转移） | 经本地路由服务转发 |
 | 支持 Agent | 10 个 | 8 个 | Codex 为主（Harness/Gemini CLI 等桥接实验性） |
-| 密钥存储 | AES-256-GCM 加密 vault + 项目绑定 | SQLite 本地库（README 未提及加密） | 本机保存（README 未提及加密） |
-| 自动创建 API Key | 33 个平台（浏览器扩展 + gcloud CLI） | — | — |
+| 密钥存储 | AES-256-GCM 加密 vault | SQLite 本地库（README 未提及加密） | 本机保存（README 未提及加密） |
+| 自动创建 API Key | 31 个平台（浏览器扩展） | — | — |
 | 用量查询 | 37 个订阅/余额来源直查 | 用量仪表盘（支出/请求/Token） | — |
 | 多设备同步 | LAN 点对点 + 9 种自托管云后端 + 同步码 | — | — |
 | 平台 | macOS / Linux / Windows | macOS / Linux / Windows | macOS / Linux / Windows |
@@ -148,6 +154,7 @@ AES-256-GCM 本地加密，密钥派生绑定本机。绝不以明文落盘（�
 ## 文档
 
 - [docs.modelswap.app](https://docs.modelswap.app) — 用户手册（[GitHub 源](docs/manual/zh/)）
+- [llms.txt](https://modelswap.app/llms.txt) / [llms-full.txt](https://modelswap.app/llms-full.txt) — 供 AI 助手阅读的机器可读产品档案
 - [贡献指南](CONTRIBUTING.md)
 
 ## License
