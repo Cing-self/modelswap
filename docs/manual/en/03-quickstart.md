@@ -2,6 +2,8 @@
 
 From a fresh install to your first model switch in ten minutes.
 
+![The ModelSwap console](../images/quick-start.png)
+
 ## 3.1 Install & open
 
 **Desktop app (recommended):** download the dmg from [GitHub Releases](https://github.com/Cing-self/modelswap/releases/latest), drag it into Applications, and open it — the console window appears automatically. If macOS blocks the first launch, follow the steps in [chapter 2](02-install) to allow it once.

@@ -10,7 +10,7 @@
 ## 5.2 操作流程
 
 1. 控制台 → **密钥管理** → **自动创建**
-2. 选择平台（当前支持 33 个，见下表）
+2. 选择平台（当前支持 31 个，见下表）
 3. ModelSwap 会打开浏览器窗口，自动进入该平台的 API Key 页面，填名称、点创建、复制新 Key
 4. Key 自动写入本地加密库（AES-256-GCM），全程不落明文
 
@@ -18,15 +18,15 @@
 
 | 分类 | 平台 |
 |------|------|
-| 国际 | OpenAI、Anthropic、Cloudflare、xAI (Grok)、Mistral、OpenRouter |
+| 国际 | OpenAI、Anthropic、xAI（Grok）、xAI Management Key（用量）、Mistral、OpenRouter、OpenRouter Management Key（用量） |
 | 智谱系 | 智谱 AI（国内站）、Z.AI（国际站） |
 | 火山方舟 | 火山方舟（普通 API Key）、火山方舟 Agent Plan |
 | 腾讯云 | 腾讯云、腾讯云 Token Plan |
-| MiniMax | MiniMax 国内/国际站、MiniMax Token Plan 国内/国际 |
-| 月之暗面 | Moonshot、Moonshot Coding Plan、Kimi 国内站、Kimi 国际站 |
+| MiniMax | MiniMax（国内/国际站）、MiniMax Token Plan（国内/国际） |
+| 月之暗面 | Moonshot、Kimi（国内站）、Kimi Coding Plan |
 | 阿里云 | 阿里云百炼、百炼 Coding Plan、百炼 Token Plan |
-| 百度 | 百度千帆、千帆 Token Plan |
-| 其他 | DeepSeek、硅基流动、小米 MiMo（及 Token Plan）、阶跃星辰、OpenCode Go |
+| 百度 | 百度千帆、百度千帆 Token Plan |
+| 其他 | DeepSeek、硅基流动、小米 MiMo、小米 MiMo Token Plan、阶跃星辰、OpenCode Go |
 
 ## 5.4 特殊情况
 

@@ -2,6 +2,8 @@
 
 从零安装到完成第一次模型切换，十分钟搞定。
 
+![ModelSwap 控制台](../images/quick-start.png)
+
 ## 3.1 安装并启动
 
 **桌面版（推荐）：** 从 [GitHub Release](https://github.com/Cing-self/modelswap/releases/latest) 下载 dmg，拖入「应用程序」并打开——控制台窗口会自动出现。首次打开如被 macOS 拦截，按[第 2 章](02-install)的步骤放行一次。

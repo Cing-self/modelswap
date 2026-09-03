@@ -28,7 +28,6 @@ const SHOTS = [
   { name: 'agents', path: '/?tab=agents', scrollToText: 'AGENT' },
   { name: 'agent-add-site', path: '/?tab=agents', scrollToText: 'AGENT', clickText: '添加站点' },
   { name: 'agent-config-files', path: '/?tab=agents', scrollToText: 'AGENT', clickTitle: '查看配置' },
-  { name: 'model-data', path: '/model-data' },
   { name: 'settings', path: '/settings?section=sync' },
   { name: 'device-pairing', path: '/settings?section=sync', clickText: '添加设备' },
   { name: 'snapshots', path: '/settings?section=snapshots' },

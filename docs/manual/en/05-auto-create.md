@@ -18,15 +18,15 @@
 
 | Group | Platforms |
 |-------|-----------|
-| International | OpenAI, Anthropic, Cloudflare, xAI (Grok), Mistral, OpenRouter |
+| International | OpenAI, Anthropic, xAI (Grok), xAI Management Key (usage), Mistral, OpenRouter, OpenRouter Management Key (usage) |
 | Zhipu | Zhipu AI (CN), Z.AI (international) |
-| Volcengine | Volcengine, Volcengine Agent Plan |
+| Volcengine | Volcengine (standard API key), Volcengine Agent Plan |
 | Tencent Cloud | Tencent Cloud, Tencent Cloud Token Plan |
-| MiniMax | MiniMax CN/international, MiniMax Token Plan CN/international |
-| Moonshot | Moonshot, Moonshot Coding Plan, Kimi CN, Kimi international |
+| MiniMax | MiniMax (CN/international), MiniMax Token Plan (CN/international) |
+| Moonshot | Moonshot, Kimi (CN), Kimi Coding Plan |
 | Alibaba Cloud | Aliyun Bailian, Bailian Coding Plan, Bailian Token Plan |
-| Baidu | Baidu Qianfan, Qianfan Token Plan |
-| Others | DeepSeek, SiliconFlow, Xiaomi MiMo (+ Token Plan), StepFun, OpenCode Go |
+| Baidu | Baidu Qianfan, Baidu Qianfan Token Plan |
+| Others | DeepSeek, SiliconFlow, Xiaomi MiMo, Xiaomi MiMo Token Plan, StepFun, OpenCode Go |
 
 ## 5.4 Special cases
 
