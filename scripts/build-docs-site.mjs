@@ -71,6 +71,26 @@ function rewrite(html) {
     .replace(/(src=")(\.\.\/)?images\//g, '$1images/');
 }
 
+// --- SEO/GEO: per-page meta description + escape helper -----------------
+// One-line description: first prose paragraph of the chapter (skip the h1,
+// headings, tables, images, list/blockquote openers), markdown stripped.
+function metaDescription(raw) {
+  const line = raw
+    .split('\n')
+    .slice(1)
+    .map((l) => l.trim())
+    .find((t) => t && !t.startsWith('#') && !t.startsWith('|') && !t.startsWith('![') && !t.startsWith('- ') && !t.startsWith('>'));
+  if (!line) return null;
+  const text = line
+    .replace(/`([^`]*)`/g, '$1')
+    .replace(/\*\*([^*]*)\*\*/g, '$1')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .trim();
+  return text.length > 158 ? text.slice(0, 155).replace(/\s+\S*$/, '') + '…' : text;
+}
+
+const escAttr = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
 const CSS = `
 :root{
   --canvas:#0b0b09; --cream:#f4f1e8; --cream-60:rgba(244,241,232,.62); --cream-38:rgba(244,241,232,.38);
@@ -146,10 +166,22 @@ function page({ lang, chapter, all, index }) {
   const prev = flat[index - 1], next = flat[index + 1];
   const nav = renderNav(all, chapter.slug);
   const other = lang === 'zh' ? 'en' : 'zh';
+  const url = `https://docs.modelswap.app/${lang}/${chapter.slug}`;
+  const desc = escAttr(metaDescription(chapter.raw) || `${TITLES[lang]} — ModelSwap`);
   return `<!DOCTYPE html><html lang="${lang === 'zh' ? 'zh-CN' : 'en'}"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${chapter.title} · ${TITLES[lang]}</title>
-<meta name="description" content="${TITLES[lang]} — ModelSwap">
+<title>${escAttr(chapter.title)} · ${TITLES[lang]}</title>
+<meta name="description" content="${desc}">
+<link rel="canonical" href="${url}">
+<link rel="alternate" hreflang="zh-CN" href="https://docs.modelswap.app/zh/${chapter.slug}">
+<link rel="alternate" hreflang="en" href="https://docs.modelswap.app/en/${chapter.slug}">
+<link rel="alternate" hreflang="x-default" href="https://docs.modelswap.app/en/${chapter.slug}">
+<meta property="og:title" content="${escAttr(chapter.title)} · ${TITLES[lang]}">
+<meta property="og:description" content="${desc}">
+<meta property="og:type" content="article">
+<meta property="og:url" content="${url}">
+<meta property="og:site_name" content="ModelSwap Docs">
+<meta name="twitter:card" content="summary">
 <link rel="icon" href="https://modelswap.app/assets/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -170,9 +202,11 @@ ${body}
 }
 
 fs.rmSync(OUT, { recursive: true, force: true });
+const built = {};
 for (const lang of Object.keys(LANGS)) {
   const all = chapters(lang);
   const flat = all.flatMap((g) => g.chapters);
+  built[lang] = flat;
   fs.mkdirSync(path.join(OUT, lang), { recursive: true });
   flat.forEach((chapter, index) => {
     fs.writeFileSync(path.join(OUT, lang, chapter.slug + '.html'), page({ lang, chapter, all, index }));
@@ -184,4 +218,74 @@ for (const lang of Object.keys(LANGS)) {
 }
 fs.writeFileSync(path.join(OUT, 'style.css'), CSS);
 fs.writeFileSync(path.join(OUT, 'index.html'), `<meta http-equiv="refresh" content="0;url=/zh/">`);
+
+// --- SEO/GEO artifacts: robots.txt, sitemap.xml, llms.txt, IndexNow key ---
+// Chapter slugs are shared across languages; hreflang alternates are emitted
+// only for slugs that exist in both langs, so a future lang drift can't 404.
+const SITE = 'https://docs.modelswap.app';
+const INDEXNOW_KEY = '145ae795aef948ab8bde8b95748d75eb';
+const today = new Date().toISOString().slice(0, 10);
+const slugLangs = new Map();
+for (const lang of Object.keys(LANGS)) {
+  for (const c of built[lang]) {
+    if (!slugLangs.has(c.slug)) slugLangs.set(c.slug, { title: {}, langs: [] });
+    slugLangs.get(c.slug).title[lang] = c.title;
+    slugLangs.get(c.slug).langs.push(lang);
+  }
+}
+const hreflang = (slug) =>
+  slugLangs.get(slug).langs
+    .map((lang) => `    <xhtml:link rel="alternate" hreflang="${lang === 'zh' ? 'zh-CN' : 'en'}" href="${SITE}/${lang}/${slug}"/>`)
+    .join('\n');
+
+fs.writeFileSync(
+  path.join(OUT, 'robots.txt'),
+  `# ModelSwap user manual — ${SITE}\n# Search engines and AI assistants are explicitly welcome.\nUser-agent: *\nAllow: /\n\nSitemap: ${SITE}/sitemap.xml\n`
+);
+
+fs.writeFileSync(
+  path.join(OUT, 'sitemap.xml'),
+  `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+${[...slugLangs.keys()]
+  .map((slug) =>
+    slugLangs
+      .get(slug)
+      .langs.map((lang, i) => `  <url>\n    <loc>${SITE}/${lang}/${slug}</loc>\n    <lastmod>${today}</lastmod>${i === 0 ? `\n${hreflang(slug)}` : ''}\n  </url>`)
+      .join('\n')
+  )
+  .join('\n')}
+</urlset>
+`
+);
+
+const chapterList = (lang) =>
+  built[lang]
+    .map((c) => `- [${c.title}](${SITE}/${lang}/${c.slug})`)
+    .join('\n');
+fs.writeFileSync(
+  path.join(OUT, 'llms.txt'),
+  `# ModelSwap User Manual
+
+> Official user manual for ModelSwap — an open-source, local-first key & model control plane for AI agents (Claude Code, ChatGPT Codex, Kimi Code and 7 more adapters; 40 provider presets; AES-256-GCM local vault). ${built.zh.length} chapters in Chinese and English covering installation, the encrypted vault, provider & model switching, usage dashboards, sync, snapshots, the CLI and the Agent Skill.
+
+## Chapters (中文)
+
+${chapterList('zh')}
+
+## Chapters (English)
+
+${chapterList('en')}
+
+## Product
+
+- [ModelSwap website](https://modelswap.app/)
+- [Product overview for LLMs](https://modelswap.app/llms.txt)
+- [Full product reference for LLMs](https://modelswap.app/llms-full.txt)
+- [GitHub repository](https://github.com/Cing-self/modelswap)
+`
+);
+fs.writeFileSync(path.join(OUT, `${INDEXNOW_KEY}.txt`), INDEXNOW_KEY);
+
 console.log('docs site built →', OUT);
