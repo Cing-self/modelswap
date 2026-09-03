@@ -43,3 +43,45 @@ describe('provider lifecycle application service', () => {
     expect(providers.map(provider => provider.id)).toEqual(['keep']);
   });
 });
+
+describe('updateProvider credential-change reconcile trigger', () => {
+  const flush = () => new Promise(resolve => setImmediate(resolve));
+
+  function build() {
+    const providers = [
+      { id: 'gateway', name: 'Gateway', type: 'openai', baseUrl: 'https://old.test/v1', vaultKey: 'OLD_KEY', authMode: 'api_key', models: [] },
+    ];
+    const reconcile = jest_like();
+    function jest_like() {
+      const state = { calls: [] as any[] };
+      return Object.assign(async (config: unknown, options: { providerIds: string[] }) => {
+        state.calls.push({ config, options });
+        return [];
+      }, state);
+    }
+    const service = createProviderLifecycleService({
+      loadProviders: async () => providers,
+      saveProviders: async () => undefined,
+      loadUserConfig: async () => ({}),
+      removeProviderConfiguration: async () => undefined,
+      agentConfigService: { reconcile },
+    });
+    return { service, reconcile, providers };
+  }
+
+  it('reconciles the provider scope after a vaultKey rebind', async () => {
+    const { service, reconcile } = build();
+    await service.updateProvider('gateway', { vaultKey: 'NEW_KEY' });
+    await flush();
+
+    expect(reconcile.calls).toEqual([{ config: null, options: { providerIds: ['gateway'] } }]);
+  });
+
+  it('does not reconcile when only display fields change', async () => {
+    const { service, reconcile } = build();
+    await service.updateProvider('gateway', { name: 'Gateway renamed' });
+    await flush();
+
+    expect(reconcile.calls).toEqual([]);
+  });
+});

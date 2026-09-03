@@ -35,7 +35,9 @@ function resolvedFactsForAdapterWrite(
   ]));
 }
 
-function agentConfigService() {
+// Shared by the provider commands and vault set: the latter propagates a
+// rotated key value into agent configs through the same service seams.
+export function agentConfigService() {
   return createAgentConfigurationService({
     adapters: getAdapters(),
     getAdapter,

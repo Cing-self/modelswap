@@ -70,6 +70,16 @@ export async function vaultSet(key: string, value: string): Promise<void> {
   await store.set(key, value);
   console.log(kleur.green(`${t("vaultSaved")} ${key}`));
 
+  // Propagate the new value into agent configs whose providers bind this
+  // key (Codex reads the vault live; the others embed the value at write
+  // time and need the re-apply). Failures are logged, never fatal here.
+  try {
+    const { agentConfigService } = await import("./provider");
+    const { updated } = await agentConfigService().reconcileVaultKey({ vaultKey: key });
+    if (updated > 0) console.log(kleur.gray(t("vaultSetPropagated", { count: updated })));
+  } catch (error) {
+    console.warn(kleur.yellow(`vault: ${(error as Error).message}`));
+  }
 }
 
 // modelswap vault get KEY
