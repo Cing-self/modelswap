@@ -16,18 +16,13 @@ modelswap vault get <key>             # print plaintext
 modelswap vault delete <key>          # delete
 ```
 
-## 5.2 Project binding (auto-inject .env)
+## 5.2 Inject into the terminal
 
-Keys can be bound to project directories — ModelSwap writes them into the project's `.env`:
-
-1. Create a `.modelswapenv` file in the project root listing the key names you need, e.g. `OPENAI_API_KEY`
-2. Run `modelswap vault env`; ModelSwap generates `.env` from `.modelswapenv` and registers the association
-3. Run `modelswap vault sync` afterwards to refresh all associated files in one shot
+Expose selected keys as environment variables in the current terminal (use with `eval`):
 
 ```bash
-modelswap vault where <key>           # which projects use a key
-modelswap vault inject                # print export statements (use with eval)
-modelswap vault inject --shell zsh    # shell format: bash/zsh/powershell
+eval "$(modelswap vault inject --keys OPENAI_API_KEY,OPENROUTER_KEY)"
+modelswap vault inject --keys GEMINI_API_KEY --shell zsh   # shell format: bash/zsh/powershell
 ```
 
 ## 5.3 Auto-inject on cd (removed)

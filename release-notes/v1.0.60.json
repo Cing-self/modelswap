@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.60",
+  "publishedAt": "2026-09-04",
+  "summary": {
+    "zh": "清理了早期的项目绑定功能：不再有 .modelswapenv 文件和相关命令，密钥管理聚焦在存储、终端注入和多机同步上。",
+    "en": "The early project-binding feature is removed: no more .modelswapenv files or related commands. Key management now focuses on storage, terminal injection, and multi-device sync."
+  },
+  "highlights": [
+    {
+      "category": "improved",
+      "zh": "移除了 vault env 等项目绑定命令：生成 .env、登记关联、按项目刷新的整套流程不再提供，界面和文档也不再提及。",
+      "en": "Project-binding commands such as vault env are removed — .env generation, binding registration, and per-project refresh are gone from the CLI, UI, and docs."
+    },
+    {
+      "category": "improved",
+      "zh": "vault inject 改为显式指定密钥：用 --keys 列出要注入的密钥名，不再读取项目目录里的 .modelswapenv 文件。",
+      "en": "vault inject now takes an explicit --keys list and no longer reads a .modelswapenv file from your project."
+    },
+    {
+      "category": "improved",
+      "zh": "随产品分发的 Agent Skill 与用户手册同步更新，不再引导使用已移除的命令。",
+      "en": "The bundled Agent Skill and the user manual are updated accordingly and no longer reference removed commands."
+    }
+  ]
+}

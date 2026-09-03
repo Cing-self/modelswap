@@ -42,7 +42,7 @@ Entry: `src/main.ts` registers all commands. Each command lives in `src/commands
 
 ### Vault
 
-AES-256-GCM encrypted key storage in `src/vault/store.ts`. Machine-specific key derivation. Vault entries can be bound to projects (auto-inject into `.env`). Supports cloud sync.
+AES-256-GCM encrypted key storage in `src/vault/store.ts`. Machine-specific key derivation. Supports cloud sync.
 
 ### Web UI
 
