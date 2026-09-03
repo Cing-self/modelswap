@@ -70,3 +70,54 @@ describe('loadUserConfig', () => {
     expect(config).toEqual({});
   });
 });
+
+describe('normalizeAgentModelSelectionNamespaces', () => {
+  it('heals Google "models/" prefixed selections, active models and overrides', async () => {
+    const { normalizeAgentModelSelectionNamespaces } = await import('../../src/config/user');
+    const config: any = {
+      agentProviders: {
+        zcode: {
+          activeProviderId: 'google',
+          activeModelId: 'models/gemini-3.8-flash',
+          sites: { google: { modelIds: ['models/gemini-3.8-flash', 'deepseek/model:free'], enabled: true } },
+        },
+      },
+      modelOverrides: { google: { 'models/gemini-3.8-flash': { alias: 'flash' } } },
+    };
+
+    expect(normalizeAgentModelSelectionNamespaces(config)).toBe(true);
+    expect(config.agentProviders.zcode.activeModelId).toBe('gemini-3.8-flash');
+    expect(config.agentProviders.zcode.sites.google.modelIds).toEqual(['gemini-3.8-flash', 'deepseek/model:free']);
+    expect(Object.keys(config.modelOverrides.google)).toEqual(['gemini-3.8-flash']);
+    // Idempotent: a second pass reports no change.
+    expect(normalizeAgentModelSelectionNamespaces(config)).toBe(false);
+  });
+
+  it('leaves route-shaped ids untouched when no prefix exists', async () => {
+    const { normalizeAgentModelSelectionNamespaces } = await import('../../src/config/user');
+    const config: any = {
+      agentProviders: { opencode: { sites: { openrouter: { modelIds: ['anthropic/claude-sonnet-4', 'mistralai/voxtral-small-24b-2507'] } } } },
+    };
+    expect(normalizeAgentModelSelectionNamespaces(config)).toBe(false);
+    expect(config.agentProviders.opencode.sites.openrouter.modelIds)
+      .toEqual(['anthropic/claude-sonnet-4', 'mistralai/voxtral-small-24b-2507']);
+  });
+
+  it('loadUserConfig routes prefixed selections through the persisting migration', async () => {
+    mocks.files.set(CONFIG_PATH, JSON.stringify({
+      agentProviders: {
+        zcode: {
+          activeProviderId: 'google',
+          sites: { google: { modelIds: ['models/gemini-3.8-flash'], enabled: true } },
+        },
+      },
+    }));
+
+    // A clean config is returned as-is; the prefixed one must not round-trip
+    // verbatim (the load routes into the store's persisting migration, whose
+    // healing is contract-tested in config-mutation-contract.test.js).
+    const config = await loadUserConfig();
+    expect((config as any).agentProviders?.zcode?.sites?.google?.modelIds ?? [])
+      .not.toContain('models/gemini-3.8-flash');
+  });
+});

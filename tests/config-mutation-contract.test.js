@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const ts = require('typescript');
 const { createSyncConfigStore } = require('../src/infrastructure/sync-config-store');
+const { normalizeAgentModelSelectionNamespaces } = require('../src/web/api/agent-providers');
 const registry = require('../docs/testing/config-mutation-registry.json');
 
 describe('user.json mutation boundary', () => {
@@ -69,6 +70,35 @@ describe('user.json mutation boundary', () => {
       store.setPlatformField('supabase', 'apiKey', 'key'),
     ]);
     expect(data).toEqual({ sync: { autoSync: true, platforms: { supabase: { projectId: 'project', apiKey: 'key' } } } });
+  });
+
+  it('persists Google "models/" namespace healing on load and on every write', async () => {
+    let data = {
+      agentProviders: {
+        zcode: {
+          activeProviderId: 'google',
+          activeModelId: 'models/gemini-3.8-flash',
+          sites: { google: { modelIds: ['models/gemini-3.8-flash'], enabled: true } },
+        },
+      },
+    };
+    const store = createSyncConfigStore({
+      fs: {
+        ensureDir: async () => {}, pathExists: async () => true,
+        readJson: async () => data,
+        readFile: async () => JSON.stringify(data),
+        writeFile: async (_path, value) => { data = JSON.parse(value); },
+        rename: async () => {}, remove: async () => {},
+      },
+      configPath: '/isolated/user.json', backupImportantData: async () => {},
+      migrateAgentProviders: () => false,
+      normalizeAgentModelSelectionNamespaces,
+    });
+
+    const loaded = await store.loadConfig();
+    expect(loaded.agentProviders.zcode.activeModelId).toBe('gemini-3.8-flash');
+    expect(loaded.agentProviders.zcode.sites.google.modelIds).toEqual(['gemini-3.8-flash']);
+    expect(data.agentProviders.zcode.sites.google.modelIds).toEqual(['gemini-3.8-flash']);
   });
 
   it('keeps every adapter native-only for user.json writes', () => {

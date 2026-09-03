@@ -7,7 +7,7 @@ const os = require('os');
 const { backupImportantData } = require('./backup');
 const { appendLog } = require('./log-writer');
 const { publishDataChanged } = require('./ui-events');
-const { migrateAgentProviders } = require('./agent-providers');
+const { migrateAgentProviders, normalizeAgentModelSelectionNamespaces } = require('./agent-providers');
 const { createSyncConfigStore } = require('../../infrastructure/sync-config-store');
 const { createProviderSiteSyncService, stripRebuildableProviderData } = require('../../infrastructure/sync-provider-sites');
 const { decryptPayload, decryptSyncCodePayload, encryptPayload, encryptSyncCodePayload } = require('../../infrastructure/sync-crypto');
@@ -60,6 +60,7 @@ const configStore = createSyncConfigStore({
   configPath: CONFIG_PATH,
   backupImportantData,
   migrateAgentProviders,
+  normalizeAgentModelSelectionNamespaces,
 });
 const providerSites = createProviderSiteSyncService({ fs, providerStore });
 const platforms = createSyncPlatformService({

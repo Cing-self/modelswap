@@ -61,7 +61,7 @@ function toMetadata(model: ProviderModel, source: ModelMetadata["source"] = "leg
     ? source
     : meta?.source === "modelsdev" ? "modelsdev" : meta?.source === "remote" ? "remote" : source;
   return {
-    id: model.id,
+    id: stripModelNamespace(model.id),
     ...(model.name ? { name: model.name } : {}),
     ...(meta?.description ? { description: meta.description } : {}),
     ...(meta?.family ? { family: meta.family } : {}),
@@ -189,6 +189,39 @@ function applyPresetMigrations(input: Provider[]): Provider[] {
   return providers;
 }
 
+// Google's model directory — its OpenAI-compatible layer included — returns
+// resource names ("models/gemini-2.5-flash"). The bare id is what the API
+// accepts, what models.dev keys on, and what agent configs should mirror.
+// Versions before v1.0.55 persisted the prefixed form verbatim, so cached ids
+// (and availability routes) are healed on read; the next cache write persists
+// the healed shape.
+function stripModelNamespace(id: string): string {
+  return id.startsWith("models/") ? id.slice("models/".length) : id;
+}
+function healCachedModelIds(providers: ModelsCacheData["providers"]): ModelsCacheData["providers"] {
+  if (!providers || typeof providers !== "object") return {};
+  const healed: ModelsCacheData["providers"] = {};
+  for (const [providerId, models] of Object.entries(providers)) {
+    const byId = new Map<string, ModelMetadata>();
+    for (const model of Array.isArray(models) ? models : []) {
+      if (!model || typeof model.id !== "string") continue;
+      const id = stripModelNamespace(model.id);
+      if (byId.has(id)) continue;
+      byId.set(id, {
+        ...model,
+        id,
+        ...(Array.isArray(model.availability) && model.availability.some(item => item?.remoteModelId?.startsWith("models/")) ? {
+          availability: model.availability.map(item => item?.remoteModelId?.startsWith("models/")
+            ? { ...item, remoteModelId: stripModelNamespace(item.remoteModelId) }
+            : item),
+        } : {}),
+      });
+    }
+    healed[providerId] = [...byId.values()];
+  }
+  return healed;
+}
+
 async function readCache(): Promise<ModelsCacheData> {
   if (!(await fs.pathExists(MODELS_CACHE_PATH))) return defaultCache();
   try {
@@ -198,6 +231,7 @@ async function readCache(): Promise<ModelsCacheData> {
       return {
         ...defaultCache(),
         ...data,
+        providers: healCachedModelIds(data.providers),
         version: CACHE_VERSION,
         source: "modelswap",
         generation: Number.isInteger(data.generation) ? data.generation : 0,
@@ -210,7 +244,7 @@ async function readCache(): Promise<ModelsCacheData> {
     // source timestamp on the next successful hydration.
     return {
       ...defaultCache(),
-      providers: data.providers,
+      providers: healCachedModelIds(data.providers),
       sourceFetchedAt: typeof data.fetchedAt === "string" ? data.fetchedAt : null,
       status: "stale",
     };

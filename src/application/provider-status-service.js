@@ -180,6 +180,13 @@ async function fetchFreshEndpointModels(endpoint, apiKey) {
 }
 
 function normalizeRemoteModel(model) {
+  // Google's Generative Language API — including its OpenAI-compatible model
+  // directory — returns resource names ("models/gemini-2.5-flash"). The
+  // endpoint accepts the bare id everywhere and models.dev keys on it, so the
+  // namespace must not leak into stores or agent configs. Route-shaped ids
+  // from other providers (OpenRouter's "vendor/model") never use this prefix.
+  const rawId = model?.id;
+  const id = typeof rawId === 'string' && rawId.startsWith('models/') ? rawId.slice('models/'.length) : rawId;
   const context = Number.isFinite(model?.context_length) ? model.context_length
     : Number.isFinite(model?.limit?.context) ? model.limit.context
       : undefined;
@@ -189,8 +196,8 @@ function normalizeRemoteModel(model) {
   const input = model?.architecture?.input_modalities || model?.modalities?.input;
   const outputModalities = model?.architecture?.output_modalities || model?.modalities?.output;
   return {
-    id: model?.id,
-    name: model?.name || model?.display_name || model?.id,
+    id,
+    name: model?.name || model?.display_name || id,
     ...(context !== undefined || output !== undefined || Array.isArray(input) || Array.isArray(outputModalities) ? {
       remote: {
         ...(context !== undefined ? { context } : {}),

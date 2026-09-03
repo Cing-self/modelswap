@@ -9,6 +9,7 @@ function createSyncConfigStore({
   configPath,
   backupImportantData,
   migrateAgentProviders,
+  normalizeAgentModelSelectionNamespaces = () => false,
 }) {
   let writeTail = Promise.resolve();
   let writeCounter = 0;
@@ -42,6 +43,7 @@ function createSyncConfigStore({
         ? await fs.readJson(configPath)
         : JSON.parse(await fs.readFile(configPath, 'utf-8'));
       migrateAgentProviders(live);
+      normalizeAgentModelSelectionNamespaces(live);
       return live;
     } catch {
       return { ...fallback };
@@ -67,9 +69,10 @@ function createSyncConfigStore({
     try {
       if (!(await fs.pathExists(configPath))) return {};
       const config = await fs.readJson(configPath);
-      if (migrateAgentProviders(config)) {
+      if (migrateAgentProviders(config) || normalizeAgentModelSelectionNamespaces(config)) {
         return commitIntent('legacy-migration', live => {
           migrateAgentProviders(live);
+          normalizeAgentModelSelectionNamespaces(live);
           return live;
         });
       }
@@ -142,6 +145,7 @@ function createSyncConfigStore({
   async function applyLegacyMigration() {
     return commitIntent('legacy-migration', live => {
       migrateAgentProviders(live);
+      normalizeAgentModelSelectionNamespaces(live);
       return live;
     });
   }

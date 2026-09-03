@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.55",
+  "publishedAt": "2026-09-03",
+  "summary": {
+    "zh": "修复 Google AI Studio 模型名带 models/ 前缀的问题：Gemini 的模型列表接口返回的是资源名（如 models/gemini-2.5-flash），此前被原样导入，导致 ZCode 等客户端模型选择器里出现一长串带前缀的名字。现在导入时统一剥离前缀，存量数据也会自动修复。",
+    "en": "Fixes Google AI Studio model ids carrying the models/ prefix: Gemini's model directory returns resource names (e.g. models/gemini-2.5-flash) which were previously imported verbatim, leaving long prefixed names in agent model pickers such as ZCode's. Imports now strip the prefix, and existing local data is healed automatically."
+  },
+  "highlights": [
+    {
+      "category": "fixed",
+      "zh": "模型导入时剥离 Google 的 models/ 资源名前缀（Gemini API 两种写法都接受，剥前缀后 ZCode 模型选择器显示干净的 gemini-3.8-flash 等短名）。",
+      "en": "Model discovery now strips Google's models/ resource-name prefix (the Gemini API accepts both forms; after the fix pickers show clean short names like gemini-3.8-flash)."
+    },
+    {
+      "category": "fixed",
+      "zh": "存量数据自愈：models-cache.json 里已缓存的带前缀模型、user.json 里各 Agent 的模型选择（含 activeModelId 与模型覆盖配置）在读取时自动剥前缀并持久化，无需手动清理。",
+      "en": "Existing data heals itself: cached models and every agent's model selections (including activeModelId and model overrides) are stripped and persisted on the next load — no manual cleanup needed."
+    },
+    {
+      "category": "improved",
+      "zh": "附带收益：剥离前缀后模型 id 与 models.dev 目录键一致，Google 模型现在能正确挂上上下文长度/输出上限等元数据。",
+      "en": "Side benefit: with bare ids matching models.dev catalog keys, Google models now correctly pick up context/output-limit metadata during enrichment."
+    }
+  ]
+}
