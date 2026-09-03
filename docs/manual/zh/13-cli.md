@@ -12,10 +12,7 @@ modelswap vault set <key> [--stdin]  # 存密钥（--stdin 避免进入 shell �
 modelswap vault get <key>            # 获取明文
 modelswap vault list [--json]        # 列出（--json 供脚本/Agent 解析）
 modelswap vault delete <key>         # 删除
-modelswap vault inject [--keys k1,k2] [--dir <dir>] [--shell zsh]   # 输出 export 语句
-modelswap vault env [file] [--dir]   # 根据 .modelswapenv 生成 .env 并登记关联
-modelswap vault where <key>          # 查看密钥被哪些项目使用
-modelswap vault sync                 # 刷新所有关联文件
+modelswap vault inject --keys k1,k2 [--shell zsh]   # 输出 export 语句
 modelswap vault test <platform>      # 测试云同步平台连接
 modelswap vault push                 # 推送密钥与配置到云端
 modelswap vault pull                 # 从云端拉取合并

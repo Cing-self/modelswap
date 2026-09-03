@@ -23,12 +23,7 @@ export interface Translations {
   vaultListTitle: string;
   vaultConfirmDelete: string;
   vaultDeleted: string;
-  vaultNoModelSwapEnv: string;
   vaultNoKeys: string;
-  vaultEnvWritten: string;
-  vaultResolved: string;
-  vaultMissing: string;
-  vaultNoBindings: string;
   vaultWhereTitle: string;
   vaultSyncing: string;
   vaultSyncResult: string;
@@ -85,12 +80,7 @@ const translations: Record<Language, Translations> = {
     vaultListTitle: "Vault 密钥列表",
     vaultConfirmDelete: "确认删除",
     vaultDeleted: "已删除:",
-    vaultNoModelSwapEnv: "当前目录未找到 .modelswapenv 文件",
     vaultNoKeys: "未声明任何 key",
-    vaultEnvWritten: "已写入:",
-    vaultResolved: "已解析",
-    vaultMissing: "缺失",
-    vaultNoBindings: "未找到关联项目",
     vaultWhereTitle: "关联项目:",
     vaultSyncing: "正在同步所有关联文件...",
     vaultSyncResult: "同步结果:",
@@ -145,12 +135,7 @@ const translations: Record<Language, Translations> = {
     vaultListTitle: "Vault Secrets",
     vaultConfirmDelete: "Delete",
     vaultDeleted: "Deleted:",
-    vaultNoModelSwapEnv: "No .modelswapenv file found in current directory",
     vaultNoKeys: "No keys declared",
-    vaultEnvWritten: "Written to:",
-    vaultResolved: "Resolved",
-    vaultMissing: "Missing",
-    vaultNoBindings: "No project bindings found",
     vaultWhereTitle: "Used in:",
     vaultSyncing: "Syncing all bound files...",
     vaultSyncResult: "Sync result:",

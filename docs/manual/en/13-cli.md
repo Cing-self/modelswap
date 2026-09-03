@@ -12,10 +12,7 @@ modelswap vault set <key> [--stdin]  # store a key (--stdin keeps it out of shel
 modelswap vault get <key>            # print plaintext
 modelswap vault list [--json]        # list (--json for scripts/agents)
 modelswap vault delete <key>         # delete
-modelswap vault inject [--keys k1,k2] [--dir <dir>] [--shell zsh]   # print export statements
-modelswap vault env [file] [--dir]   # generate .env from .modelswapenv and register the binding
-modelswap vault where <key>          # which projects use a key
-modelswap vault sync                 # refresh all associated files
+modelswap vault inject --keys k1,k2 [--shell zsh]   # print export statements
 modelswap vault test <platform>      # test a cloud sync platform connection
 modelswap vault push                 # push keys & configs to the cloud
 modelswap vault pull                 # pull and merge from the cloud

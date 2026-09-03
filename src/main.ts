@@ -14,7 +14,6 @@ import {
   vaultList,
   vaultDelete,
   vaultInject,
-  vaultEnv,
 } from "./commands/vault";
 import { setLanguage, getLanguage, t, Language, initLanguage, loadLanguageConfig, saveLanguageConfig } from "./config/i18n";
 import { loadUserConfig, setUserPreference } from "./config/user";
@@ -180,7 +179,7 @@ program
 // vault 子命令 - 密钥管理
 const vault = program
   .command("vault")
-  .description("密钥管理（加密存储、按需注入、项目关联）")
+  .description("密钥管理（加密存储、按需注入）")
   .action(async () => {
     await vaultList();
   });
@@ -220,19 +219,10 @@ vault
 vault
   .command("inject")
   .description("输出 shell export 语句（配合 eval 使用）")
-  .option("--keys <keys>", "手动指定 key 列表（逗号分隔）")
-  .option("--dir <dir>", "指定项目目录")
+  .option("--keys <keys>", "要注入的 key 列表（逗号分隔）")
   .option("--shell <shell>", "输出格式: bash, zsh, powershell")
-  .action(async (options: { keys?: string; dir?: string; shell?: string }) => {
+  .action(async (options: { keys?: string; shell?: string }) => {
     await vaultInject(options);
-  });
-
-vault
-  .command("env [file]")
-  .description("根据 .modelswapenv 生成 .env 文件并注册关联")
-  .option("--dir <dir>", "指定项目目录")
-  .action(async (file?: string, options?: { dir?: string }) => {
-    await vaultEnv(file, options);
   });
 
 vault
@@ -280,9 +270,9 @@ vault
     }
   });
 
-// hook 子命令已于 v1.0.3 移除：其唯一作用（检测 .modelswapenv 自动注入）随
-// 项目绑定功能一同删除，且它是产品中唯一主动写 shell rc 的功能，与
-// "零侵入"承诺冲突。已装用户的手动清理方式见手册 FAQ。
+// hook 子命令已于 v1.0.3 移除：它是产品中唯一主动写 shell rc 的功能，与
+// "零侵入"承诺冲突；.modelswapenv 项目绑定功能已整体移除。已装用户的手动
+// 清理方式见手册 FAQ。
 
 // skill 子命令 - 安装供其他 Agent 使用的 MODELSWAP CLI Skill
 const skill = program

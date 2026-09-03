@@ -16,18 +16,13 @@ modelswap vault get <key>             # 获取明文
 modelswap vault delete <key>          # 删除
 ```
 
-## 5.2 绑定项目（自动注入 .env）
+## 5.2 注入到终端
 
-密钥可以绑定到项目目录，ModelSwap 自动把 Key 写进该项目的 `.env`：
-
-1. 在项目根目录创建 `.modelswapenv` 文件，写上需要的密钥名，如 `OPENAI_API_KEY`
-2. 运行 `modelswap vault env`，ModelSwap 会根据 `.modelswapenv` 生成 `.env` 并登记关联
-3. 之后用 `modelswap vault sync` 一键刷新所有关联文件（密钥更新后自动同步）
+把指定密钥以环境变量形式注入当前终端（配合 `eval` 使用）：
 
 ```bash
-modelswap vault where <key>           # 查看某密钥被哪些项目使用
-modelswap vault inject                # 输出 export 语句（配合 eval 使用）
-modelswap vault inject --shell zsh    # 指定 shell 格式（bash/zsh/powershell）
+eval "$(modelswap vault inject --keys OPENAI_API_KEY,OPENROUTER_KEY)"
+modelswap vault inject --keys GEMINI_API_KEY --shell zsh   # 指定 shell 格式（bash/zsh/powershell）
 ```
 
 ## 5.3 cd 自动注入（已移除）

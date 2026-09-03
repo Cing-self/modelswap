@@ -48,9 +48,9 @@ Treat these commands as plaintext disclosure:
 - `modelswap vault get <KEY>` writes the raw value to stdout.
 - `modelswap vault inject` writes shell exports containing raw values.
 
-Use either only when the task explicitly requires the plaintext result, and do not echo or summarize the value. `.modelswapenv` maps project variable names to Vault keys. `modelswap vault env [file] --dir <path>` writes or replaces the destination environment file and registers bindings; inspect the target and obtain write authority first. `modelswap vault sync` updates all registered project files.
+Use either only when the task explicitly requires the plaintext result, and do not echo or summarize the value. `modelswap vault inject` requires an explicit `--keys` list; never invent key names — confirm which keys the task needs first.
 
-Deletion is destructive. Inspect `modelswap vault where <KEY>` before `modelswap vault delete <KEY>` so affected projects are known.
+Deletion is destructive. Before `modelswap vault delete <KEY>`, confirm with the user that no provider or agent configuration still binds that key (check `modelswap provider list` output or the dashboard).
 
 ## Cloud sync
 
@@ -70,4 +70,4 @@ This writes `.agents/skills/modelswap/SKILL.md` in the target project. Do not us
 
 ## Verify outcomes
 
-Use command exit status plus the narrowest read-only follow-up (`provider current --json`, `provider auth --json`, `vault list --json`, or `vault where`). Stop after one failed retry when the failure depends on credentials, external services, or user-owned configuration; report the error without exposing secrets.
+Use command exit status plus the narrowest read-only follow-up (`provider current --json`, `provider auth --json`, or `vault list --json`). Stop after one failed retry when the failure depends on credentials, external services, or user-owned configuration; report the error without exposing secrets.

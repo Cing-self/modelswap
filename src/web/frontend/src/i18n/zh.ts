@@ -419,7 +419,7 @@ export default {
   'vault.newRecord': 'NEW SECRET · 新记录',
   'vault.editRecord': 'SECRET RECORD · 编辑记录',
   'vault.manualFormTitle': '登记密钥信息',
-  'vault.manualFormDesc': '填写一个容易识别、后续也方便绑定项目的密钥记录。',
+  'vault.manualFormDesc': '填写一个容易识别的密钥记录。',
   'vault.autoFormDesc': '选择平台后，MODELSWAP 会打开对应流程并尝试创建一枚新密钥。',
   'vault.addMode': '密钥录入方式',
   'vault.manualMode': '手动录入',

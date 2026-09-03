@@ -32,7 +32,7 @@ Keys and models, one console. ModelSwap is a local-first open-source tool that m
 - **Switch models without leaving the terminal** — ModelSwap generates each agent's native model catalog; switch with `/model` right inside the CLI, no round-trip to ModelSwap.
 - **Multi-device sync, you own the data** — LAN peer-to-peer sync with pairing codes, or plug in your own cloud storage (Cloudflare / Supabase / WebDAV / iCloud and more, 9 backends); one-time sync codes migrate between machines. Payloads are encrypted — the server never sees plaintext.
 - **Zero daemons, zero interception** — No background process, nothing on your request path: ModelSwap writes config and exits; your agents talk to model platforms directly. Uninstall leaves nothing behind — configs keep working.
-- **Key vault** — AES-256-GCM encrypted local storage with machine-bound key derivation, plus per-project binding that auto-injects `.env`.
+- **Key vault** — AES-256-GCM encrypted local storage with machine-bound key derivation; inject keys into your terminal on demand with `modelswap vault inject --keys …`.
 
 ## Comparison
 
@@ -44,7 +44,7 @@ Keys and models, one console. ModelSwap is a local-first open-source tool that m
 | Config writing | Field-level merge + pre-switch snapshots, one-click rollback | Atomic writes + auto backups (last 10) + shared snippets | Managed-block injection |
 | Request path | Never through ModelSwap | Direct, or via optional proxy (hot-switch/failover) | Routed through the local router service |
 | Agents supported | 10 | 8 | Codex-first (Harness/Gemini CLI bridges experimental) |
-| Key storage | AES-256-GCM encrypted vault + project binding | Local SQLite store (README does not mention encryption) | Stored locally (README does not mention encryption) |
+| Key storage | AES-256-GCM encrypted vault | Local SQLite store (README does not mention encryption) | Stored locally (README does not mention encryption) |
 | Auto-create API keys | 31 platforms (browser extension) | — | — |
 | Usage queries | 37 subscription/balance sources, direct | Usage dashboard (spend/requests/tokens) | — |
 | Multi-device sync | LAN peer-to-peer + 9 self-hosted cloud backends + sync codes | — | — |
@@ -106,7 +106,7 @@ Node.js 20+. Frontend: React + TypeScript + Vite; backend: Node (web layer in Co
 ## Feature Overview
 
 ### Key vault
-AES-256-GCM encrypted storage, masked display, per-project binding (auto-inject into `.env`). The first-run wizard scans agent config files and safely imports stray plaintext keys in one click.
+AES-256-GCM encrypted storage, masked display, on-demand terminal injection (`vault inject --keys`). The first-run wizard scans agent config files and safely imports stray plaintext keys in one click.
 
 ### Multi-device sync
 - **LAN**: pairing-code peer-to-peer sync — no third-party server involved
