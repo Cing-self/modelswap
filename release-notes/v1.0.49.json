@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.49",
+  "publishedAt": "2026-09-03",
+  "summary": {
+    "zh": "文档站窄屏体验修复：侧边栏在窄于 900px 时由「章节目录」抽屉替代，任何窗口宽度都能翻章。",
+    "en": "Docs site narrow-screen fix: below 900px the sidebar is replaced by a Chapters drawer, so chapter navigation works at any window width."
+  },
+  "highlights": [
+    {
+      "category": "fixed",
+      "zh": "docs.modelswap.app 在窄窗口/手机宽度下不再丢失导航：新增可展开的章节目录抽屉（纯 HTML，无 JS），桌面侧边栏不变。",
+      "en": "docs.modelswap.app no longer loses navigation at narrow widths: an expandable Chapters drawer (pure HTML, no JS) takes over below 900px; the desktop sidebar is unchanged."
+    },
+    {
+      "category": "improved",
+      "zh": "上一章/下一章翻页链接在窄屏下保持可用，构成完整的最小导航路径。",
+      "en": "Prev/next pager links remain available on narrow screens, completing the minimal navigation path."
+    },
+    {
+      "category": "improved",
+      "zh": "章节抽屉样式与站点纸色设计系统一致（纸白/牛皮色/墨线），展开箭头带过渡动画。",
+      "en": "The drawer styling follows the site paper design system (paper white / kraft / ink lines) with an animated disclosure arrow."
+    }
+  ]
+}

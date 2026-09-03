@@ -58,7 +58,17 @@ main table{border-collapse:collapse;width:100%;font-size:14px}main th,main td{bo
 main blockquote{margin:0;padding:10px 18px;border-left:4px solid var(--paper2);background:var(--paper);border-radius:0 10px 10px 0}
 .pager{display:flex;justify-content:space-between;margin-top:64px;padding-top:20px;border-top:1px dashed var(--line);font-size:14px}
 .pager a{color:var(--accent)}
-@media(max-width:900px){nav{display:none}main{padding:24px 4px 80px}}
+/* 窄屏章节抽屉：<900px 替代侧边栏（纯 details/summary，无 JS） */
+.docs-nav-mobile{display:none;margin:18px 0 4px;border:1.5px solid var(--line);border-radius:12px;background:#fff;overflow:hidden}
+.docs-nav-mobile summary{cursor:pointer;list-style:none;padding:12px 16px;font-size:14px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:8px}
+.docs-nav-mobile summary::-webkit-details-marker{display:none}
+.docs-nav-mobile summary::after{content:"";margin-left:auto;width:9px;height:9px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);transition:transform .15s}
+.docs-nav-mobile[open] summary::after{transform:rotate(225deg)}
+.docs-nav-mobile .docs-nav-list{max-height:58vh;overflow:auto;border-top:1px dashed var(--line);padding:8px}
+.docs-nav-mobile .docs-nav-list a{display:block;padding:8px 12px;border-radius:8px;font-size:14px;color:#57534e}
+.docs-nav-mobile .docs-nav-list a:hover{background:var(--paper2)}
+.docs-nav-mobile .docs-nav-list a.on{background:var(--paper2);color:var(--ink);font-weight:600}
+@media(max-width:900px){nav{display:none}main{padding:24px 4px 80px}.docs-nav-mobile{display:block}}
 `;
 
 function page({ lang, chapter, all, index }) {
@@ -82,6 +92,7 @@ function page({ lang, chapter, all, index }) {
 <div class="wrap">
 <nav>${nav}</nav>
 <main>
+<details class="docs-nav-mobile"><summary>☰ ${lang === 'zh' ? '章节目录' : 'Chapters'}</summary><div class="docs-nav-list">${nav}</div></details>
 ${body}
 <div class="pager">${prev ? `<a href="${prev.slug}">← ${prev.title}</a>` : '<span></span>'}${next ? `<a href="${next.slug}">${next.title} →</a>` : ''}</div>
 </main></div></body></html>`;
