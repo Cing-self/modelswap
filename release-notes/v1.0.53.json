@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.53",
+  "publishedAt": "2026-09-03",
+  "summary": {
+    "zh": "补上 Google AI Studio 的平台图标：采用官方 Gemini 四角星渐变标，模型页/首页/用量卡等处的 Google 条目不再回退为字母头像。",
+    "en": "Adds the missing Google AI Studio provider icon: the official Gemini sparkle in gradient, so Google entries on the models page, dashboard, and usage cards no longer fall back to a letter avatar."
+  },
+  "highlights": [
+    {
+      "category": "new",
+      "zh": "新增 Google（Gemini）官方四角星图标，正方形矢量，注册进 PROVIDER_ICON 映射。",
+      "en": "New square vector icon built from the official Gemini sparkle, registered in the PROVIDER_ICON map."
+    },
+    {
+      "category": "fixed",
+      "zh": "v1.0.51 引入 Google 预设时遗漏了图标映射，本次补齐。",
+      "en": "The Google preset shipped in v1.0.51 without an icon mapping; this closes the gap."
+    },
+    {
+      "category": "improved",
+      "zh": "图标为矢量 SVG，明暗主题均正常显示（彩色渐变无需反色处理）。",
+      "en": "The icon is vector SVG and renders correctly in both themes (colorful gradient needs no dark-mode inversion)."
+    }
+  ]
+}
