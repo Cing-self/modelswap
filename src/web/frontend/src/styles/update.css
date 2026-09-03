@@ -13,15 +13,14 @@
 
 .update-hover-card { position: absolute; z-index: 45; top: calc(100% + 7px); left: 0; width: min(380px, calc(100vw - 28px)); max-height: min(430px, calc(100dvh - 66px)); overflow: hidden; border: 1px solid var(--card-line); border-radius: 12px; color: var(--ink); background: var(--card-surface); box-shadow: 0 16px 36px color-mix(in srgb, var(--ink) 16%, transparent), inset 0 1px 0 color-mix(in srgb, white 80%, transparent); animation: update-hover-card-in .14s ease-out; }
 .update-hover-card::before { position: absolute; top: -5px; left: 10px; width: 9px; height: 9px; border-top: 1px solid var(--card-line); border-left: 1px solid var(--card-line); background: var(--card-surface); content: ''; transform: rotate(45deg); }
-.update-hover-card-header { display: flex; align-items: flex-start; gap: 10px; padding: 16px 16px 11px; background: var(--card-surface); }
-.update-hover-card-status-icon { display: grid; flex: none; width: 29px; height: 29px; place-items: center; border-radius: 8px; color: var(--accent); background: color-mix(in srgb, var(--accent) 11%, transparent); }
-.update-hover-card-status-icon.is-error { color: var(--red); background: color-mix(in srgb, var(--red) 10%, transparent); }
+.update-hover-card-header { padding: 16px 16px 11px; background: var(--card-surface); }
 .update-hover-card-header h2 { margin: 0; font-size: 15px; line-height: 1.35; }
 .update-hover-card-version { margin: 3px 0 0; color: var(--ink-muted); font-size: 12px; line-height: 1.4; }
 .update-hover-card-body { max-height: 335px; overflow-y: auto; padding: 0 16px 16px; background: var(--card-surface); }
 .update-hover-card-summary { margin: 0 0 14px; color: var(--ink-light); font-size: 13px; line-height: 1.55; }
 .update-hover-card-group + .update-hover-card-group { margin-top: 13px; }
-.update-hover-card-group h3 { margin: 0 0 5px; color: var(--ink-muted); font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.update-hover-card-group h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; color: var(--ink); font-size: 11.5px; font-weight: 700; letter-spacing: .02em; }
+.update-hover-card-group h3::before { flex: none; width: 4px; height: 12px; border-radius: 2px; background: var(--accent); content: ''; }
 .update-hover-card-group ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .update-hover-card-group li { position: relative; padding-left: 13px; color: var(--ink); font-size: 12px; line-height: 1.48; }
 .update-hover-card-group li::before { position: absolute; top: .55em; left: 0; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); content: ''; }

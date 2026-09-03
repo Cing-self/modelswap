@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.58",
+  "publishedAt": "2026-09-03",
+  "summary": {
+    "zh": "更新体验优化：不再重复弹出更新提示，更新弹框排版更清爽，更新说明改用大白话。",
+    "en": "A cleaner update experience: no more duplicate update notices, a tidier update card, and plain-language release notes."
+  },
+  "highlights": [
+    {
+      "category": "fixed",
+      "zh": "修复更新提示重复弹出的问题：打开更新弹框后，不再额外弹出一条重复的提示条。",
+      "en": "Fixed duplicate update notices: opening the update card no longer triggers a second redundant tooltip."
+    },
+    {
+      "category": "improved",
+      "zh": "更新弹框排版优化：移除标题旁的下载图标，「新增 / 改进 / 修复」分类改为醒目的小标题。",
+      "en": "The update card gets a cleaner layout: the decorative download icon is gone and the New / Improved / Fixed labels are now proper section headings."
+    },
+    {
+      "category": "improved",
+      "zh": "更新说明改用大白话：每条只说这一版做了什么，技术细节不再出现在更新内容里。",
+      "en": "Release notes are rewritten in plain language: each item states what changed, without technical detail."
+    }
+  ]
+}

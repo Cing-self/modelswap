@@ -2,24 +2,24 @@
   "version": "v1.0.57",
   "publishedAt": "2026-09-03",
   "summary": {
-    "zh": "Vault 自动创建目录下线两个低频通道：Cloudflare（需先手动持有 parent token，对新用户是先有鸡还是先有蛋）与 Google AI Studio（gcloud 安装+登录的前置成本高，且新项目存在被 Google 自动封禁的风险）。对应平台改为手动录入 Key（附控制台链接），自动创建平台数 33→31。",
-    "en": "Two low-frequency channels are retired from the vault auto-create directory: Cloudflare (requires a pre-existing parent token — a chicken-and-egg for new users) and Google AI Studio (high setup cost of gcloud install + login, plus Google's auto-deny risk on brand-new projects). Both platforms remain available via manual key entry with a console link; supported auto-create platforms go from 33 to 31."
+    "zh": "自动创建密钥的平台列表从 33 个精简到 31 个；Cloudflare 和 Google AI Studio 改为手动添加密钥，其余功能不变。",
+    "en": "The auto-create key list is streamlined from 33 platforms to 31; Cloudflare and Google AI Studio keys are now added manually. Everything else is unchanged."
   },
   "highlights": [
     {
       "category": "improved",
-      "zh": "自动创建平台列表精简为 31 个纯浏览器通道：移除 Cloudflare（api 模式）与 Google AI Studio（gcloud CLI 模式）入口，降低初始用户的选择成本与理解负担。",
-      "en": "The auto-create list is streamlined to 31 pure-browser channels: the Cloudflare (api mode) and Google AI Studio (gcloud CLI mode) entries are removed, reducing choice overload for first-time users."
+      "zh": "自动创建列表移除了 Cloudflare 和 Google AI Studio 两个入口，保留 31 个一键创建的平台。",
+      "en": "Cloudflare and Google AI Studio entries are removed from the auto-create list; 31 one-click platforms remain."
     },
     {
       "category": "improved",
-      "zh": "两个平台的 Provider 本身不受影响：Google AI Studio 仍可手动粘贴 Key 使用（含模型发现），Cloudflare 相关云同步后端也原样保留；仅自动创建入口下线，服务代码保留便于日后恢复。",
-      "en": "The providers themselves are untouched: Google AI Studio still works with a manually pasted key (model discovery included) and Cloudflare sync backends remain; only the auto-create entries are retired, with service code retained for a future re-enable."
+      "zh": "这两个平台仍可正常使用：手动添加密钥即可，模型和同步功能不受影响。",
+      "en": "Both platforms still work: add their keys manually — models and sync are unaffected."
     },
     {
       "category": "improved",
-      "zh": "文档数字全量对齐：README 对比表、中英文手册第 4 章统一为 31（顺带修正了中英文原本就不同步的问题——中文写 33、英文写 31）。",
-      "en": "Docs numbers aligned everywhere: the README comparison table and both manual languages now consistently say 31 (also fixing a pre-existing zh/en mismatch — 33 in Chinese vs 31 in English)."
+      "zh": "文档与界面中的平台数量说明统一更新为 31。",
+      "en": "Docs and UI copy now consistently say 31 platforms."
     }
   ]
 }
