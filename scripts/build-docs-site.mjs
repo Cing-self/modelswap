@@ -16,7 +16,8 @@ const TITLES = { zh: 'ModelSwap 用户手册', en: 'ModelSwap User Manual' };
 
 function chapters(lang) {
   const dir = path.join(SRC, lang);
-  const files = fs.readdirSync(dir).filter((f) => f.endsWith('.md')).sort();
+  // README.md is the GitHub-facing manual index, not a chapter.
+  const files = fs.readdirSync(dir).filter((f) => f.endsWith('.md') && f !== 'README.md').sort();
   return files.map((file) => {
     const raw = fs.readFileSync(path.join(dir, file), 'utf-8');
     const h1 = (raw.match(/^#\s+(.+)$/m) || [, file])[1].replace(/^\d+\.\d*\s*/, '');

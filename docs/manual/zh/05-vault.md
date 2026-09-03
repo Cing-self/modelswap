@@ -30,12 +30,6 @@ modelswap vault inject                # 输出 export 语句（配合 eval 使�
 modelswap vault inject --shell zsh    # 指定 shell 格式（bash/zsh/powershell）
 ```
 
-## 5.3 cd 自动注入（可选）
+## 5.3 cd 自动注入（已移除）
 
-```bash
-modelswap hook install               # 安装 cd 钩子：进入项目目录自动 export 密钥
-modelswap hook status                # 查看安装状态
-modelswap hook uninstall             # 移除
-```
-
-> **Shell 配置安全边界**：安装和升级 ModelSwap **不会**修改你的 Shell 配置（`~/.zshrc` / `~/.bashrc` 等）。只有你主动运行 `modelswap hook install` 才会写入 cd 钩子，`modelswap hook uninstall` 可随时移除。
+`modelswap hook` 命令已在 v1.0.3 移除，当前版本没有 cd 钩子功能。如需进入项目自动注入密钥，用 `modelswap vault inject` 配合你的 shell 工具（direnv 等）自行组合；ModelSwap 本身**永远不会**修改你的 Shell 配置（`~/.zshrc` / `~/.bashrc` 等）。旧版本装过 hook 的清理办法见第 14 章 FAQ。

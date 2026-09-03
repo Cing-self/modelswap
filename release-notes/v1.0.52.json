@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.52",
+  "publishedAt": "2026-09-03",
+  "summary": {
+    "zh": "文档修正：删除已废弃的 modelswap hook 命令的教程（该命令 v1.0.3 已移除），文档站侧边栏不再误收手册索引页。",
+    "en": "Docs fixes: drop the tutorial for the removed modelswap hook command (gone since v1.0.3) and stop listing the manual index as a chapter in the docs sidebar."
+  },
+  "highlights": [
+    {
+      "category": "fixed",
+      "zh": "手册第 5 章不再教授已在 v1.0.3 移除的 modelswap hook 命令，改为说明现状并指向 FAQ 的历史清理办法（中英同步）。",
+      "en": "Chapter 5 no longer teaches the modelswap hook commands removed in v1.0.3; it now states the current behavior and points to the FAQ cleanup note (zh/en)."
+    },
+    {
+      "category": "fixed",
+      "zh": "docs.modelswap.app 侧边栏移除误收的\"ModelSwap 使用手册\"索引页，章节列表恢复为 14 个正章。",
+      "en": "The docs sidebar no longer lists the manual index page as a chapter; the chapter list is back to the 14 real chapters."
+    },
+    {
+      "category": "improved",
+      "zh": "README 的 Agent Skill 描述不再提及已移除的 Shell Hook 边界。",
+      "en": "The README agent-skill description no longer mentions the removed shell-hook boundary."
+    }
+  ]
+}

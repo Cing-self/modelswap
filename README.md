@@ -84,7 +84,7 @@ modelswap sync pair --create               # LAN pairing, or sync push/pull via 
 
 ### For AI agents
 
-The package ships a [`modelswap-cli` agent skill](skills/modelswap-cli/SKILL.md). `modelswap skill install /path/to/project` installs it into the project's `.agents/skills/modelswap-cli/`; `modelswap skill path` prints the built-in source location. The skill documents the parseable read-only commands, non-interactive model switching, and the security boundaries around plaintext keys, shell hooks and cloud sync.
+The package ships a [`modelswap-cli` agent skill](skills/modelswap-cli/SKILL.md). `modelswap skill install /path/to/project` installs it into the project's `.agents/skills/modelswap-cli/`; `modelswap skill path` prints the built-in source location. The skill documents the parseable read-only commands, non-interactive model switching, and the security boundaries around plaintext keys and cloud sync.
 
 Or install it straight from the public repo via [skills.sh](https://skills.sh/):
 
