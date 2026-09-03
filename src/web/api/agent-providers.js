@@ -138,4 +138,47 @@ function removeSite(config, agentId, providerId) {
   return state;
 }
 
-module.exports = { getAgentState, mergeSite, migrateAgentProviders, removeSite, replaceAgentState, setSite };
+module.exports = { getAgentState, mergeSite, migrateAgentProviders, normalizeAgentModelSelectionNamespaces, removeSite, replaceAgentState, setSite };
+
+// Google's model directory hands out resource names ("models/gemini-…"); the
+// bare id is canonical in the models cache and in agent configs. Selections
+// written before v1.0.55 may still carry the prefix — heal them in place.
+function normalizeAgentModelSelectionNamespaces(config) {
+  if (!config || typeof config !== 'object') return false;
+  let changed = false;
+  const strip = id => (typeof id === 'string' && id.startsWith('models/') ? id.slice('models/'.length) : id);
+  if (config.agentProviders && typeof config.agentProviders === 'object') {
+    for (const state of Object.values(config.agentProviders)) {
+      if (!state || typeof state !== 'object') continue;
+      if (typeof state.activeModelId === 'string' && state.activeModelId.startsWith('models/')) {
+        state.activeModelId = strip(state.activeModelId);
+        changed = true;
+      }
+      for (const site of Object.values(state.sites || {})) {
+        if (!site || !Array.isArray(site.modelIds)) continue;
+        const healed = [...new Set(site.modelIds.map(strip))];
+        if (healed.length !== site.modelIds.length || healed.some((id, index) => id !== site.modelIds[index])) {
+          site.modelIds = healed;
+          changed = true;
+        }
+      }
+    }
+  }
+  if (config.modelOverrides && typeof config.modelOverrides === 'object') {
+    for (const [providerId, models] of Object.entries(config.modelOverrides)) {
+      if (!models || typeof models !== 'object') continue;
+      let providerChanged = false;
+      const healed = {};
+      for (const [modelId, fields] of Object.entries(models)) {
+        const id = strip(modelId);
+        if (id !== modelId) providerChanged = true;
+        healed[id] = fields;
+      }
+      if (providerChanged) {
+        config.modelOverrides[providerId] = healed;
+        changed = true;
+      }
+    }
+  }
+  return changed;
+}

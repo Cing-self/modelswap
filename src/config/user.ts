@@ -120,7 +120,9 @@ const LEGACY_CLAUDE_PATH = path.join(MODELSWAP_DIR, "claude-current.json");
 export async function loadUserConfig(): Promise<UserConfig> {
   const config = await readJson(USER_CONFIG_PATH);
   if (config) {
-    if (migrateAgentProviders(config)) return require("../web/api/cloud-sync-core").applyLegacyMigration();
+    const legacyMigrated = migrateAgentProviders(config);
+    const namespacesHealed = normalizeAgentModelSelectionNamespaces(config);
+    if (legacyMigrated || namespacesHealed) return require("../web/api/cloud-sync-core").applyLegacyMigration();
     return config;
   }
 
@@ -272,6 +274,57 @@ export function migrateAgentProviders(config: UserConfig & Record<string, any>):
   config.agentProviders = next;
   for (const key of retired) delete config[key];
   return true;
+}
+
+/**
+ * Google's model directory hands out resource names ("models/gemini-…"); the
+ * bare id is the canonical form stored in the models cache and expected by
+ * agent adapters. Agent selections written by versions before v1.0.55 may
+ * still carry the prefix — heal them so agent configs never mirror the long
+ * form into their model pickers.
+ */
+export function normalizeAgentModelSelectionNamespaces(config: UserConfig & Record<string, any>): boolean {
+  let changed = false;
+  const strip = (id: string): string => (id.startsWith("models/") ? id.slice("models/".length) : id);
+  const healModelIds = (modelIds: string[]): string[] => {
+    const healed = [...new Set(modelIds.map(id => (typeof id === "string" ? strip(id) : id)))];
+    if (healed.length === modelIds.length && healed.every((id, index) => id === modelIds[index])) return modelIds;
+    changed = true;
+    return healed;
+  };
+
+  if (config.agentProviders && typeof config.agentProviders === "object") {
+    for (const state of Object.values(config.agentProviders) as AgentProviderState[]) {
+      if (!state || typeof state !== "object") continue;
+      if (typeof state.activeModelId === "string" && state.activeModelId.startsWith("models/")) {
+        state.activeModelId = strip(state.activeModelId);
+        changed = true;
+      }
+      for (const site of Object.values(state.sites || {})) {
+        if (!site || !Array.isArray(site.modelIds)) continue;
+        site.modelIds = healModelIds(site.modelIds);
+      }
+    }
+  }
+
+  if (config.modelOverrides && typeof config.modelOverrides === "object") {
+    for (const [providerId, models] of Object.entries(config.modelOverrides as Record<string, Record<string, unknown>>)) {
+      if (!models || typeof models !== "object") continue;
+      let providerChanged = false;
+      const healed: Record<string, unknown> = {};
+      for (const [modelId, fields] of Object.entries(models)) {
+        const id = strip(modelId);
+        if (id !== modelId) providerChanged = true;
+        healed[id] = fields;
+      }
+      if (providerChanged) {
+        (config.modelOverrides as Record<string, unknown>)[providerId] = healed;
+        changed = true;
+      }
+    }
+  }
+
+  return changed;
 }
 
 async function migrateLegacyConfig(): Promise<UserConfig | null> {

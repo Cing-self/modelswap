@@ -35,7 +35,7 @@ vi.mock('../../src/config/registry', () => ({
   CACHE_DIR: testRoot.CACHE_DIR,
 }));
 
-const { loadProviders, saveProviders, getProvider, addProvider, deleteProvider } = await import('../../src/providers/store');
+const { loadProviders, saveProviders, getProvider, addProvider, deleteProvider, loadModelsCache } = await import('../../src/providers/store');
 
 const PROVIDERS_PATH = testRoot.PROVIDERS_PATH;
 
@@ -368,5 +368,45 @@ describe('deleteProvider', () => {
     mocks.files.set(PROVIDERS_PATH, JSON.stringify({ providers: [sampleProvider] }));
     const result = await deleteProvider('unknown');
     expect(result).toBe(false);
+  });
+});
+
+describe('loadModelsCache id healing', () => {
+  const CACHE_PATH = path.join(testRoot.MODELSWAP_DIR, 'models-cache.json');
+
+  it('strips the Google "models/" namespace from cached ids and availability routes', async () => {
+    mocks.files.set(CACHE_PATH, JSON.stringify({
+      version: 2,
+      providers: {
+        google: [
+          {
+            id: 'models/gemini-2.5-flash',
+            name: 'Gemini 2.5 Flash',
+            origin: 'remote',
+            availability: [{ executionMode: 'http_endpoint', remoteModelId: 'models/gemini-2.5-flash', status: 'available', source: 'remote' }],
+          },
+          { id: 'gemma-4-26b-it', name: 'Gemma 4' },
+          { id: 'models/gemma-4-26b-it', name: 'Gemma 4 (duplicate)' },
+        ],
+      },
+    }));
+
+    const cache = await loadModelsCache();
+    const google = cache.providers.google as any[];
+    expect(google.map(model => model.id)).toEqual(['gemini-2.5-flash', 'gemma-4-26b-it']);
+    expect(google[0].name).toBe('Gemini 2.5 Flash');
+    expect(google[0].availability[0].remoteModelId).toBe('gemini-2.5-flash');
+  });
+
+  it('leaves route-shaped ids from other providers untouched', async () => {
+    mocks.files.set(CACHE_PATH, JSON.stringify({
+      version: 2,
+      providers: {
+        openrouter: [{ id: 'anthropic/claude-sonnet-4', name: 'Claude Sonnet 4' }],
+      },
+    }));
+
+    const cache = await loadModelsCache();
+    expect((cache.providers.openrouter as any[])[0].id).toBe('anthropic/claude-sonnet-4');
   });
 });
