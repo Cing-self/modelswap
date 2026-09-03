@@ -21,12 +21,16 @@ const SHOTS = [
   { name: 'vault-detail', path: '/vault', skip: true }, // reserved
   { name: 'auto-create', path: '/vault', clickText: '添加' },
   { name: 'models', path: '/models' },
+  { name: 'provider-form', path: '/models', clickText: '+ 添加平台' },
   { name: 'usage', path: '/usage' },
   // /agents redirects to the home page (agents live in its tabs) — shoot the
   // agent config section scrolled into view instead of a duplicate hero shot.
   { name: 'agents', path: '/?tab=agents', scrollToText: 'AGENT' },
+  { name: 'agent-add-site', path: '/?tab=agents', scrollToText: 'AGENT', clickText: '添加站点' },
+  { name: 'agent-config-files', path: '/?tab=agents', scrollToText: 'AGENT', clickTitle: '查看配置' },
   { name: 'model-data', path: '/model-data' },
   { name: 'settings', path: '/settings?section=sync' },
+  { name: 'device-pairing', path: '/settings?section=sync', clickText: '添加设备' },
   { name: 'snapshots', path: '/settings?section=snapshots' },
 ];
 
@@ -53,6 +57,10 @@ async function main() {
     await page.waitForTimeout(600);
     if (shot.clickText) {
       await page.getByRole('button', { name: shot.clickText }).first().click();
+      await page.waitForTimeout(900);
+    }
+    if (shot.clickTitle) {
+      await page.locator(`button[title="${shot.clickTitle}"]`).first().click();
       await page.waitForTimeout(900);
     }
     if (shot.scrollToText) {

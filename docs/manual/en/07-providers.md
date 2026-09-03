@@ -19,6 +19,8 @@ Open a platform's edit form (custom platforms start from **+ Add platform**):
 - **Model list**: auto-filled after a successful connection test; you can also add/remove rows manually (each row is the `model` parameter used in requests)
 - The form header links to the platform's official API docs and console
 
+![Add a custom platform: endpoints, protocol and auth](../images/provider-form.png)
+
 ## 7.3 Connection test & model refresh
 
 - After picking a key in the form, click **Test connection**: each endpoint is verified, and once all pass the platform's **model list is fetched automatically** into the form

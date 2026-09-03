@@ -26,6 +26,8 @@ ModelSwap writes the config files (`settings.json`, `config.toml`, …) correctl
 3. Pick models: search by name/ID, multi-select (non-coding models carry a "non-coding" tag to prevent mismatches); hit **Refresh** to pull the platform's latest model list on the spot
 4. Click **Save models** — ModelSwap validates routing and auth, then writes the agent config
 
+![Add site: check the ready providers](../images/agent-add-site.png)
+
 ## 9.4 View / edit config files
 
 Click **View config** (the file icon) at the top right of the section:
@@ -34,6 +36,8 @@ Click **View config** (the file icon) at the top right of the section:
 - Sensitive values are masked by default; click the eye icon to reveal plaintext (with a "make sure nobody's around / no screen sharing" confirmation)
 - The eye button next to a file path toggles **tree preview** (a collapsible JSON view); click again to go back to raw text
 - You can edit and save directly: syntax is validated and a snapshot is taken before saving, so you can roll back (chapter 12)
+
+![Config file viewer: sensitive values masked by default](../images/agent-config-files.png)
 
 ## 9.5 Manage sites
 

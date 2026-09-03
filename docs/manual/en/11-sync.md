@@ -28,6 +28,8 @@ Sync directly between machines on the same LAN — no cloud account needed. Entr
 
 > Prerequisites: both machines on the same LAN, using the **same sync password** (it is the root of the end-to-end encryption; if the primary machine has none yet, the dialog asks for one when you start).
 
+![Add device: pick this machine's role](../images/device-pairing.png)
+
 **① Start from the machine that has the data (primary)**
 
 1. **Settings → Device Sync** → click **Add device**

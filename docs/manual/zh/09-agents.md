@@ -26,6 +26,8 @@ ModelSwap 适配 10 个 Agent：**Claude Code、ChatGPT (Codex)、Kimi Code、Wo
 3. 进入模型选择：按名称/ID 搜索、多选模型（非编码模型带「非编程」标签，防止误配）；点 **刷新** 可从平台实时拉取最新模型列表
 4. 点 **保存模型**——ModelSwap 校验路由与认证后写入 Agent 配置
 
+![添加站点：从已就绪的 Provider 中勾选](../images/agent-add-site.png)
+
 ## 9.4 查看 / 编辑配置文件
 
 点击区块右上角 **查看配置**（文件图标）：
@@ -34,6 +36,8 @@ ModelSwap 适配 10 个 Agent：**Claude Code、ChatGPT (Codex)、Kimi Code、Wo
 - 敏感值默认打码展示；点眼睛图标显示明文（需二次确认「周围无人、屏幕未共享」）
 - 文件路径旁的眼睛按钮可切换**树形预览**（JSON 折叠视图），再点切回原文
 - 支持直接编辑并保存：保存前自动校验语法并拍快照，出问题可回滚（见第 12 章）
+
+![配置文件查看器：敏感值默认打码](../images/agent-config-files.png)
 
 ## 9.5 站点管理
 
