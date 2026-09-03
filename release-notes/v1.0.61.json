@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.61",
+  "publishedAt": "2026-09-04",
+  "summary": {
+    "zh": "用户手册全面重写：新增 ModelSwap 介绍与十分钟上手，六组侧边栏大纲，各功能章节按现有界面补全细节与截图。",
+    "en": "The user manual gets a full rewrite: a new ModelSwap intro and ten-minute quick start, a six-group sidebar outline, and feature chapters completed with current-UI details and screenshots."
+  },
+  "highlights": [
+    {
+      "category": "improved",
+      "zh": "手册新增「ModelSwap 是什么」介绍章与「十分钟上手」快速上手章，先了解再安装，跑通第一次模型切换。",
+      "en": "Two new opening chapters — 'What is ModelSwap' and a ten-minute Quick Start — so you understand the tool before installing and finish your first model switch in minutes."
+    },
+    {
+      "category": "improved",
+      "zh": "Agent 配置、模型管控、用量统计、密钥库等章节按现有界面补全：添加站点、查看配置文件、连接测试自动拉模型、用量告警阈值与查询凭证配置等均有分步说明。",
+      "en": "Feature chapters now match the current UI step by step — adding sites, viewing agent config files, connection tests that auto-fetch models, usage alert thresholds, and balance-credential setup."
+    },
+    {
+      "category": "improved",
+      "zh": "手册补齐桌面版优先的安装指引（含 macOS 首次启动放行步骤）与局域网同步配对全流程，并新增多张功能截图。",
+      "en": "Desktop-first install guidance (including the macOS first-launch allow steps), a complete LAN sync pairing walkthrough, and several new feature screenshots."
+    }
+  ]
+}
