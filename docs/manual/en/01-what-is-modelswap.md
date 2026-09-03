@@ -46,6 +46,6 @@ The desktop app and the CLI share the same data directory (`~/.modelswap`) — p
 
 Got the picture? Here's where to go next:
 
-- **Want to try it right away?** → [Quick Start](03-quickstart) (ten minutes to your first model switch)
-- **Prefer to install first?** → [Install & Start](02-install) (CLI, desktop, or web)
-- **Questions?** → [FAQ](15-faq)
+- **Want to try it right away?** → [Quick Start](03-quickstart.md) (ten minutes to your first model switch)
+- **Prefer to install first?** → [Install & Start](02-install.md) (CLI, desktop, or web)
+- **Questions?** → [FAQ](15-faq.md)

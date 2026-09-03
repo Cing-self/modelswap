@@ -70,4 +70,4 @@ modelswap upgrade          # upgrade to the latest version
 >
 > ModelSwap runs no daemon and never sits in the request path: it writes your config and exits — your agent talks to the model provider directly. Agent configs keep working after uninstall.
 
-All set? Spend ten minutes on the [Quick Start](03-quickstart) to make your first model switch. If anything went wrong during install, check the [FAQ](15-faq).
+All set? Spend ten minutes on the [Quick Start](03-quickstart.md) to make your first model switch. If anything went wrong during install, check the [FAQ](15-faq.md).
