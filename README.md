@@ -9,11 +9,11 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A520-339933.svg)](package.json)
 
-[中文](README_ZH.md) · [Website](https://modelswap.app) · [Docs](docs/manual/en/) · [Changelog](CHANGELOG.md)
+[中文](README_ZH.md) · [Website](https://modelswap.app) · [Docs](https://docs.modelswap.app) · [Changelog](CHANGELOG.md)
 
 </div>
 
-Keys and models, one console. ModelSwap is a local-first open-source tool that manages the full key lifecycle for AI coding CLIs: **create → store → switch → verify → monitor**. Local features are free forever.
+Keys and models, one console. ModelSwap is a local-first open-source tool that manages the full key lifecycle for AI coding CLIs: **create → store → switch → verify → sync**. All data stays on your machine — no account, no subscription.
 
 ## Screenshots
 
@@ -28,20 +28,26 @@ Keys and models, one console. ModelSwap is a local-first open-source tool that m
 ## Why ModelSwap
 
 - **Switching never loses your config** — Surgical writes: only fields ModelSwap owns are touched; your hooks, statusLine, tui and MCP config stay intact. Every switch is snapshotted first — one-click diff and rollback in Settings.
-- **Switch models without leaving Codex** — ModelSwap auto-generates Codex's native model catalog (model-catalogs); switch with `/model` right inside the Codex CLI, no round-trip to ModelSwap.
+- **40 platforms out of the box** — Anthropic / OpenAI / Google / Volcengine / Zhipu / DeepSeek / Kimi… official, aggregator and China-based presets ready to go: pick a platform, paste a key, switch. No doc-diving for base URLs.
+- **Switch models without leaving the terminal** — ModelSwap generates each agent's native model catalog; switch with `/model` right inside the CLI, no round-trip to ModelSwap.
+- **Multi-device sync, you own the data** — LAN peer-to-peer sync with pairing codes, or plug in your own cloud storage (Cloudflare / Supabase / WebDAV / iCloud and more, 9 backends); one-time sync codes migrate between machines. Payloads are encrypted — the server never sees plaintext.
 - **Zero daemons, zero interception** — No background process, nothing on your request path: ModelSwap writes config and exits; your agents talk to model platforms directly. Uninstall leaves nothing behind — configs keep working.
-- **Key vault** — AES-256-GCM encrypted local storage, cloud sync and LAN peer-to-peer sync (pairing-code pairing).
+- **Key vault** — AES-256-GCM encrypted local storage with machine-bound key derivation, plus per-project binding that auto-injects `.env`.
 
 ## Comparison
 
+> Based on both projects' official READMEs as of 2026-09 ([cc-switch](https://github.com/farion1231/cc-switch) · [codex-router](https://github.com/duolahypercho/codex-router)). Different tools, different trade-offs — pick what fits.
+
 | Capability | ModelSwap | cc-switch | codex-router |
 |------|------|-----------|--------------|
-| Config writing | Field-level merge + pre-switch snapshot/rollback | Full overwrite + config snippets | Managed block |
-| Resident process | None | Tray (optional proxy) | Local gateway (required) |
-| Agents supported | 10 | 8 | Codex family |
-| Key management | Encrypted vault + project binding | Plaintext local config | Credential isolation |
-| Auto-create API keys | 31 platforms (browser extension) | — | — |
-| Usage queries | 30+ subscription/balance sources, direct | Proxy-layer stats | — |
+| Positioning | Key & model console (write & exit) | Provider-switch GUI (tray + optional local proxy) | Local model router (background service + control center) |
+| Config writing | Field-level merge + pre-switch snapshots, one-click rollback | Atomic writes + auto backups (last 10) + shared snippets | Managed-block injection |
+| Request path | Never through ModelSwap | Direct, or via optional proxy (hot-switch/failover) | Routed through the local router service |
+| Agents supported | 10 | 8 | Codex-first (Harness/Gemini CLI bridges experimental) |
+| Key storage | AES-256-GCM encrypted vault + project binding | Local SQLite store (README does not mention encryption) | Stored locally (README does not mention encryption) |
+| Auto-create API keys | 32 platforms (browser extension) | — | — |
+| Usage queries | 37 subscription/balance sources, direct | Usage dashboard (spend/requests/tokens) | — |
+| Multi-device sync | LAN peer-to-peer + 9 self-hosted cloud backends + sync codes | — | — |
 | Platforms | macOS / Linux / Windows | macOS / Linux / Windows | macOS / Linux / Windows |
 
 ## Quick Start
@@ -50,84 +56,100 @@ Keys and models, one console. ModelSwap is a local-first open-source tool that m
 # via npm
 npm install -g modelswap
 
+# launch the web console
+modelswap web          # opens http://localhost:3780
+
 # or from source
 git clone https://github.com/Cing-self/modelswap.git
 cd modelswap
 npm ci --ignore-scripts
 npm run build
 node dist/main.js web
-# open http://localhost:3780
 ```
 
-Common commands:
+Everyday commands:
 
 ```bash
-modelswap web                              # launch the web console (:3780)
-modelswap vault set <key>                  # store a key interactively (AES-256-GCM)
+modelswap web                              # web console (:3780)
+modelswap vault set <key>                  # store a secret interactively (AES-256-GCM)
 printf '%s' "$SECRET" | modelswap vault set <key> --stdin  # keep secrets out of argv in automation
-modelswap vault inject                     # print export statements (pipe to eval)
+modelswap vault inject                     # print export statements (pair with eval)
 modelswap provider list                    # list 40 preset model platforms
-modelswap provider switch                  # interactive provider/model switch
+modelswap provider switch                  # interactive provider/model switch per agent
 modelswap provider use <provider>          # non-interactive switch (script/agent friendly)
+modelswap sync pair --create               # LAN pairing, or sync push/pull via self-hosted cloud
 ```
 
-> **Shell config boundary**: ModelSwap never touches your shell config (`~/.zshrc` / `~/.bashrc` etc.) — no feature writes to it, in any form.
+> **Shell config boundary**: ModelSwap never touches your shell config (`~/.zshrc` / `~/.bashrc`) — no feature writes to it.
 
 ### For AI agents
 
-The package ships an [`modelswap-cli` Agent Skill](skills/modelswap-cli/SKILL.md). Run `modelswap skill install /path/to/project` to install it into the target project's `.agents/skills/modelswap-cli/`; `modelswap skill path` prints the bundled original location. The skill documents resolvable read-only commands, non-interactive model switching, and the security boundaries around plaintext keys and cloud sync.
+The package ships a [`modelswap-cli` agent skill](skills/modelswap-cli/SKILL.md). `modelswap skill install /path/to/project` installs it into the project's `.agents/skills/modelswap-cli/`; `modelswap skill path` prints the built-in source location. The skill documents the parseable read-only commands, non-interactive model switching, and the security boundaries around plaintext keys, shell hooks and cloud sync.
 
-Or install straight from the public repo via [skills.sh](https://skills.sh/):
+Or install it straight from the public repo via [skills.sh](https://skills.sh/):
 
 ```bash
 npx skills add Cing-self/modelswap --skill modelswap-cli
 ```
 
-## Features
-
-### Key vault
-AES-256-GCM encrypted storage, masked display, cloud sync + LAN sync. The first-run wizard scans agent config files and imports stray plaintext keys into the vault in one click.
-
-### Provider / model management
-40 preset platforms (official / aggregator / CN), 10 agent adapters, multi-endpoint protocols (Anthropic / OpenAI compatible), auth-state detection, and subscription / API-key / third-party credential modes. Adding a site starts with an empty model list — you check what you want, exactly that gets written. Model parameters (context window / output limit / tool call / reasoning / multimodal) are auto-filled from the [models.dev](https://models.dev) catalog — no more guessing.
-
-### Auto-create keys
-A browser extension fills and submits the key-creation form inside each platform's official console and captures the result (31 platforms, incl. Volcengine, Zhipu, Baidu Qianfan).
-
-### Usage
-Direct queries against 30+ subscription / balance sources, with threshold alerts (local notifications).
-
-### Model catalog
-Official pricing and capability data across platforms (input / output / cache pricing, context windows), peak/off-peak rates included.
-
-## FAQ
-
-**Does ModelSwap sit on my request path?**
-No. Zero daemons, zero interception: ModelSwap writes config and exits — your agents connect to model platforms directly, with no proxy or forwarding layer.
-
-**Will switching break my existing settings?**
-No. Surgical writes touch only ModelSwap-owned fields; hooks / statusLine / MCP config are preserved, and every switch is snapshotted for rollback.
-
-**Where are keys stored? How safe?**
-AES-256-GCM encrypted locally, with machine-bound key derivation. Nothing ever lands on disk in plaintext (keys found by the import wizard are shown masked only). Uninstalling wipes everything.
-
-
-## Development
+### Building & developing
 
 ```bash
-npm ci                      # install per lockfile
-npm run build               # tsc + preset codegen + web copy + frontend build
+npm ci                      # install from the lockfile
+npm run build               # tsc + preset generation + web copy + frontend build
 npx vitest run              # tests (500+ cases)
 cd src/web/frontend && npm run dev   # frontend dev server (:5173 → proxies :3780)
 ```
 
-Requires Node.js 20+. Frontend: React + TypeScript + Vite; backend: Node (web layer in CommonJS); tests: vitest.
+Node.js 20+. Frontend: React + TypeScript + Vite; backend: Node (web layer in CommonJS); tests: vitest. See [CONTRIBUTING.md](CONTRIBUTING.md) for commit and release conventions.
 
-## Documentation
+## Feature Overview
 
-- [User manual](docs/manual/en/)（[中文](docs/manual/zh/)，with product screenshots）
+### Key vault
+AES-256-GCM encrypted storage, masked display, per-project binding (auto-inject into `.env`). The first-run wizard scans agent config files and safely imports stray plaintext keys in one click.
+
+### Multi-device sync
+- **LAN**: pairing-code peer-to-peer sync — no third-party server involved
+- **Self-hosted cloud**: Cloudflare (KV/D1/R2), Supabase, WebDAV, iCloud, Volcengine TOS and more — 9 backends, encrypted payloads
+- **One-time sync codes**: migrate all config and keys between two machines
+
+### Provider / model management
+40 platform presets (official / aggregator / China-based), 10 agent adapters, multi-endpoint protocols (anthropic / OpenAI-compatible / responses), auth-state checks, and three credential modes (subscription / API / third-party). Adding a site starts from an empty model list — you write exactly what you choose.
+
+### Auto-create keys
+The browser extension fills and submits key-creation forms inside official consoles and wires the key back (32 platforms, incl. Volcengine, Zhipu, Baidu Qianfan).
+
+### Usage queries
+37 subscription/balance sources queried directly, with threshold alerts (local notifications).
+
+### Snapshots & rollback
+Every agent-config switch is snapshotted automatically; Settings diffs any two snapshots side by side and rolls back in one click.
+
+## FAQ
+
+**Does ModelSwap sit on my request path?**
+No. Zero daemons, zero interception: ModelSwap writes config and exits. Your agents talk to model platforms directly — no proxy, no forwarding.
+
+**Will switching break my existing settings?**
+No. Surgical writes touch only ModelSwap-owned fields; hooks / statusLine / MCP config stay intact, and every switch is snapshotted for rollback.
+
+**Where are my keys stored? Are they safe?**
+AES-256-GCM encrypted locally, with machine-bound key derivation. Nothing ever lands on disk in plaintext (keys found by the import wizard are masked, too). Uninstalling wipes everything.
+
+**Where does sync send my keys?**
+LAN mode is peer-to-peer. Cloud sync goes to storage you create yourself (Cloudflare / Supabase / WebDAV…) and payloads are encrypted — the provider never sees plaintext. You can leave sync entirely off.
+
+**Which agents are supported?**
+10 adapters: Claude Code, Codex, OpenCode, ZCode, Kimi Code, Grok, Hermes, OpenClaw, Mimo Code, WorkBuddy.
+
+**How do I uninstall?**
+`npm uninstall -g modelswap`, then remove `~/.modelswap`. Agent configs already written keep working unchanged.
+
+## Docs
+
+- [docs.modelswap.app](https://docs.modelswap.app) — user manual ([GitHub source](docs/manual/en/))
 - [Contributing](CONTRIBUTING.md)
 
 ## License
 
-ModelSwap is released under the [MIT License](LICENSE). Copyright Cing-self / ModelSwap contributors (2026).
+ModelSwap is released under the [MIT License](LICENSE). © Cing-self / ModelSwap contributors (2026).
