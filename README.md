@@ -45,7 +45,7 @@ Keys and models, one console. ModelSwap is a local-first open-source tool that m
 | Request path | Never through ModelSwap | Direct, or via optional proxy (hot-switch/failover) | Routed through the local router service |
 | Agents supported | 10 | 8 | Codex-first (Harness/Gemini CLI bridges experimental) |
 | Key storage | AES-256-GCM encrypted vault + project binding | Local SQLite store (README does not mention encryption) | Stored locally (README does not mention encryption) |
-| Auto-create API keys | 33 platforms (browser extension + gcloud CLI) | — | — |
+| Auto-create API keys | 31 platforms (browser extension) | — | — |
 | Usage queries | 37 subscription/balance sources, direct | Usage dashboard (spend/requests/tokens) | — |
 | Multi-device sync | LAN peer-to-peer + 9 self-hosted cloud backends + sync codes | — | — |
 | Platforms | macOS / Linux / Windows | macOS / Linux / Windows | macOS / Linux / Windows |
@@ -117,7 +117,7 @@ AES-256-GCM encrypted storage, masked display, per-project binding (auto-inject 
 41 platform presets (official / aggregator / China-based), 10 agent adapters, multi-endpoint protocols (anthropic / OpenAI-compatible / responses), auth-state checks, and three credential modes (subscription / API / third-party). Adding a site starts from an empty model list — you write exactly what you choose.
 
 ### Auto-create keys
-The browser extension fills and submits key-creation forms inside official consoles (32 platforms); Google AI Studio keys are created via the gcloud CLI with no browser at all (33 platforms total).
+The browser extension fills and submits key-creation forms inside official consoles (31 platforms). Google AI Studio and Cloudflare channels are temporarily not offered; keys for them can still be added manually.
 
 ### Usage queries
 37 subscription/balance sources queried directly, with threshold alerts (local notifications).

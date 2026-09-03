@@ -377,14 +377,11 @@ describe('provider-live-acceptance platform catalogue', () => {
     expect(platform?.maskedPrefix).toBe('sk-tp-');
   });
 
-  it('listAllPlatforms exposes all 33 platforms with modes', () => {
-    expect(listAllPlatforms()).toHaveLength(33);
-    expect(listAllPlatforms().filter((platform) => platform.mode === 'api')).toEqual([
-      expect.objectContaining({ id: 'cloudflare' }),
-    ]);
-    expect(listAllPlatforms().filter((platform) => platform.mode === 'cli')).toEqual([
-      expect.objectContaining({ id: 'google-aistudio' }),
-    ]);
+  it('listAllPlatforms exposes all 31 browser platforms', () => {
+    // Cloudflare (api) and Google AI Studio (cli) auto-create entries are
+    // retired; the directory offers browser channels only.
+    expect(listAllPlatforms()).toHaveLength(31);
+    expect(listAllPlatforms().filter((platform) => platform.mode !== 'browser')).toEqual([]);
   });
 });
 
@@ -1309,10 +1306,10 @@ describe('provider live-acceptance CLI subprocess', { timeout: 30000 }, () => {
     expect(run.stderr).toContain('拒绝不安全参数');
   });
 
-  it('refuses api-mode platforms (cloudflare) in guest/auth-verify', () => {
+  it('refuses retired platforms (cloudflare) as unknown', () => {
     const run = runNode(CLI_SCRIPT, ['--mode', 'guest', '--platform', 'cloudflare']);
     expect(run.status).not.toBe(0);
-    expect(run.stderr).toContain('mode 是 api');
+    expect(run.stderr).toContain('未知平台');
   });
 
   it('provider-live-chrome refuses a daily-profile --profile value (non-zero exit)', () => {
@@ -1344,7 +1341,7 @@ describe('provider live-acceptance CLI subprocess', { timeout: 30000 }, () => {
   it('hardened auto-create-key-check still supports --list and explicit dry-run plans', () => {
     const listRun = runNode(OLD_CHECK_SCRIPT, ['--list']);
     expect(listRun.status).toBe(0);
-    expect(listRun.stdout.trim().split('\n')).toHaveLength(33);
+    expect(listRun.stdout.trim().split('\n')).toHaveLength(31);
 
     const dryRun = runNode(OLD_CHECK_SCRIPT, ['--dry-run', 'zhipu']);
     expect(dryRun.status).toBe(0);
