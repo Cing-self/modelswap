@@ -10,12 +10,16 @@
 //   GCLOUD_API_ENABLE_FAILED / GCLOUD_CREATE_FAILED / GCLOUD_DELETE_FAILED
 
 const GEMINI_SERVICE = 'generativelanguage.googleapis.com';
-// gen-lang-client-* is the prefix AI Studio auto-creates its GCP projects
-// with (seen in POC on 2026-09-03) — reuse those too.
-const PROJECT_PREFERRED_PATTERN = /modelswap|gemini|aicore|gen-lang/i;
+// Project preference order, learned from the 2026-09-03 POC: a freshly
+// created no-billing project got auto-denied by Google's abuse heuristics
+// within an hour (403 "Your project has been denied access"), while keys
+// created in the account's EXISTING projects (incl. AI Studio's own
+// gen-lang-client-*) kept working. So: reuse before create, and prefer the
+// projects Google itself trusts most.
+const PROJECT_PREFERRED_PATTERN = /gen-lang|modelswap|gemini|aicore/i;
 const RUN_TIMEOUT_MS = 90_000;
 
-function createGcloudKeyService({ execFile }) {
+function createGcloudKeyService({ execFile, fetchJson }) {
   const env = { ...process.env, CLOUDSDK_CORE_DISABLE_PROMPTS: '1' };
 
   function run(args, opts = {}) {
@@ -65,12 +69,19 @@ function createGcloudKeyService({ execFile }) {
     return name;
   }
 
-  async function resolveProject() {
+  // Project candidates: existing AI-Studio-style / modelswap / gemini /
+  // aicore projects first (Google trusts them), a freshly created project
+  // only as the last resort — new no-billing projects are the ones Google
+  // tends to auto-deny. Unrelated projects are never touched.
+  async function resolveProjectCandidates() {
     const projects = await listProjects();
-    const preferred = projects.find((id) => PROJECT_PREFERRED_PATTERN.test(id));
-    if (preferred) return preferred;
+    const preferred = projects.filter((id) => PROJECT_PREFERRED_PATTERN.test(id));
     const suffix = Math.random().toString(36).slice(2, 8);
-    return createProject(`modelswap-gemini-${suffix}`);
+    return [...preferred, `@create:modelswap-gemini-${suffix}`];
+  }
+
+  async function resolveProject() {
+    return (await resolveProjectCandidates())[0];
   }
 
   async function enableGeminiApi(project) {
@@ -78,6 +89,24 @@ function createGcloudKeyService({ execFile }) {
     const r = await run(['services', 'enable', GEMINI_SERVICE, '--project', project]);
     if (!r.ok) {
       throw fail('GCLOUD_API_ENABLE_FAILED', `启用 Gemini API 失败：${r.stderr.trim() || `exit ${r.code}`}`);
+    }
+  }
+
+  // Verify a freshly created key with a minimal real generation. Listing
+  // models alone is NOT enough — a denied project still lists models while
+  // generation returns 403 (observed on the banned POC project).
+  async function verifyKey(keyString) {
+    if (!fetchJson) return { ok: true };
+    try {
+      const data = await fetchJson('https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=' + encodeURIComponent(keyString), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: 'OK' }] }] }),
+        timeoutMs: 60_000,
+      });
+      return { ok: Boolean(data && data.candidates), error: data && data.error };
+    } catch (error) {
+      return { ok: false, error: { message: error.message } };
     }
   }
 
@@ -90,38 +119,57 @@ function createGcloudKeyService({ execFile }) {
     if (!account) {
       throw fail('GCLOUD_NOT_AUTHED', 'gcloud 尚未登录。请在终端运行 gcloud auth login 完成 Google 账号授权（一次性，浏览器登录后长期有效），然后重试。');
     }
-    const project = await resolveProject();
-    await enableGeminiApi(project);
-
-    const r = await run([
-      'services', 'api-keys', 'create',
-      `--display-name=${tokenName}`,
-      `--api-target=service=${GEMINI_SERVICE}`,
-      '--project', project,
-      '--format=json',
-    ]);
-    if (!r.ok) {
-      throw fail('GCLOUD_CREATE_FAILED', `创建 API Key 失败：${r.stderr.trim() || `exit ${r.code}`}`);
+    const candidates = await resolveProjectCandidates();
+    const failures = [];
+    for (const candidate of candidates) {
+      const project = candidate.startsWith('@create:') ? await createProject(candidate.slice('@create:'.length)) : candidate;
+      try {
+        await enableGeminiApi(project);
+        const r = await run([
+          'services', 'api-keys', 'create',
+          `--display-name=${tokenName}`,
+          `--api-target=service=${GEMINI_SERVICE}`,
+          '--project', project,
+          '--format=json',
+        ]);
+        if (!r.ok) {
+          failures.push(`${project}: ${r.stderr.trim() || `exit ${r.code}`}`);
+          continue;
+        }
+        let payload;
+        try {
+          payload = JSON.parse(r.stdout);
+        } catch {
+          failures.push(`${project}: gcloud 输出无法解析`);
+          continue;
+        }
+        const keyString = payload.keyString || (payload.response && payload.response.keyString);
+        if (!keyString || !/^AIza/.test(keyString)) {
+          failures.push(`${project}: 未返回 AIza 明文 Key`);
+          continue;
+        }
+        const verification = await verifyKey(keyString);
+        if (!verification.ok) {
+          // Most likely a project-level deny (fresh no-billing projects get
+          // auto-flagged). Try the next candidate project instead.
+          failures.push(`${project}: Key 验证失败（${(verification.error && (verification.error.status || verification.error.message)) || '未知'}）`);
+          await deleteKey({ keyUid: (payload.name || payload.response?.name || '').split('/').pop(), project }).catch(() => {});
+          continue;
+        }
+        return {
+          value: keyString,
+          name: (payload.displayName || (payload.response && payload.response.displayName)) || tokenName,
+          // resource name like projects/p/locations/global/keys/<uid> — the uid is
+          // what `api-keys delete` expects.
+          id: ((payload.name || (payload.response && payload.response.name) || '')).split('/').pop() || payload.uid || '',
+          project,
+          account,
+        };
+      } catch (error) {
+        failures.push(`${project}: ${error.message}`);
+      }
     }
-    let payload;
-    try {
-      payload = JSON.parse(r.stdout);
-    } catch {
-      throw fail('GCLOUD_CREATE_FAILED', 'gcloud 创建命令的输出无法解析（预期 JSON）。');
-    }
-    const keyString = payload.keyString;
-    if (!keyString || !/^AIza/.test(keyString)) {
-      throw fail('GCLOUD_CREATE_FAILED', 'gcloud 未返回 AIza 开头的明文 Key；请改用 --show-key-string 手动确认。');
-    }
-    return {
-      value: keyString,
-      name: payload.displayName || tokenName,
-      // resource name like projects/p/locations/global/keys/<uid> — the uid is
-      // what `api-keys delete` expects.
-      id: (payload.name || '').split('/').pop() || payload.uid || '',
-      project,
-      account,
-    };
+    throw fail('GCLOUD_CREATE_FAILED', `所有候选项目均创建失败：${failures.join('；')}。若为"project denied"：Google 会对全新且未绑定付款方式的项目的生成请求做自动限制，建议先在 AI Studio 网页生成一次 Key（会自动创建可信项目）后再用本功能复用该项目。`);
   }
 
   async function deleteKey({ keyUid, project }) {

@@ -56,7 +56,20 @@ const AUTO_CREATE_RUNS = new Map();
 const AUTO_CREATE_VERIFICATION_TIMEOUT_MS = 30 * 60 * 1000;
 const AUTO_CREATE_RUN_RESULT_TTL_MS = 10 * 60 * 1000;
 const { createCloudflareToken, deleteCloudflareToken } = createCloudflareKeyService({ https });
-const gcloudKeyService = createGcloudKeyService({ execFile: require('child_process').execFile });
+// fetchJson for gcloud key verification (native fetch, AbortController timeout).
+const gcloudKeyService = createGcloudKeyService({
+  execFile: require('child_process').execFile,
+  fetchJson: async (url, options = {}) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), options.timeoutMs || 60000);
+    try {
+      const response = await fetch(url, { method: options.method, headers: options.headers, body: options.body, signal: controller.signal });
+      return await response.json();
+    } finally {
+      clearTimeout(timer);
+    }
+  },
+});
 
 const autoCreateRuntime = createAutoCreateRuntime({ sendCommand, sendToExtension, isExtensionConnected });
 const { sleep, execJs, closeAutomationWindow, focusAutomationWindow, foregroundClick } = autoCreateRuntime;
