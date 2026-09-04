@@ -28,3 +28,9 @@ nul
 src/public/
 # docs site build output (docs.modelswap.app)
 docs-site-dist/
+
+# internal working notes (local only, not for the public repo)
+BLOCKED.md
+CLAUDE.md
+PROGRESS.md
+.team/
