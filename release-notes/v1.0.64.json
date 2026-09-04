@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.64",
+  "publishedAt": "2026-09-04",
+  "summary": {
+    "zh": "修复 ChatGPT/Claude 站点开关：停用当前站点后自动回退到官方订阅，不再报 Model not found。",
+    "en": "Fixed the ChatGPT/Claude site toggle: disabling the active site now falls back to the official subscription automatically instead of failing with 'Model not found'."
+  },
+  "highlights": [
+    {
+      "category": "fixed",
+      "zh": "停用 ChatGPT/Claude 的当前站点时，自动切回官方订阅站点并写好配置，不再出现 Model not found 报错。",
+      "en": "Disabling the active ChatGPT/Claude site now switches the agent back to the official subscription with the config written for you — no more 'Model not found' error."
+    },
+    {
+      "category": "improved",
+      "zh": "被停用的站点保留在列表中（开关为关），随时可以一键重新启用。",
+      "en": "The disabled site stays in the list with its toggle off, ready to be re-enabled at any time."
+    },
+    {
+      "category": "improved",
+      "zh": "停用前自动生成配置快照，写入失败自动回滚，官方订阅写入同时清掉残留的第三方配置块。",
+      "en": "A config snapshot is taken before disabling and restored automatically on failure; the fallback write also cleans up leftover third-party blocks in the agent config."
+    }
+  ]
+}
