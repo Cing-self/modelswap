@@ -424,4 +424,35 @@ describe('provider flow source of truth', { timeout: 30000 }, () => {
     const { __testing } = require('../../src/web/api/cloud-sync-core.js');
     expect(__testing.stripRebuildableProviderData({ providers: [{ id: 'site', name: 'Site', models: [{ id: 'm' }], platforms: [{ id: 'derived' }], modelCache: { secret: false } }] })).toEqual([{ id: 'site', name: 'Site' }]);
   });
+
+  it('disabling the active codex site falls back to the official subscription without a catalog', () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-codex-disable-'));
+    const root = path.resolve(__dirname, '../..');
+    const script = `
+      const fs=require('fs'), path=require('path');
+      const api=require(path.join(process.argv[1], 'src/web/api/providers.js'));
+      const call=(handler, req)=>new Promise((resolve,reject)=>handler(req,{status(c){this.code=c;return this},json(v){(this.code||200)>=400?reject(new Error(v.error)):resolve(v)}}));
+      (async()=>{
+        await call(api.createProvider,{body:{id:'third-site',name:'Third Site',type:'openai',baseUrl:'https://third.test/v1',authMode:'none',models:[{id:'third-model'}]}});
+        await call(api.configureAgentProvider,{params:{agentId:'codex',providerId:'third-site'},body:{modelIds:['third-model'],primaryModelId:'third-model'}});
+        await call(api.setAgentProviderEnabled,{params:{agentId:'codex',providerId:'third-site'},body:{enabled:false}});
+        const user=JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.modelswap','user.json'),'utf8'));
+        const codex=user.agentProviders.codex;
+        const toml=fs.readFileSync(path.join(process.env.HOME,'.codex','config.toml'),'utf8');
+        console.log(JSON.stringify({activeProviderId:codex.activeProviderId,activeModelId:codex.activeModelId,thirdEnabled:codex.sites['third-site']?.enabled,officialEnabled:codex.sites['openai-codex']?.enabled,toml}));
+      })().catch(error=>{console.error(error.stack);process.exit(1)});
+    `;
+    const result = JSON.parse(execFileSync(process.execPath, ['-r', 'ts-node/register/transpile-only', '-e', script, root], {
+      env: { ...process.env, HOME: home, USERPROFILE: home }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim());
+    // The active third-party site is disabled in place (kept for re-enabling)
+    // and the agent lands on the built-in openai-codex subscription even
+    // though that OAuth preset ships no model catalog.
+    expect(result.activeProviderId).toBe('openai-codex');
+    expect(result.activeModelId).toBe('gpt-5.6-sol');
+    expect(result.thirdEnabled).toBe(false);
+    expect(result.officialEnabled).toBe(true);
+    expect(result.toml).not.toContain('third-site');
+    expect(result.toml).not.toContain('third-model');
+  });
 });

@@ -461,8 +461,8 @@ export default function HomePage() {
                     role="switch"
                     aria-checked={siteEnabled}
                     className={`provider-switch${siteEnabled ? ' provider-switch--on' : ''}`}
-                    title={switchLocked ? t('home.activeProviderRequired') : siteEnabled ? (activeAgent.additive ? t('home.disableSite') : t('home.enabled')) : t('home.enable')}
-                    aria-label={switchLocked ? t('home.activeProviderRequired') : siteEnabled ? (activeAgent.additive ? t('home.disableSite') : t('home.enabled')) : t('home.enable')}
+                    title={switchLocked ? t('home.activeProviderRequired') : siteEnabled ? (activeAgent.additive ? t('home.disableSite') : t('home.disableSiteFallback')) : t('home.enable')}
+                    aria-label={switchLocked ? t('home.activeProviderRequired') : siteEnabled ? (activeAgent.additive ? t('home.disableSite') : t('home.disableSiteFallback')) : t('home.enable')}
                     disabled={(switching || '').startsWith(activeAgent.id) || switchLocked}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -485,12 +485,14 @@ export default function HomePage() {
                         // agent's own UI, so no official fallback is needed.
                         handleDisableSite(activeAgent.id, p.id);
                       } else {
-                        // Switch OFF — for single-type agents, fall back to the
-                        // official subscription. The provider stays in the home
-                        // list but is no longer active.
-                        if (fallback) {
-                          handleSwitch(activeAgent.id, fallback.providerId, fallback.modelId);
-                        }
+                        // Switch OFF (exclusive) — the backend disables the
+                        // site (kept in the list) and lands the agent on the
+                        // official subscription fallback itself, so the
+                        // catalog-less OAuth preset never round-trips through
+                        // a plain switch that would reject its empty catalog.
+                        setAgentProviderSiteEnabled(activeAgent.id, p.id, false)
+                          .then(() => { showToast(t('home.siteDisabled'), 'success'); load(); })
+                          .catch(err => showToast(err.message, 'error'));
                       }
                     }}
                   >

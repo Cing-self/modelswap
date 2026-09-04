@@ -1279,6 +1279,7 @@ export default {
   'home.enabled': 'Enabled',
   'home.activeProviderRequired': 'The active provider must stay enabled. Enable another provider to switch.',
   'home.disableSite': 'Disable site (removes it from the agent config; switch models inside the agent)',
+  'home.disableSiteFallback': 'Disable and fall back to the official subscription site',
   'home.siteDisabled': 'Site disabled',
   'home.viewConfig': 'View config',
   'home.configFilesTitle': 'Config',

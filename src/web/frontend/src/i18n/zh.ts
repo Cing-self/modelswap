@@ -1279,6 +1279,7 @@ export default {
   'home.enabled': '已启用',
   'home.activeProviderRequired': '当前站点必须保持启用；如需切换，请先启用其他站点',
   'home.disableSite': '停用站点（从 Agent 配置中移除，模型切换请在 Agent 内进行）',
+  'home.disableSiteFallback': '停用并回退到官方订阅站点',
   'home.siteDisabled': '站点已停用',
   'home.viewConfig': '查看配置',
   'home.configFilesTitle': '配置',

@@ -241,19 +241,49 @@ function createAgentConfigurationService(overrides = {}) {
   }
 
   async function disableConfiguredSite({ agentId, providerId, source = 'agent-provider-disable' }) {
-    if (!ADDITIVE_AGENTS.has(agentId)) throw asError(`${agentId} 不支持按站点启停`, 400);
+    const meta = adapterMeta(agentId);
+    if (!meta) throw asError(`Agent not found: ${agentId}`, 404);
     const config = await d.loadUserConfig();
-    const site = getAgentState(config, agentId).sites[providerId];
+    const beforeState = getAgentState(config, agentId);
+    const site = beforeState.sites[providerId];
     if (!site) throw asError('站点未配置', 404);
     const adapter = d.getAdapter(agentId);
     let snapshotId = null;
     try { snapshotId = await d.captureSnapshot(agentId); } catch {}
     try {
-      if (typeof adapter?.setProviderEnabled === 'function') await adapter.setProviderEnabled(providerId, false);
-      else if (typeof adapter?.removeProvider === 'function') await adapter.removeProvider(providerId);
-      else throw asError(`${agentId} adapter 不支持停用站点`, 400);
-      setSite(config, agentId, providerId, { ...site, enabled: false });
-      await persistAgentState(agentId, getAgentState(config, agentId), config);
+      if (ADDITIVE_AGENTS.has(agentId)) {
+        if (typeof adapter?.setProviderEnabled === 'function') await adapter.setProviderEnabled(providerId, false);
+        else if (typeof adapter?.removeProvider === 'function') await adapter.removeProvider(providerId);
+        else throw asError(`${meta.name} adapter 不支持停用站点`, 400);
+        setSite(config, agentId, providerId, { ...site, enabled: false });
+        await persistAgentState(agentId, getAgentState(config, agentId), config);
+      } else {
+        // Exclusive agents keep one active site. Disabling it must land on the
+        // official subscription fallback even when that preset has no model
+        // catalog (OAuth-native Codex/Claude), so the same catalogless
+        // allowance as site removal applies here. The disabled site itself
+        // stays in the list (enabled: false) and can be re-enabled later.
+        const fallback = fallbackForAgent(agentId);
+        if (!fallback) throw asError('当前站点正在使用，请先切换到其他站点后再停用', 400);
+        if (providerId === fallback.providerId) throw asError('订阅站点当前使用中，不能停用', 400);
+        if (beforeState.activeProviderId === providerId) {
+          // Strip the disabled site's entries from the agent's native config
+          // before writing the fallback, or a stale model_providers stanza
+          // would linger in e.g. ~/.codex/config.toml.
+          if (typeof adapter?.removeProvider === 'function') await adapter.removeProvider(providerId);
+          const providers = await d.loadProviders();
+          const fallbackProvider = providers.find(provider => provider.id === fallback.providerId)
+            || { id: fallback.providerId, name: fallback.providerId, type: agentId === 'claude' ? 'anthropic' : 'openai', baseUrl: '', authMode: 'none', nativeAgentIds: [agentId], models: [] };
+          await applySelection({ agentId, providerId: fallback.providerId, provider: fallbackProvider, modelIds: [fallback.modelId], primaryModelId: fallback.modelId, config, providers, persist: false, allowCataloglessModel: true, source, activate: true });
+          setSite(config, agentId, fallback.providerId, { modelIds: [fallback.modelId], enabled: true });
+          const next = getAgentState(config, agentId);
+          next.activeProviderId = fallback.providerId;
+          next.activeModelId = fallback.modelId;
+          replaceAgentState(config, agentId, next);
+        }
+        setSite(config, agentId, providerId, { ...site, enabled: false });
+        await persistAgentState(agentId, beforeState, config);
+      }
     } catch (error) {
       if (snapshotId && typeof d.restoreSnapshot === 'function') await d.restoreSnapshot(agentId, snapshotId).catch(() => {});
       throw error;
