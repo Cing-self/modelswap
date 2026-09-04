@@ -40,8 +40,18 @@ jobs:
       # publish workflow. The release job repeats this gate before any
       # external side effect, but its post-bump tests must validate the bumped
       # version itself rather than recursively requiring another future note.
-      - name: Validate default patch release notes
-        run: node .github/scripts/validate-default-next-release-notes.js
+      #
+      # The gate is conditional: chore/docs-only merges (gitignore, tests,
+      # repo docs, internal notes) neither require notes nor publish — see
+      # release-changes.js for the skip list. README.md always counts (npm
+      # packs it). Needs full history to diff against the last release
+      # commit, hence the unshallow fetch; one matrix leg is enough for a
+      # repo-level gate.
+      - name: Validate release notes (release-worthy changes only)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          git fetch --quiet --unshallow origin 2>/dev/null || true
+          node .github/scripts/validate-release-gate.js
 
       # Full compile (not --noEmit): tests import web/api modules that require
       # compiled outputs under dist/. copy-web is also required: compiled

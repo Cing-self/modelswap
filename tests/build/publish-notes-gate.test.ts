@@ -55,13 +55,32 @@ describe('publish workflow release-notes gate', () => {
 
   it('makes normal CI validate the default next patch before it can trigger publishing', () => {
     const ci = readFileSync(path.join(root, '.github/workflows/ci.yml'), 'utf8');
-    const validate = ci.indexOf('- name: Validate default patch release notes');
+    const validate = ci.indexOf('- name: Validate release notes (release-worthy changes only)');
     const tests = ci.indexOf('- run: npx vitest run');
     expect(validate).toBeGreaterThan(-1);
     expect(validate).toBeLessThan(tests);
-    expect(ci).toContain('node .github/scripts/validate-default-next-release-notes.js');
+    expect(ci).toContain('node .github/scripts/validate-release-gate.js');
 
-    const script = readFileSync(path.join(root, '.github/scripts/validate-default-next-release-notes.js'), 'utf8');
+    // The gate is conditional: chore/docs-only diffs (gitignore, tests, repo
+    // docs, internal notes) skip the notes requirement entirely. README.md
+    // always counts because npm packs it into the published package.
+    const gate = readFileSync(path.join(root, '.github/scripts/validate-release-gate.js'), 'utf8');
+    expect(gate).toContain("require('./release-changes')");
+    expect(gate).toContain("'release-notes.js'");
+    expect(gate).toContain('isReleaseWorthy()');
+
+    // Publishing skips itself on the same detection instead of failing on
+    // missing notes.
+    const publish = readFileSync(path.join(root, '.github/workflows/publish.yml'), 'utf8');
+    expect(publish).toContain('node .github/scripts/release-changes.js');
+    expect(publish).toContain("needs.changes.outputs.release == 'true'");
+
+    // The old unconditional validator stays available for tooling, but CI no
+    // longer calls it directly.
+    const script = readFileSync(
+      path.join(root, '.github/scripts/validate-default-next-release-notes.js'),
+      'utf8',
+    );
     expect(script).toContain("path.join(__dirname, 'release-notes.js')");
     expect(script).toContain('patch + 1');
   });

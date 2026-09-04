@@ -34,15 +34,34 @@ permissions:
   contents: write
 
 jobs:
+  # Chore/docs-only merges to main must not publish a version: detect
+  # whether anything release-worthy changed since the last release commit
+  # and let the release job skip itself otherwise (dispatch still publishes).
+  changes:
+    if: github.event_name == 'workflow_run'
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.detect.outputs.release }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+      - id: detect
+        run: node .github/scripts/release-changes.js >> "$GITHUB_OUTPUT"
+
   release:
+    needs: changes
     # workflow_dispatch bypasses the gate (explicit human intent); a
-    # workflow_run must be a push-triggered, successful CI completion.
-    # Failed CI runs land here as "skipped", not published.
+    # workflow_run must be a push-triggered, successful CI completion of a
+    # release-worthy diff. Failed CI runs land here as "skipped", not
+    # published.
     if: >
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'workflow_run' &&
        github.event.workflow_run.event == 'push' &&
-       github.event.workflow_run.conclusion == 'success')
+       github.event.workflow_run.conclusion == 'success' &&
+       needs.changes.outputs.release == 'true')
     runs-on: macos-latest
     permissions:
       contents: write   # push the bump commit + tag, create the GitHub Release
