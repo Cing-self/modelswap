@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.63",
+  "publishedAt": "2026-09-04",
+  "summary": {
+    "zh": "文档站的品牌图标与分享卡片修复：搜索结果、社交分享、iOS 收藏都能显示 ModelSwap logo。",
+    "en": "Docs-site brand icon and share-card fixes: search results, social shares, and iOS bookmarks now show the ModelSwap logo."
+  },
+  "highlights": [
+    {
+      "category": "fixed",
+      "zh": "docs.modelswap.app 的 favicon 从跨域链接改为同域 /favicon.png（512px 原图，构建时复制），符合搜索引擎站点图标规范，搜索结果将显示 ModelSwap logo 而非默认地球。",
+      "en": "docs.modelswap.app now serves a same-origin /favicon.png (512px source copied at build time) instead of a cross-domain link, following search-engine favicon guidelines so results show the ModelSwap logo instead of a default globe."
+    },
+    {
+      "category": "improved",
+      "zh": "文档站页面补齐 og:image 与 twitter:image，链接在社交平台和 IM 中分享时显示带 logo 的卡片。",
+      "en": "Docs pages gained og:image and twitter:image tags, so shared links render a logo card on social platforms and messengers."
+    },
+    {
+      "category": "improved",
+      "zh": "文档站新增 apple-touch-icon，iOS「添加到主屏幕」显示 ModelSwap 图标。",
+      "en": "Docs pages gained an apple-touch-icon, so iOS 'Add to Home Screen' shows the ModelSwap icon."
+    }
+  ]
+}
