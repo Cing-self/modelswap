@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.64",
+  "publishedAt": "2026-09-04",
+  "summary": {
+    "zh": "仓库整理：移除内部工作笔记，公开仓库根目录更干净。",
+    "en": "Repo hygiene: internal working notes are no longer tracked, keeping the public repository root clean."
+  },
+  "highlights": [
+    {
+      "category": "improved",
+      "zh": "BLOCKED.md 不再纳入 git 管理，改为本地工作文件。",
+      "en": "BLOCKED.md is no longer tracked by git; it stays a local working file."
+    },
+    {
+      "category": "improved",
+      "zh": "CLAUDE.md 不再纳入 git 管理，改为本地工作文件。",
+      "en": "CLAUDE.md is no longer tracked by git; it stays a local working file."
+    },
+    {
+      "category": "improved",
+      "zh": "PROGRESS.md 不再纳入 git 管理，并新增 .gitignore 规则防止内部笔记（含 .team/）再次被提交。",
+      "en": "PROGRESS.md is no longer tracked by git, with .gitignore rules added so internal notes (including .team/) never get committed again."
+    }
+  ]
+}
