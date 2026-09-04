@@ -224,7 +224,7 @@ for (const lang of Object.keys(LANGS)) {
   fs.writeFileSync(path.join(OUT, lang, 'index.html'), `<meta http-equiv="refresh" content="0;url=${flat[0].slug}">`);
 }
 fs.writeFileSync(path.join(OUT, 'style.css'), CSS);
-fs.writeFileSync(path.join(OUT, 'index.html'), `<meta http-equiv="refresh" content="0;url=/zh/">`);
+fs.writeFileSync(path.join(OUT, 'index.html'), `<meta http-equiv="refresh" content="0;url=/en/">`);
 // Same-origin favicon for search-result logos (see note in page())
 fs.cpSync(path.join(ROOT, 'src/web/frontend/public/modelswap-icon.png'), path.join(OUT, 'favicon.png'));
 
