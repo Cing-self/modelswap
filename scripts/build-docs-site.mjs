@@ -181,8 +181,13 @@ function page({ lang, chapter, all, index }) {
 <meta property="og:type" content="article">
 <meta property="og:url" content="${url}">
 <meta property="og:site_name" content="ModelSwap Docs">
+<meta property="og:image" content="https://docs.modelswap.app/favicon.png">
 <meta name="twitter:card" content="summary">
-<link rel="icon" href="https://modelswap.app/assets/favicon.png">
+<meta name="twitter:image" content="https://docs.modelswap.app/favicon.png">
+<!-- Same-origin favicon: Google shows site logos in results only for icons
+     served from the site's own hostname; cross-domain links stay a globe. -->
+<link rel="icon" type="image/png" sizes="512x512" href="/favicon.png">
+<link rel="apple-touch-icon" href="/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -218,6 +223,8 @@ for (const lang of Object.keys(LANGS)) {
 }
 fs.writeFileSync(path.join(OUT, 'style.css'), CSS);
 fs.writeFileSync(path.join(OUT, 'index.html'), `<meta http-equiv="refresh" content="0;url=/zh/">`);
+// Same-origin favicon for search-result logos (see note in page())
+fs.cpSync(path.join(ROOT, 'src/web/frontend/public/modelswap-icon.png'), path.join(OUT, 'favicon.png'));
 
 // --- SEO/GEO artifacts: robots.txt, sitemap.xml, llms.txt, IndexNow key ---
 // Chapter slugs are shared across languages; hreflang alternates are emitted
