@@ -99,9 +99,14 @@ describe("vault CLI metadata commands", { timeout: 60000 }, () => {
     run(home, ["vault", "set", "BING_API_KEY", "b-value", "--group", "搜索引擎数据源"]);
     run(home, ["vault", "set", "GSC_OAUTH", "g-value", "--group", "搜索引擎数据源"]);
     run(home, ["vault", "set", "FEISHU_APP", "f-value", "--group", "飞书开放平台"]);
-    const out = run(home, ["vault", "inject", "--group", "搜索引擎数据源"]);
-    expect(out).toContain("export BING_API_KEY='b-value'");
-    expect(out).toContain("export GSC_OAUTH='g-value'");
-    expect(out).not.toContain("FEISHU_APP");
+    // Explicit --shell keeps the assertion deterministic on every platform
+    // (the default follows process.platform).
+    const bash = run(home, ["vault", "inject", "--group", "搜索引擎数据源", "--shell", "bash"]);
+    expect(bash).toContain("export BING_API_KEY='b-value'");
+    expect(bash).toContain("export GSC_OAUTH='g-value'");
+    expect(bash).not.toContain("FEISHU_APP");
+    const powershell = run(home, ["vault", "inject", "--group", "搜索引擎数据源", "--shell", "powershell"]);
+    expect(powershell).toContain("$env:BING_API_KEY = 'b-value'");
+    expect(powershell).not.toContain("FEISHU_APP");
   });
 });
