@@ -15,9 +15,13 @@ const mockScheduler = {
 function MockVaultStore() { return mockStore; }
 
 const origRequire = Module.prototype.require;
+// The real shared module (vitest resolves the TS import); vault.js gets it
+// through the same require seam the CLI uses, so alias repairs stay covered.
+const realGroupMeta = await import('../src/vault/group-meta');
 Module.prototype.require = function (id) {
   if (id === '../../vault/store') return { VaultStore: MockVaultStore };
   if (id === './sync-scheduler') return mockScheduler;
+  if (id === '../../vault/group-meta') return realGroupMeta;
   return origRequire.apply(this, arguments);
 };
 

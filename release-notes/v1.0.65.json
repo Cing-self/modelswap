@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.65",
+  "publishedAt": "2026-09-04",
+  "summary": {
+    "zh": "Vault CLI 补齐元数据能力：set 支持分组与说明，新增 mv/groups/search 命令，Agent 存的密钥不再是裸条目。",
+    "en": "The Vault CLI catches up on metadata: set supports group and description, plus new mv/groups/search commands — keys stored by agents are no longer bare, ungrouped entries."
+  },
+  "highlights": [
+    {
+      "category": "improved",
+      "zh": "modelswap vault set 新增 --group 与 --desc，与 Web 端共用同一套分组归一化，CLI 与页面建的分组不再分裂。",
+      "en": "modelswap vault set gains --group and --desc, sharing the Web's group normalization so CLI-created and dashboard-created groups never split."
+    },
+    {
+      "category": "improved",
+      "zh": "新增 vault groups（列分组及数量）、vault search（按 key/说明/分组模糊搜索）、vault mv（改名保留元数据）与 inject --group（整组注入）。",
+      "en": "New commands: vault groups (distinct groups with counts), vault search (fuzzy match on key/desc/group), vault mv (rename keeping metadata), and inject --group (inject a whole group)."
+    },
+    {
+      "category": "improved",
+      "zh": "Agent Skill 更新：存密钥必须带分组与说明，多字段凭证按一实体一 key 打包为 JSON，不再产生未分组的裸条目。",
+      "en": "Agent Skill updated: secrets are always stored with group and description; multi-field credentials pack as JSON under one key — no more bare ungrouped entries."
+    }
+  ]
+}

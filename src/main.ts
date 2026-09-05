@@ -12,6 +12,9 @@ import {
   vaultSet,
   vaultGet,
   vaultList,
+  vaultMv,
+  vaultGroups,
+  vaultSearch,
   vaultDelete,
   vaultInject,
 } from "./commands/vault";
@@ -188,10 +191,12 @@ vault
   .command("set <key> [value]")
   .description("存储密钥（建议交互输入或使用 --stdin，避免写入 shell 历史）")
   .option("--stdin", "从标准输入读取密钥值")
-  .action(async (key: string, value: string | undefined, options: { stdin?: boolean }) => {
+  .option("--group <group>", "分组（与 Web 端共用同一套归一化，建议先 vault groups 复用既有分组）")
+  .option("--desc <desc>", "用途说明（凭证用途与权限范围）")
+  .action(async (key: string, value: string | undefined, options: { stdin?: boolean; group?: string; desc?: string }) => {
     const resolvedValue = await resolveVaultValue(value, options.stdin === true);
     if (resolvedValue === null) return;
-    await vaultSet(key, resolvedValue);
+    await vaultSet(key, resolvedValue, { group: options.group, desc: options.desc });
   });
 
 vault
@@ -202,11 +207,35 @@ vault
   });
 
 vault
+  .command("mv <oldKey> <newKey>")
+  .description("重命名密钥（保留分组/说明/过期时间）")
+  .action(async (oldKey: string, newKey: string) => {
+    await vaultMv(oldKey, newKey);
+  });
+
+vault
   .command("list")
   .description("列出所有密钥（脱敏显示）")
   .option("--json", "输出适合脚本与 Agent 解析的 JSON")
-  .action(async (options: { json?: boolean }) => {
+  .option("--group <group>", "只列出该分组的密钥")
+  .action(async (options: { json?: boolean; group?: string }) => {
     await vaultList(options);
+  });
+
+vault
+  .command("groups")
+  .description("列出所有分组及各分组密钥数（set 前先看一眼，避免同义分组分裂）")
+  .option("--json", "输出适合脚本与 Agent 解析的 JSON")
+  .action(async (options: { json?: boolean }) => {
+    await vaultGroups(options);
+  });
+
+vault
+  .command("search <query>")
+  .description("按 key 名/说明/分组模糊搜索密钥（脱敏）")
+  .option("--json", "输出适合脚本与 Agent 解析的 JSON")
+  .action(async (query: string, options: { json?: boolean }) => {
+    await vaultSearch(query, options);
   });
 
 vault
@@ -220,8 +249,9 @@ vault
   .command("inject")
   .description("输出 shell export 语句（配合 eval 使用）")
   .option("--keys <keys>", "要注入的 key 列表（逗号分隔）")
+  .option("--group <group>", "注入整组密钥（按服务组批量注入）")
   .option("--shell <shell>", "输出格式: bash, zsh, powershell")
-  .action(async (options: { keys?: string; shell?: string }) => {
+  .action(async (options: { keys?: string; shell?: string; group?: string }) => {
     await vaultInject(options);
   });
 
