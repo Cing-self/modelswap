@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.66",
+  "publishedAt": "2026-09-05",
+  "summary": {
+    "zh": "文档站默认展示英文手册（Product Hunt 上架），侧边栏不再出现滚动条。",
+    "en": "The docs site now defaults to the English manual (for the Product Hunt launch), and the sidebar no longer shows a scrollbar."
+  },
+  "highlights": [
+    {
+      "category": "improved",
+      "zh": "docs.modelswap.app 根路径默认打开英文手册，中文手册移至 /zh/，顶部可一键切换。",
+      "en": "docs.modelswap.app now opens the English manual by default; the Chinese manual moved to /zh/ with a one-click toggle in the header."
+    },
+    {
+      "category": "fixed",
+      "zh": "手册侧边栏在矮视口下不再显示滚动条（保留滚动能力）。",
+      "en": "The manual sidebar no longer shows a scrollbar on short viewports (scrolling still works)."
+    },
+    {
+      "category": "improved",
+      "zh": "文档站构建脚本与主站 SEO 产物（robots/sitemap/llms/IndexNow）对齐英文默认语言，站内互链与语言切换链接同步更新。",
+      "en": "The docs build now aligns its SEO artifacts (robots/sitemap/llms/IndexNow) with the English default, keeping in-page language links consistent."
+    }
+  ]
+}
