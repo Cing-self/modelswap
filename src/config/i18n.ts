@@ -24,6 +24,13 @@ export interface Translations {
   vaultConfirmDelete: string;
   vaultDeleted: string;
   vaultNoKeys: string;
+  vaultMoved: string;
+  vaultMoveSameKey: string;
+  vaultMoveTargetExists: string;
+  vaultGroupsTitle: string;
+  vaultGroupCount: string;
+  vaultSearchTitle: string;
+  vaultSearchNoMatch: string;
   vaultWhereTitle: string;
   vaultSyncing: string;
   vaultSyncResult: string;
@@ -81,6 +88,13 @@ const translations: Record<Language, Translations> = {
     vaultConfirmDelete: "确认删除",
     vaultDeleted: "已删除:",
     vaultNoKeys: "未声明任何 key",
+    vaultMoved: "已重命名: {old} → {new}",
+    vaultMoveSameKey: "新旧 key 相同，无需移动",
+    vaultMoveTargetExists: "目标 key 已存在: {key}",
+    vaultGroupsTitle: "Vault 分组",
+    vaultGroupCount: "{count} 个密钥",
+    vaultSearchTitle: "搜索: {query}",
+    vaultSearchNoMatch: "未找到匹配的密钥",
     vaultWhereTitle: "关联项目:",
     vaultSyncing: "正在同步所有关联文件...",
     vaultSyncResult: "同步结果:",
@@ -136,6 +150,13 @@ const translations: Record<Language, Translations> = {
     vaultConfirmDelete: "Delete",
     vaultDeleted: "Deleted:",
     vaultNoKeys: "No keys declared",
+    vaultMoved: "Renamed: {old} → {new}",
+    vaultMoveSameKey: "Old and new keys are identical; nothing to do",
+    vaultMoveTargetExists: "Target key already exists: {key}",
+    vaultGroupsTitle: "Vault Groups",
+    vaultGroupCount: "{count} keys",
+    vaultSearchTitle: "Search: {query}",
+    vaultSearchNoMatch: "No matching secrets",
     vaultWhereTitle: "Used in:",
     vaultSyncing: "Syncing all bound files...",
     vaultSyncResult: "Sync result:",

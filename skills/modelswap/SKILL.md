@@ -35,20 +35,35 @@ Provider changes create a pre-switch snapshot when possible and write the select
 
 ## Handle Vault secrets
 
-Never place a secret in command arguments, logs, commentary, or the final response. For a value the user has explicitly authorized storing, pass it through standard input:
+Never place a secret in command arguments, logs, commentary, or the final response. For a value the user has explicitly authorized storing, pass it through standard input — always with a group and a description (group = service category, description = what the credential is for and its permission scope):
 
 ```bash
-printf '%s' "$SECRET_VALUE" | modelswap vault set <KEY> --stdin
+printf '%s' "$SECRET_VALUE" | modelswap vault set <KEY> --stdin --group <服务分组> --desc "<用途说明>"
 ```
 
 Prefer letting the human run the interactive `modelswap vault set <KEY>` prompt when the secret is not already available through an authorized secure channel.
+
+Before choosing a group, check existing ones and reuse — do not invent near-duplicate groups:
+
+```bash
+modelswap vault groups          # distinct groups with per-group counts
+modelswap vault search <query>  # fuzzy match on key / desc / group (--json supported)
+```
+
+Multi-field credentials (e.g. `app_id` + `app_secret` pairs) are one key per entity with the fields packed as JSON in the value, named `服务-实体名`; do not split them into separate keys:
+
+```bash
+printf '%s' '{"app_id":"cli_xxx","app_secret":"xxx"}' | modelswap vault set feishu-app1 --stdin --group "飞书开放平台" --desc "自建应用1（多维表格 API）"
+```
 
 Treat these commands as plaintext disclosure:
 
 - `modelswap vault get <KEY>` writes the raw value to stdout.
 - `modelswap vault inject` writes shell exports containing raw values.
 
-Use either only when the task explicitly requires the plaintext result, and do not echo or summarize the value. `modelswap vault inject` requires an explicit `--keys` list; never invent key names — confirm which keys the task needs first.
+Use either only when the task explicitly requires the plaintext result, and do not echo or summarize the value. `modelswap vault inject` requires an explicit `--keys` list or a `--group`; never invent key names — confirm which keys the task needs first (`vault search` / `vault groups` help resolve real ones).
+
+Renaming uses `modelswap vault mv <OLD> <NEW>` (metadata preserved). Note scripts that reference the old key name by `vault get <OLD>` must be updated — renaming does not rewrite them.
 
 Deletion is destructive. Before `modelswap vault delete <KEY>`, confirm with the user that no provider or agent configuration still binds that key (check `modelswap provider list` output or the dashboard).
 
