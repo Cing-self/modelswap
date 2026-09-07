@@ -220,8 +220,36 @@ for (const lang of Object.keys(LANGS)) {
   });
   // images are shared (../images/) → copy once per lang dir
   fs.cpSync(path.join(SRC, 'images'), path.join(OUT, lang, 'images'), { recursive: true });
-  // /zh/ index → first chapter
-  fs.writeFileSync(path.join(OUT, lang, 'index.html'), `<meta http-equiv="refresh" content="0;url=${flat[0].slug}">`);
+  // /{lang}/ index → real landing page (chapter directory), not a redirect stub:
+  // GSC shows /en/ ranking 2.7 — a real page converts that rank into clicks.
+  const idxTitle = lang === 'zh'
+    ? 'ModelSwap 用户手册 — AI Agent 的密钥与模型管控台'
+    : 'ModelSwap User Manual — Key & Model Control Plane for AI Agents';
+  const idxDesc = lang === 'zh'
+    ? 'ModelSwap 官方用户手册：安装与快速上手、加密密钥库、41 个模型平台预置、10 个 Agent 适配、用量查询、多设备同步、CLI 与 Skill。'
+    : 'Official ModelSwap manual: install & quick start, encrypted key vault, 41 provider presets, 10 agent adapters, usage dashboards, multi-device sync, CLI & Skill.';
+  const idxNav = all
+    .map(({ group, chapters: cs }) =>
+      `<div class="nav-group">${group}</div>` +
+      cs.map((c) => `<a href="${c.slug}">${c.title}</a>`).join(''))
+    .join('');
+  fs.writeFileSync(path.join(OUT, lang, 'index.html'), `<!DOCTYPE html><html lang="${lang === 'zh' ? 'zh-CN' : 'en'}"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${idxTitle}</title>
+<meta name="description" content="${idxDesc}">
+<link rel="canonical" href="https://docs.modelswap.app/${lang}/">
+<link rel="icon" href="/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css"></head><body>
+<header>
+  <a href="https://modelswap.app/"><img src="/favicon.png" alt="ModelSwap"></a>
+  <b>ModelSwap ${lang === 'zh' ? '用户手册' : 'User Manual'}</b>
+  <span class="lang"><a href="/${lang}/" class="on">${LANGS[lang]}</a><a href="/${lang === 'zh' ? 'en' : 'zh'}/">${LANGS[lang === 'zh' ? 'en' : 'zh']}</a></span>
+</header>
+<div class="wrap"><nav>${idxNav}</nav>
+<main><h1>${lang === 'zh' ? 'ModelSwap 用户手册' : 'ModelSwap User Manual'}</h1>
+<p>${idxDesc}</p>
+</main></div></body></html>`);
 }
 fs.writeFileSync(path.join(OUT, 'style.css'), CSS);
 fs.writeFileSync(path.join(OUT, 'index.html'), `<meta http-equiv="refresh" content="0;url=/en/">`);
