@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.70",
+  "publishedAt": "2026-09-07",
+  "summary": {
+    "zh": "文档站索引页从跳转壳升级为真实落地页——把已有的搜索排名转化为点击。",
+    "en": "The docs index pages are now real landing pages instead of redirect stubs — converting existing search rank into clicks."
+  },
+  "highlights": [
+    {
+      "category": "improved",
+      "zh": "docs.modelswap.app 的 /zh/ 与 /en/ 索引页从 0 秒跳转壳升级为带标题、描述、章节目录的真实页面（该页 Google 排名 2.7，真实页面的点击率远高于空壳）。",
+      "en": "The /zh/ and /en/ docs index pages became real pages with title, description, and a chapter directory (the page ranks 2.7 on Google — a real page converts that rank far better than a redirect stub)."
+    },
+    {
+      "category": "improved",
+      "zh": "索引页带完整 SEO 元数据：描述嵌入产品关键数字（41 平台预置 / 10 Agent 适配），canonical 指向自身。",
+      "en": "Index pages carry full SEO metadata: descriptions embed the key product numbers (41 provider presets / 10 agent adapters) with self-canonical URLs."
+    },
+    {
+      "category": "improved",
+      "zh": "站点构建脚本同步产出章节目录导航，双语索引页风格与全站一致。",
+      "en": "The site builder now emits a chapter-directory nav on both language index pages, consistent with the rest of the site."
+    }
+  ]
+}
