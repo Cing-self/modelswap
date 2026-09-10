@@ -289,6 +289,10 @@ function createSyncConfigStore({
       const sync = { ...(live.sync || {}) }; const platforms = { ...(sync.platforms || {}) };
       if (sync.lan?.enabled && /^http:\/\/(127\.0\.0\.1|localhost)(?::\d+)?$/i.test(platforms.lan?.baseUrl || '')) sync.lan = { ...sync.lan, enabled: false };
       platforms.lan = { baseUrl, token, enabled: true };
+      // Joining adopts the paired device as the sync source: keep-local
+      // markers stamped earlier on this machine (e.g. by the enable-time
+      // self-push, seconds before the join) must not veto the adopting pull.
+      delete sync.localChangedAt;
       return { ...live, sync: { ...sync, password, platforms, syncPlatform: sync.syncPlatform || 'lan', autoSync: sync.autoSync || true } };
     });
   }

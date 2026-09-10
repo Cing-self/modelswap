@@ -35,16 +35,24 @@ const mockWebdavAdapter = {
   pullSync: vi.fn(),
 };
 
+const mockLanAdapter = {
+  name: 'LAN',
+  testConnection: vi.fn(),
+  pushSync: vi.fn(),
+  pullSync: vi.fn(),
+};
+
 const origRequire = Module.prototype.require;
 Module.prototype.require = function (id) {
   if (id === 'fs-extra') return mockFs;
   if (id === '../../vault/store') return { VaultStore: MockVaultStore };
   if (id === './platform-adapters/supabase') return mockSupabaseAdapter;
   if (id === './platform-adapters/webdav') return mockWebdavAdapter;
+  if (id === './platform-adapters/lan') return mockLanAdapter;
   return origRequire.apply(this, arguments);
 };
 
-const { syncPush, syncPull, exportSyncCode, importSyncCode } = await import('../src/web/api/cloud-sync-core.js');
+const { syncPush, syncPull, exportSyncCode, importSyncCode, pairLan } = await import('../src/web/api/cloud-sync-core.js');
 
 const VALID_CONFIG = {
   sync: {
@@ -156,7 +164,10 @@ describe('syncPush', () => {
   });
 });
 
-describe('syncPull', () => {
+// Fake-timer pull scenarios walk the full encrypt/decrypt + backup pipeline
+// and land right at vitest's 5s default on slower runners — make the budget
+// explicit (AGENTS.md: slow tests must declare their timeout).
+describe('syncPull', { timeout: 15000 }, () => {
   it('throws when no password set', async () => {
     mockFs.readJson.mockResolvedValue({ sync: { password: null, platforms: {} } });
     await expect(syncPull()).rejects.toThrow('请先设置同步密码');
@@ -346,6 +357,62 @@ describe('syncPull', () => {
       expect(result.providersApplied).toBe(true);
       const savedConfig = mockFs.writeJson.mock.calls[mockFs.writeJson.mock.calls.length - 1][1];
       expect(savedConfig.agentProviders.codex.activeProviderId).toBe('remote-provider');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('LAN join adopts hub state despite newer self-push keep-local markers', async () => {
+    vi.useFakeTimers();
+    try {
+      // Hub pushes its blob (agent selection + provider sites) at 10:00.
+      vi.setSystemTime(new Date('2026-08-01T10:00:00Z'));
+      const hubConfig = JSON.parse(JSON.stringify(VALID_CONFIG));
+      hubConfig.agentProviders = { codex: { activeProviderId: 'hub-provider', activeModelId: 'hub-model', sites: { 'hub-provider': { modelIds: ['hub-model'] } } } };
+      mockFs.readJson.mockResolvedValue(hubConfig);
+      mockFs.readFile.mockResolvedValue(JSON.stringify({ providers: [] }));
+      mockStore.exportAll.mockResolvedValue(SAMPLE_SECRETS);
+      mockStore.get.mockResolvedValue('resolved');
+      let hubBlob;
+      mockSupabaseAdapter.pushSync.mockImplementation(async (_cfg, _userId, blob) => { hubBlob = blob; });
+      await syncPush();
+
+      // Joiner briefly enabled LAN sync as primary at 10:05: that flow's
+      // self-push stamped every scope with a timestamp newer than the hub blob.
+      const joinerConfig = {
+        sync: {
+          password: 'test-password',
+          syncPlatform: 'lan',
+          machineId: 'joiner-1',
+          lastSyncAt: '2026-08-01T10:05:00.000Z',
+          localChangedAt: {
+            secrets: '2026-08-01T10:05:00.000Z',
+            providers: '2026-08-01T10:05:00.000Z',
+            agentProviders: '2026-08-01T10:05:00.000Z',
+            modelOverrides: '2026-08-01T10:05:00.000Z',
+          },
+          platforms: { lan: { baseUrl: 'http://127.0.0.1:3790', token: 'self-token', enabled: true } },
+          lan: { enabled: true, port: 3790, token: 'self-token' },
+        },
+      };
+      mockFs.readJson.mockResolvedValue(joinerConfig);
+      await pairLan('test-password', 'http://192.168.3.75:3815', 'hub-token');
+      const paired = mockFs.writeJson.mock.calls[mockFs.writeJson.mock.calls.length - 1][1];
+      expect(paired.sync.localChangedAt).toBeUndefined();
+      expect(paired.sync.platforms.lan.baseUrl).toBe('http://192.168.3.75:3815');
+
+      // The adopting pull must apply the 10:00 hub blob instead of treating
+      // the (now cleared) 10:05 markers as newer local edits.
+      mockFs.readJson.mockResolvedValue(paired);
+      mockStore.exportAll.mockResolvedValue([]);
+      mockLanAdapter.pullSync.mockResolvedValue(hubBlob);
+
+      const result = await syncPull();
+
+      expect(result.providersApplied).toBe(true);
+      expect(result.agentProvidersApplied).toBe(true);
+      const savedConfig = mockFs.writeJson.mock.calls[mockFs.writeJson.mock.calls.length - 1][1];
+      expect(savedConfig.agentProviders.codex.activeProviderId).toBe('hub-provider');
     } finally {
       vi.useRealTimers();
     }
