@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.72",
+  "publishedAt": "2026-09-11",
+  "summary": {
+    "zh": "修复全新安装的设备「加入」局域网同步时直接报错：配置里还没有 sync 段，加入接口读取时崩溃，原始 JS 报错漏到界面。",
+    "en": "Fixes joining a LAN device on a fresh install crashing with a raw JS error: the join endpoint read sync fields before any sync state existed."
+  },
+  "highlights": [
+    {
+      "category": "fixed",
+      "zh": "修复：全新安装（还没设置过任何同步配置）的设备在 设置 → 设备同步 → 加入 时，界面弹出「Cannot read properties of undefined (reading 'lan')」。此前加入接口在读配置的 sync 段时没防住「段不存在」的情况；现在补齐了全部防护，全新设备可直接加入。",
+      "en": "Fixed: a fresh install (zero sync state) joining a LAN device popped \"Cannot read properties of undefined (reading 'lan')\". The join endpoint assumed the sync section always exists; every read is now guarded and a fresh device can join directly."
+    },
+    {
+      "category": "fixed",
+      "zh": "注意：对端的配对码在这类失败中可能已被消耗（交换先于本地写入发生）。遇到报错的加入请让对端重新生成配对码再试一次。",
+      "en": "Note: a pairing code can already be consumed when a join fails this way (the exchange happens before the local write). After any failed join, have the peer regenerate the code before retrying."
+    },
+    {
+      "category": "improved",
+      "zh": "测试基建：给火山引擎模型目录回退用例补上显式超时（与同步测试同惯例），消除慢机器上卡在默认 5 秒超时线的偶发误报。",
+      "en": "Test infra: the Volcengine catalog fallback suite now declares an explicit timeout (same convention as the sync tests), removing borderline-5s flakes on slower machines."
+    }
+  ]
+}

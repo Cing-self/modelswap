@@ -323,6 +323,30 @@ describe('sync.js LAN handlers', () => {
     }
   });
 
+  it('handleLanPair succeeds on a fresh install with no sync section at all', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ version: 1, token: 'exchanged-access-token', machineName: 'Peer Mac', machineId: 'peer-1', userId: 'u1' }),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      // Fresh ~/.modelswap: onboarding dismissed, zero sync state. The join
+      // dialog writes nothing before pairing, so sync is entirely absent.
+      currentConfig = { hints: { onboardingDone: true } };
+      const res = mockRes();
+      const code = `modelswap-lan://192.168.1.5:3790/abc123def456?name=${encodeURIComponent('Peer Mac')}`;
+      await syncHandlers.handleLanPair({ body: { code, password: 'pw' } } as any, res);
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.peerName).toBe('Peer Mac');
+      expect(currentConfig.sync.platforms.lan).toEqual({ baseUrl: 'http://192.168.1.5:3790', token: 'exchanged-access-token', enabled: true });
+      expect(currentConfig.sync.autoSync).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('handleLanPair surfaces expired pairing codes as a 400', async () => {
     const fetchMock = vi.fn(async () => ({ ok: false, status: 401, json: async () => ({ error: '配对码无效或已过期' }) }));
     vi.stubGlobal('fetch', fetchMock);

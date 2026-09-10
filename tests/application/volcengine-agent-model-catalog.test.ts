@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { createModelDiscoveryService } from '../../src/application/model-discovery-service';
 import { providerEndpointEntries } from '../../src/providers/routing';
 
-describe('Volcengine Agent Plan models.dev fallback', () => {
+// Warmup walks the full discovery pipeline and lands right at vitest's 5s
+// default on slower runners — declare the budget (AGENTS.md convention).
+describe('Volcengine Agent Plan models.dev fallback', { timeout: 15000 }, () => {
   const provider = {
     id: 'volcengine-agent',
     name: '火山方舟 Agent Plan',

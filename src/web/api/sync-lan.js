@@ -179,10 +179,10 @@ async function handleLanEnable(req, res) {
         .status(400)
         .json({ error: '请先设置同步密码，再开启局域网同步' });
     }
-    const lan = { ...(config.sync.lan || {}) };
+    const lan = { ...(config.sync?.lan || {}) };
     const token = lan.token || crypto.randomBytes(32).toString('hex');
     const port = Number(req.body?.port) || lan.port || lanServer.DEFAULT_PORT;
-    const autoSyncTurnedOn = !config.sync.autoSync;
+    const autoSyncTurnedOn = !config.sync?.autoSync;
     await core.enableLan(port, token);
     await lanServer.applyConfig();
     core.appendLog('lan-enable', 'lan', true, `port ${port}`);
@@ -362,13 +362,13 @@ async function handleLanPair(req, res) {
     }
     let hubDisabled = false;
     if (
-      config.sync.lan?.enabled &&
-      isLoopbackUrl(config.sync.platforms.lan?.baseUrl)
+      config.sync?.lan?.enabled &&
+      isLoopbackUrl(config.sync.platforms?.lan?.baseUrl)
     ) {
       config.sync.lan = { ...config.sync.lan, enabled: false };
       hubDisabled = true;
     }
-    const autoSyncTurnedOn = !config.sync.autoSync;
+    const autoSyncTurnedOn = !config.sync?.autoSync;
     await core.pairLan(password, parsed.baseUrl, info.token);
     if (hubDisabled) await lanServer.applyConfig();
     core.appendLog(
