@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.71",
+  "publishedAt": "2026-09-10",
+  "summary": {
+    "zh": "修复局域网「加入设备」后模型管控不更新：加入时未清空本机 keep-local 标记，导致对端 providers/Agent 配置被判定为旧数据而跳过应用。",
+    "en": "Fixes models management not updating after joining a LAN device: joining left this machine's keep-local markers in place, so the peer's providers/Agent config was treated as stale and never applied."
+  },
+  "highlights": [
+    {
+      "category": "fixed",
+      "zh": "修复：加入局域网设备后，密钥保险库能同步过来，但「模型管控」页看不到对端的 providers/Agent 配置——数据根本没有被应用，不是页面刷新问题。",
+      "en": "Fixed: after joining a LAN device the vault synced but the models page never showed the peer's providers/Agent config — the data was never applied, not a refresh problem."
+    },
+    {
+      "category": "fixed",
+      "zh": "根因：曾在「添加设备」里当主设备生成过配对码的机器，开启那一刻的自推送会把本机全量标记为最新；随后改为加入对端时，同步判定「本地比对端新」而跳过对端配置。加入现在会清空这些标记，首次拉取直接采纳对端状态。",
+      "en": "Root cause: a machine that briefly generated a pairing code as primary got every section stamped newest by the enable-time self-push; joining later then judged the peer's config older and kept local presets. Joining now clears those markers so the first pull adopts the peer's state."
+    },
+    {
+      "category": "fixed",
+      "zh": "受影响的设备无需重置：升级后在 设置 → 设备同步 重新加入一次（对端重新生成配对码、5 分钟内粘贴）即可把 providers/Agent 配置拉全。",
+      "en": "No reset needed on affected devices: after upgrading, re-join once (peer regenerates the pairing code, paste it within 5 minutes) and the providers/Agent config pulls in fully."
+    }
+  ]
+}
