@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.75",
+  "publishedAt": "2026-09-11",
+  "summary": {
+    "zh": "应用图标更新:星球轨道图案保留,背景换成单一米白色,并改为标准 macOS 圆角(圆角外透明),桌面与 Dock 显示更干净。",
+    "en": "App icon refresh: the planet-and-orbit motif stays, the background becomes a single flat ivory, and the icon now uses the standard macOS rounded squircle with transparent corners."
+  },
+  "highlights": [
+    {
+      "category": "improved",
+      "zh": "图标背景从带暗角和纹理的纸纹底换成纯一色米白(#F6EEEA),四角的暗色晕影和噪点纹理全部去除。",
+      "en": "The icon background goes from a vignetted, textured paper fill to one flat ivory (#F6EEEA) — corner darkening and grain are gone."
+    },
+    {
+      "category": "improved",
+      "zh": "图标改为标准 macOS squircle 圆角(圆角外透明),此前源图是全幅方形、圆角外带着暗角色块;星球、轨道环与星星图案原样保留。",
+      "en": "The icon now uses the standard macOS squircle with transparency outside the rounded corners (the previous source was a full-bleed square with darkened corners); planet, ring and sparkles are unchanged."
+    },
+    {
+      "category": "improved",
+      "zh": "build 目录源资产(icon.icns、modelswap-icon-macos.png)同步替换,后续所有构建与自动更新保持新图标。",
+      "en": "The build source assets (icon.icns, modelswap-icon-macos.png) are replaced so every future build and auto-update keeps the new icon."
+    }
+  ]
+}
