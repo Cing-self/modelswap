@@ -17,20 +17,28 @@ function stripRebuildableProviderData(data) {
 }
 
 function createProviderSiteSyncService({ fs, providerStore }) {
-  async function loadProviderSites() {
+  async function loadProviderSites(referenced) {
     if (typeof fs.readFile !== 'function') return [];
     if (typeof providerStore.loadProviderSitesForSync !== 'function') return [];
     const sites = stripRebuildableProviderData(
       await providerStore.loadProviderSitesForSync(),
     );
-    // Attach user-authored models from the local model directory so authored
-    // data survives machine switches even without a discoverable endpoint.
-    if (typeof providerStore.loadUserModelsForSync === 'function') {
-      const userModels = await providerStore.loadUserModelsForSync();
-      for (const site of sites) {
-        const models = userModels[site.id];
-        if (Array.isArray(models) && models.length > 0) site.models = models;
+    // Attach authored models from the local model directory so they survive
+    // machine switches even without a discoverable endpoint: user-added rows
+    // plus every model referenced by an agent selection (desired state by
+    // definition, regardless of the row's provenance flags).
+    const userModels = typeof providerStore.loadUserModelsForSync === 'function'
+      ? await providerStore.loadUserModelsForSync()
+      : {};
+    const referencedModels = referenced && typeof providerStore.loadReferencedModelsForSync === 'function'
+      ? await providerStore.loadReferencedModelsForSync(referenced)
+      : {};
+    for (const site of sites) {
+      const merged = new Map();
+      for (const model of [...(userModels[site.id] || []), ...(referencedModels[site.id] || [])]) {
+        if (model?.id) merged.set(model.id, model);
       }
+      if (merged.size > 0) site.models = [...merged.values()];
     }
     return sites;
   }
@@ -61,18 +69,19 @@ function createProviderSiteSyncService({ fs, providerStore }) {
     return changed;
   }
 
-  // Seed user-authored models carried on the remote site rows into the local
-  // model directory. MUST run AFTER endpoint/CLI hydration: warmup skips any
+  // Seed the models carried on the remote site rows into the local model
+  // directory. MUST run AFTER endpoint/CLI hydration: warmup skips any
   // provider that already has cache rows, and a seed written first would mask
-  // the provider and block discovery of its remote models.
+  // the provider and block discovery of its remote models. The payload is
+  // already filtered push-side (user-added ∪ selection-referenced); trust the
+  // paired peer's blob and only shape-sanitize here.
   async function seedSyncedUserModels(remoteProviders) {
     if (typeof providerStore.mergeSyncedUserModels !== 'function') return;
     if (!Array.isArray(remoteProviders)) return;
     for (const remote of remoteProviders) {
-      if (!remote?.id) continue;
-      const userModels = stripRebuildableProviderData([remote])[0]?.models || [];
-      if (userModels.length > 0) {
-        await providerStore.mergeSyncedUserModels(remote.id, userModels);
+      if (!remote?.id || !Array.isArray(remote.models)) continue;
+      if (remote.models.length > 0) {
+        await providerStore.mergeSyncedUserModels(remote.id, remote.models);
       }
     }
   }

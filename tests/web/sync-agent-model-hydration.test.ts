@@ -196,11 +196,14 @@ describe('sync pull agent model hydration', { timeout: 30000 }, () => {
       expect(result.opencode.provider['qianfan-coding'].models['glm-5.2']).toBeDefined();
       expect(result.opencode.provider['third-coding'].models['third-coding-live']).toBeDefined();
       expect(result.opencode.provider['third-token'].models['third-token-live']).toBeDefined();
-      expect(result.first.agentFailures).toEqual(expect.arrayContaining([
-        expect.objectContaining({ agentId: 'opencode', providerId: 'sync-offline', code: 'MODEL_NOT_FOUND' }),
-      ]));
+      // Selection-referenced models ride the payload regardless of endpoint
+      // availability: the offline provider's selected model is seeded on B and
+      // its site reconciles instead of failing MODEL_NOT_FOUND.
+      expect(result.first.agentFailures).toEqual([]);
       expect(result.user.agentProviders.opencode.sites['sync-offline'].modelIds).toEqual(['sync-offline-model']);
-      expect(result.cache.providers['sync-offline']).toBeUndefined();
+      expect(result.cache.providers['sync-offline']).toEqual(expect.arrayContaining([
+        expect.objectContaining({ id: 'sync-offline-model' }),
+      ]));
       expect(result.requests.filter((request: any) => request.url === '/open/v1/models')).toHaveLength(1);
       expect(result.requests.filter((request: any) => request.url === '/claude/v1/models')).toHaveLength(1);
       expect(result.requests.filter((request: any) => request.url === '/v2/models')).toHaveLength(1);

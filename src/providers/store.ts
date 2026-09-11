@@ -454,6 +454,24 @@ export async function loadUserModelsForSync(): Promise<Record<string, ProviderMo
   return out;
 }
 /**
+ * Selection-referenced model rows for the sync payload. An agent selection is
+ * desired state by definition, so referenced models must ride regardless of
+ * their provenance flags — rows written by pre-origin-era code carry 'legacy'
+ * and would otherwise never cross machines.
+ */
+export async function loadReferencedModelsForSync(referenced: Record<string, string[]>): Promise<Record<string, ProviderModel[]>> {
+  const cache = await readCache();
+  const out: Record<string, ProviderModel[]> = {};
+  for (const [providerId, ids] of Object.entries(referenced || {})) {
+    if (!Array.isArray(ids)) continue;
+    const wanted = new Set(ids.filter(id => typeof id === "string" && id));
+    if (wanted.size === 0) continue;
+    const rows = (cache.providers[providerId] || []).filter(row => wanted.has(row?.id));
+    if (rows.length > 0) out[providerId] = rows.map(toModel);
+  }
+  return out;
+}
+/**
  * Additive-only merge of synced user models: ids missing locally are appended
  * as manual rows; existing rows of any origin are never removed or rewritten
  * (unlike saveDiscoveredModels, which replaces remote rows on refresh).

@@ -102,24 +102,45 @@ function createSyncService({
     return freshest;
   }
 
-  async function syncPush() {
-    const config = await loadConfig();
-    const { targets, userId, encryptionKey } = await listEnabledSyncTargets(
-      config,
-    );
+// Models referenced by persisted agent selections, per provider. A selection
+// is desired state by definition: these models must ride the sync payload
+// regardless of how their cache rows were originally sourced.
+function referencedModelMap(config) {
+  const map = {};
+  const add = (providerId, modelId) => {
+    if (!providerId || !modelId) return;
+    (map[providerId] = map[providerId] || []).push(modelId);
+  };
+  for (const state of Object.values(config.agentProviders || {})) {
+    if (!state || typeof state !== 'object') continue;
+    add(state.activeProviderId, state.activeModelId);
+    for (const [providerId, site] of Object.entries(state.sites || {})) {
+      if (!site || typeof site !== 'object') continue;
+      for (const modelId of site.modelIds || []) add(providerId, modelId);
+      for (const modelId of Object.values(site.tierMap || {})) add(providerId, modelId);
+    }
+  }
+  return map;
+}
 
-    if (!config.sync.machineId) config.sync.machineId = crypto.randomUUID();
+async function syncPush() {
+  const config = await loadConfig();
+  const { targets, userId, encryptionKey } = await listEnabledSyncTargets(
+    config,
+  );
 
-    const secrets = await getVaultStore().exportAll();
-    const syncData = {
-      secrets,
-      settings: {
-        ...exportDesiredSettings(config),
-        providers: await loadProviderSites(),
-      },
-      updatedAt: new Date().toISOString(),
-      machineId: config.sync.machineId,
-    };
+  if (!config.sync.machineId) config.sync.machineId = crypto.randomUUID();
+
+  const secrets = await getVaultStore().exportAll();
+  const syncData = {
+    secrets,
+    settings: {
+      ...exportDesiredSettings(config),
+      providers: await loadProviderSites(referencedModelMap(config)),
+    },
+    updatedAt: new Date().toISOString(),
+    machineId: config.sync.machineId,
+  };
     const encryptedBlob = encryptPayload(syncData, encryptionKey);
 
     const pushed = [];

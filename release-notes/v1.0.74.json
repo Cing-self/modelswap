@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.74",
+  "publishedAt": "2026-09-11",
+  "summary": {
+    "zh": "修复同步搁浅:推送抑制错误地以「最后同步时间」为基线,拉取对端数据包会掩盖本机未推送的改动;并让被 Agent 选中的模型无条件随同步过机器。",
+    "en": "Fixes stranded sync edits: push suppression keyed off last-sync time instead of last-pushed content, so pulling a peer's blob could mask unsent local edits; agent-selected models now always cross machines."
+  },
+  "highlights": [
+    {
+      "category": "fixed",
+      "zh": "修复搁浅:一台设备更新重启期间,另一台的推送会覆盖共享数据包;此设备的本地改动若在窗口内推送失败(重试 3 次后放弃),之后的拉取会刷新「最后同步时间」,调度器因此误判「没有待推内容」,改动被永久搁浅。推送抑制现在以「本机最后一次成功推送的内容版本」为基线(新增 lastPushedAt),拉别人的包不再掩盖自己的未推送改动。",
+      "en": "Fixes stranding: while one device restarts for an update, the other's push overwrites the shared blob; if this device's own push failed in that window (3 retries, then dropped), the subsequent pull refreshed last-sync time and the scheduler wrongly concluded nothing was pending — the edit stranded forever. Push suppression now keys off this machine's last successful push (new lastPushedAt); pulling a peer's blob no longer masks unsent local edits."
+    },
+    {
+      "category": "fixed",
+      "zh": "周期任务(每 5 分钟)从「只拉取」升级为「先拉取、再补推待推内容」:任何原因搁浅的推送(对端短暂不可达、更新窗口、进程退出)最迟 5 分钟内自动补发,不再依赖下一次手工改动触发。",
+      "en": "The 5-minute cycle now pulls first, then flushes anything still pending: pushes stranded for any reason (peer briefly unreachable, update window, process exit) self-heal within 5 minutes instead of waiting for the next manual edit."
+    },
+    {
+      "category": "fixed",
+      "zh": "被 Agent 选中引用的模型现在无条件随同步载荷过机器(不看模型行的来源标记)——旧时代代码写入的 legacy 行也能过;配合 v1.0.73 的 user 模型携带,「端点不提供模型列表/端点离线」的服务上被选中的模型在新设备上直接可用。",
+      "en": "Models referenced by agent selections now ride the payload unconditionally (regardless of row provenance flags) — legacy rows written by pre-origin-era code included; combined with v1.0.73's user-model carry, selected models on endpoints without a model list (or offline) materialize directly on new devices."
+    }
+  ]
+}

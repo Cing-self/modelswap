@@ -212,6 +212,10 @@ function createSyncConfigStore({
       return { ...live, sync: {
         ...(live.sync || {}), machineId, lastRemote: { updatedAt, machineId },
         lastSyncAt: updatedAt, lastSyncPlatform: platformId,
+        // Push-suppression baseline: what THIS machine last pushed. A later
+        // pull of a peer's blob refreshes lastSyncAt but must never make
+        // unsent local edits look "already synced".
+        lastPushedAt: updatedAt,
         localChangedAt: markers,
       } };
     });

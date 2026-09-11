@@ -60,6 +60,35 @@ describe('hasPendingLocalChanges', () => {
     };
     expect(scheduler.hasPendingLocalChanges(sync)).toBe(false);
   });
+  it('stays pending when a pull refreshed lastSyncAt but the local edit postdates the last push', () => {
+    // Stranding repro: a spoke overwrote the shared blob, then this machine
+    // pulled it (lastSyncAt refreshed). Its own earlier edit never got out
+    // (lastPushedAt older than the edit) and must still count as pending —
+    // keying off lastSyncAt would strand that edit forever.
+    const sync = {
+      lastSyncAt: '2026-08-01T12:00:00.000Z',
+      lastPushedAt: '2026-08-01T09:00:00.000Z',
+      localChangedAt: { secrets: '2026-08-01T11:00:00.000Z' },
+    };
+    expect(scheduler.hasPendingLocalChanges(sync)).toBe(true);
+  });
+
+  it('reports clean when all baselines predate the last push', () => {
+    const sync = {
+      lastSyncAt: '2026-08-01T12:00:00.000Z',
+      lastPushedAt: '2026-08-01T12:30:00.000Z',
+      localChangedAt: { secrets: '2026-08-01T10:00:00.000Z', agentProviders: '2026-08-01T11:00:00.000Z', providers: '2026-08-01T10:00:00.000Z' },
+    };
+    expect(scheduler.hasPendingLocalChanges(sync)).toBe(false);
+  });
+
+  it('falls back to lastSyncAt when no push has been recorded yet', () => {
+    const sync = {
+      lastSyncAt: '2026-08-01T12:00:00.000Z',
+      localChangedAt: { secrets: '2026-08-01T11:00:00.000Z' },
+    };
+    expect(scheduler.hasPendingLocalChanges(sync)).toBe(false);
+  });
 });
 
 describe('markDirty', () => {

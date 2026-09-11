@@ -109,12 +109,16 @@ async function autoPullCheck() {
   return result;
 }
 
-// Local sections changed since the last successful sync (also covers a pending
-// debounce that died with the process). A null lastSyncAt means never synced:
-// seed the remote baseline with a push.
+// Local sections changed since the last successful PUSH of this machine (a
+// null lastSyncAt means never synced: seed the remote baseline with a push).
+// Keying off lastPushedAt — not lastSyncAt — matters: pulling a peer's blob
+// refreshes lastSyncAt, and that must never mask this machine's own unsent
+// edits (the stranding bug: a push lost during peer downtime looked "already
+// synced" after the next pull and was never retried).
 function hasPendingLocalChanges(sync) {
   if (!sync.lastSyncAt) return true;
-  return SECTIONS.some(s => (sync.localChangedAt?.[s] || '') > sync.lastSyncAt);
+  const baseline = sync.lastPushedAt || sync.lastSyncAt;
+  return SECTIONS.some(s => (sync.localChangedAt?.[s] || '') > baseline);
 }
 
 // Startup / enable-time pass: adopt remote state first (union merge, config
@@ -135,7 +139,17 @@ function startAutoSync() {
     startupTimer = null;
     syncNow().catch(() => {});
   }, STARTUP_DELAY_MS);
-  pullTimer = setInterval(() => { autoPullCheck().catch(() => {}); }, PULL_INTERVAL_MS);
+  // The periodic tick heals stranded pushes: pull first (absorb the peer's
+  // blob), then flush anything still pending — a push that failed during
+  // peer downtime would otherwise wait forever for its next local edit.
+  pullTimer = setInterval(() => {
+    autoPullCheck()
+      .then(async () => {
+        const config = await core.loadConfig();
+        if (hasPendingLocalChanges(config.sync || {})) await autoPush();
+      })
+      .catch(() => {});
+  }, PULL_INTERVAL_MS);
   if (typeof startupTimer.unref === 'function') startupTimer.unref();
   if (typeof pullTimer.unref === 'function') pullTimer.unref();
 }

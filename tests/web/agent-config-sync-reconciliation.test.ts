@@ -110,12 +110,11 @@ describe('syncPull Agent configuration reconciliation', { timeout: 30000 }, () =
     expect(result.claudeSettings.env.ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES).toContain('thinking');
     expect(result.opencode.provider['sync-open'].models['open-canonical']).toBeDefined();
     expect(result.opencode.provider['sync-open'].models['open-canonical'].limit).toMatchObject({ context: 123456, output: 7890 });
-    expect(result.second.agentFailures).toEqual(expect.arrayContaining([
-      expect.objectContaining({ agentId: 'openclaw', providerId: 'sync-unavailable', code: 'MODEL_NOT_FOUND' }),
-    ]));
+    // Selection-referenced models ride the payload even when the endpoint is
+    // unavailable: the site reconciles from the seed instead of failing
+    // MODEL_NOT_FOUND on every pull.
+    expect(result.second.agentFailures).toEqual([]);
     expect(result.user.agentProviders.openclaw.sites['sync-unavailable'].modelIds).toEqual(['unavailable-canonical']);
-    expect(result.third.agentFailures).toEqual(expect.arrayContaining([
-      expect.objectContaining({ agentId: 'openclaw', providerId: 'sync-unavailable' }),
-    ]));
+    expect(result.third.agentFailures).toEqual([]);
   });
 });
