@@ -362,6 +362,58 @@ describe('syncPull', { timeout: 15000 }, () => {
     }
   });
 
+  it('LAN join seeds user-authored models the local endpoint cannot rediscover', async () => {
+    // Hub phase: a user-added provider whose endpoint serves no /models list
+    // (e.g. qianfan's token-plan personal base) carries user-origin models.
+    const hubSite = { id: 'qianfan-coding', name: 'Qianfan Coding', type: 'openai', baseUrl: 'https://qianfan.example/v2', authMode: 'api_key', vaultKey: 'QF_KEY' };
+    const hubCache = { providers: { 'qianfan-coding': [
+      { id: 'glm-5.2', name: 'GLM-5.2', origin: 'user', source: 'manual', context: 1179648 },
+      { id: 'server-listed', origin: 'remote', source: 'remote' },
+    ] } };
+    const hubConfig = JSON.parse(JSON.stringify(VALID_CONFIG));
+    let providerFile = JSON.stringify({ version: 2, providers: [hubSite] });
+    let cacheFile = JSON.stringify(hubCache);
+    let configData = hubConfig;
+    mockFs.readJson.mockImplementation(async (file) => {
+      const p = String(file);
+      if (p.includes('models-cache')) return JSON.parse(cacheFile || '{}');
+      if (p.includes('user.json')) return configData;
+      return {};
+    });
+    mockFs.readFile.mockImplementation(async (file) => {
+      const p = String(file);
+      if (p.includes('models-cache')) return cacheFile;
+      if (p.includes('providers')) return providerFile;
+      return '{}';
+    });
+    mockStore.exportAll.mockResolvedValue(SAMPLE_SECRETS);
+    mockStore.get.mockResolvedValue('resolved');
+    let hubBlob;
+    mockSupabaseAdapter.pushSync.mockImplementation(async (_cfg, _userId, blob) => { hubBlob = blob; });
+    await syncPush();
+
+    // Joiner phase: same site exists locally, but its models cache is empty
+    // and the endpoint cannot rediscover anything (no /models).
+    cacheFile = '{}';
+    configData = JSON.parse(JSON.stringify(VALID_CONFIG));
+    mockStore.exportAll.mockResolvedValue([]);
+    mockSupabaseAdapter.pullSync.mockResolvedValue(hubBlob);
+
+    const result = await syncPull();
+
+    expect(result.providersApplied).toBe(true);
+    const cacheWrite = mockFs.writeFile.mock.calls.find(([file]) => String(file).includes('models-cache'));
+    expect(cacheWrite).toBeTruthy();
+    const written = JSON.parse(cacheWrite[1]);
+    const rows = written.providers['qianfan-coding'] || [];
+    expect(rows.map(row => row.id)).toContain('glm-5.2');
+    const seeded = rows.find(row => row.id === 'glm-5.2');
+    expect(seeded.source).toBe('manual');
+    expect(seeded.origin).toBe('user');
+    // Remote-origin rows from the hub never ride the payload.
+    expect(rows.map(row => row.id)).not.toContain('server-listed');
+  });
+
   it('LAN join adopts hub state despite newer self-push keep-local markers', async () => {
     vi.useFakeTimers();
     try {

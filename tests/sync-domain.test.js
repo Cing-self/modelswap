@@ -81,6 +81,30 @@ describe('sync domain conflict rules', () => {
       { id: 'remote', name: 'Remote', vaultKey: 'REMOTE_API_KEY' },
     ]);
   });
+
+  it('keeps user-authored models with the site — they are desired state, not rebuildable cache', () => {
+    expect(
+      stripRebuildableProviderData({
+        providers: [
+          {
+            id: 'qianfan-coding',
+            name: 'Qianfan Coding',
+            models: [
+              { id: 'glm-5.2', name: 'GLM-5.2', origin: 'user', meta: { context: 1179648 } },
+              { id: 'server-listed', origin: 'remote' },
+              { id: 'legacy-row' },
+            ],
+          },
+        ],
+      }),
+    ).toEqual([
+      {
+        id: 'qianfan-coding',
+        name: 'Qianfan Coding',
+        models: [{ id: 'glm-5.2', name: 'GLM-5.2', origin: 'user', meta: { context: 1179648 } }],
+      },
+    ]);
+  });
 });
 
 describe('sync pull orchestration', () => {

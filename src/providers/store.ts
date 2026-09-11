@@ -437,6 +437,47 @@ export async function saveDiscoveredModels(providerId: string, models: ProviderM
     await writeCache(cache);
   });
 }
+/**
+ * User-authored model rows for the sync payload. Authored selections are
+ * desired state, not rebuildable cache: they must survive machine switches
+ * even when the receiving endpoint cannot rediscover them (e.g. user-added
+ * providers whose base URL serves no /models list).
+ */
+export async function loadUserModelsForSync(): Promise<Record<string, ProviderModel[]>> {
+  const cache = await readCache();
+  const out: Record<string, ProviderModel[]> = {};
+  for (const [providerId, rows] of Object.entries(cache.providers || {})) {
+    const userModels = (rows as ModelMetadata[])
+      .filter(row => row?.origin === "user" || row?.source === "manual");
+    if (userModels.length > 0) out[providerId] = userModels.map(toModel);
+  }
+  return out;
+}
+/**
+ * Additive-only merge of synced user models: ids missing locally are appended
+ * as manual rows; existing rows of any origin are never removed or rewritten
+ * (unlike saveDiscoveredModels, which replaces remote rows on refresh).
+ */
+export async function mergeSyncedUserModels(providerId: string, models: ProviderModel[]): Promise<number> {
+  if (!providerId || typeof providerId !== "string") return 0;
+  const incoming = (Array.isArray(models) ? models : []).filter(model => model && typeof model.id === "string" && model.id);
+  if (incoming.length === 0) return 0;
+  let added = 0;
+  await serializeStoreWrite(async () => {
+    const cache = await readCache();
+    const rows = cache.providers[providerId] || [];
+    const localIds = new Set(rows.filter(row => row?.id).map(row => row.id));
+    const additions = incoming
+      .filter(model => !localIds.has(model.id))
+      .map(model => toMetadata(model, "manual"));
+    if (additions.length > 0) {
+      cache.providers[providerId] = [...rows, ...additions];
+      added = additions.length;
+      await writeCache(cache);
+    }
+  });
+  return added;
+}
 export async function mergeProviderSites(sites: ProviderSite[]): Promise<void> {
   return serializeStoreWrite(async () => {
   // Sync must not perform a preliminary provider-file migration write: an old

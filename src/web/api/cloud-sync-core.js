@@ -99,6 +99,7 @@ const syncService = createSyncService({
   loadConfig: configStore.loadConfig,
   loadProviderSites: providerSites.loadProviderSites,
   mergeRemoteProviderSites: providerSites.mergeRemoteProviderSites,
+  seedSyncedUserModels: providerSites.seedSyncedUserModels,
   publishDataChanged,
   reconcilePulledAgentProviders: reconciler.reconcilePulledAgentProviders,
   resolvePrimaryTarget: platforms.resolvePrimaryTarget,

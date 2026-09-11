@@ -110,7 +110,10 @@ describe('sync provider vault-reference reconciliation', { timeout: 30000 }, () 
       });
       expect(received.result.agentFailures).toEqual([]);
       expect(received.ref).toBe('SYNC_VAULT_REFERENCE');
-      expect(received.cacheIds).toEqual(['sync-vault-remote-v1']);
+      // Discovered remote models arrive via hydration; user-authored models
+      // (manual-local, created on the push side) ride the sync payload and
+      // seed after hydration so they never mask endpoint discovery.
+      expect(received.cacheIds).toEqual(expect.arrayContaining(['sync-vault-remote-v1', 'manual-local']));
       expect(received.vaultResolved).toBe(true);
       expect(received.codex).toEqual({ remote: true, scopedRef: true, legacyOpenAiAuth: false, inlineSecret: false });
     } finally {

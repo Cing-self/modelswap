@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.73",
+  "publishedAt": "2026-09-11",
+  "summary": {
+    "zh": "同步现在会携带用户手动添加的模型:此前 provider 模型列表被整体当作「可重建缓存」剥掉,新机器探测不到时 Agent 选的模型永远同步不过来。",
+    "en": "Sync now carries user-added models: provider model lists were previously stripped entirely as \"rebuildable cache\", so agent-selected models could never materialize on a machine whose discovery could not find them."
+  },
+  "highlights": [
+    {
+      "category": "fixed",
+      "zh": "修复:新设备加入同步后,对端 Agent 选用的模型(如千帆 Coding Plan 下的 glm-5.x / ernie-5.x)报「Model not found」、Agent 配置不生效。根因是同步把 provider 的模型列表整体剥掉、只靠本机重新探测,而用户手动添加的模型(尤其是端点不提供 /models 列表的服务)在新机器上永远探测不出来。",
+      "en": "Fixed: after joining, agent-selected models (e.g. glm-5.x / ernie-5.x under Qianfan Coding Plan) failed with \"Model not found\" and agent configs were never applied. Sync stripped provider model lists and relied on local rediscovery — user-added models on endpoints without a /models list can never be rediscovered."
+    },
+    {
+      "category": "fixed",
+      "zh": "用户手动添加的模型现在作为「期望状态」随同步载荷往返(与 Agent 选择、模型覆写同级),拉取侧在端点探测之后补种进本机模型目录——顺序保证 authored 模型不会挡住端点模型的正常发现。",
+      "en": "User-added models now ride the sync payload as desired state (peer of agent selections and model overrides) and seed the local model directory after endpoint discovery — the ordering guarantees authored seeds never mask normal endpoint discovery."
+    },
+    {
+      "category": "improved",
+      "zh": "注意:需要两端都升级到本版本才生效(载荷由推送方构建);主设备升级后任意一次本地改动(如编辑一条 vault 条目)会触发携带新数据的推送。",
+      "en": "Note: both devices must run this version (the payload is built by the pushing side); after the primary updates, any local change (e.g. editing a vault entry) triggers a push that carries the new data."
+    }
+  ]
+}

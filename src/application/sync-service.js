@@ -64,6 +64,7 @@ function createSyncService({
   loadConfig,
   loadProviderSites,
   mergeRemoteProviderSites,
+  seedSyncedUserModels = async () => {},
   publishDataChanged,
   reconcilePulledAgentProviders,
   resolvePrimaryTarget,
@@ -237,6 +238,12 @@ function createSyncService({
     const agentModelHydration = agentProvidersApplied
       ? await hydratePulledAgentModels(config)
       : { warmed: [], pending: [], results: [] };
+    // Authored models seed AFTER hydration: warmup skips providers that
+    // already have cache rows, so seeding first would block endpoint
+    // discovery of the same provider's remote models.
+    if (providersApplied) {
+      await seedSyncedUserModels(remoteData.settings.providers);
+    }
     const agentReconciliation = agentProvidersApplied
       ? await reconcilePulledAgentProviders(config)
       : [];
