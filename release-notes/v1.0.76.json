@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.76",
+  "publishedAt": "2026-09-11",
+  "summary": {
+    "zh": "图标尺寸对齐 macOS 规范:图标本体从顶满 1024 画布改为标准的 824×824 居中(四周各留 100px 透明边距),Dock 中不再比原生应用大一圈。",
+    "en": "Icon size now follows the macOS app icon grid: artwork shrinks from a full-bleed 1024 canvas to the standard 824×824 centered on it (100px transparent margins), so it no longer renders larger than native apps in the Dock."
+  },
+  "highlights": [
+    {
+      "category": "improved",
+      "zh": "按 Apple 的 macOS 应用图标网格修正尺寸:1024×1024 画布、图标本体 824×824 居中、四边各 100px 透明边距;此前 squircle 顶满画布,在 Dock 里明显大于相邻的原生应用图标。",
+      "en": "Follows Apple's macOS app icon grid — 1024×1024 canvas with an 824×824 centered body and 100px transparent margins on every side; the previous version filled the whole canvas and looked oversized next to native apps in the Dock."
+    },
+    {
+      "category": "improved",
+      "zh": "图案、配色与 v1.0.75 保持一致(纯米白底 + 星球轨道 + macOS 圆角),仅调整占位比例。",
+      "en": "Artwork, colors and rounded corners stay identical to v1.0.75 — only the footprint changes."
+    },
+    {
+      "category": "improved",
+      "zh": "已在本机 Dock 与相邻应用图标实测同大;build 源资产(icon.icns、modelswap-icon-macos.png)同步替换,后续构建与自动更新保持此尺寸。",
+      "en": "Verified side-by-side in the local Dock against neighboring app icons; the build source assets (icon.icns, modelswap-icon-macos.png) are replaced so future builds and auto-updates keep this sizing."
+    }
+  ]
+}
