@@ -200,14 +200,27 @@ function renderSaveForm() {
         closeGroupMenu();
     };
     const renderGroupMenu = () => {
-        const query = groupInput.value.trim().toLowerCase();
+        const typed = groupInput.value.trim();
+        const query = typed.toLowerCase();
         const matches = groupOptions.filter((g) => g.toLowerCase().includes(query));
-        if (matches.length === 0) {
+        const exact = typed !== "" && groupOptions.some((g) => g.toLowerCase() === query);
+        // Honest dead-end: when nothing matches, offer the typed name as a new
+        // group instead of silently closing — free-text entry is allowed here.
+        if (matches.length === 0 && typed === "") {
             closeGroupMenu();
             return;
         }
         groupMenu.textContent = "";
         menuActive = -1;
+        if (!exact && typed !== "") {
+            const create = el("button", "group-opt create", `新建分组「${typed}」`);
+            create.type = "button";
+            create.addEventListener("mousedown", (e) => {
+                e.preventDefault();
+                selectGroup(typed);
+            });
+            groupMenu.append(create);
+        }
         matches.forEach((name) => {
             const opt = el("button", "group-opt", name);
             opt.type = "button";

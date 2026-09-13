@@ -250,6 +250,7 @@ button.icon svg { width: 12px; height: 12px; }
   box-shadow: none; padding: 6px 9px; cursor: pointer;
 }
 .group-opt:hover, .group-opt.active { background: var(--surface-2); }
+.group-opt.create { color: var(--blue); }
 
 .form-actions { margin-top: 12px; }
 .form-actions .primary { width: 100%; padding: 7px 12px; }
