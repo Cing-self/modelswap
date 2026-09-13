@@ -158,6 +158,7 @@ function setupWebSocket(httpServer) {
       // the only direction secrets flow INTO the server, and it arrives on
       // the authenticated extension socket only.
       if (msg.type === 'vault-capture') {
+        console.log(`[WS] vault-capture received id=${msg.id} key=${msg.key} from ${ws._extId ?? 'unknown-ext'}`);
         try {
           const result = await require('./vault-requests').captureFromExtension(msg);
           ws.send(JSON.stringify({ type: 'vault-capture-result', id: msg.id, ...result }));
@@ -169,6 +170,7 @@ function setupWebSocket(httpServer) {
 
       // Direct user-initiated save from the extension popup.
       if (msg.type === 'vault-save') {
+        console.log(`[WS] vault-save received id=${msg.id} key=${msg.key} from ${ws._extId ?? 'unknown-ext'}`);
         try {
           const result = await require('./vault-requests').saveFromExtension(msg);
           ws.send(JSON.stringify({ type: 'vault-save-result', id: msg.id, ...result }));
@@ -177,6 +179,11 @@ function setupWebSocket(httpServer) {
         }
         return;
       }
+
+      // Unauthenticated-section drop guard: an authenticated socket sent a
+      // message type this build doesn't handle — log it instead of silently
+      // swallowing (silent drops looked like 10s timeouts from the UI side).
+      console.log(`[WS] unhandled authenticated message type=${msg.type} from ${ws._extId ?? 'unknown-ext'}`);
 
       // Result correlation by id (covers both atomic Result and legacy responses)
       const pending = PENDING.get(msg.id);
