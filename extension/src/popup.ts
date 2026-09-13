@@ -8,8 +8,11 @@ import { mountPanel } from "./panel-view.js";
 mountPanel();
 
 // One-click handoff to the side panel — the persistent surface that stays
-// open while the user navigates to the provider console. Requires Chrome
-// 116+ for sidePanel.open; hide the launcher on older browsers.
+// open while the user navigates to the provider console. sidePanel.open()
+// MUST run inside the click's synchronous gesture: awaiting
+// windows.getCurrent() first consumes the gesture and the call silently
+// fails. So cache the windowId at mount and open synchronously on click.
+// Requires Chrome 116+; hide the launcher on older browsers.
 void (async () => {
   const btn = document.getElementById("open-sidepanel");
   if (!btn) return;
@@ -18,9 +21,18 @@ void (async () => {
     btn.hidden = true;
     return;
   }
+  let cachedWindowId: number | undefined;
+  try {
+    const win = await chrome.windows.getCurrent();
+    cachedWindowId = win.id;
+  } catch {
+    btn.hidden = true;
+    return;
+  }
   btn.addEventListener("click", () => {
-    void chrome.windows.getCurrent().then((win) => {
-      if (win.id !== undefined) void api.open({ windowId: win.id });
+    if (cachedWindowId === undefined) return;
+    api.open({ windowId: cachedWindowId }).catch((e) => {
+      console.warn("[MODELSWAP] sidePanel.open failed:", e);
     });
   });
 })();
