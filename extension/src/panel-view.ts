@@ -37,6 +37,7 @@ interface VaultRequest {
 }
 
 let lastConnected = false;
+let lastLegacy = false;
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
@@ -396,8 +397,9 @@ async function loadGroups(): Promise<void> {
   }
 }
 
-function render(requests: VaultRequest[], connected: boolean): void {
+function render(requests: VaultRequest[], connected: boolean, legacy = lastLegacy): void {
   lastConnected = connected;
+  lastLegacy = legacy;
   lastRequests = requests;
 
   const conn = document.getElementById("conn");
@@ -408,8 +410,15 @@ function render(requests: VaultRequest[], connected: boolean): void {
   }
   const banner = document.getElementById("banner");
   if (banner) {
-    banner.hidden = connected;
-    banner.textContent = "未连接到 ModelSwap 服务 — 捕获与保存暂不可用";
+    if (!connected) {
+      banner.hidden = false;
+      banner.textContent = "未连接到 ModelSwap 服务 — 捕获与保存暂不可用";
+    } else if (legacy) {
+      banner.hidden = false;
+      banner.textContent = "本地 ModelSwap 服务版本过旧，不支持扩展保存与捕获 — 请升级 ModelSwap 后重试";
+    } else {
+      banner.hidden = true;
+    }
   }
 
   const now = Date.now();
@@ -441,10 +450,13 @@ export function mountPanel(): void {
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
     if (changes.vaultRequests) {
-      render((changes.vaultRequests.newValue as VaultRequest[]) ?? [], lastConnected);
+      render((changes.vaultRequests.newValue as VaultRequest[]) ?? [], lastConnected, lastLegacy);
     }
     if (changes.wsConnected) {
-      render(lastRequests, changes.wsConnected.newValue === true);
+      render(lastRequests, changes.wsConnected.newValue === true, lastLegacy);
+    }
+    if (changes.serverLegacy) {
+      render(lastRequests, lastConnected, changes.serverLegacy.newValue === true);
     }
   });
   // Keep the batch relative-times ticking without waiting for a data push.
@@ -453,5 +465,5 @@ export function mountPanel(): void {
 
 async function init(): Promise<void> {
   const state = await chrome.runtime.sendMessage({ type: "modelswap-popup-init" });
-  render(state?.requests ?? [], state?.connected === true);
+  render(state?.requests ?? [], state?.connected === true, state?.legacy === true);
 }

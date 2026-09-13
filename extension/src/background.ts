@@ -30,6 +30,29 @@ let reconnectAttempts = 0;
 // Port the daemon was last found on — reused for plain HTTP reads (e.g.
 // the vault group list for the popup/side-panel autocomplete).
 let serverPort: number | null = null;
+// Whether the connected daemon predates the vault-request/vault-save API
+// (released builds before 2.2.0 silently ignore those messages).
+let serverLegacy = false;
+
+/**
+ * Probe for the vault-request API. A 404 means the running daemon is an
+ * older release: tell the UI immediately instead of letting saves time out
+ * mysteriously ten seconds later.
+ */
+async function probeServerCapabilities(): Promise<void> {
+  try {
+    const port = serverPort;
+    if (!port) return;
+    const res = await fetch(`http://localhost:${port}/api/vault/requests`, { signal: AbortSignal.timeout(3000) });
+    serverLegacy = res.status === 404;
+    await chrome.storage.local.set({ serverLegacy });
+    if (serverLegacy) {
+      console.warn('[MODELSWAP] daemon predates vault-request API — extension save/capture unavailable until ModelSwap is upgraded');
+    }
+  } catch {
+    // probe failed — leave the last known state
+  }
+}
 
 // ─── Console log forwarding ──────────────────────────────────────────
 // Forward service-worker console output to MODELSWAP server for debugging.
@@ -124,6 +147,7 @@ async function connect(): Promise<void> {
       version: chrome.runtime.getManifest().version,
       protocol: 'atomic-v2',
     }));
+    void probeServerCapabilities();
   };
 
   ws.onmessage = async (event) => {
@@ -437,6 +461,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     sendResponse({
       requests: vaultRequests,
       connected: ws?.readyState === WebSocket.OPEN,
+      legacy: serverLegacy,
     });
     return false;
   }
@@ -803,7 +828,7 @@ function sendVaultSave(payload: { key: string; group?: string; desc?: string; va
     const id = `save_${Date.now()}_${++captureCounter}`;
     const timer = setTimeout(() => {
       capturePending.delete(id);
-      resolve({ ok: false, error: '保存写入超时' });
+      resolve({ ok: false, error: '保存写入超时 — 本地 ModelSwap 服务可能版本过旧，请升级后重试' });
     }, 10000);
     capturePending.set(id, { resolve, timer });
     ws.send(JSON.stringify({ type: 'vault-save', id, ...payload }));

@@ -9,6 +9,7 @@
  * channel via the background worker, never a page context fetch.
  */
 let lastConnected = false;
+let lastLegacy = false;
 function el(tag, className, text) {
     const node = document.createElement(tag);
     if (className)
@@ -359,8 +360,9 @@ async function loadGroups() {
         groupOptions = [];
     }
 }
-function render(requests, connected) {
+function render(requests, connected, legacy = lastLegacy) {
     lastConnected = connected;
+    lastLegacy = legacy;
     lastRequests = requests;
     const conn = document.getElementById("conn");
     const connText = document.getElementById("conn-text");
@@ -370,8 +372,17 @@ function render(requests, connected) {
     }
     const banner = document.getElementById("banner");
     if (banner) {
-        banner.hidden = connected;
-        banner.textContent = "未连接到 ModelSwap 服务 — 捕获与保存暂不可用";
+        if (!connected) {
+            banner.hidden = false;
+            banner.textContent = "未连接到 ModelSwap 服务 — 捕获与保存暂不可用";
+        }
+        else if (legacy) {
+            banner.hidden = false;
+            banner.textContent = "本地 ModelSwap 服务版本过旧，不支持扩展保存与捕获 — 请升级 ModelSwap 后重试";
+        }
+        else {
+            banner.hidden = true;
+        }
     }
     const now = Date.now();
     const live = requests.filter((r) => r.expiresAt > now);
@@ -402,10 +413,13 @@ export function mountPanel() {
         if (area !== "local")
             return;
         if (changes.vaultRequests) {
-            render(changes.vaultRequests.newValue ?? [], lastConnected);
+            render(changes.vaultRequests.newValue ?? [], lastConnected, lastLegacy);
         }
         if (changes.wsConnected) {
-            render(lastRequests, changes.wsConnected.newValue === true);
+            render(lastRequests, changes.wsConnected.newValue === true, lastLegacy);
+        }
+        if (changes.serverLegacy) {
+            render(lastRequests, lastConnected, changes.serverLegacy.newValue === true);
         }
     });
     // Keep the batch relative-times ticking without waiting for a data push.
@@ -413,5 +427,5 @@ export function mountPanel() {
 }
 async function init() {
     const state = await chrome.runtime.sendMessage({ type: "modelswap-popup-init" });
-    render(state?.requests ?? [], state?.connected === true);
+    render(state?.requests ?? [], state?.connected === true, state?.legacy === true);
 }
