@@ -72,6 +72,33 @@ function maskedText(masked: unknown): string {
   return "";
 }
 
+function relTime(ts: number): string {
+  const diff = Date.now() - ts;
+  if (diff < 60_000) return "刚刚";
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} 分钟前`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} 小时前`;
+  return `${Math.floor(diff / 86_400_000)} 天前`;
+}
+
+/**
+ * One vault request = one agent batch. Batches render as separate cards so
+ * keys captured for different asks never blur together; the header shows
+ * relative time and capture progress.
+ */
+function renderBatch(req: VaultRequest): HTMLElement {
+  const card = el("div", `batch${req.items.every((i) => i.status === "fulfilled") ? " done" : ""}`);
+
+  const head = el("div", "batch-head");
+  head.append(el("span", "batch-tag", "Agent 请求"));
+  head.append(el("span", "batch-time", relTime(req.createdAt)));
+  const doneCount = req.items.filter((i) => i.status === "fulfilled").length;
+  head.append(el("span", "batch-count", `${doneCount}/${req.items.length}`));
+  card.append(head);
+
+  for (const item of req.items) card.append(renderItem(item));
+  return card;
+}
+
 function statusLine(status: "pending" | "fulfilled", duplicate?: boolean): HTMLElement {
   const wrap = el("span", `status ${status === "fulfilled" ? "done" : "pending"}`);
   wrap.append(el("span", "dot"));
@@ -269,8 +296,11 @@ function renderSaveForm(): void {
     .catch(() => undefined);
 }
 
+let lastRequests: VaultRequest[] = [];
+
 function render(requests: VaultRequest[], connected: boolean): void {
   lastConnected = connected;
+  lastRequests = requests;
 
   const conn = document.getElementById("conn");
   const connText = document.getElementById("conn-text");
@@ -286,26 +316,20 @@ function render(requests: VaultRequest[], connected: boolean): void {
 
   const now = Date.now();
   const live = requests.filter((r) => r.expiresAt > now);
-  const pendingCount = live.reduce(
-    (count, r) => count + r.items.filter((i) => i.status !== "fulfilled").length,
-    0,
-  );
 
-  const section = document.getElementById("requests-section");
-  const empty = document.getElementById("empty");
+  // Default surface is the create form; agent batches appear above it only
+  // while they are alive, newest first.
+  const section = document.getElementById("batches-section");
   const list = document.getElementById("list");
-  const count = document.getElementById("pending-count");
-  if (!section || !empty || !list || !count) return;
+  const count = document.getElementById("batch-count");
+  if (!section || !list || !count) return;
   list.textContent = "";
 
-  const hasLive = live.length > 0;
-  section.hidden = !hasLive;
-  empty.hidden = hasLive;
-  if (hasLive) {
-    count.textContent = pendingCount > 0 ? `${pendingCount} 项等待` : "全部完成";
-    for (const req of live) {
-      for (const item of req.items) list.append(renderItem(item));
-    }
+  const ordered = [...live].sort((a, b) => b.createdAt - a.createdAt);
+  section.hidden = ordered.length === 0;
+  if (ordered.length > 0) {
+    count.textContent = `${ordered.length} 批`;
+    for (const req of ordered) list.append(renderBatch(req));
   }
 
   renderSaveForm();
@@ -320,28 +344,11 @@ export function mountPanel(): void {
       render((changes.vaultRequests.newValue as VaultRequest[]) ?? [], lastConnected);
     }
     if (changes.wsConnected) {
-      void refreshConnected();
+      render(lastRequests, changes.wsConnected.newValue === true);
     }
   });
-}
-
-async function refreshConnected(): Promise<void> {
-  let connected = lastConnected;
-  try {
-    const st = await chrome.storage.local.get("wsConnected");
-    connected = st.wsConnected === true;
-  } catch {
-    // keep previous
-  }
-  // Re-render with the cached requests and the fresh connection state.
-  let requests: VaultRequest[] = [];
-  try {
-    const st = await chrome.storage.local.get("vaultRequests");
-    requests = (st.vaultRequests as VaultRequest[]) ?? [];
-  } catch {
-    // empty
-  }
-  render(requests, connected);
+  // Keep the batch relative-times ticking without waiting for a data push.
+  setInterval(() => render(lastRequests, lastConnected), 30_000);
 }
 
 async function init(): Promise<void> {

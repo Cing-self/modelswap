@@ -222,6 +222,32 @@ button.icon svg { width: 12px; height: 12px; }
 .form-note.ok { color: var(--green); }
 .form-note.err { color: var(--red); }
 
+/* ── Agent request batches — one card per ask, newest first ── */
+.batch {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  padding: 4px 13px 6px;
+}
+.batch + .batch { margin-top: 10px; }
+.batch.done { opacity: 0.62; }
+.batch-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 0 7px;
+}
+.batch + .item, .batch-head + .item { border-top: 1px solid var(--line); }
+.batch-tag {
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.5px;
+  color: var(--blue);
+  background: color-mix(in srgb, var(--blue) 9%, transparent);
+  padding: 2px 7px; border-radius: 5px;
+}
+.batch.done .batch-tag { color: var(--muted); background: var(--surface-2); }
+.batch-time { font-size: 11px; color: var(--muted); }
+.batch-count { margin-left: auto; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.batch .item:last-child { padding-bottom: 10px; }
+
 /* ── Empty state ────────────────────────────────────────── */
 .empty { padding: 24px 0 8px; text-align: center; color: var(--muted); }
 .empty .glyph {

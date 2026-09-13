@@ -14,19 +14,12 @@
   </header>
   <div id="banner" class="banner" hidden></div>
   <main>
-    <section id="requests-section" hidden>
-      <div class="section-label"><span>待捕获</span><span class="count" id="pending-count"></span></div>
+    <section id="batches-section" hidden>
+      <div class="section-label"><span>Agent 请求</span><span class="count" id="batch-count"></span></div>
       <div id="list"></div>
     </section>
-    <section id="empty" class="empty" hidden>
-      <div class="glyph">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="14" r="4.5"/><path d="M11.5 10.5 20 2m-4 2 3 3m-6 0 2.5 2.5"/></svg>
-      </div>
-      <div>没有待捕获的凭证请求</div>
-      <div class="hint">modelswap vault request &lt;KEY&gt; --wait</div>
-    </section>
     <section id="save-section">
-      <div class="section-label"><span>手动保存</span></div>
+      <div class="section-label"><span>创建秘钥</span></div>
       <form id="save-form" novalidate></form>
     </section>
   </main>
