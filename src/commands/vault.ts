@@ -377,7 +377,7 @@ export async function vaultRequest(
     return;
   }
 
-  let created: { id: string; request: { items: Array<{ key: string; group?: string }> } };
+  let created: { id: string; request: { items: Array<{ key: string; group?: string }> }; extensionConnected?: boolean };
   try {
     created = await localVaultApi(port, "/api/vault/requests", { items });
   } catch (error) {
@@ -390,7 +390,14 @@ export async function vaultRequest(
   for (const item of created.request.items) {
     console.log(`  ⏳ ${kleur.cyan(item.key)}${item.group ? kleur.gray(`（${item.group}）`) : ""}`);
   }
-  console.log(kleur.gray("  用户操作: 在控制台页面复制 key，扩展自动捕获入库；也可点扩展图标手动粘贴。"));
+  if (created.extensionConnected === false) {
+    console.log(kleur.yellow("⚠ 浏览器扩展未连接 — 复制秘钥不会被自动捕获，本次等待大概率超时。"));
+    console.log(kleur.gray("  安装: 打开 ModelSwap → 设置 → 浏览器扩展，按引导一键加载；"));
+    console.log(kleur.gray("  或 chrome://extensions → 开发者模式 → 加载已解压的扩展程序 → 选择 extension 目录。"));
+    console.log(kleur.gray("  临时替代: 按 agent 给的元数据执行 modelswap vault set 手动录入。"));
+  } else {
+    console.log(kleur.gray("  用户操作: 在控制台页面复制 key，扩展自动捕获入库；也可点扩展图标手动粘贴。"));
+  }
 
   if (!options.wait) return;
 

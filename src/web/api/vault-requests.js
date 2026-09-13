@@ -200,7 +200,13 @@ async function createRequests(req, res) {
     requests.set(id, record);
     console.log(`[vault-request] ${id}: ${items.map(i => i.key).join(', ')} — pushed to extension`);
     pushSync();
-    res.json({ id, request: publicView(record) });
+    // Tell the caller whether anyone is actually listening — an honest
+    // dead-end beats a CLI that "notifies the extension" into the void.
+    let extensionConnected = false;
+    try {
+      extensionConnected = require('./ws-extension').isExtensionConnected();
+    } catch { /* bridge unavailable */ }
+    res.json({ id, request: publicView(record), extensionConnected });
   } catch (error) {
     console.error('Error creating vault request:', error);
     res.status(500).json({ error: 'Failed to create vault request' });
