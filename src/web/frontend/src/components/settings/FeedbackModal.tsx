@@ -185,7 +185,9 @@ export default function FeedbackModal({ open, onClose, buildDiagnostics }: Props
               </div>
             )}
             <div className="feedback-modal-actions">
-              <span className="feedback-modal-hint">{t('settings.feedbackPrivacyHint')}</span>
+              <span className="feedback-modal-hint">
+                {kind === 'bug' ? t('settings.feedbackPrivacyHint') : t('settings.feedbackPrivacyHintPlain')}
+              </span>
               <button className="lan-primary-action" onClick={submit} disabled={!canSubmit}>
                 {submitting ? <Loader2 className="spin" size={14} /> : null}
                 {submitting ? t('settings.feedbackSubmitting') : t('settings.feedbackSubmit')}

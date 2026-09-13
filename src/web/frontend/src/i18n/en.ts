@@ -644,6 +644,7 @@ export default {
   'settings.feedbackTitlePlaceholder': 'One line summary, e.g. model list did not refresh after sync',
   'settings.feedbackDescLabel': 'Details',
   'settings.feedbackDescPlaceholder': 'What you did, what you expected, what actually happened…',
+  'settings.feedbackPrivacyHintPlain': 'Used only to improve the product',
   'settings.feedbackPrivacyHint': 'Used only to improve the product; diagnostics are redacted',
   'settings.feedbackAttach': 'Attach diagnostics (redacted, no secrets)',
   'settings.feedbackSubmit': 'Submit',

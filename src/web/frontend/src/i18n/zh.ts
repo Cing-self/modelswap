@@ -644,6 +644,7 @@ export default {
   'settings.feedbackTitlePlaceholder': '一句话概括，例如：同步后模型列表没有刷新',
   'settings.feedbackDescLabel': '详细描述',
   'settings.feedbackDescPlaceholder': '做了什么操作、期望什么结果、实际发生了什么……',
+  'settings.feedbackPrivacyHintPlain': '内容仅用于改进产品',
   'settings.feedbackPrivacyHint': '内容仅用于改进产品，诊断信息已脱敏',
   'settings.feedbackAttach': '附带诊断信息（已脱敏，不含密钥）',
   'settings.feedbackSubmit': '提交',
