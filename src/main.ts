@@ -17,6 +17,7 @@ import {
   vaultSearch,
   vaultDelete,
   vaultInject,
+  vaultRequest,
 } from "./commands/vault";
 import { setLanguage, getLanguage, t, Language, initLanguage, loadLanguageConfig, saveLanguageConfig } from "./config/i18n";
 import { loadUserConfig, setUserPreference } from "./config/user";
@@ -134,6 +135,11 @@ async function readStdinValue(): Promise<string> {
   return value.replace(/\r?\n$/, "");
 }
 
+/** Commander collect helper for repeatable string options (--step, --field-pattern). */
+function collectOption(value: string, previous: string[]): string[] {
+  return [...(previous ?? []), value];
+}
+
 async function resolveVaultValue(value: string | undefined, useStdin: boolean): Promise<string | null> {
   if (value !== undefined && useStdin) {
     console.error(kleur.red(t("vaultValueRequired")));
@@ -204,6 +210,27 @@ vault
   .description("获取密钥明文")
   .action(async (key: string) => {
     await vaultGet(key);
+  });
+
+vault
+  .command("request <keys...>")
+  .description("发起凭证捕获请求：通知浏览器扩展待命，用户在控制台复制 key 后自动入库（KEY@分组 可写多个）")
+  .option("--group <group>", "默认分组（未带 @分组 的 key 使用）")
+  .option("--desc <desc>", "用途说明（凭证用途与权限范围）")
+  .option("--url <url>", "控制台地址（扩展弹窗提供「打开控制台」，且同域名复制置信度更高）")
+  .option("--step <step>", "给用户的操作步骤（可重复多次）", collectOption, [])
+  .option("--pattern <pattern>", "预期 key 形状（正则，仅单 key 请求）")
+  .option("--fields <fields>", "多字段凭证，逗号分隔字段名（如 app_id,app_secret，仅单 key 请求）")
+  .option("--field-pattern <fp>", "字段形状 name=regex（可重复多次，配合 --fields）", collectOption, [])
+  .option("--replace", "允许覆盖已存在的同名 key")
+  .option("--wait", "阻塞等待全部捕获完成")
+  .option("--timeout <seconds>", "--wait 的超时秒数", "600")
+  .action(async (keys: string[], options: {
+    group?: string; desc?: string; url?: string; step?: string[];
+    pattern?: string; fields?: string; fieldPattern?: string[];
+    replace?: boolean; wait?: boolean; timeout?: string;
+  }) => {
+    await vaultRequest(keys, options);
   });
 
 vault

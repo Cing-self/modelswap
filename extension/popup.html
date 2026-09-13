@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <style>
+    :root {
+      --paper: #fffdf7;
+      --kraft: #e8dcc3;
+      --kraft-dark: #d4c39c;
+      --ink: #2b2620;
+      --ink-muted: #8a8070;
+      --accent: #c65b2e;
+      --ok: #3a7d44;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 380px;
+      font: 13px/1.55 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--ink);
+      background: var(--paper);
+      padding: 14px;
+    }
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding-bottom: 10px; border-bottom: 1.5px dashed var(--kraft-dark);
+    }
+    header h1 { font-size: 14px; letter-spacing: 0.5px; }
+    .conn { font-size: 11px; color: var(--ink-muted); }
+    .conn.on::before { content: "●"; color: var(--ok); margin-right: 4px; }
+    .conn.off::before { content: "●"; color: #c0392b; margin-right: 4px; }
+    .card {
+      margin-top: 12px; padding: 10px 12px;
+      border: 1.5px solid var(--kraft-dark);
+      border-radius: 6px;
+      box-shadow: 2px 2px 0 rgba(0,0,0,0.06);
+      background: #fff;
+    }
+    .item { padding: 8px 0; }
+    .item + .item { border-top: 1px dashed var(--kraft); }
+    .item-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+    .key-name { font-weight: 600; font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; }
+    .chip {
+      font-size: 11px; padding: 1px 8px; border-radius: 999px;
+      border: 1px solid var(--kraft-dark); color: var(--ink-muted); background: var(--paper);
+    }
+    .status { margin-left: auto; font-size: 12px; }
+    .status.done { color: var(--ok); }
+    .status.wait { color: var(--accent); }
+    .desc { color: var(--ink-muted); font-size: 12px; margin-top: 2px; }
+    .steps { margin: 6px 0 0 16px; color: var(--ink); font-size: 12px; }
+    .steps li { margin: 1px 0; }
+    .fields { margin-top: 6px; font-size: 12px; }
+    .fields .f { display: flex; gap: 6px; align-items: baseline; font-family: ui-monospace, Menlo, monospace; }
+    .fields .f .s { font-family: inherit; }
+    .fields .done { color: var(--ok); }
+    .fields .wait { color: var(--ink-muted); }
+    .btnrow { display: flex; gap: 8px; margin-top: 8px; }
+    button {
+      font: inherit; font-size: 12px; cursor: pointer;
+      padding: 4px 10px; border-radius: 5px;
+      border: 1.5px solid var(--kraft-dark); background: var(--paper); color: var(--ink);
+    }
+    button:hover { background: var(--kraft); }
+    button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    button.primary:hover { filter: brightness(1.08); }
+    .manual { display: flex; gap: 6px; margin-top: 8px; }
+    .manual input {
+      flex: 1; min-width: 0; font: 12px ui-monospace, Menlo, monospace;
+      padding: 5px 8px; border: 1.5px solid var(--kraft-dark); border-radius: 5px; background: #fff;
+    }
+    .masked { font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--ok); }
+    .empty { margin-top: 24px; text-align: center; color: var(--ink-muted); font-size: 12.5px; }
+    .empty code {
+      display: inline-block; margin-top: 8px; padding: 2px 8px;
+      border: 1px dashed var(--kraft-dark); border-radius: 4px; font-size: 11.5px;
+    }
+    .note { margin-top: 6px; font-size: 11.5px; color: var(--ink-muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>MODELSWAP 凭证捕获</h1>
+    <span id="conn" class="conn off">未连接</span>
+  </header>
+  <div id="list"></div>
+  <div id="empty" class="empty" hidden>
+    当前没有待捕获的凭证请求。<br />
+    让 agent 运行 <code>modelswap vault request &lt;KEY&gt; --wait</code>
+  </div>
+  <script type="module" src="dist/popup.js"></script>
+</body>
+</html>

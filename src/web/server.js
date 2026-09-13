@@ -52,6 +52,12 @@ function createServer(port = 3780) {
   app.get('/api/vault/list', listVault);
   app.post('/api/vault', setVault);
   app.delete('/api/vault', deleteVault);
+  // Credential-request queue: agent CLI creates requests here, captures arrive
+  // over the extension WS instead (never plain HTTP).
+  const { createRequests: createVaultRequests, listRequests: listVaultRequests, cancelRequest: cancelVaultRequest } = require('./api/vault-requests');
+  app.post('/api/vault/requests', createVaultRequests);
+  app.get('/api/vault/requests', listVaultRequests);
+  app.post('/api/vault/requests/cancel', cancelVaultRequest);
   app.get('/api/vault/export', exportVault);
   app.post('/api/vault/import', importVault);
   app.get('/api/vault/value', getVaultValue);

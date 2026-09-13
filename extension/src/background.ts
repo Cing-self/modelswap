@@ -130,8 +130,19 @@ async function connect(): Promise<void> {
     }
     if (msg?.type === 'auth-ok') return; // handshake ack — not a command
     if (msg?.type === 'auth-failed') {
-      console.error('[MODELSWAP] WS auth rejected:', msg.error || 'unknown error');
+      console.error('[MODELSWAP] WS auth rejected:', msg.error || 'unknown');
       ws?.close();
+      return;
+    }
+    // Credential-request queue sync (server → extension push)
+    if (msg?.type === 'vault-request-sync') {
+      vaultRequests = Array.isArray(msg.requests) ? msg.requests : [];
+      void persistVaultRequests();
+      return;
+    }
+    // Capture result for a vault-capture we sent
+    if (msg?.type === 'vault-capture-result') {
+      resolveCaptureResult(msg);
       return;
     }
     try {
@@ -362,6 +373,7 @@ function initialize(): void {
   // ping to the server to reset the SW activity timer.
   chrome.alarms.create('keepalive', { periodInMinutes: 0.33 }); // ~20 seconds
   executor.registerListeners();
+  void loadVaultRequests();
   void connect();
   console.log('[MODELSWAP] Extension initialized v' + chrome.runtime.getManifest().version);
 }
@@ -406,6 +418,21 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     else pending.reject(new Error('Clipboard read returned no text'));
     return false;
   }
+  if (msg?.type === 'modelswap-copy') {
+    void handleCopyDetected(msg);
+    return false;
+  }
+  if (msg?.type === 'modelswap-popup-init') {
+    sendResponse({
+      requests: vaultRequests,
+      connected: ws?.readyState === WebSocket.OPEN,
+    });
+    return false;
+  }
+  if (msg?.type === 'modelswap-manual-capture') {
+    void handleManualCapture(msg).then(sendResponse);
+    return true; // async response
+  }
   if (msg?.type === 'getStatus') {
     sendResponse({
       connected: ws?.readyState === WebSocket.OPEN,
@@ -416,6 +443,335 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
   return false;
 });
+
+// ─── Vault credential capture (credential-request flow) ─────────────
+//
+// The server pushes pending requests (`modelswap vault request` from an
+// agent CLI); copy-guard content scripts forward secret-shaped copies; this
+// worker matches copies to requests with a two-tier confidence model:
+//   auto    — pattern hit + expected-domain copy → store, notify with undo
+//   confirm — plausible but not proven → one-click notification [存 / 不是这个]
+// Everything else is silently ignored.
+
+interface VaultRequestFieldView { name: string; pattern?: string }
+interface VaultRequestItemView {
+  key: string; group?: string; desc?: string; url?: string; steps?: string[];
+  pattern?: string; fields?: VaultRequestFieldView[]; replace?: boolean;
+  status: 'pending' | 'fulfilled'; masked?: unknown; duplicate?: boolean; storedAt?: number;
+}
+interface VaultRequestView {
+  id: string; createdAt: number; expiresAt: number; fulfilled: boolean;
+  items: VaultRequestItemView[];
+}
+
+let vaultRequests: VaultRequestView[] = [];
+
+async function persistVaultRequests(): Promise<void> {
+  await chrome.storage.local.set({ vaultRequests });
+  updateVaultBadge();
+}
+
+function updateVaultBadge(): void {
+  const now = Date.now();
+  const pending = vaultRequests.reduce(
+    (count, req) => (req.expiresAt > now ? count + req.items.filter(i => i.status !== 'fulfilled').length : count),
+    0,
+  );
+  void chrome.action.setBadgeText({ text: pending > 0 ? String(pending) : '' });
+  void chrome.action.setBadgeBackgroundColor({ color: '#c65b2e' });
+}
+
+async function loadVaultRequests(): Promise<void> {
+  try {
+    const st = await chrome.storage.local.get('vaultRequests');
+    vaultRequests = (st.vaultRequests as VaultRequestView[]) ?? [];
+  } catch {
+    vaultRequests = [];
+  }
+  updateVaultBadge();
+}
+
+// ── Capture correlation (extension → server vault-capture round trip) ──
+
+interface CaptureWaiter { resolve: (result: any) => void; timer: ReturnType<typeof setTimeout> }
+const capturePending = new Map<string, CaptureWaiter>();
+let captureCounter = 0;
+
+function resolveCaptureResult(msg: any): void {
+  const pending = capturePending.get(msg?.id);
+  if (!pending) return;
+  capturePending.delete(msg?.id);
+  clearTimeout(pending.timer);
+  pending.resolve(msg);
+}
+
+function sendCapture(
+  requestId: string,
+  item: VaultRequestItemView,
+  payload: { value?: string; fields?: Record<string, string> },
+  confirmed: boolean,
+  source?: { url?: string; title?: string },
+): Promise<any> {
+  return new Promise((resolve) => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      resolve({ ok: false, error: 'MODELSWAP 未连接（服务未运行？）' });
+      return;
+    }
+    const id = `cap_${Date.now()}_${++captureCounter}`;
+    const timer = setTimeout(() => {
+      capturePending.delete(id);
+      resolve({ ok: false, error: '捕获写入超时' });
+    }, 10000);
+    capturePending.set(id, { resolve, timer });
+    ws.send(JSON.stringify({
+      type: 'vault-capture', id, requestId, key: item.key,
+      ...(payload.value !== undefined ? { value: payload.value } : {}),
+      ...(payload.fields !== undefined ? { fields: payload.fields } : {}),
+      confirmed,
+      source: source ?? {},
+    }));
+  });
+}
+
+function maskText(v: string): string {
+  if (v.length <= 8) return `${v.slice(0, 2)}…（${v.length} 字符）`;
+  return `${v.slice(0, 5)}…${v.slice(-2)}（${v.length} 字符）`;
+}
+
+function maskedPreview(masked: unknown): string {
+  if (typeof masked === 'string') return masked;
+  if (masked && typeof masked === 'object') {
+    return Object.entries(masked as Record<string, string>).map(([k, v]) => `${k}: ${v}`).join(' · ');
+  }
+  return '';
+}
+
+function notifyBasic(title: string, message: string): void {
+  void chrome.notifications.create({
+    type: 'basic',
+    iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+    title,
+    message,
+  });
+}
+
+async function completeItem(requestId: string, key: string, result: any): Promise<void> {
+  const req = vaultRequests.find(r => r.id === requestId);
+  const item = req?.items.find(i => i.key === key);
+  if (req && item) {
+    item.status = 'fulfilled';
+    item.masked = result.masked;
+    item.duplicate = result.duplicate === true;
+    item.storedAt = Date.now();
+    req.fulfilled = req.items.every(i => i.status === 'fulfilled');
+    await persistVaultRequests();
+  }
+  const preview = maskedPreview(result.masked);
+  notifyBasic(
+    `${key} 已存入 MODELSWAP ✅${result.duplicate ? '（与现有值相同）' : ''}`,
+    preview ? `值: ${preview}` : '',
+  );
+}
+
+// ── Confirm tier — notification buttons hold the pending decision ──
+
+interface ConfirmDecision {
+  requestId: string;
+  item: VaultRequestItemView;
+  payload: { value?: string; fields?: Record<string, string> };
+  source?: { url?: string; title?: string };
+}
+const confirmDecisions = new Map<string, ConfirmDecision>();
+
+function askConfirm(
+  requestId: string,
+  item: VaultRequestItemView,
+  payload: { value?: string; fields?: Record<string, string> },
+  source: { url?: string; title?: string } | undefined,
+  note: string,
+): void {
+  const preview = payload.fields
+    ? Object.entries(payload.fields).map(([k, v]) => `${k}: ${maskText(v)}`).join(' · ')
+    : maskText(payload.value ?? '');
+  const suffix = note ? `\n⚠ ${note}` : '';
+  void chrome.notifications.create({
+    type: 'basic',
+    iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+    title: `存为 ${item.key}？`,
+    message: `捕获到 ${preview}${suffix}`,
+    buttons: [{ title: '存' }, { title: '不是这个' }],
+    requireInteraction: true,
+  }, (notificationId) => {
+    confirmDecisions.set(notificationId, { requestId, item, payload, source });
+  });
+}
+
+chrome.notifications.onButtonClicked.addListener((notificationId, buttonIndex) => {
+  const decision = confirmDecisions.get(notificationId);
+  if (!decision) return;
+  confirmDecisions.delete(notificationId);
+  void chrome.notifications.clear(notificationId);
+  if (buttonIndex !== 0) return; // "不是这个" — plain dismiss
+  void (async () => {
+    const result = await sendCapture(decision.requestId, decision.item, decision.payload, true, decision.source);
+    if (result.ok) await completeItem(decision.requestId, decision.item.key, result);
+    else notifyBasic('保存失败', result.error ?? '未知错误');
+  })();
+});
+
+chrome.notifications.onClicked.addListener((notificationId) => {
+  // Body click = dismiss the confirm; the decision is dropped.
+  if (confirmDecisions.has(notificationId)) {
+    confirmDecisions.delete(notificationId);
+    void chrome.notifications.clear(notificationId);
+  }
+});
+
+// ── Matching ─────────────────────────────────────────────────────────
+
+function compileRegex(pattern?: string): RegExp | null {
+  if (!pattern) return null;
+  try { return new RegExp(pattern); } catch { return null; }
+}
+
+/** Rough registrable-domain comparison (last two labels) — good enough to
+ *  boost confidence for "copied on the console the agent pointed at". */
+function sameRegistrableDomain(a?: string, b?: string): boolean {
+  if (!a || !b) return false;
+  try {
+    const ra = new URL(a).hostname.split('.').slice(-2).join('.');
+    const rb = new URL(b).hostname.split('.').slice(-2).join('.');
+    return ra === rb;
+  } catch {
+    return false;
+  }
+}
+
+function looksSecret(s: string): boolean {
+  if (/\s/.test(s) || s.length < 20 || !/^[A-Za-z0-9_\-.=+/]+$/.test(s)) return false;
+  const freq: Record<string, number> = {};
+  for (const ch of s) freq[ch] = (freq[ch] ?? 0) + 1;
+  let entropy = 0;
+  for (const count of Object.values(freq)) {
+    const p = count / s.length;
+    entropy -= p * Math.log2(p);
+  }
+  return entropy >= 3.0;
+}
+
+function parseTemplate(text: string): Record<string, string> | null {
+  const lines = text.trim().split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  if (lines.length === 0 || lines.length > 8) return null;
+  const out: Record<string, string> = {};
+  for (const line of lines) {
+    const m = line.match(/^([\w.-]{1,64})\s*[:=]\s*(.+)$/);
+    if (!m) return null;
+    out[m[1]] = m[2].trim();
+  }
+  return out;
+}
+
+interface ItemMatch { tier: 'auto' | 'confirm'; payload: { value?: string; fields?: Record<string, string> }; note: string }
+
+function matchItem(item: VaultRequestItemView, text: string, pageUrl?: string): ItemMatch | null {
+  const domain = sameRegistrableDomain(pageUrl, item.url);
+
+  if (item.fields?.length) {
+    const parsed = parseTemplate(text);
+    if (!parsed) return null;
+    const names = item.fields.map(f => f.name);
+    const present = names.filter(n => parsed[n] !== undefined);
+    if (present.length === 0) return null;
+    const all = present.length === names.length;
+    let patternsOk = true;
+    for (const n of present) {
+      const re = compileRegex(item.fields.find(f => f.name === n)?.pattern);
+      if (re && !re.test(parsed[n])) patternsOk = false;
+    }
+    const fields: Record<string, string> = {};
+    for (const n of present) fields[n] = parsed[n];
+    if (all && patternsOk && domain) return { tier: 'auto', payload: { fields }, note: '' };
+    if (patternsOk || domain) {
+      const missing = names.filter(n => parsed[n] === undefined);
+      return { tier: 'confirm', payload: { fields }, note: missing.length ? `还缺字段: ${missing.join(', ')}` : '' };
+    }
+    return null;
+  }
+
+  const single = text.trim().split(/\r?\n/)[0]?.trim() ?? '';
+  if (!single) return null;
+  const re = compileRegex(item.pattern);
+  if (re) {
+    const patternOk = re.test(single);
+    if (patternOk && domain) return { tier: 'auto', payload: { value: single }, note: '' };
+    if (patternOk) return { tier: 'confirm', payload: { value: single }, note: '复制来源不是预期控制台域名' };
+    if (domain && looksSecret(single)) return { tier: 'confirm', payload: { value: single }, note: '与 agent 预期格式不符' };
+    return null;
+  }
+  // No pattern supplied — heuristic-only, always confirm tier.
+  if (domain && looksSecret(single)) return { tier: 'confirm', payload: { value: single }, note: '' };
+  if (!item.url && looksSecret(single)) return { tier: 'confirm', payload: { value: single }, note: '' };
+  return null;
+}
+
+async function handleCopyDetected(msg: { text: string; url?: string; title?: string }): Promise<void> {
+  if (vaultRequests.length === 0) return;
+  const now = Date.now();
+  let auto: { req: VaultRequestView; item: VaultRequestItemView; match: ItemMatch } | null = null;
+  let confirmCandidate: { req: VaultRequestView; item: VaultRequestItemView; match: ItemMatch } | null = null;
+  // Newest request first — if several pending items match one copy, the most
+  // recent ask (the one whose waiter is actually alive) should win.
+  const ordered = [...vaultRequests].sort((a, b) => b.createdAt - a.createdAt);
+  for (const req of ordered) {
+    if (req.expiresAt <= now) continue;
+    for (const item of req.items) {
+      if (item.status === 'fulfilled') continue;
+      const match = matchItem(item, msg.text, msg.url);
+      if (!match) continue;
+      if (match.tier === 'auto') { auto = { req, item, match }; break; }
+      if (!confirmCandidate) confirmCandidate = { req, item, match };
+    }
+    if (auto) break;
+  }
+
+  if (auto) {
+    const result = await sendCapture(auto.req.id, auto.item, auto.match.payload, false, msg);
+    if (result.ok) {
+      await completeItem(auto.req.id, auto.item.key, result);
+    } else if (result.code === 'pattern-mismatch' || result.code === 'key-exists') {
+      // Soft gates demand an explicit user confirmation.
+      askConfirm(auto.req.id, auto.item, auto.match.payload, msg,
+        result.code === 'key-exists' ? '同名 key 已存在，确认覆盖' : '与 agent 预期格式不符');
+    } else {
+      notifyBasic('捕获失败', result.error ?? '未知错误');
+    }
+  } else if (confirmCandidate) {
+    askConfirm(confirmCandidate.req.id, confirmCandidate.item, confirmCandidate.match.payload, msg, confirmCandidate.match.note);
+  }
+}
+
+async function handleManualCapture(msg: { key: string; text: string }): Promise<any> {
+  const now = Date.now();
+  for (const req of vaultRequests) {
+    if (req.expiresAt <= now) continue;
+    const item = req.items.find(i => i.key === msg.key && i.status !== 'fulfilled');
+    if (!item) continue;
+    let payload: { value?: string; fields?: Record<string, string> };
+    if (item.fields?.length) {
+      const parsed = parseTemplate(msg.text) ?? {};
+      payload = { fields: parsed };
+    } else {
+      payload = { value: msg.text.trim().split(/\r?\n/)[0]?.trim() ?? msg.text.trim() };
+    }
+    const result = await sendCapture(req.id, item, payload, true, { url: 'extension-popup', title: 'manual paste' });
+    if (result.ok) {
+      await completeItem(req.id, item.key, result);
+      return { ok: true, masked: result.masked };
+    }
+    return { ok: false, error: result.error ?? '未知错误', code: result.code };
+  }
+  return { ok: false, error: `没有等待中的请求: ${msg.key}` };
+}
 
 // ─── Command dispatcher ─────────────────────────────────────────────
 

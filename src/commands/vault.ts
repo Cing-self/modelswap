@@ -231,3 +231,197 @@ export async function vaultInject(options?: { keys?: string; shell?: string; gro
     }
   }
 }
+
+// ─── vault request — agent-issued credential capture ─────────────────
+//
+// The CLI never touches the secret. It registers metadata (key name / group /
+// desc / expected pattern / console URL) with the local server, which arms the
+// browser extension; the value enters the vault only when the user copies it
+// on the provider console and the extension captures it.
+
+export interface VaultRequestItem {
+  key: string;
+  group?: string;
+  desc?: string;
+  url?: string;
+  steps?: string[];
+  pattern?: string;
+  fields?: { name: string; pattern?: string }[];
+  replace?: boolean;
+}
+
+const MODELSWAP_LOCAL_PORTS = [3780, 3781, 3782, 3783, 3784, 3785];
+
+async function findLocalServerPort(): Promise<number | null> {
+  // Explicit override (dev/testing against a non-default port).
+  const override = parseInt(process.env.MODELSWAP_PORT ?? "", 10);
+  if (Number.isInteger(override) && override > 0) {
+    try {
+      const res = await fetch(`http://localhost:${override}/ping`, { signal: AbortSignal.timeout(600) });
+      if (res.ok) return override;
+    } catch {
+      // fall through to the probe list
+    }
+  }
+  for (const port of MODELSWAP_LOCAL_PORTS) {
+    try {
+      const res = await fetch(`http://localhost:${port}/ping`, { signal: AbortSignal.timeout(600) });
+      if (res.ok) return port;
+    } catch {
+      // No server on this port — try the next one.
+    }
+  }
+  return null;
+}
+
+async function localVaultApi<T>(port: number, pathName: string, body?: unknown): Promise<T> {
+  const res = await fetch(`http://localhost:${port}${pathName}`, {
+    method: body ? "POST" : "GET",
+    headers: body ? { "Content-Type": "application/json" } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data: unknown = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((data as { error?: string }).error || `HTTP ${res.status}`);
+  return data as T;
+}
+
+export async function vaultRequest(
+  keys: string[],
+  options: {
+    group?: string;
+    desc?: string;
+    url?: string;
+    step?: string[];
+    pattern?: string;
+    fields?: string;
+    fieldPattern?: string[];
+    replace?: boolean;
+    wait?: boolean;
+    timeout?: string;
+  },
+): Promise<void> {
+  // KEY@分组 syntax; a bare --group covers keys without their own group.
+  const items: VaultRequestItem[] = keys.map((raw) => {
+    const at = raw.indexOf("@");
+    return at === -1
+      ? { key: raw, group: options.group }
+      : { key: raw.slice(0, at), group: raw.slice(at + 1) };
+  });
+  if (items.some((item) => !item.key)) {
+    console.error(kleur.red("✗ key 名不能为空（KEY@分组 中 @ 前必须有 key）"));
+    process.exitCode = 1;
+    return;
+  }
+  if ((options.pattern || options.fields) && items.length > 1) {
+    console.error(kleur.red("✗ --pattern / --fields 只支持单 key 请求，多 key 请分次发起"));
+    process.exitCode = 1;
+    return;
+  }
+
+  if (options.pattern !== undefined) {
+    try {
+      new RegExp(options.pattern);
+    } catch (error) {
+      console.error(kleur.red(`✗ --pattern 编译失败: ${(error as Error).message}`));
+      process.exitCode = 1;
+      return;
+    }
+    items[0].pattern = options.pattern;
+  }
+  if (options.fields) {
+    const names = options.fields.split(",").map((s) => s.trim()).filter(Boolean);
+    if (names.length === 0) {
+      console.error(kleur.red("✗ --fields 格式: app_id,app_secret"));
+      process.exitCode = 1;
+      return;
+    }
+    const fieldPatterns = new Map<string, string>();
+    for (const fp of options.fieldPattern ?? []) {
+      const eq = fp.indexOf("=");
+      if (eq === -1) {
+        console.error(kleur.red(`✗ --field-pattern 格式: name=regex（收到 "${fp}"）`));
+        process.exitCode = 1;
+        return;
+      }
+      fieldPatterns.set(fp.slice(0, eq), fp.slice(eq + 1));
+    }
+    const parsedFields: Array<{ name: string; pattern?: string }> = [];
+    for (const name of names) {
+      const pattern = fieldPatterns.get(name);
+      if (pattern !== undefined) {
+        try {
+          new RegExp(pattern);
+        } catch (error) {
+          console.error(kleur.red(`✗ 字段 ${name} 的 pattern 编译失败: ${(error as Error).message}`));
+          process.exitCode = 1;
+          return;
+        }
+        parsedFields.push({ name, pattern });
+      } else {
+        parsedFields.push({ name });
+      }
+    }
+    items[0].fields = parsedFields;
+  }
+  for (const item of items) {
+    if (options.desc !== undefined) item.desc = options.desc;
+    if (options.url !== undefined) item.url = options.url;
+    if (options.step?.length) item.steps = options.step;
+    if (options.replace) item.replace = true;
+  }
+
+  const port = await findLocalServerPort();
+  if (port === null) {
+    console.error(kleur.red("✗ 未找到运行中的 MODELSWAP 服务（先启动桌面 App，或运行 modelswap web）"));
+    process.exitCode = 1;
+    return;
+  }
+
+  let created: { id: string; request: { items: Array<{ key: string; group?: string }> } };
+  try {
+    created = await localVaultApi(port, "/api/vault/requests", { items });
+  } catch (error) {
+    console.error(kleur.red(`✗ 创建凭证请求失败: ${(error as Error).message}`));
+    process.exitCode = 1;
+    return;
+  }
+
+  console.log(kleur.green("✓ 凭证请求已创建，已通知浏览器扩展待命捕获"));
+  for (const item of created.request.items) {
+    console.log(`  ⏳ ${kleur.cyan(item.key)}${item.group ? kleur.gray(`（${item.group}）`) : ""}`);
+  }
+  console.log(kleur.gray("  用户操作: 在控制台页面复制 key，扩展自动捕获入库；也可点扩展图标手动粘贴。"));
+
+  if (!options.wait) return;
+
+  const timeoutSeconds = parseInt(options.timeout || "600", 10) || 600;
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutSeconds * 1000) {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    let list: { requests: Array<{ id: string; items: Array<{ key: string; status: string; masked?: unknown; duplicate?: boolean }> }> };
+    try {
+      list = await localVaultApi(port, "/api/vault/requests");
+    } catch {
+      continue; // transient — retry until timeout
+    }
+    const mine = list.requests.find((r) => r.id === created.id);
+    if (!mine) {
+      console.log(kleur.red("\n✗ 请求已取消或过期"));
+      process.exit(1);
+    }
+    const pending = mine.items.filter((item) => item.status !== "fulfilled");
+    if (pending.length === 0) {
+      console.log("");
+      for (const item of mine.items) {
+        const masked = typeof item.masked === "string" ? item.masked : JSON.stringify(item.masked);
+        console.log(kleur.green(`  ✅ ${item.key} → ${masked}${item.duplicate ? kleur.gray("（与现有值相同）") : ""}`));
+      }
+      // Explicit exit: pooled keep-alive sockets from the poll loop must not
+      // keep a finished CLI process alive.
+      process.exit(process.exitCode === undefined ? 0 : process.exitCode);
+    }
+    process.stdout.write(`\r⏳ 等待捕获: ${pending.map((item) => item.key).join(", ")} `);
+  }
+  console.log(kleur.red(`\n✗ 等待超时（${timeoutSeconds}s）。扩展里仍可手动完成，本次命令退出。`));
+  process.exit(1);
+}

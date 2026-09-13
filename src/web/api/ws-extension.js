@@ -87,7 +87,7 @@ function setupWebSocket(httpServer) {
       }
     }, AUTH_TIMEOUT_MS);
 
-    ws.on('message', (data) => {
+    ws.on('message', async (data) => {
       let msg;
       try { msg = JSON.parse(data.toString()); } catch { return; }
 
@@ -103,6 +103,9 @@ function setupWebSocket(httpServer) {
           extWs = ws;
           ws.send(JSON.stringify({ type: 'auth-ok' }));
           console.log('[WS] Extension authenticated');
+          // Re-arm any pending vault requests on (re)connect so the extension
+          // badge/checklist survives a server restart or SW reconnect.
+          try { require('./vault-requests').pushSyncOnConnect(); } catch { /* optional */ }
           // Tell the UI the extension just came online. The usage page listens
           // for this and silently retries providers whose queries failed while
           // the extension was offline (cookie-based queries like MiMo then
@@ -138,6 +141,19 @@ function setupWebSocket(httpServer) {
 
       // Ignore other non-response keepalive/pong messages
       if (msg.type === 'debug' || msg.type === 'keepalive' || msg.type === 'pong') return;
+
+      // Vault capture from the extension (credential-request flow). This is
+      // the only direction secrets flow INTO the server, and it arrives on
+      // the authenticated extension socket only.
+      if (msg.type === 'vault-capture') {
+        try {
+          const result = await require('./vault-requests').captureFromExtension(msg);
+          ws.send(JSON.stringify({ type: 'vault-capture-result', id: msg.id, ...result }));
+        } catch (error) {
+          ws.send(JSON.stringify({ type: 'vault-capture-result', id: msg.id, ok: false, error: error.message || String(error) }));
+        }
+        return;
+      }
 
       // Result correlation by id (covers both atomic Result and legacy responses)
       const pending = PENDING.get(msg.id);
@@ -259,10 +275,26 @@ function getExtensionProtocol() {
   return extensionProtocol;
 }
 
+/**
+ * Fire-and-forget push to the authenticated extension (no id correlation,
+ * no waiting). Used for vault-request sync — the extension applies state
+ * updates keyed by message type.
+ */
+function pushToExtension(message) {
+  if (!extWs || extWs.readyState !== 1) return false;
+  try {
+    extWs.send(JSON.stringify(message));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 module.exports = {
   setupWebSocket,
   sendCommand,        // atomic-capability API (new, preferred)
   sendToExtension,    // legacy shape (volcengine/minimax until Phase 3)
+  pushToExtension,    // unsolicited server→extension state push
   isExtensionConnected,
   getExtensionVersion,
   getExtensionProtocol,
