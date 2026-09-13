@@ -104,7 +104,7 @@ function renderItem(item: RequestItem): HTMLElement {
   const manual = el("div", "manual");
   const input = el("input");
   input.placeholder = item.fields?.length
-    ? item.fields.map((f) => f.name).join(" 各一行，格式 字段名: 值")
+    ? `每行一个字段，格式「字段名: 值」：${item.fields.map((f) => f.name).join("、")}`
     : "粘贴秘钥值，回车保存";
   const save = el("button", "primary", "保存");
   const errorNote = el("div", "note");
