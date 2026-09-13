@@ -142,13 +142,15 @@ async function connect(): Promise<void> {
     // send version + protocol marker so the server can confirm it's talking to
     // the v2 atomic-capability extension (not a stale cached v1 SW).
     if (token) ws?.send(JSON.stringify({ type: 'auth', token }));
+    // NOTE: protocol stays the LAST property — the live-acceptance patcher
+    // anchors on `protocol: 'atomic-v2',\n}` exactly once.
     ws?.send(JSON.stringify({
       type: 'hello',
       version: chrome.runtime.getManifest().version,
-      protocol: 'atomic-v2',
       // Lets the server supersede only THIS extension's stale sockets, so a
       // released copy and a dev copy can stay connected side by side.
       extId: chrome.runtime.id,
+      protocol: 'atomic-v2',
     }));
     void probeServerCapabilities();
   };
