@@ -22,6 +22,33 @@
         return;
     w.__modelswapCopyGuard = true;
     const MAX_TEXT = 4096;
+    // Relay from the MAIN-world clipboard hook: button-driven
+    // navigator.clipboard.writeText() copies never fire copy events.
+    window.addEventListener("message", (event) => {
+        if (event.origin !== location.origin)
+            return;
+        const data = event.data;
+        if (!data || data.source !== "modelswap-clipboard-hook" || typeof data.text !== "string")
+            return;
+        forward(data.text, null);
+    });
+    function forward(text, selectionSource) {
+        try {
+            const sending = chrome.runtime.sendMessage({
+                type: "modelswap-copy",
+                text,
+                url: location.href,
+                title: document.title,
+                ts: Date.now(),
+            });
+            if (sending && typeof sending.catch === "function") {
+                sending.catch(() => undefined);
+            }
+        }
+        catch {
+            // Never break the page's own copy behavior.
+        }
+    }
     /** Cheap shape gate — the service worker does the real matching. */
     function looksCaptureWorthy(text) {
         const trimmed = text.trim();
@@ -63,17 +90,7 @@
             const text = sel.toString();
             if (!looksCaptureWorthy(text))
                 return;
-            const sending = chrome.runtime.sendMessage({
-                type: "modelswap-copy",
-                text,
-                url: location.href,
-                title: document.title,
-                ts: Date.now(),
-            });
-            // MV3 returns a promise; swallow "extension context invalidated" etc.
-            if (sending && typeof sending.catch === "function") {
-                sending.catch(() => undefined);
-            }
+            forward(text, true);
         }
         catch {
             // Never break the page's own copy behavior.

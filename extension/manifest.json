@@ -21,6 +21,12 @@
       "matches": ["http://*/*", "https://*/*"],
       "js": ["dist/copy-guard.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["dist/copy-guard-main.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
     }
   ],
   "icons": {

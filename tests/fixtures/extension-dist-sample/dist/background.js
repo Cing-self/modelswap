@@ -522,6 +522,9 @@ async function injectCopyGuardIntoMatchingTabs() {
             continue;
         try {
             await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['dist/copy-guard.js'] });
+            // The MAIN-world clipboard hook catches button-driven
+            // navigator.clipboard.writeText() copies (no copy event fires).
+            await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['dist/copy-guard-main.js'], world: 'MAIN' });
             console.log(`[MODELSWAP] copy-guard injected into open tab: ${host}`);
         }
         catch { // protected page, discarded tab, already-injected is fine too
