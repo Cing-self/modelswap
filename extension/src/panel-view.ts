@@ -220,14 +220,18 @@ function renderSaveForm(): void {
   const groupInput = el("input");
   groupInput.placeholder = "可选，输入或选择已有分组";
   groupInput.autocomplete = "off";
+  const groupChev = el("span", "group-chev");
+  groupChev.innerHTML =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
   const groupMenu = el("div", "group-menu");
   groupMenu.hidden = true;
-  groupWrap.append(groupInput, groupMenu);
+  groupWrap.append(groupInput, groupChev, groupMenu);
   groupField.append(groupWrap);
 
   let menuActive = -1;
   const closeGroupMenu = () => {
     groupMenu.hidden = true;
+    groupWrap.classList.remove("open");
     menuActive = -1;
   };
   const selectGroup = (name: string) => {
@@ -253,7 +257,16 @@ function renderSaveForm(): void {
       groupMenu.append(opt);
     });
     groupMenu.hidden = false;
+    groupWrap.classList.add("open");
   };
+  // Clicking the chevron toggles the menu; preventDefault keeps focus in
+  // the input so the outside-pointerdown closer doesn't fight the toggle.
+  groupChev.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (groupMenu.hidden) renderGroupMenu();
+    else closeGroupMenu();
+  });
   groupInput.addEventListener("focus", () => {
     void loadGroups().then(renderGroupMenu);
   });

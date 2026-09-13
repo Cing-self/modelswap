@@ -222,6 +222,19 @@ button.icon svg { width: 12px; height: 12px; }
 
 /* Group autocomplete — anchored right below the input, filtered, keyboard-able */
 .group-wrap { position: relative; }
+.group-wrap input { padding-right: 28px; }
+.group-chev {
+  position: absolute; right: 9px; top: 50%;
+  transform: translateY(-50%);
+  width: 15px; height: 15px;
+  color: var(--faint);
+  pointer-events: auto; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .15s ease, color .12s ease;
+}
+.group-chev svg { width: 14px; height: 14px; }
+.group-chev:hover { color: var(--ink-2); }
+.group-wrap.open .group-chev { transform: translateY(-50%) rotate(180deg); color: var(--ink-2); }
 .group-menu {
   position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 6;
   background: var(--surface);
