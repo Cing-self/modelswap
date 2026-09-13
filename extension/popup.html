@@ -2,108 +2,227 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
+  <title>MODELSWAP</title>
   <style>
     :root {
-      --paper: #fffdf7;
-      --kraft: #e8dcc3;
-      --kraft-dark: #d4c39c;
-      --ink: #2b2620;
-      --ink-muted: #8a8070;
-      --accent: #c65b2e;
-      --ok: #3a7d44;
+      --bg: #f7f6f3;
+      --surface: #ffffff;
+      --ink: #211d1a;
+      --muted: #8d857c;
+      --line: #e8e4dd;
+      --line-strong: #d9d3c9;
+      --accent: #b4552d;
+      --accent-soft: #f4e6de;
+      --ok: #4a7c59;
+      --ok-soft: #e4ede6;
+      --danger: #a8402f;
+      color-scheme: light dark;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #191715;
+        --surface: #211e1b;
+        --ink: #ece7e0;
+        --muted: #9a938b;
+        --line: #322e29;
+        --line-strong: #403a34;
+        --accent: #d0703f;
+        --accent-soft: #3a2a20;
+        --ok: #7fae8c;
+        --ok-soft: #263128;
+        --danger: #d3705c;
+      }
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { background: var(--bg); }
     body {
-      width: 380px;
-      font: 13px/1.55 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+      width: 384px;
+      font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
       color: var(--ink);
-      background: var(--paper);
-      padding: 14px;
+      background: var(--bg);
+      -webkit-font-smoothing: antialiased;
     }
+    .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+
+    /* ── Header ─────────────────────────────────────────── */
     header {
+      position: sticky; top: 0; z-index: 2;
       display: flex; align-items: center; justify-content: space-between;
-      padding-bottom: 10px; border-bottom: 1.5px dashed var(--kraft-dark);
+      padding: 13px 16px 12px;
+      background: color-mix(in srgb, var(--bg) 88%, transparent);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--line);
     }
-    header h1 { font-size: 14px; letter-spacing: 0.5px; }
-    .conn { font-size: 11px; color: var(--ink-muted); }
-    .conn.on::before { content: "●"; color: var(--ok); margin-right: 4px; }
-    .conn.off::before { content: "●"; color: #c0392b; margin-right: 4px; }
-    .card {
-      margin-top: 12px; padding: 10px 12px;
-      border: 1.5px solid var(--kraft-dark);
-      border-radius: 6px;
-      box-shadow: 2px 2px 0 rgba(0,0,0,0.06);
-      background: #fff;
+    .brand { font-size: 12px; font-weight: 700; letter-spacing: 2px; }
+    .conn { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+    .conn .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--line-strong); }
+    .conn.on .dot { background: var(--ok); }
+    .conn.off .dot { background: var(--danger); }
+
+    .banner {
+      margin: 10px 16px 0; padding: 8px 11px;
+      font-size: 11.5px; color: var(--accent);
+      background: var(--accent-soft); border-radius: 8px;
     }
-    .item { padding: 8px 0; }
-    .item + .item { border-top: 1px dashed var(--kraft); }
-    .item-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-    .key-name { font-weight: 600; font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; }
-    .chip {
-      font-size: 11px; padding: 1px 8px; border-radius: 999px;
-      border: 1px solid var(--kraft-dark); color: var(--ink-muted); background: var(--paper);
+
+    main { padding: 4px 16px 16px; }
+    section + section { margin-top: 18px; }
+
+    .section-label {
+      display: flex; align-items: baseline; justify-content: space-between;
+      font-size: 11px; font-weight: 600; letter-spacing: 1.5px; color: var(--muted);
+      padding: 12px 0 6px;
     }
-    .status { margin-left: auto; font-size: 12px; }
+    .section-label .count { font-weight: 500; letter-spacing: 0; }
+
+    /* ── Request items ──────────────────────────────────── */
+    .item { padding: 12px 0; }
+    .item + .item { border-top: 1px solid var(--line); }
+    .item-head { display: flex; align-items: center; gap: 8px; }
+    .item-head .key {
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 12.5px; font-weight: 600; letter-spacing: -0.2px;
+      overflow-wrap: anywhere;
+    }
+    .status {
+      margin-left: auto; display: flex; align-items: center; gap: 5px;
+      font-size: 11px; white-space: nowrap;
+    }
+    .status .dot { width: 6px; height: 6px; border-radius: 50%; }
+    .status.pending { color: var(--accent); }
+    .status.pending .dot { background: var(--accent); }
     .status.done { color: var(--ok); }
-    .status.wait { color: var(--accent); }
-    .desc { color: var(--ink-muted); font-size: 12px; margin-top: 2px; }
-    .steps { margin: 6px 0 0 16px; color: var(--ink); font-size: 12px; }
-    .steps li { margin: 1px 0; }
-    .fields { margin-top: 6px; font-size: 12px; }
-    .fields .f { display: flex; gap: 6px; align-items: baseline; font-family: ui-monospace, Menlo, monospace; }
-    .fields .f .s { font-family: inherit; }
-    .fields .done { color: var(--ok); }
-    .fields .wait { color: var(--ink-muted); }
-    .btnrow { display: flex; gap: 8px; margin-top: 8px; }
+    .status.done .dot { background: var(--ok); }
+    .meta { margin-top: 3px; font-size: 11.5px; color: var(--muted); overflow-wrap: anywhere; }
+    .fields { margin-top: 7px; display: grid; gap: 3px; }
+    .fields .f {
+      display: flex; align-items: center; gap: 8px;
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 11.5px; color: var(--muted);
+    }
+    .fields .f .val { color: var(--ok); }
+    .steps { margin: 8px 0 0; padding: 0; list-style: none; counter-reset: step; }
+    .steps li {
+      counter-increment: step; position: relative;
+      padding: 1px 0 1px 20px; font-size: 11.5px; color: var(--muted);
+    }
+    .steps li::before {
+      content: counter(step);
+      position: absolute; left: 2px; top: 2.5px;
+      width: 13px; height: 13px; border-radius: 4px;
+      font-size: 9.5px; line-height: 13px; text-align: center;
+      background: var(--line); color: var(--ink);
+    }
+    .masked-line {
+      margin-top: 7px;
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 11.5px; color: var(--ok);
+    }
+    .actions { display: flex; gap: 8px; margin-top: 10px; }
+
+    /* ── Controls ───────────────────────────────────────── */
     button {
-      font: inherit; font-size: 12px; cursor: pointer;
-      padding: 4px 10px; border-radius: 5px;
-      border: 1.5px solid var(--kraft-dark); background: var(--paper); color: var(--ink);
+      font: inherit; font-size: 12px; font-weight: 500;
+      color: var(--ink); background: transparent;
+      border: 1px solid var(--line-strong); border-radius: 8px;
+      padding: 5px 12px; cursor: pointer;
+      transition: background-color .15s ease, border-color .15s ease, transform .06s ease;
     }
-    button:hover { background: var(--kraft); }
-    button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-    button.primary:hover { filter: brightness(1.08); }
-    .manual { display: flex; gap: 6px; margin-top: 8px; }
-    .manual input {
-      flex: 1; min-width: 0; font: 12px ui-monospace, Menlo, monospace;
-      padding: 5px 8px; border: 1.5px solid var(--kraft-dark); border-radius: 5px; background: #fff;
+    button:hover { background: var(--surface); border-color: var(--muted); }
+    button:active { transform: scale(0.98); }
+    button:disabled { opacity: 0.55; cursor: default; transform: none; }
+    button.primary {
+      color: #fff; background: var(--accent); border-color: var(--accent);
     }
-    .save-form { margin-top: 4px; }
-    .save-form .row { display: flex; gap: 6px; margin-top: 6px; }
-    .save-form input, .save-form textarea {
-      font: 12px ui-monospace, Menlo, monospace; padding: 5px 8px;
-      border: 1.5px solid var(--kraft-dark); border-radius: 5px; background: #fff;
-      width: 100%; box-sizing: border-box;
+    button.primary:hover { filter: brightness(1.06); background: var(--accent); }
+    button.primary:disabled { filter: none; background: var(--accent); }
+    button.icon {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 10px;
     }
-    .save-form input { flex: 1; min-width: 0; font-family: inherit; }
-    .save-form input.mono { font-family: ui-monospace, Menlo, monospace; }
-    .save-form textarea { min-height: 54px; resize: vertical; }
-    .save-form label { font-size: 11px; color: var(--ink-muted); display: block; margin-bottom: 2px; }
-    .save-form .actions { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
-    .save-form .ok-note { color: var(--ok); font-size: 12px; }
-    .section-title { font-size: 12px; font-weight: 600; color: var(--ink-muted); margin-top: 16px; letter-spacing: 0.5px; }
-    .chip-hint { font-size: 11px; color: var(--ink-muted); }
-    .masked { font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--ok); }
-    .empty { margin-top: 24px; text-align: center; color: var(--ink-muted); font-size: 12.5px; }
-    .empty code {
-      display: inline-block; margin-top: 8px; padding: 2px 8px;
-      border: 1px dashed var(--kraft-dark); border-radius: 4px; font-size: 11.5px;
+    button.icon svg { width: 12px; height: 12px; }
+
+    .capture-row { display: flex; margin-top: 10px; }
+    .capture-row input {
+      flex: 1; min-width: 0;
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 11.5px; color: var(--ink);
+      background: var(--surface);
+      border: 1px solid var(--line-strong); border-right: none;
+      border-radius: 8px 0 0 8px; padding: 6px 10px;
+      outline: none;
     }
-    .note { margin-top: 6px; font-size: 11.5px; color: var(--ink-muted); }
+    .capture-row input:focus { border-color: var(--accent); }
+    .capture-row button {
+      border-radius: 0 8px 8px 0; border-left: none;
+    }
+
+    /* ── Manual save form ───────────────────────────────── */
+    .field { margin-top: 8px; }
+    .field label {
+      display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px;
+    }
+    .field input, .field textarea {
+      width: 100%;
+      font: inherit; font-size: 12.5px; color: var(--ink);
+      background: var(--surface);
+      border: 1px solid var(--line-strong); border-radius: 8px;
+      padding: 7px 10px; outline: none;
+      transition: border-color .15s ease;
+    }
+    .field textarea {
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 11.5px; min-height: 60px; resize: vertical;
+    }
+    .field input:focus, .field textarea:focus { border-color: var(--accent); }
+    .field input::placeholder, .field textarea::placeholder, .capture-row input::placeholder { color: var(--muted); opacity: 0.7; }
+    .grid-2 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 8px; }
+    .grid-2 .field { margin-top: 8px; }
+    .form-actions { margin-top: 12px; }
+    .form-actions .primary { width: 100%; padding: 8px 12px; }
+    .form-note { margin-top: 8px; font-size: 11.5px; color: var(--muted); min-height: 16px; overflow-wrap: anywhere; }
+    .form-note.ok { color: var(--ok); }
+    .form-note.err { color: var(--danger); }
+
+    /* ── Empty state ────────────────────────────────────── */
+    .empty { padding: 26px 0 8px; text-align: center; color: var(--muted); }
+    .empty .glyph {
+      width: 40px; height: 40px; margin: 0 auto 10px;
+      display: flex; align-items: center; justify-content: center;
+      border: 1px solid var(--line-strong); border-radius: 12px; color: var(--muted);
+    }
+    .empty .glyph svg { width: 17px; height: 17px; }
+    .empty .hint {
+      display: inline-block; margin-top: 8px; padding: 3px 9px;
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 11px; color: var(--ink);
+      background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+    }
   </style>
 </head>
 <body>
   <header>
-    <h1>MODELSWAP 凭证捕获</h1>
-    <span id="conn" class="conn off">未连接</span>
+    <div class="brand">MODELSWAP</div>
+    <div class="conn" id="conn"><span class="dot"></span><span id="conn-text">连接中</span></div>
   </header>
-  <div id="list"></div>
-  <div id="empty" class="empty" hidden>
-    当前没有待捕获的凭证请求。<br />
-    让 agent 运行 <code>modelswap vault request &lt;KEY&gt; --wait</code>
-  </div>
-  <div class="section-title" id="save-title">✎ 手动保存秘钥</div>
-  <div id="save-form"></div>
+  <div id="banner" class="banner" hidden></div>
+  <main>
+    <section id="requests-section" hidden>
+      <div class="section-label"><span>待捕获</span><span class="count" id="pending-count"></span></div>
+      <div id="list"></div>
+    </section>
+    <section id="empty" class="empty" hidden>
+      <div class="glyph">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="14" r="4.5"/><path d="M11.5 10.5 20 2m-4 2 3 3m-6 0 2.5 2.5"/></svg>
+      </div>
+      <div>没有待捕获的凭证请求</div>
+      <div class="hint">modelswap vault request &lt;KEY&gt; --wait</div>
+    </section>
+    <section id="save-section">
+      <div class="section-label"><span>手动保存</span></div>
+      <form id="save-form" novalidate></form>
+    </section>
+  </main>
   <script type="module" src="dist/popup.js"></script>
 </body>
 </html>

@@ -1,10 +1,10 @@
 /**
- * MODELSWAP popup — pending credential-request checklist + manual paste.
+ * MODELSWAP popup — pending credential-request list + manual save.
  *
  * Self-contained (no imports): rendered from data the service worker caches
- * in chrome.storage.local under `vaultRequests`. Manual pastes go through
- * the background worker so the value rides the authenticated WS channel,
- * never a page context fetch.
+ * in chrome.storage.local under `vaultRequests`. Manual pastes and direct
+ * saves go through the background worker so values ride the authenticated
+ * WS channel, never a page context fetch.
  */
 
 interface RequestField {
@@ -34,6 +34,8 @@ interface VaultRequest {
   items: RequestItem[];
 }
 
+let lastConnected = false;
+
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -41,106 +43,217 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, t
   return node;
 }
 
+function svgIcon(path: string): SVGSVGElement {
+  const wrap = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  wrap.setAttribute("viewBox", "0 0 24 24");
+  wrap.setAttribute("fill", "none");
+  wrap.setAttribute("stroke", "currentColor");
+  wrap.setAttribute("stroke-width", "1.5");
+  wrap.setAttribute("stroke-linecap", "round");
+  wrap.setAttribute("stroke-linejoin", "round");
+  const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  p.setAttribute("d", path);
+  wrap.append(p);
+  return wrap;
+}
+
+const ICON_EXTERNAL =
+  "M14 4h6v6m0-6L10 14M9 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-3";
+
 function maskedText(masked: unknown): string {
   if (typeof masked === "string") return masked;
   if (masked && typeof masked === "object") {
     return Object.entries(masked as Record<string, string>)
       .map(([name, v]) => `${name}: ${v}`)
-      .join(" · ");
+      .join("  ");
   }
   return "";
+}
+
+function statusLine(status: "pending" | "fulfilled", duplicate?: boolean): HTMLElement {
+  const wrap = el("span", `status ${status === "fulfilled" ? "done" : "pending"}`);
+  wrap.append(el("span", "dot"));
+  wrap.append(el("span", undefined, status === "fulfilled" ? (duplicate ? "已存入（同值）" : "已存入") : "等待复制"));
+  return wrap;
+}
+
+function renderItem(item: RequestItem): HTMLElement {
+  const itemEl = el("div", "item");
+
+  const head = el("div", "item-head");
+  head.append(el("span", "key", item.key));
+  head.append(statusLine(item.status, item.duplicate));
+  itemEl.append(head);
+
+  const metaParts = [item.group, item.desc].filter(Boolean).join(" · ");
+  if (metaParts) itemEl.append(el("div", "meta", metaParts));
+
+  if (item.status === "fulfilled") {
+    const m = maskedText(item.masked);
+    if (m) itemEl.append(el("div", "masked-line", m));
+    return itemEl;
+  }
+
+  if (item.fields?.length) {
+    const done = new Set(
+      Array.isArray(item.masked) ? [] : item.masked && typeof item.masked === "object" ? Object.keys(item.masked) : [],
+    );
+    const fields = el("div", "fields");
+    for (const f of item.fields) {
+      const row = el("div", "f");
+      row.append(el("span", undefined, f.name));
+      if (done.has(f.name)) row.append(el("span", "val", "已捕获"));
+      else row.append(el("span", undefined, "待复制"));
+      fields.append(row);
+    }
+    itemEl.append(fields);
+  }
+
+  if (item.steps?.length) {
+    const ol = el("ol", "steps");
+    for (const step of item.steps) ol.append(el("li", undefined, step));
+    itemEl.append(ol);
+  }
+
+  const actions = el("div", "actions");
+  if (item.url) {
+    const open = el("button", "icon");
+    open.type = "button";
+    open.append(el("span", undefined, "打开控制台"));
+    open.append(svgIcon(ICON_EXTERNAL));
+    open.addEventListener("click", () => {
+      void chrome.tabs.create({ url: item.url });
+    });
+    actions.append(open);
+  }
+  itemEl.append(actions);
+
+  // Inline capture — always-available fallback when auto-capture misses.
+  const captureRow = el("div", "capture-row");
+  const input = el("input");
+  input.placeholder = item.fields?.length ? "字段名: 值（每行一个）" : "粘贴秘钥值";
+  const save = el("button", undefined, "存入");
+  save.type = "submit";
+  const submit = async () => {
+    const text = input.value.trim();
+    if (!text) return;
+    save.disabled = true;
+    try {
+      const resp = await chrome.runtime.sendMessage({ type: "modelswap-manual-capture", key: item.key, text });
+      if (!resp || resp.ok !== true) {
+        input.value = text;
+        input.placeholder = resp?.error ?? "保存失败";
+      }
+    } catch (e) {
+      input.value = text;
+      input.placeholder = (e as Error).message;
+    }
+    save.disabled = false;
+  };
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      void submit();
+    }
+  });
+  save.addEventListener("click", () => void submit());
+  captureRow.append(input, save);
+  itemEl.append(captureRow);
+
+  return itemEl;
 }
 
 // ─── Manual save — user-initiated, always available ───────────────────
 
 function renderSaveForm(): void {
-  const host = document.getElementById("save-form");
-  if (!host) return;
-  host.textContent = "";
+  const form = document.getElementById("save-form");
+  if (!form) return;
+  form.textContent = "";
 
-  const form = el("div", "save-form");
-
-  const valueLabel = el("label", undefined, "秘钥值（多行「字段名: 值」自动存为 JSON）");
+  const valueField = el("div", "field");
+  valueField.append(el("label", undefined, "秘钥值 · 多行「字段名: 值」自动存为 JSON"));
   const value = el("textarea");
-  value.placeholder = "粘贴或输入秘钥值…";
-  form.append(valueLabel, value);
+  value.placeholder = "粘贴或输入秘钥值";
+  valueField.append(value);
+  form.append(valueField);
 
-  const row1 = el("div", "row");
-  const keyBox = el("div");
-  const groupBox = el("div");
-  keyBox.style.flex = "1.4";
-  groupBox.style.flex = "1";
+  const grid = el("div", "grid-2");
+  const keyField = el("div", "field");
+  keyField.append(el("label", undefined, "Key 名"));
   const keyInput = el("input", "mono");
-  keyInput.placeholder = "key 名（必填）";
+  keyInput.placeholder = "必填";
+  keyField.append(keyInput);
+  const groupField = el("div", "field");
+  groupField.append(el("label", undefined, "分组"));
   const groupInput = el("input");
-  groupInput.placeholder = "分组";
-  keyBox.append(el("label", undefined, "Key 名"), keyInput);
-  groupBox.append(el("label", undefined, "分组"), groupInput);
-  row1.append(keyBox, groupBox);
-  form.append(row1);
+  groupInput.placeholder = "可选";
+  groupField.append(groupInput);
+  keyField.style.gridColumn = "auto";
+  grid.append(keyField, groupField);
+  form.append(grid);
 
-  const descBox = el("div");
-  descBox.style.marginTop = "6px";
+  const descField = el("div", "field");
+  descField.append(el("label", undefined, "描述"));
   const descInput = el("input");
   descInput.placeholder = "用途说明（可选）";
-  descBox.append(el("label", undefined, "描述"), descInput);
-  form.append(descBox);
+  descField.append(descInput);
+  form.append(descField);
 
-  const actions = el("div", "actions");
+  const actions = el("div", "form-actions");
   const save = el("button", "primary", "保存到 vault");
-  const overwrite = el("button", undefined, "覆盖已有值");
-  overwrite.hidden = true;
-  const note = el("span", "note");
-  actions.append(save, overwrite, note);
+  save.type = "submit";
+  actions.append(save);
   form.append(actions);
 
-  let lastPayload: { key: string; group?: string; desc?: string; value: string } | null = null;
+  const note = el("div", "form-note");
+  form.append(note);
+
+  const overwriteBtn = el("button", undefined, "覆盖已有值并保存");
+  overwriteBtn.type = "button";
+  overwriteBtn.hidden = true;
+  overwriteBtn.style.marginTop = "8px";
+  form.append(overwriteBtn);
+
+  const setNote = (kind: "ok" | "err" | "plain", text: string) => {
+    note.className = `form-note ${kind === "plain" ? "" : kind}`.trim();
+    note.textContent = text;
+  };
 
   const doSave = async (force: boolean) => {
     const key = keyInput.value.trim();
     const text = value.value.trim();
-    if (!key) {
-      note.className = "note";
-      note.textContent = "✗ 请填 key 名";
-      return;
-    }
-    if (!text) {
-      note.className = "note";
-      note.textContent = "✗ 请填秘钥值";
-      return;
-    }
-    lastPayload = { key, group: groupInput.value.trim() || undefined, desc: descInput.value.trim() || undefined, value: text };
+    if (!key) return setNote("err", "请填写 Key 名");
+    if (!text) return setNote("err", "请填写秘钥值");
     save.disabled = true;
-    save.textContent = "保存中…";
-    overwrite.hidden = true;
-    note.textContent = "";
+    overwriteBtn.hidden = true;
+    setNote("plain", "保存中…");
     try {
-      const resp = await chrome.runtime.sendMessage({ type: "modelswap-manual-save", ...lastPayload, force });
+      const resp = await chrome.runtime.sendMessage({
+        type: "modelswap-manual-save",
+        key,
+        group: groupInput.value.trim() || undefined,
+        desc: descInput.value.trim() || undefined,
+        value: text,
+        force,
+      });
       if (resp && resp.ok === true) {
-        note.className = "note ok-note";
-        const m = maskedText(resp.masked);
-        note.textContent = `✅ 已保存 ${m}${resp.duplicate ? "（与现有值相同）" : ""}`;
+        setNote("ok", `已保存 ${maskedText(resp.masked)}`);
         value.value = "";
       } else if (resp && resp.code === "key-exists") {
-        note.className = "note";
-        note.textContent = `✗ ${resp.error ?? "同名 key 已存在"}`;
-        overwrite.hidden = false;
+        setNote("err", resp.error ?? "同名 Key 已存在");
+        overwriteBtn.hidden = false;
       } else {
-        note.className = "note";
-        note.textContent = `✗ ${resp?.error ?? "保存失败"}`;
+        setNote("err", resp?.error ?? "保存失败");
       }
     } catch (e) {
-      note.className = "note";
-      note.textContent = `✗ ${(e as Error).message}`;
+      setNote("err", (e as Error).message);
     }
     save.disabled = false;
-    save.textContent = "保存到 vault";
   };
 
   save.addEventListener("click", () => void doSave(false));
-  overwrite.addEventListener("click", () => void doSave(true));
-
-  host.append(form);
+  overwriteBtn.addEventListener("click", () => void doSave(true));
+  form.addEventListener("submit", (e) => e.preventDefault());
 
   // Prefill from the clipboard — the popup document is focused, so
   // navigator.clipboard.readText() works under the clipboardRead permission.
@@ -153,121 +266,43 @@ function renderSaveForm(): void {
     .catch(() => undefined);
 }
 
-function renderItem(item: RequestItem): HTMLElement {
-  const card = el("div", "item");
-
-  const head = el("div", "item-head");
-  head.append(el("span", "key-name", item.key));
-  if (item.group) head.append(el("span", "chip", item.group));
-  const status = el(
-    "span",
-    item.status === "fulfilled" ? "status done" : "status wait",
-    item.status === "fulfilled" ? "✅ 已存入" : "⏳ 等待复制",
-  );
-  head.append(status);
-  card.append(head);
-
-  if (item.desc) card.append(el("div", "desc", item.desc));
-
-  if (item.status === "fulfilled") {
-    const m = maskedText(item.masked);
-    if (m) card.append(el("div", "masked", `${m}${item.duplicate ? "（与现有值相同）" : ""}`));
-    return card;
-  }
-
-  if (item.steps?.length) {
-    const ol = el("ol", "steps");
-    for (const step of item.steps) ol.append(el("li", undefined, step));
-    card.append(ol);
-  }
-
-  if (item.fields?.length) {
-    const fields = el("div", "fields");
-    for (const f of item.fields) {
-      const row = el("div", "f wait");
-      row.textContent = `${f.name} ⏳`;
-      row.dataset.field = f.name;
-      fields.append(row);
-    }
-    card.append(fields);
-  }
-
-  const btnrow = el("div", "btnrow");
-  if (item.url) {
-    const open = el("button", undefined, "打开控制台");
-    open.addEventListener("click", () => {
-      void chrome.tabs.create({ url: item.url });
-    });
-    btnrow.append(open);
-  }
-  card.append(btnrow);
-
-  // Manual paste — always-available fallback when auto-capture misses.
-  const manual = el("div", "manual");
-  const input = el("input");
-  input.placeholder = item.fields?.length
-    ? `每行一个字段，格式「字段名: 值」：${item.fields.map((f) => f.name).join("、")}`
-    : "粘贴秘钥值，回车保存";
-  const save = el("button", "primary", "保存");
-  const errorNote = el("div", "note");
-  const submit = async () => {
-    const text = input.value.trim();
-    if (!text) return;
-    save.disabled = true;
-    save.textContent = "保存中…";
-    errorNote.textContent = "";
-    try {
-      const resp = await chrome.runtime.sendMessage({ type: "modelswap-manual-capture", key: item.key, text });
-      if (!resp || resp.ok !== true) {
-        save.disabled = false;
-        save.textContent = "保存";
-        input.value = text;
-        errorNote.textContent = `✗ ${resp?.error ?? "保存失败"}`;
-      }
-    } catch (e) {
-      save.disabled = false;
-      save.textContent = "保存";
-      input.value = text;
-      errorNote.textContent = `✗ ${(e as Error).message}`;
-    }
-  };
-  input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") void submit();
-  });
-  save.addEventListener("click", () => void submit());
-  manual.append(input, save);
-  card.append(manual);
-  card.append(errorNote);
-  card.append(el("div", "note", "提示：值直接进 vault，不经过任何对话。"));
-
-  return card;
-}
-
 function render(requests: VaultRequest[], connected: boolean): void {
+  lastConnected = connected;
+
   const conn = document.getElementById("conn");
-  if (conn) {
+  const connText = document.getElementById("conn-text");
+  if (conn && connText) {
     conn.className = `conn ${connected ? "on" : "off"}`;
-    conn.textContent = connected ? "已连接" : "未连接";
+    connText.textContent = connected ? "已连接" : "未连接";
+  }
+  const banner = document.getElementById("banner");
+  if (banner) {
+    banner.hidden = connected;
+    banner.textContent = "未连接到 ModelSwap 服务 — 捕获与保存暂不可用";
   }
 
   const now = Date.now();
   const live = requests.filter((r) => r.expiresAt > now);
-  const list = document.getElementById("list");
-  const empty = document.getElementById("empty");
-  if (!list || !empty) return;
-  list.textContent = "";
-
-  const pendingItems = live.reduce(
+  const pendingCount = live.reduce(
     (count, r) => count + r.items.filter((i) => i.status !== "fulfilled").length,
     0,
   );
-  empty.hidden = live.length > 0 && pendingItems > 0;
-  if (live.length === 0) empty.hidden = false;
 
-  for (const req of live) {
-    const card = el("div", "card");
-    for (const item of req.items) card.append(renderItem(item));
-    list.append(card);
+  const section = document.getElementById("requests-section");
+  const empty = document.getElementById("empty");
+  const list = document.getElementById("list");
+  const count = document.getElementById("pending-count");
+  if (!section || !empty || !list || !count) return;
+  list.textContent = "";
+
+  const hasLive = live.length > 0;
+  section.hidden = !hasLive;
+  empty.hidden = hasLive;
+  if (hasLive) {
+    count.textContent = pendingCount > 0 ? `${pendingCount} 项等待` : "全部完成";
+    for (const req of live) {
+      for (const item of req.items) list.append(renderItem(item));
+    }
   }
 
   renderSaveForm();
@@ -280,7 +315,7 @@ async function init(): Promise<void> {
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === "local" && changes.vaultRequests) {
-    render((changes.vaultRequests.newValue as VaultRequest[]) ?? [], true);
+    render((changes.vaultRequests.newValue as VaultRequest[]) ?? [], lastConnected);
   }
 });
 
