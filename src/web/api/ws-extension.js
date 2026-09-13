@@ -32,7 +32,12 @@
 const { WebSocketServer } = require('ws');
 const crypto = require('crypto');
 
-const PENDING = new Map(); // requestId -> { resolve, reject, timer }
+const PENDING = new Map(); // requestId -> { resolve, reject, timer, socket }
+// All authenticated extension sockets. Multiple extensions (e.g. the app-
+// bundled release copy and a dev load-unpacked copy) each keep their own
+// connection — evicting across ids made them flap and drop each other's
+// messages. extWs is the most recent one and the default command target.
+const extSockets = new Set();
 let extWs = null;
 let reqCounter = 0;
 let extensionVersion = null;
@@ -95,14 +100,11 @@ function setupWebSocket(httpServer) {
         if (msg.type === 'auth' && typeof msg.token === 'string' && consumeExtensionToken(msg.token)) {
           authenticated = true;
           clearTimeout(authTimer);
-          // Single-extension model: only an AUTHENTICATED connection can evict
-          // the previous one. Unauthenticated sockets never touch extWs.
-          if (extWs && extWs !== ws) {
-            extWs.close();
-          }
+          ws._extId = null;
+          extSockets.add(ws);
           extWs = ws;
           ws.send(JSON.stringify({ type: 'auth-ok' }));
-          console.log('[WS] Extension authenticated');
+          console.log(`[WS] Extension authenticated (${extSockets.size} connected)`);
           // Re-arm any pending vault requests on (re)connect so the extension
           // badge/checklist survives a server restart or SW reconnect.
           try { require('./vault-requests').pushSyncOnConnect(); } catch { /* optional */ }
@@ -125,6 +127,16 @@ function setupWebSocket(httpServer) {
 
       // Version handshake (extension sends this on connect)
       if (msg.type === 'hello') {
+        ws._extId = typeof msg.extId === 'string' ? msg.extId : null;
+        // Supersede only the SAME extension's stale socket (an old service
+        // worker of one unpacked copy reconnecting) — never other extensions.
+        for (const other of [...extSockets]) {
+          if (other !== ws && other._extId && other._extId === ws._extId) {
+            extSockets.delete(other);
+            if (extWs === other) extWs = ws;
+            try { other.close(4000, 'superseded'); } catch { /* already gone */ }
+          }
+        }
         extensionVersion = msg.version;
         extensionProtocol = msg.protocol || 'legacy';
         console.log(`[WS] Extension hello: v${msg.version} protocol=${extensionProtocol}`);
@@ -189,17 +201,23 @@ function setupWebSocket(httpServer) {
 
     ws.on('close', () => {
       clearTimeout(authTimer);
+      extSockets.delete(ws);
       if (extWs === ws) {
-        console.log('[WS] Extension disconnected');
-        extWs = null;
-        extensionVersion = null;
-        extensionProtocol = null;
-        // Reject every pending request — prevents callers from hanging forever
-        for (const [id, pending] of PENDING.entries()) {
+        extWs = [...extSockets][extSockets.size - 1] ?? null;
+      }
+      // Reject only the pendings that were in flight on THIS socket; other
+      // extensions' connections keep their own in-flight commands.
+      for (const [id, pending] of [...PENDING.entries()]) {
+        if (pending.socket === ws) {
           clearTimeout(pending.timer);
           pending.reject(new Error('Extension disconnected'));
           PENDING.delete(id);
         }
+      }
+      if (extSockets.size === 0) {
+        console.log('[WS] Extension disconnected');
+        extensionVersion = null;
+        extensionProtocol = null;
       }
     });
   });
@@ -232,7 +250,7 @@ function sendCommand(action, params = {}, timeoutMs = 60000) {
       reject(new Error(`Extension command "${action}" timed out (${timeoutMs / 1000}s)`));
     }, timeoutMs);
 
-    PENDING.set(id, { resolve, reject, timer });
+    PENDING.set(id, { resolve, reject, timer, socket: extWs });
 
     extWs.send(JSON.stringify({ id, action, ...params }));
   });
@@ -258,7 +276,7 @@ function sendToExtension(command, timeoutMs = 60000) {
       reject(new Error('Extension command timed out'));
     }, timeoutMs);
 
-    PENDING.set(id, { resolve, reject, timer });
+    PENDING.set(id, { resolve, reject, timer, socket: extWs });
 
     extWs.send(JSON.stringify({ id, ...command }));
   });
@@ -287,18 +305,19 @@ function getExtensionProtocol() {
 }
 
 /**
- * Fire-and-forget push to the authenticated extension (no id correlation,
- * no waiting). Used for vault-request sync — the extension applies state
- * updates keyed by message type.
+ * Broadcast to every authenticated extension (vault-request sync — all
+ * installed MODELSWAP copies should show the same checklist).
  */
 function pushToExtension(message) {
-  if (!extWs || extWs.readyState !== 1) return false;
-  try {
-    extWs.send(JSON.stringify(message));
-    return true;
-  } catch {
-    return false;
+  let sent = false;
+  for (const socket of extSockets) {
+    if (socket.readyState !== 1) continue;
+    try {
+      socket.send(JSON.stringify(message));
+      sent = true;
+    } catch { /* dead socket — its close handler will clean up */ }
   }
+  return sent;
 }
 
 module.exports = {

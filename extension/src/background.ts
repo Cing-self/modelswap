@@ -146,6 +146,9 @@ async function connect(): Promise<void> {
       type: 'hello',
       version: chrome.runtime.getManifest().version,
       protocol: 'atomic-v2',
+      // Lets the server supersede only THIS extension's stale sockets, so a
+      // released copy and a dev copy can stay connected side by side.
+      extId: chrome.runtime.id,
     }));
     void probeServerCapabilities();
   };
