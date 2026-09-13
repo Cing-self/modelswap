@@ -68,6 +68,21 @@
       flex: 1; min-width: 0; font: 12px ui-monospace, Menlo, monospace;
       padding: 5px 8px; border: 1.5px solid var(--kraft-dark); border-radius: 5px; background: #fff;
     }
+    .save-form { margin-top: 4px; }
+    .save-form .row { display: flex; gap: 6px; margin-top: 6px; }
+    .save-form input, .save-form textarea {
+      font: 12px ui-monospace, Menlo, monospace; padding: 5px 8px;
+      border: 1.5px solid var(--kraft-dark); border-radius: 5px; background: #fff;
+      width: 100%; box-sizing: border-box;
+    }
+    .save-form input { flex: 1; min-width: 0; font-family: inherit; }
+    .save-form input.mono { font-family: ui-monospace, Menlo, monospace; }
+    .save-form textarea { min-height: 54px; resize: vertical; }
+    .save-form label { font-size: 11px; color: var(--ink-muted); display: block; margin-bottom: 2px; }
+    .save-form .actions { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
+    .save-form .ok-note { color: var(--ok); font-size: 12px; }
+    .section-title { font-size: 12px; font-weight: 600; color: var(--ink-muted); margin-top: 16px; letter-spacing: 0.5px; }
+    .chip-hint { font-size: 11px; color: var(--ink-muted); }
     .masked { font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--ok); }
     .empty { margin-top: 24px; text-align: center; color: var(--ink-muted); font-size: 12.5px; }
     .empty code {
@@ -87,6 +102,8 @@
     当前没有待捕获的凭证请求。<br />
     让 agent 运行 <code>modelswap vault request &lt;KEY&gt; --wait</code>
   </div>
+  <div class="section-title" id="save-title">✎ 手动保存秘钥</div>
+  <div id="save-form"></div>
   <script type="module" src="dist/popup.js"></script>
 </body>
 </html>

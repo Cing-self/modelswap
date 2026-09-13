@@ -155,6 +155,17 @@ function setupWebSocket(httpServer) {
         return;
       }
 
+      // Direct user-initiated save from the extension popup.
+      if (msg.type === 'vault-save') {
+        try {
+          const result = await require('./vault-requests').saveFromExtension(msg);
+          ws.send(JSON.stringify({ type: 'vault-save-result', id: msg.id, ...result }));
+        } catch (error) {
+          ws.send(JSON.stringify({ type: 'vault-save-result', id: msg.id, ok: false, error: error.message || String(error) }));
+        }
+        return;
+      }
+
       // Result correlation by id (covers both atomic Result and legacy responses)
       const pending = PENDING.get(msg.id);
       if (!pending) return;

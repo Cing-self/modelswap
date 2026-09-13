@@ -51,6 +51,108 @@ function maskedText(masked: unknown): string {
   return "";
 }
 
+// ─── Manual save — user-initiated, always available ───────────────────
+
+function renderSaveForm(): void {
+  const host = document.getElementById("save-form");
+  if (!host) return;
+  host.textContent = "";
+
+  const form = el("div", "save-form");
+
+  const valueLabel = el("label", undefined, "秘钥值（多行「字段名: 值」自动存为 JSON）");
+  const value = el("textarea");
+  value.placeholder = "粘贴或输入秘钥值…";
+  form.append(valueLabel, value);
+
+  const row1 = el("div", "row");
+  const keyBox = el("div");
+  const groupBox = el("div");
+  keyBox.style.flex = "1.4";
+  groupBox.style.flex = "1";
+  const keyInput = el("input", "mono");
+  keyInput.placeholder = "key 名（必填）";
+  const groupInput = el("input");
+  groupInput.placeholder = "分组";
+  keyBox.append(el("label", undefined, "Key 名"), keyInput);
+  groupBox.append(el("label", undefined, "分组"), groupInput);
+  row1.append(keyBox, groupBox);
+  form.append(row1);
+
+  const descBox = el("div");
+  descBox.style.marginTop = "6px";
+  const descInput = el("input");
+  descInput.placeholder = "用途说明（可选）";
+  descBox.append(el("label", undefined, "描述"), descInput);
+  form.append(descBox);
+
+  const actions = el("div", "actions");
+  const save = el("button", "primary", "保存到 vault");
+  const overwrite = el("button", undefined, "覆盖已有值");
+  overwrite.hidden = true;
+  const note = el("span", "note");
+  actions.append(save, overwrite, note);
+  form.append(actions);
+
+  let lastPayload: { key: string; group?: string; desc?: string; value: string } | null = null;
+
+  const doSave = async (force: boolean) => {
+    const key = keyInput.value.trim();
+    const text = value.value.trim();
+    if (!key) {
+      note.className = "note";
+      note.textContent = "✗ 请填 key 名";
+      return;
+    }
+    if (!text) {
+      note.className = "note";
+      note.textContent = "✗ 请填秘钥值";
+      return;
+    }
+    lastPayload = { key, group: groupInput.value.trim() || undefined, desc: descInput.value.trim() || undefined, value: text };
+    save.disabled = true;
+    save.textContent = "保存中…";
+    overwrite.hidden = true;
+    note.textContent = "";
+    try {
+      const resp = await chrome.runtime.sendMessage({ type: "modelswap-manual-save", ...lastPayload, force });
+      if (resp && resp.ok === true) {
+        note.className = "note ok-note";
+        const m = maskedText(resp.masked);
+        note.textContent = `✅ 已保存 ${m}${resp.duplicate ? "（与现有值相同）" : ""}`;
+        value.value = "";
+      } else if (resp && resp.code === "key-exists") {
+        note.className = "note";
+        note.textContent = `✗ ${resp.error ?? "同名 key 已存在"}`;
+        overwrite.hidden = false;
+      } else {
+        note.className = "note";
+        note.textContent = `✗ ${resp?.error ?? "保存失败"}`;
+      }
+    } catch (e) {
+      note.className = "note";
+      note.textContent = `✗ ${(e as Error).message}`;
+    }
+    save.disabled = false;
+    save.textContent = "保存到 vault";
+  };
+
+  save.addEventListener("click", () => void doSave(false));
+  overwrite.addEventListener("click", () => void doSave(true));
+
+  host.append(form);
+
+  // Prefill from the clipboard — the popup document is focused, so
+  // navigator.clipboard.readText() works under the clipboardRead permission.
+  void navigator.clipboard
+    .readText()
+    .then((text) => {
+      const trimmed = text.trim();
+      if (trimmed && trimmed.length <= 4096 && !value.value) value.value = trimmed;
+    })
+    .catch(() => undefined);
+}
+
 function renderItem(item: RequestItem): HTMLElement {
   const card = el("div", "item");
 
@@ -167,6 +269,8 @@ function render(requests: VaultRequest[], connected: boolean): void {
     for (const item of req.items) card.append(renderItem(item));
     list.append(card);
   }
+
+  renderSaveForm();
 }
 
 async function init(): Promise<void> {

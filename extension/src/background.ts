@@ -140,11 +140,16 @@ async function connect(): Promise<void> {
       void persistVaultRequests();
       return;
     }
-    // Capture result for a vault-capture we sent
-    if (msg?.type === 'vault-capture-result') {
-      resolveCaptureResult(msg);
-      return;
-    }
+      // Capture result for a vault-capture we sent
+      if (msg?.type === 'vault-capture-result') {
+        resolveCaptureResult(msg);
+        return;
+      }
+      // Direct-save result for a vault-save we sent
+      if (msg?.type === 'vault-save-result') {
+        resolveCaptureResult(msg);
+        return;
+      }
     try {
       const command = msg as Command;
       const result = await handleCommand(command);
@@ -431,6 +436,10 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
   if (msg?.type === 'modelswap-manual-capture') {
     void handleManualCapture(msg).then(sendResponse);
+    return true; // async response
+  }
+  if (msg?.type === 'modelswap-manual-save') {
+    void handleManualSave(msg).then(sendResponse);
     return true; // async response
   }
   if (msg?.type === 'getStatus') {
@@ -771,6 +780,36 @@ async function handleManualCapture(msg: { key: string; text: string }): Promise<
     return { ok: false, error: result.error ?? '未知错误', code: result.code };
   }
   return { ok: false, error: `没有等待中的请求: ${msg.key}` };
+}
+
+// ── Direct save — user composed this in the popup, no pending request ──
+
+function sendVaultSave(payload: { key: string; group?: string; desc?: string; value: string; force?: boolean }): Promise<any> {
+  return new Promise((resolve) => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      resolve({ ok: false, error: 'MODELSWAP 未连接（服务未运行？）' });
+      return;
+    }
+    const id = `save_${Date.now()}_${++captureCounter}`;
+    const timer = setTimeout(() => {
+      capturePending.delete(id);
+      resolve({ ok: false, error: '保存写入超时' });
+    }, 10000);
+    capturePending.set(id, { resolve, timer });
+    ws.send(JSON.stringify({ type: 'vault-save', id, ...payload }));
+  });
+}
+
+async function handleManualSave(msg: { key: string; group?: string; desc?: string; value: string; force?: boolean }): Promise<any> {
+  const result = await sendVaultSave(msg);
+  if (result.ok) {
+    const preview = maskedPreview(result.masked);
+    notifyBasic(
+      `${msg.key} 已存入 MODELSWAP ✅${result.duplicate ? '（与现有值相同）' : ''}`,
+      preview ? `值: ${preview}` : '',
+    );
+  }
+  return result;
 }
 
 // ─── Command dispatcher ─────────────────────────────────────────────

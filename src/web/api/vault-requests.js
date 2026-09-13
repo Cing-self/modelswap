@@ -325,10 +325,73 @@ function pushSyncOnConnect() {
   pushSync();
 }
 
+// ─── Direct save (extension popup, user-initiated) ───────────────────
+
+/**
+ * Handle {type:'vault-save'} from the authenticated extension socket — the
+ * user explicitly composed this save in the popup (key/group/desc/value).
+ * Multi-line `字段名: 值` template text auto-packs into a JSON value, matching
+ * the multi-field convention used everywhere else.
+ */
+async function saveFromExtension(msg) {
+  const key = typeof msg.key === 'string' ? msg.key.trim() : '';
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(key)) {
+    return { ok: false, error: 'key 无效（字母开头，可含 ._-= ，≤100 字符）' };
+  }
+  const group = typeof msg.group === 'string' ? msg.group.slice(0, 60) : undefined;
+  const desc = typeof msg.desc === 'string' ? msg.desc.slice(0, 200) : undefined;
+  const raw = typeof msg.value === 'string' ? msg.value : '';
+  if (!raw.trim()) return { ok: false, error: 'value 不能为空' };
+  if (raw.length > 4096) return { ok: false, error: 'value 太长（≤4096）' };
+
+  // Template auto-detect: every line `name: value` → JSON-packed fields.
+  const lines = raw.trim().split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const isTemplate = lines.length > 1 && lines.length <= 8 &&
+    lines.every(l => /^[\w.-]{1,64}\s*[:=]\s*\S{1,1024}$/.test(l));
+  let valueToStore;
+  if (isTemplate) {
+    const fields = {};
+    for (const line of lines) {
+      const m = line.match(/^([\w.-]{1,64})\s*[:=]\s*(.+)$/);
+      fields[m[1]] = m[2].trim();
+    }
+    valueToStore = JSON.stringify(fields);
+  } else {
+    valueToStore = raw.trim();
+    if (valueToStore.length < 8) return { ok: false, error: 'value 太短（≥8 字符）' };
+  }
+
+  const existing = await store.get(key);
+  if (existing !== null && existing !== valueToStore && msg.force !== true) {
+    return { ok: false, code: 'key-exists', error: `${key} 已存在且值不同 — 确认覆盖？` };
+  }
+  const duplicate = existing === valueToStore;
+
+  await store.set(key, valueToStore, normalizeVaultGroup(group, key), undefined, desc);
+  appendVaultLog('vault-save', key, true);
+  publishDataChanged(['secrets']);
+  try { require('./sync-scheduler').markDirty('secrets'); } catch { /* optional */ }
+  void Promise.resolve()
+    .then(() => require('../../application/provider-service').reconcileVaultKey({ vaultKey: key }))
+    .catch(error => console.warn(`[vault-save] agent reconcile failed for ${key}: ${error.message}`));
+
+  console.log(`[vault-save] ${key}${duplicate ? ' (duplicate value)' : ''}${isTemplate ? ' (template JSON)' : ''}`);
+  return {
+    ok: true, key, duplicate,
+    masked: isTemplate
+      ? Object.fromEntries(lines.map(line => {
+          const m = line.match(/^([\w.-]{1,64})\s*[:=]\s*(.+)$/);
+          return [m[1], maskValue(m[2].trim())];
+        }))
+      : maskValue(valueToStore),
+  };
+}
+
 module.exports = {
   createRequests,
   listRequests,
   cancelRequest,
   captureFromExtension,
+  saveFromExtension,
   pushSyncOnConnect,
 };
