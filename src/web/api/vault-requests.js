@@ -153,8 +153,8 @@ function pushSync() {
 
 function maskValue(v) {
   if (typeof v !== 'string' || v.length === 0) return '';
-  if (v.length <= 8) return `${v.slice(0, 2)}…（${v.length} 字符）`;
-  return `${v.slice(0, 5)}…${v.slice(-2)}（${v.length} 字符）`;
+  if (v.length <= 8) return `${v.slice(0, 2)}…`;
+  return `${v.slice(0, 5)}…${v.slice(-2)}`;
 }
 
 function maskReceipt(value, fields) {
@@ -358,7 +358,8 @@ async function saveFromExtension(msg) {
     valueToStore = JSON.stringify(fields);
   } else {
     valueToStore = raw.trim();
-    if (valueToStore.length < 8) return { ok: false, error: 'value 太短（≥8 字符）' };
+    // User-initiated save: they store whatever they want. Only the transport
+    // cap applies; the ≥8-char floor stays on the agent capture path.
   }
 
   const existing = await store.get(key);

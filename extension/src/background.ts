@@ -583,8 +583,8 @@ function sendCapture(
 }
 
 function maskText(v: string): string {
-  if (v.length <= 8) return `${v.slice(0, 2)}…（${v.length} 字符）`;
-  return `${v.slice(0, 5)}…${v.slice(-2)}（${v.length} 字符）`;
+  if (v.length <= 8) return `${v.slice(0, 2)}…`;
+  return `${v.slice(0, 5)}…${v.slice(-2)}`;
 }
 
 function maskedPreview(masked: unknown): string {
