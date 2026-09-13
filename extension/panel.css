@@ -219,6 +219,25 @@ button.icon svg { width: 12px; height: 12px; }
 .field input::placeholder, .field textarea::placeholder, .capture-row input::placeholder { color: var(--faint); }
 .grid-2 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 8px; }
 .grid-2 .field { margin-top: 8px; }
+
+/* Group autocomplete — anchored right below the input, filtered, keyboard-able */
+.group-wrap { position: relative; }
+.group-menu {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 6;
+  background: var(--surface);
+  border: 1px solid var(--line-strong); border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+  max-height: 180px; overflow-y: auto;
+  padding: 4px;
+}
+.group-opt {
+  display: block; width: 100%; text-align: left;
+  font-size: 12px; color: var(--ink);
+  background: transparent; border: none; border-radius: 6px;
+  box-shadow: none; padding: 6px 9px; cursor: pointer;
+}
+.group-opt:hover, .group-opt.active { background: var(--surface-2); }
+
 .form-actions { margin-top: 12px; }
 .form-actions .primary { width: 100%; padding: 7px 12px; }
 .form-note { margin-top: 8px; font-size: 11.5px; color: var(--muted); min-height: 16px; overflow-wrap: anywhere; }

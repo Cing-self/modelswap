@@ -178,11 +178,72 @@ function renderSaveForm() {
     keyField.append(keyInput);
     const groupField = el("div", "field");
     groupField.append(el("label", undefined, "分组"));
+    const groupWrap = el("div", "group-wrap");
     const groupInput = el("input");
-    groupInput.placeholder = "可选，输入筛选已有分组";
-    groupInput.setAttribute("list", "group-list");
-    groupInput.addEventListener("focus", () => void refreshGroups());
-    groupField.append(groupInput);
+    groupInput.placeholder = "可选，输入或选择已有分组";
+    groupInput.autocomplete = "off";
+    const groupMenu = el("div", "group-menu");
+    groupMenu.hidden = true;
+    groupWrap.append(groupInput, groupMenu);
+    groupField.append(groupWrap);
+    let menuActive = -1;
+    const closeGroupMenu = () => {
+        groupMenu.hidden = true;
+        menuActive = -1;
+    };
+    const selectGroup = (name) => {
+        groupInput.value = name;
+        closeGroupMenu();
+    };
+    const renderGroupMenu = () => {
+        const query = groupInput.value.trim().toLowerCase();
+        const matches = groupOptions.filter((g) => g.toLowerCase().includes(query));
+        if (matches.length === 0) {
+            closeGroupMenu();
+            return;
+        }
+        groupMenu.textContent = "";
+        menuActive = -1;
+        matches.forEach((name) => {
+            const opt = el("button", "group-opt", name);
+            opt.type = "button";
+            opt.addEventListener("mousedown", (e) => {
+                e.preventDefault(); // keep focus in the input
+                selectGroup(name);
+            });
+            groupMenu.append(opt);
+        });
+        groupMenu.hidden = false;
+    };
+    groupInput.addEventListener("focus", () => {
+        void loadGroups().then(renderGroupMenu);
+    });
+    groupInput.addEventListener("input", renderGroupMenu);
+    groupInput.addEventListener("keydown", (e) => {
+        if (groupMenu.hidden)
+            return;
+        const opts = [...groupMenu.querySelectorAll(".group-opt")];
+        if (e.key === "Escape") {
+            closeGroupMenu();
+        }
+        else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+            e.preventDefault();
+            const delta = e.key === "ArrowDown" ? 1 : -1;
+            menuActive = (menuActive + delta + opts.length) % opts.length;
+            opts.forEach((o, i) => o.classList.toggle("active", i === menuActive));
+            opts[menuActive]?.scrollIntoView({ block: "nearest" });
+        }
+        else if (e.key === "Enter" && menuActive >= 0 && opts[menuActive]) {
+            e.preventDefault();
+            selectGroup(opts[menuActive].textContent ?? "");
+        }
+    });
+    groupField.append(groupWrap);
+    // Close the menu when clicking anywhere outside it.
+    document.addEventListener("pointerdown", (e) => {
+        if (!groupMenu.hidden && !groupWrap.contains(e.target))
+            closeGroupMenu();
+    });
     grid.append(keyField, groupField);
     form.append(grid);
     const descField = el("div", "field");
@@ -258,6 +319,18 @@ function renderSaveForm() {
         .catch(() => undefined);
 }
 let lastRequests = [];
+// Vault group labels for the create-form autocomplete (custom dropdown —
+// native datalist renders detached from inputs inside extension popups).
+let groupOptions = [];
+async function loadGroups() {
+    try {
+        const resp = await chrome.runtime.sendMessage({ type: "modelswap-get-groups" });
+        groupOptions = resp?.groups ?? [];
+    }
+    catch {
+        groupOptions = [];
+    }
+}
 function render(requests, connected) {
     lastConnected = connected;
     lastRequests = requests;
@@ -289,12 +362,14 @@ function render(requests, connected) {
         for (const req of ordered)
             list.append(renderBatch(req));
     }
-    renderSaveForm();
 }
 /** Wire the shared view into the host document (popup or side panel). */
 export function mountPanel() {
+    // The create form is built once — re-rendering it on every storage tick
+    // would wipe whatever the user is typing and slam the dropdown shut.
+    renderSaveForm();
     void init();
-    void refreshGroups();
+    void loadGroups();
     chrome.storage.onChanged.addListener((changes, area) => {
         if (area !== "local")
             return;
@@ -307,31 +382,6 @@ export function mountPanel() {
     });
     // Keep the batch relative-times ticking without waiting for a data push.
     setInterval(() => render(lastRequests, lastConnected), 30000);
-}
-/**
- * Populate the group autocomplete from the vault's existing groups, so new
- * saves reuse canonical groups instead of spawning near-duplicates.
- */
-async function refreshGroups() {
-    try {
-        const resp = await chrome.runtime.sendMessage({ type: "modelswap-get-groups" });
-        const groups = resp?.groups ?? [];
-        let datalist = document.getElementById("group-list");
-        if (!datalist) {
-            datalist = el("datalist");
-            datalist.id = "group-list";
-            document.body.append(datalist);
-        }
-        datalist.textContent = "";
-        for (const name of groups) {
-            const opt = document.createElement("option");
-            opt.value = name;
-            datalist.append(opt);
-        }
-    }
-    catch {
-        // autocomplete is best-effort
-    }
 }
 async function init() {
     const state = await chrome.runtime.sendMessage({ type: "modelswap-popup-init" });
