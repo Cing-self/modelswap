@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.77",
+  "publishedAt": "2026-09-11",
+  "summary": {
+    "zh": "「关于与诊断」升级为「关于」页：全新排版带官方文档与支持入口；新增应用内问题反馈弹框，填写后一键送达，无需任何账号。",
+    "en": "The About & Diagnostics section becomes a redesigned About page with official docs and support links, plus an in-app feedback dialog that delivers reports in one click — no account needed."
+  },
+  "highlights": [
+    {
+      "category": "improved",
+      "zh": "设置里的「关于与诊断」改为「关于」：保留版本/运行状态/检查更新，新增「文档与支持」入口（官方文档、GitHub 仓库、问题反馈），长串操作记录替换为一个「导出日志」按钮（自动脱敏）。",
+      "en": "Settings' About & Diagnostics becomes About: version/runtime status and update check stay, a new Docs & support row adds official docs, repository and feedback entries, and the long inline activity log becomes a single Export logs button (auto-redacted)."
+    },
+    {
+      "category": "improved",
+      "zh": "新增应用内问题反馈：选类型（问题/建议）、填标题和描述、可选附带脱敏诊断信息，点提交即送达维护者——全程无需登录或跳转，提交成功即时确认，再次打开永远是全新表单。",
+      "en": "New in-app feedback: pick a type, write a title and description, optionally attach redacted diagnostics, and hit submit — delivered to the maintainers with no login or redirect, instant confirmation on success, and a fresh form every time it reopens."
+    },
+    {
+      "category": "improved",
+      "zh": "反馈通过 docs.modelswap.app 的服务端接口直达仓库 Issues（带来源标签），接口带校验与限流；自动送达失败时会保留手动提交与诊断复制兜底。",
+      "en": "Feedback reaches the repository's issue tracker through the docs.modelswap.app server endpoint (validated and rate-limited, source-tagged); if automatic delivery fails, manual submission and diagnostics copy remain as fallbacks."
+    }
+  ]
+}

@@ -4,6 +4,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "modelswap-docs",
   "compatibility_date": "2026-08-18",
+  "main": "docs-worker/index.js",
   "assets": {
     "directory": "docs-site-dist",
     "not_found_handling": "none"

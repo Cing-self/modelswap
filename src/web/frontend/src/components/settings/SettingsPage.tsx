@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Activity, CheckCircle2, CircleAlert, Copy, FolderOpen, Globe2, Loader2, Package, Palette, Puzzle } from 'lucide-react';
+import { ArrowUpRight, BookOpen, CheckCircle2, CircleAlert, Copy, Download, FolderOpen, GitBranch, Globe2, Info, Loader2, MessageSquareWarning, Package, Palette, Puzzle } from 'lucide-react';
 import { getSettings } from '../../api/settings';
 import { useApp } from '../Layout/AppContext';
 import { useI18n } from '../../i18n';
-import LogsPage from '../logs/LogsPage';
 import DeviceSyncSection from './DeviceSyncSection';
 import SnapshotsSection from './SnapshotsSection';
 import packageInfo from '../../../../../../package.json';
 import { useTransientFeedback } from '../../hooks/useTransientFeedback';
 import BrowserExtensionSection from './BrowserExtensionSection';
+import FeedbackModal from './FeedbackModal';
 import { UpdateCheckButton } from '../update/UpdateDetails';
 
 /* 界面风格包：id 对应 <html data-style>，swatch 为 [暗色面板色, 强调色, 亮色面板色] */
@@ -36,10 +36,11 @@ export default function SettingsPage() {
     } catch { setConnectionStatus('error'); setServiceReady(false); }
   }
 
-  async function copyDiagnostics() {
-    // Server-side summary (real port, runtime, extension link, agent config
-    // presence, recent failures) enriches the browser-side basics — support
-    // requests then carry the actual failure context instead of guesses.
+  // Server-side summary (real port, runtime, extension link, agent config
+  // presence, recent failures) enriches the browser-side basics — support
+  // requests then carry the actual failure context instead of guesses.
+  // Shared by the copy-diagnostics button and the feedback modal.
+  async function buildDiagnosticsSummary() {
     let server: any = null;
     try {
       server = await fetch('/api/diagnostics').then(r => r.ok ? r.json() : null);
@@ -69,7 +70,11 @@ export default function SettingsPage() {
       `Language: ${lang}`,
       `Platform: ${navigator.platform}`,
     );
-    const summary = lines.join('\n');
+    return lines.join('\n');
+  }
+
+  async function copyDiagnostics() {
+    const summary = await buildDiagnosticsSummary();
     try {
       await navigator.clipboard.writeText(summary);
       showCopied('diagnostics');
@@ -78,7 +83,28 @@ export default function SettingsPage() {
     }
   }
 
+  // Export the recent activity log as a redacted JSONL file — the inline
+  // activity list used to live here; support requests now carry the file.
+  async function exportLogs() {
+    try {
+      const data = await fetch('/api/logs').then(r => (r.ok ? r.json() : null));
+      const lines = ((data && data.logs) || []).slice().reverse().map((entry: any) => JSON.stringify(entry));
+      const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '');
+      const blob = new Blob([lines.join('\n')], { type: 'application/x-ndjson' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `modelswap-logs-${stamp}.jsonl`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      showToast(t('settings.exportLogsDone'), 'success');
+    } catch {
+      showToast(t('settings.exportLogsFail'), 'error');
+    }
+  }
+
   const [searchParams] = useSearchParams();
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const rawSection = searchParams.get('section') || 'appearance';
   const section = ['appearance', 'sync', 'snapshots', 'extension', 'diagnostics'].includes(rawSection) ? rawSection : 'appearance';
 
@@ -240,12 +266,12 @@ export default function SettingsPage() {
       </div>
       )}
 
-      {/* Support diagnostics */}
+      {/* About — version/runtime, docs & support links, log export */}
       {section === 'diagnostics' && (
       <div className="settings-section settings-diagnostics" id="diagnostics">
         <header className="settings-diagnostics-header">
           <div>
-            <span className="settings-diagnostics-eyebrow"><Activity size={14} />{t('settings.diagnostics')}</span>
+            <span className="settings-diagnostics-eyebrow"><Info size={14} />{t('settings.diagnostics')}</span>
             <h2>{t('settings.diagnosticsTitle')}</h2>
             <p>{t('settings.diagnosticsDesc')}</p>
           </div>
@@ -300,12 +326,48 @@ export default function SettingsPage() {
           </footer>
         </section>
 
-        <div className="settings-diagnostics-log-head">
-          <div><h3>{t('settings.logsTitle')}</h3><p>{t('settings.logsDesc')}</p></div>
+        <div className="settings-about-links">
+          <span className="settings-about-links-title">{t('settings.aboutLinksTitle')}</span>
+          <div className="settings-about-links-grid">
+            <a className="settings-about-link" href="https://docs.modelswap.app" target="_blank" rel="noreferrer">
+              <span className="settings-about-link-icon"><BookOpen size={18} /></span>
+              <span className="settings-about-link-copy">
+                <strong>{t('settings.aboutDocsTitle')}</strong>
+                <small>{t('settings.aboutDocsDesc')}</small>
+                <em>docs.modelswap.app</em>
+              </span>
+              <ArrowUpRight className="settings-about-link-go" size={15} />
+            </a>
+            <a className="settings-about-link" href="https://github.com/Cing-self/modelswap" target="_blank" rel="noreferrer">
+              <span className="settings-about-link-icon"><GitBranch size={18} /></span>
+              <span className="settings-about-link-copy">
+                <strong>{t('settings.aboutRepoTitle')}</strong>
+                <small>{t('settings.aboutRepoDesc')}</small>
+                <em>github.com/Cing-self/modelswap</em>
+              </span>
+              <ArrowUpRight className="settings-about-link-go" size={15} />
+            </a>
+            <button type="button" className="settings-about-link" onClick={() => setFeedbackOpen(true)}>
+              <span className="settings-about-link-icon"><MessageSquareWarning size={18} /></span>
+              <span className="settings-about-link-copy">
+                <strong>{t('settings.aboutIssuesTitle')}</strong>
+                <small>{t('settings.aboutIssuesDesc')}</small>
+                <em>{t('settings.aboutIssuesHint')}</em>
+              </span>
+              <ArrowUpRight className="settings-about-link-go" size={15} />
+            </button>
+          </div>
         </div>
-        <LogsPage embedded />
+
+        <div className="settings-about-export">
+          <button type="button" className="settings-test-btn" onClick={exportLogs}>
+            <Download size={14} />{t('settings.exportLogs')}
+          </button>
+        </div>
       </div>
       )}
+
+      <FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} buildDiagnostics={buildDiagnosticsSummary} />
     </div>
   );
 }
