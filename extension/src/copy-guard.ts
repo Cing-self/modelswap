@@ -29,10 +29,10 @@
     if (event.origin !== location.origin) return;
     const data = event.data as { source?: string; text?: string } | null;
     if (!data || data.source !== "modelswap-clipboard-hook" || typeof data.text !== "string") return;
-    forward(data.text, null);
+    forward(data.text);
   });
 
-  function forward(text: string, selectionSource: boolean): void {
+  function forward(text: string): void {
     try {
       const sending = chrome.runtime.sendMessage({
         type: "modelswap-copy",
@@ -87,7 +87,7 @@
         if (selectionInPasswordField(sel)) return; // passwords are never captured
         const text = sel.toString();
         if (!looksCaptureWorthy(text)) return;
-        forward(text, true);
+        forward(text);
       } catch {
         // Never break the page's own copy behavior.
       }

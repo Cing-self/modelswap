@@ -30,9 +30,9 @@
         const data = event.data;
         if (!data || data.source !== "modelswap-clipboard-hook" || typeof data.text !== "string")
             return;
-        forward(data.text, null);
+        forward(data.text);
     });
-    function forward(text, selectionSource) {
+    function forward(text) {
         try {
             const sending = chrome.runtime.sendMessage({
                 type: "modelswap-copy",
@@ -90,7 +90,7 @@
             const text = sel.toString();
             if (!looksCaptureWorthy(text))
                 return;
-            forward(text, true);
+            forward(text);
         }
         catch {
             // Never break the page's own copy behavior.
