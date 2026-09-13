@@ -35,25 +35,36 @@ Provider changes create a pre-switch snapshot when possible and write the select
 
 ## Handle Vault secrets
 
-Never place a secret in command arguments, logs, commentary, or the final response. For a value the user has explicitly authorized storing, pass it through standard input — always with a group and a description (group = service category, description = what the credential is for and its permission scope):
+**Never accept a plaintext secret from the conversation.** A value pasted into chat has already entered model context — and for cloud models, left the machine. When a task needs a secret that is not yet in the Vault, request it instead of asking for it:
+
+```bash
+modelswap vault request <KEY>@<服务分组> \
+  --desc "<用途说明与权限范围>" \
+  --pattern "^sk-[A-Za-z0-9_-]{20,}$" \
+  --url "https://console.example.com/api-keys" \
+  --step "打开控制台" --step "创建并命名 Key" --step "复制生成的 Key" \
+  --wait --timeout 1800
+```
+
+The command registers metadata only — key name, group, description, expected key shape, console URL, and human steps — and arms the browser extension: when the user copies the key on the console page it is captured straight into the Vault, and the value never passes through you. `--wait` blocks until every requested key is captured, then prints masked receipts so the task can continue automatically. On timeout, exit gracefully and verify later with `vault list --json` — the request stays armed for 30 minutes and a late capture still lands.
+
+- Include `--pattern` whenever you know the vendor's key shape (regex, 200 chars max). Include `--url` so copies made on that console take the high-confidence auto path; unknown shapes degrade to a one-click user confirmation instead of failing.
+- Multi-field credentials (e.g. `app_id` + `app_secret`) are one Vault key per entity with fields packed as JSON, named `服务-实体名`; never split them into separate keys: `--fields "app_id,app_secret"` (optionally `--field-pattern "app_id=^cli_[a-z0-9]+$"`).
+- To replace a rotated or mis-scoped key, re-issue the same request with `--replace`; the new value overwrites the old and agent configs embedding it are re-synced.
+
+Fallback only when the user explicitly hands you the value through an authorized secure channel (environment variable, file) — pass it via standard input, never arguments:
 
 ```bash
 printf '%s' "$SECRET_VALUE" | modelswap vault set <KEY> --stdin --group <服务分组> --desc "<用途说明>"
 ```
 
-Prefer letting the human run the interactive `modelswap vault set <KEY>` prompt when the secret is not already available through an authorized secure channel.
+Prefer the interactive `modelswap vault set <KEY>` prompt over echoing values in shared terminals.
 
 Before choosing a group, check existing ones and reuse — do not invent near-duplicate groups:
 
 ```bash
 modelswap vault groups          # distinct groups with per-group counts
 modelswap vault search <query>  # fuzzy match on key / desc / group (--json supported)
-```
-
-Multi-field credentials (e.g. `app_id` + `app_secret` pairs) are one key per entity with the fields packed as JSON in the value, named `服务-实体名`; do not split them into separate keys:
-
-```bash
-printf '%s' '{"app_id":"cli_xxx","app_secret":"xxx"}' | modelswap vault set feishu-app1 --stdin --group "飞书开放平台" --desc "自建应用1（多维表格 API）"
 ```
 
 Treat these commands as plaintext disclosure:
