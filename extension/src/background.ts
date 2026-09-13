@@ -836,7 +836,17 @@ function sendVaultSave(payload: { key: string; group?: string; desc?: string; va
       resolve({ ok: false, error: '保存写入超时 — 本地 ModelSwap 服务可能版本过旧，请升级后重试' });
     }, 10000);
     capturePending.set(id, { resolve, timer });
-    ws.send(JSON.stringify({ type: 'vault-save', id, ...payload }));
+    // Field-by-field on purpose: payload is the raw runtime message and
+    // spreading it would clobber `type` with 'modelswap-manual-save'.
+    ws.send(JSON.stringify({
+      type: 'vault-save',
+      id,
+      key: payload.key,
+      group: payload.group,
+      desc: payload.desc,
+      value: payload.value,
+      force: payload.force === true,
+    }));
   });
 }
 
