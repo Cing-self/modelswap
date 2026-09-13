@@ -14,6 +14,13 @@
  */
 
 (function () {
+  // Idempotency guard: the background worker may inject this script into an
+  // already-open tab (chrome.scripting) while the manifest declaration also
+  // covers fresh loads — never attach two listeners.
+  const w = window as unknown as { __modelswapCopyGuard?: boolean };
+  if (w.__modelswapCopyGuard) return;
+  w.__modelswapCopyGuard = true;
+
   const MAX_TEXT = 4096;
 
   /** Cheap shape gate — the service worker does the real matching. */

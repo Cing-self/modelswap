@@ -172,6 +172,7 @@ async function connect(): Promise<void> {
     if (msg?.type === 'vault-request-sync') {
       vaultRequests = Array.isArray(msg.requests) ? msg.requests : [];
       void persistVaultRequests();
+      void injectCopyGuardIntoMatchingTabs();
       return;
     }
       // Capture result for a vault-capture we sent
@@ -518,6 +519,42 @@ let vaultRequests: VaultRequestView[] = [];
 async function persistVaultRequests(): Promise<void> {
   await chrome.storage.local.set({ vaultRequests });
   updateVaultBadge();
+}
+
+/**
+ * Content scripts only auto-inject on page loads AFTER install/reload — a
+ * console tab that was already open has no copy listener and would silently
+ * miss the capture. Whenever pending requests name a console URL, inject
+ * copy-guard into open tabs on that registrable domain.
+ */
+async function injectCopyGuardIntoMatchingTabs(): Promise<void> {
+  const now = Date.now();
+  const domains = new Set<string>();
+  for (const req of vaultRequests) {
+    if (req.expiresAt <= now) continue;
+    for (const item of req.items) {
+      if (item.status !== 'pending' || !item.url) continue;
+      try { domains.add(registrableDomain(new URL(item.url).hostname)); } catch { /* bad url */ }
+    }
+  }
+  if (domains.size === 0) return;
+  const tabs = await chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] });
+  for (const tab of tabs) {
+    if (!tab.id || !tab.url) continue;
+    let host = '';
+    try { host = new URL(tab.url).hostname; } catch { continue; }
+    if (!domains.has(registrableDomain(host))) continue;
+    try {
+      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['dist/copy-guard.js'] });
+      console.log(`[MODELSWAP] copy-guard injected into open tab: ${host}`);
+    } catch { // protected page, discarded tab, already-injected is fine too
+    }
+  }
+}
+
+function registrableDomain(hostname: string): string {
+  const parts = hostname.split('.');
+  return parts.slice(-2).join('.');
 }
 
 function updateVaultBadge(): void {
