@@ -62,6 +62,9 @@ header {
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line);
 }
+/* Side panel: Chrome already shows the extension name above the panel,
+   so the header carries only the connection state — keep it slim. */
+body.panel header { padding: 9px 16px; justify-content: flex-end; }
 .brand {
   font-size: 12px; font-weight: 600; letter-spacing: 1.2px;
   color: var(--ink);
