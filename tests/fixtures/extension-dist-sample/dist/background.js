@@ -24,6 +24,9 @@ import * as executor from './cdp.js';
 let ws = null;
 let reconnectTimer = null;
 let reconnectAttempts = 0;
+// Port the daemon was last found on — reused for plain HTTP reads (e.g.
+// the vault group list for the popup/side-panel autocomplete).
+let serverPort = null;
 // ─── Console log forwarding ──────────────────────────────────────────
 // Forward service-worker console output to MODELSWAP server for debugging.
 const _origLog = console.log.bind(console);
@@ -73,6 +76,7 @@ async function connect() {
     const port = await findServerPort();
     if (port === null)
         return; // server not running — skip WebSocket to avoid console noise
+    serverPort = port;
     // One-time auth token. The server issues tokens only to extension origins
     // (CORS-gated), then requires one on the WebSocket before any command
     // traffic — an ordinary web page can do neither.
@@ -429,6 +433,10 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         void handleManualSave(msg).then(sendResponse);
         return true; // async response
     }
+    if (msg?.type === 'modelswap-get-groups') {
+        void getVaultGroups().then(sendResponse);
+        return true; // async response
+    }
     if (msg?.type === 'getStatus') {
         sendResponse({
             connected: ws?.readyState === WebSocket.OPEN,
@@ -759,6 +767,31 @@ async function handleManualSave(msg) {
         notifyBasic(`${msg.key} 已存入 MODELSWAP ✅${result.duplicate ? '（与现有值相同）' : ''}`, preview ? `值: ${preview}` : '');
     }
     return result;
+}
+/**
+ * Distinct vault group names for the create-form autocomplete. Read over
+ * plain HTTP from the daemon (host_permissions make the SW fetch read-able);
+ * only group labels leave the vault — never values.
+ */
+async function getVaultGroups() {
+    try {
+        let port = serverPort;
+        if (!port || ws?.readyState !== WebSocket.OPEN)
+            port = await findServerPort();
+        if (!port)
+            return { groups: [] };
+        const res = await fetch(`http://localhost:${port}/api/vault`, { signal: AbortSignal.timeout(4000) });
+        if (!res.ok)
+            return { groups: [] };
+        const data = await res.json();
+        const groups = [...new Set((data.secrets ?? [])
+                .map((s) => (s.group ?? '').trim())
+                .filter(Boolean))].sort((a, b) => a.localeCompare(b, 'zh'));
+        return { groups };
+    }
+    catch {
+        return { groups: [] };
+    }
 }
 // ─── Command dispatcher ─────────────────────────────────────────────
 async function handleCommand(cmd) {

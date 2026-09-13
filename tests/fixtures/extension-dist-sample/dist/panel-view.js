@@ -179,7 +179,9 @@ function renderSaveForm() {
     const groupField = el("div", "field");
     groupField.append(el("label", undefined, "分组"));
     const groupInput = el("input");
-    groupInput.placeholder = "可选";
+    groupInput.placeholder = "可选，输入筛选已有分组";
+    groupInput.setAttribute("list", "group-list");
+    groupInput.addEventListener("focus", () => void refreshGroups());
     groupField.append(groupInput);
     grid.append(keyField, groupField);
     form.append(grid);
@@ -292,6 +294,7 @@ function render(requests, connected) {
 /** Wire the shared view into the host document (popup or side panel). */
 export function mountPanel() {
     void init();
+    void refreshGroups();
     chrome.storage.onChanged.addListener((changes, area) => {
         if (area !== "local")
             return;
@@ -304,6 +307,31 @@ export function mountPanel() {
     });
     // Keep the batch relative-times ticking without waiting for a data push.
     setInterval(() => render(lastRequests, lastConnected), 30000);
+}
+/**
+ * Populate the group autocomplete from the vault's existing groups, so new
+ * saves reuse canonical groups instead of spawning near-duplicates.
+ */
+async function refreshGroups() {
+    try {
+        const resp = await chrome.runtime.sendMessage({ type: "modelswap-get-groups" });
+        const groups = resp?.groups ?? [];
+        let datalist = document.getElementById("group-list");
+        if (!datalist) {
+            datalist = el("datalist");
+            datalist.id = "group-list";
+            document.body.append(datalist);
+        }
+        datalist.textContent = "";
+        for (const name of groups) {
+            const opt = document.createElement("option");
+            opt.value = name;
+            datalist.append(opt);
+        }
+    }
+    catch {
+        // autocomplete is best-effort
+    }
 }
 async function init() {
     const state = await chrome.runtime.sendMessage({ type: "modelswap-popup-init" });
