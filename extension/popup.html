@@ -3,81 +3,89 @@
 <head>
   <meta charset="utf-8" />
   <title>MODELSWAP</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg: #f7f6f3;
-      --surface: #ffffff;
-      --ink: #211d1a;
-      --muted: #8d857c;
-      --line: #e8e4dd;
-      --line-strong: #d9d3c9;
-      --accent: #b4552d;
-      --accent-soft: #f4e6de;
-      --ok: #4a7c59;
-      --ok-soft: #e4ede6;
-      --danger: #a8402f;
+      /* MODELSWAP Paper Cutout Collage — same tokens as the web app */
+      --kraft: #f5ebe0;
+      --kraft-dark: #d5c4a1;
+      --paper: #fefcf8;
+      --ink: #1c1917;
+      --ink-light: #57534e;
+      --ink-muted: #a8a29e;
+      --border: #d5c4a1;
+      --green: #16a34a;
+      --blue: #2563eb;
+      --red: #dc2626;
+      --font: 'Space Grotesk', system-ui, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
       color-scheme: light dark;
     }
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg: #191715;
-        --surface: #211e1b;
-        --ink: #ece7e0;
-        --muted: #9a938b;
-        --line: #322e29;
-        --line-strong: #403a34;
-        --accent: #d0703f;
-        --accent-soft: #3a2a20;
-        --ok: #7fae8c;
-        --ok-soft: #263128;
-        --danger: #d3705c;
+        --kraft: #1a1816;
+        --kraft-dark: #3a3530;
+        --paper: #2a2623;
+        --ink: #ede6dc;
+        --ink-light: #b0a89e;
+        --ink-muted: #847a70;
+        --border: #3a3530;
+        --green: #4ade80;
+        --blue: #60a5fa;
+        --red: #f87171;
       }
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    html { background: var(--bg); }
+    html { background: var(--kraft); }
     body {
       width: 384px;
-      font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      font: 13px/1.5 var(--font);
       color: var(--ink);
-      background: var(--bg);
+      background: var(--kraft);
       -webkit-font-smoothing: antialiased;
     }
     .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+    :where(button, input, textarea):focus-visible {
+      outline: 2px solid color-mix(in srgb, var(--ink) 72%, transparent);
+      outline-offset: 2px;
+    }
 
-    /* ── Header ─────────────────────────────────────────── */
+    /* ── Header: paper strip with torn (dashed) bottom edge ── */
     header {
       position: sticky; top: 0; z-index: 2;
       display: flex; align-items: center; justify-content: space-between;
-      padding: 13px 16px 12px;
-      background: color-mix(in srgb, var(--bg) 88%, transparent);
-      backdrop-filter: blur(8px);
-      border-bottom: 1px solid var(--line);
+      padding: 12px 16px 11px;
+      background: var(--paper);
+      border-bottom: 1px dashed var(--kraft-dark);
     }
-    .brand { font-size: 12px; font-weight: 700; letter-spacing: 2px; }
-    .conn { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
-    .conn .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--line-strong); }
-    .conn.on .dot { background: var(--ok); }
-    .conn.off .dot { background: var(--danger); }
+    .brand { font-size: 12.5px; font-weight: 700; letter-spacing: 2.5px; }
+    .conn { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--ink-light); }
+    .conn .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-muted); }
+    .conn.on .dot { background: var(--green); }
+    .conn.off .dot { background: var(--red); }
 
     .banner {
-      margin: 10px 16px 0; padding: 8px 11px;
-      font-size: 11.5px; color: var(--accent);
-      background: var(--accent-soft); border-radius: 8px;
+      margin: 12px 16px 0; padding: 8px 11px;
+      font-size: 11.5px; color: var(--ink-light);
+      background: var(--paper);
+      border: 1.5px dashed var(--red);
+      border-radius: 8px;
     }
 
-    main { padding: 4px 16px 16px; }
-    section + section { margin-top: 18px; }
+    main { padding: 2px 16px 16px; }
+    section + section { margin-top: 16px; }
 
     .section-label {
       display: flex; align-items: baseline; justify-content: space-between;
-      font-size: 11px; font-weight: 600; letter-spacing: 1.5px; color: var(--muted);
-      padding: 12px 0 6px;
+      font-size: 11px; font-weight: 600; letter-spacing: 1.5px; color: var(--ink-muted);
+      padding: 13px 0 4px;
     }
     .section-label .count { font-weight: 500; letter-spacing: 0; }
 
-    /* ── Request items ──────────────────────────────────── */
-    .item { padding: 12px 0; }
-    .item + .item { border-top: 1px solid var(--line); }
+    /* ── Request items — flat on kraft, dashed separators ── */
+    .item { padding: 11px 0; }
+    .item + .item { border-top: 1px dashed var(--kraft-dark); }
     .item-head { display: flex; align-items: center; gap: 8px; }
     .item-head .key {
       font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -86,60 +94,55 @@
     }
     .status {
       margin-left: auto; display: flex; align-items: center; gap: 5px;
-      font-size: 11px; white-space: nowrap;
+      font-size: 11px; white-space: nowrap; color: var(--ink-light);
     }
     .status .dot { width: 6px; height: 6px; border-radius: 50%; }
-    .status.pending { color: var(--accent); }
-    .status.pending .dot { background: var(--accent); }
-    .status.done { color: var(--ok); }
-    .status.done .dot { background: var(--ok); }
-    .meta { margin-top: 3px; font-size: 11.5px; color: var(--muted); overflow-wrap: anywhere; }
+    .status.pending .dot { background: var(--blue); }
+    .status.done { color: var(--green); }
+    .status.done .dot { background: var(--green); }
+    .meta { margin-top: 3px; font-size: 11.5px; color: var(--ink-muted); overflow-wrap: anywhere; }
     .fields { margin-top: 7px; display: grid; gap: 3px; }
     .fields .f {
       display: flex; align-items: center; gap: 8px;
       font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-      font-size: 11.5px; color: var(--muted);
+      font-size: 11.5px; color: var(--ink-muted);
     }
-    .fields .f .val { color: var(--ok); }
+    .fields .f .val { color: var(--green); }
     .steps { margin: 8px 0 0; padding: 0; list-style: none; counter-reset: step; }
     .steps li {
       counter-increment: step; position: relative;
-      padding: 1px 0 1px 20px; font-size: 11.5px; color: var(--muted);
+      padding: 1px 0 1px 21px; font-size: 11.5px; color: var(--ink-light);
     }
     .steps li::before {
       content: counter(step);
       position: absolute; left: 2px; top: 2.5px;
-      width: 13px; height: 13px; border-radius: 4px;
-      font-size: 9.5px; line-height: 13px; text-align: center;
-      background: var(--line); color: var(--ink);
+      width: 14px; height: 14px; border-radius: 4px;
+      font-size: 9.5px; line-height: 14px; text-align: center;
+      border: 1.5px solid var(--ink);
+      background: var(--paper); color: var(--ink);
     }
     .masked-line {
       margin-top: 7px;
       font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-      font-size: 11.5px; color: var(--ok);
+      font-size: 11.5px; color: var(--green);
     }
     .actions { display: flex; gap: 8px; margin-top: 10px; }
 
-    /* ── Controls ───────────────────────────────────────── */
+    /* ── Controls — cutout buttons: 2px ink edge, hard shadow,
+       hover lifts, active presses into the paper ── */
     button {
-      font: inherit; font-size: 12px; font-weight: 500;
-      color: var(--ink); background: transparent;
-      border: 1px solid var(--line-strong); border-radius: 8px;
-      padding: 5px 12px; cursor: pointer;
-      transition: background-color .15s ease, border-color .15s ease, transform .06s ease;
+      font: inherit; font-size: 12px; font-weight: 600;
+      color: var(--ink); background: var(--paper);
+      border: 2px solid var(--ink); border-radius: 8px;
+      padding: 4px 11px; cursor: pointer;
+      box-shadow: 2px 2px 0 var(--ink);
+      transition: transform .12s ease, box-shadow .12s ease, background-color .15s ease, color .15s ease;
     }
-    button:hover { background: var(--surface); border-color: var(--muted); }
-    button:active { transform: scale(0.98); }
-    button:disabled { opacity: 0.55; cursor: default; transform: none; }
-    button.primary {
-      color: #fff; background: var(--accent); border-color: var(--accent);
-    }
-    button.primary:hover { filter: brightness(1.06); background: var(--accent); }
-    button.primary:disabled { filter: none; background: var(--accent); }
-    button.icon {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 5px 10px;
-    }
+    button:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--ink); }
+    button:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--ink); }
+    button:disabled { opacity: 0.55; cursor: default; transform: none; box-shadow: 2px 2px 0 var(--ink); }
+    button.primary { background: var(--ink); color: var(--paper); }
+    button.icon { display: inline-flex; align-items: center; gap: 6px; }
     button.icon svg { width: 12px; height: 12px; }
 
     .capture-row { display: flex; margin-top: 10px; }
@@ -147,26 +150,34 @@
       flex: 1; min-width: 0;
       font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
       font-size: 11.5px; color: var(--ink);
-      background: var(--surface);
-      border: 1px solid var(--line-strong); border-right: none;
-      border-radius: 8px 0 0 8px; padding: 6px 10px;
+      background: var(--paper);
+      border: 2px solid var(--ink); border-right: none;
+      border-radius: 8px 0 0 8px; padding: 5px 10px;
       outline: none;
     }
-    .capture-row input:focus { border-color: var(--accent); }
-    .capture-row button {
-      border-radius: 0 8px 8px 0; border-left: none;
-    }
+    .capture-row input::placeholder { color: var(--ink-muted); }
+    .capture-row button { border-radius: 0 8px 8px 0; border-left: none; }
 
-    /* ── Manual save form ───────────────────────────────── */
+    /* ── Manual save: one sheet of paper on the kraft desk ── */
+    #save-form {
+      margin-top: 6px; padding: 13px 13px 14px;
+      background: var(--paper);
+      border: 1.5px solid var(--border); border-radius: 14px;
+      box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.07);
+    }
+    @media (prefers-color-scheme: dark) {
+      #save-form { box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.3); border-color: var(--kraft-dark); }
+    }
     .field { margin-top: 8px; }
+    .field:first-child { margin-top: 0; }
     .field label {
-      display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px;
+      display: block; font-size: 11px; color: var(--ink-muted); margin-bottom: 4px;
     }
     .field input, .field textarea {
       width: 100%;
       font: inherit; font-size: 12.5px; color: var(--ink);
-      background: var(--surface);
-      border: 1px solid var(--line-strong); border-radius: 8px;
+      background: var(--kraft);
+      border: 1.5px solid var(--border); border-radius: 8px;
       padding: 7px 10px; outline: none;
       transition: border-color .15s ease;
     }
@@ -174,29 +185,31 @@
       font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
       font-size: 11.5px; min-height: 60px; resize: vertical;
     }
-    .field input:focus, .field textarea:focus { border-color: var(--accent); }
-    .field input::placeholder, .field textarea::placeholder, .capture-row input::placeholder { color: var(--muted); opacity: 0.7; }
+    .field input:focus, .field textarea:focus { border-color: var(--ink); }
+    .field input::placeholder, .field textarea::placeholder, .capture-row input::placeholder { color: var(--ink-muted); opacity: 0.8; }
     .grid-2 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 8px; }
     .grid-2 .field { margin-top: 8px; }
     .form-actions { margin-top: 12px; }
-    .form-actions .primary { width: 100%; padding: 8px 12px; }
-    .form-note { margin-top: 8px; font-size: 11.5px; color: var(--muted); min-height: 16px; overflow-wrap: anywhere; }
-    .form-note.ok { color: var(--ok); }
-    .form-note.err { color: var(--danger); }
+    .form-actions .primary { width: 100%; padding: 7px 12px; }
+    .form-note { margin-top: 8px; font-size: 11.5px; color: var(--ink-light); min-height: 16px; overflow-wrap: anywhere; }
+    .form-note.ok { color: var(--green); }
+    .form-note.err { color: var(--red); }
 
-    /* ── Empty state ────────────────────────────────────── */
-    .empty { padding: 26px 0 8px; text-align: center; color: var(--muted); }
+    /* ── Empty state: a blank scrap of paper ── */
+    .empty { padding: 22px 0 6px; text-align: center; color: var(--ink-light); }
     .empty .glyph {
-      width: 40px; height: 40px; margin: 0 auto 10px;
+      width: 42px; height: 42px; margin: 0 auto 10px;
       display: flex; align-items: center; justify-content: center;
-      border: 1px solid var(--line-strong); border-radius: 12px; color: var(--muted);
+      border: 1.5px dashed var(--kraft-dark); border-radius: 12px; color: var(--ink-light);
+      background: var(--paper);
     }
     .empty .glyph svg { width: 17px; height: 17px; }
     .empty .hint {
-      display: inline-block; margin-top: 8px; padding: 3px 9px;
+      display: inline-block; margin-top: 9px; padding: 3px 10px;
       font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
       font-size: 11px; color: var(--ink);
-      background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+      background: var(--paper); border: 1.5px solid var(--ink); border-radius: 6px;
+      box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.06);
     }
   </style>
 </head>
