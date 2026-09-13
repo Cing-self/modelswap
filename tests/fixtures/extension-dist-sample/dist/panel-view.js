@@ -58,7 +58,7 @@ function relTime(ts) {
  * relative time and capture progress.
  */
 function renderBatch(req) {
-    const card = el("div", `batch${req.items.every((i) => i.status === "fulfilled") ? " done" : ""}`);
+    const card = el("div", "batch");
     const head = el("div", "batch-head");
     head.append(el("span", "batch-tag", "Agent 请求"));
     head.append(el("span", "batch-time", relTime(req.createdAt)));
@@ -385,7 +385,9 @@ function render(requests, connected, legacy = lastLegacy) {
         }
     }
     const now = Date.now();
-    const live = requests.filter((r) => r.expiresAt > now);
+    // Only batches that still need something: fully-captured ones disappear
+    // (the system notification already delivered the result).
+    const live = requests.filter((r) => r.expiresAt > now && r.items.some((i) => i.status !== "fulfilled"));
     // Default surface is the create form; agent batches appear above it only
     // while they are alive, newest first.
     const section = document.getElementById("batches-section");

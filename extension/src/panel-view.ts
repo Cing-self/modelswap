@@ -87,7 +87,7 @@ function relTime(ts: number): string {
  * relative time and capture progress.
  */
 function renderBatch(req: VaultRequest): HTMLElement {
-  const card = el("div", `batch${req.items.every((i) => i.status === "fulfilled") ? " done" : ""}`);
+  const card = el("div", "batch");
 
   const head = el("div", "batch-head");
   head.append(el("span", "batch-tag", "Agent 请求"));
@@ -422,7 +422,11 @@ function render(requests: VaultRequest[], connected: boolean, legacy = lastLegac
   }
 
   const now = Date.now();
-  const live = requests.filter((r) => r.expiresAt > now);
+  // Only batches that still need something: fully-captured ones disappear
+  // (the system notification already delivered the result).
+  const live = requests.filter(
+    (r) => r.expiresAt > now && r.items.some((i) => i.status !== "fulfilled"),
+  );
 
   // Default surface is the create form; agent batches appear above it only
   // while they are alive, newest first.
