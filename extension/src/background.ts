@@ -106,6 +106,7 @@ async function connect(): Promise<void> {
   ws.onopen = () => {
     console.log('[MODELSWAP] Connected to daemon');
     reconnectAttempts = 0;
+    void chrome.storage.local.set({ wsConnected: true });
     if (reconnectTimer) {
       clearTimeout(reconnectTimer);
       reconnectTimer = null;
@@ -162,6 +163,7 @@ async function connect(): Promise<void> {
   ws.onclose = () => {
     console.log('[MODELSWAP] Disconnected from daemon');
     ws = null;
+    void chrome.storage.local.set({ wsConnected: false });
     scheduleReconnect();
   };
 

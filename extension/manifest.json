@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "MODELSWAP",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "MODELSWAP 密钥自动创建助手 — 复用 Chrome 已登录会话,一键自动创建 API Key 并回填 MODELSWAP vault",
-  "permissions": ["debugger", "tabs", "cookies", "alarms", "scripting", "clipboardRead", "storage", "notifications"],
+  "permissions": ["debugger", "tabs", "cookies", "alarms", "scripting", "clipboardRead", "storage", "notifications", "sidePanel"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "dist/background.js",
@@ -12,6 +12,9 @@
   "action": {
     "default_popup": "popup.html",
     "default_title": "MODELSWAP 凭证捕获"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
   },
   "content_scripts": [
     {
