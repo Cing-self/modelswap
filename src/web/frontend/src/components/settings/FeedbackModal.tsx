@@ -46,7 +46,7 @@ export default function FeedbackModal({ open, onClose, buildDiagnostics }: Props
       '',
       description.trim(),
     ];
-    if (attach) {
+    if (kind === 'bug' && attach) {
       lines.push('', '---', `${t('settings.diagnostics')}:`, await buildDiagnostics());
     }
     return { title: lines[0], body: lines.slice(1).join('\n') };
@@ -168,10 +168,14 @@ export default function FeedbackModal({ open, onClose, buildDiagnostics }: Props
                 />
               </div>
 
-              <label className="feedback-attach">
-                <input type="checkbox" checked={attach} onChange={e => setAttach(e.target.checked)} />
-                <span>{t('settings.feedbackAttach')}</span>
-              </label>
+              {/* Diagnostics contextualize bug reports only — feature
+                  requests carry no environment data. */}
+              {kind === 'bug' && (
+                <label className="feedback-attach">
+                  <input type="checkbox" checked={attach} onChange={e => setAttach(e.target.checked)} />
+                  <span>{t('settings.feedbackAttach')}</span>
+                </label>
+              )}
             </div>
             {submitError && (
               <div className="feedback-submit-error" role="alert">

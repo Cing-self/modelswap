@@ -60,6 +60,7 @@ export default function SettingsPage() {
           .filter((a: any) => a.files.some((f: any) => f.exists))
           .map((a: any) => a.id)
           .join(', ') || 'none'}`,
+        `Last successful sync: ${server.lastSyncAt || 'never'}`,
       );
       for (const fail of server.recentFailures || []) {
         lines.push(`Recent failure: [${fail.timestamp}] ${fail.action} ${fail.name}${fail.output ? ` — ${fail.output}` : ''}`);

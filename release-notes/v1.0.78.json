@@ -1,0 +1,20 @@
+{
+  "version": "v1.0.78",
+  "publishedAt": "2026-09-11",
+  "summary": {
+    "zh": "问题反馈的诊断附带更聪明:功能建议不再带环境数据;问题反馈的诊断从最近 5 条失败记录扩到 20 条,并新增最后成功同步时间。",
+    "en": "Smarter feedback diagnostics: feature requests no longer carry environment data, and bug reports now attach the last 20 redacted failures (up from 5) plus the last successful sync time."
+  },
+  "highlights": [
+    {
+      "category": "improved",
+      "zh": "选「功能建议」时诊断勾选项整体隐藏、不附带任何环境数据——功能想法与运行环境无关;切回「问题反馈」时恢复显示。",
+      "en": "Choosing feature request hides the diagnostics option entirely — ideas don't need environment data; switching back to bug report restores it."
+    },
+    {
+      "category": "improved",
+      "zh": "问题反馈附带的失败记录从最近 5 条扩到 20 条(保持自动脱敏),覆盖用户描述问题前的一串操作;并附上最后成功同步时间,同步类问题一眼可判。",
+      "en": "Bug reports attach the last 20 redacted failures (up from 5) to cover the actions leading up to the reported issue, plus the last successful sync time for instant sync-triage."
+    }
+  ]
+}

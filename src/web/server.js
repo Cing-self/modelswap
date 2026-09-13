@@ -141,11 +141,15 @@ function createServer(port = 3780) {
   // Diagnostics summary for support requests: real port, runtime, extension
   // link state, per-agent config presence, and the most recent failed
   // operations. Everything redacts secrets; keys never leave this machine.
-  app.get('/api/diagnostics', (_req, res) => {
+  app.get('/api/diagnostics', async (_req, res) => {
     try {
       const wsExt = require('./api/ws-extension');
       const { recentFailures } = require('./api/logs');
       const { augmentedPath } = require('./api/agent-path');
+      let lastSyncAt = null;
+      try {
+        lastSyncAt = (await require('./api/cloud-sync-core').loadConfig()).sync?.lastSyncAt || null;
+      } catch { /* sync state is optional context */ }
       res.json({
         version: require('../../package.json').version,
         port: runtimePort,
@@ -167,7 +171,11 @@ function createServer(port = 3780) {
         // Calling ./api/providers here passed no Express response to the
         // controller adapter and turned diagnostics into an async crash.
         agents: agentConfigPresence(),
-        recentFailures: recentFailures(5),
+        // Twenty failures (redacted) give a report enough trailing context to
+        // cover the actions that led up to what the user is describing; the
+        // feedback endpoint caps bodies well above this size.
+        recentFailures: recentFailures(20),
+        lastSyncAt,
       });
     } catch (error) {
       sendApiError(res, error, res.locals.requestId);
