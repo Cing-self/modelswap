@@ -54,9 +54,16 @@ modelswap provider current --json
 | `mimo-code` | MiMo Code |
 | `hermes` | Hermes |
 
-## 与密钥的关系
+## 切换前确认认证状态
 
-Provider 的 API key 存在 Vault 中（`auth.hasApiKey` 反映绑定状态）。切换 Provider 只是改路由，**不会自动创建或迁移 key**——目标 Provider 没绑定 key 时，先按 `modelswap-vault-secrets` 技能发起捕获请求，拿到 key 后再切换。OAuth 类（ChatGPT / Claude 订阅）看 `oauthLoggedIn`，走登录而不是 key。
+切换路由不会创建或迁移 key。目标 Provider 没绑定 key 时，切过去立刻认证失败。切换前先查：
+
+```bash
+modelswap provider auth --json
+```
+
+- `hasApiKey: false` → 先按 `modelswap-vault-secrets` 技能为该 Provider 发起凭证捕获请求，拿到 key 再切换。
+- OAuth 类 Provider（ChatGPT / Claude 订阅）看 `oauthLoggedIn`——它们走登录态，不需要 key。
 
 ## 添加与删除 Provider
 
