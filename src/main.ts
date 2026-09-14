@@ -553,7 +553,8 @@ provider
   .command("search <query>")
   .description("搜索模型在哪些平台可用（含认证状态），如: provider search glm-5")
   .option("--json", "输出适合脚本与 Agent 解析的 JSON")
-  .action(async (query: string, options: { json?: boolean }) => {
+  .option("--exact", "仅返回 id 与查询完全一致的命中（默认模糊：精确+系列+子串）")
+  .action(async (query: string, options: { json?: boolean; exact?: boolean }) => {
     await selectLanguageIfNeeded();
     await migrateIfNeeded();
     await providerSearch(query, options);

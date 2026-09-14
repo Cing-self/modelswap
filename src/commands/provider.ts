@@ -396,7 +396,7 @@ export async function providerAuth(options?: { json?: boolean }): Promise<void> 
 // modelswap provider search <query> — find which platforms offer a model.
 // Answers "用户说要 glm-5，哪些平台有、能不能用": searches model ids (and
 // provider names) across configured providers with live auth state.
-export async function providerSearch(query: string, options?: { json?: boolean }): Promise<void> {
+export async function providerSearch(query: string, options?: { json?: boolean; exact?: boolean }): Promise<void> {
   const q = query.trim().toLowerCase();
   if (!q) {
     console.error(kleur.red("✗ 请提供要搜索的模型名，例如: modelswap provider search glm-5"));
@@ -442,19 +442,25 @@ export async function providerSearch(query: string, options?: { json?: boolean }
   const tier = (m: Hit["match"]) => (m === "exact" ? 0 : m === "prefix" ? 1 : 2);
   const rank = (h: Hit) => tier(h.match) * 10 + (h.hasApiKey || h.oauthLoggedIn === true ? 0 : 1);
   hits.sort((a, b) => rank(a) - rank(b) || a.modelId.localeCompare(b.modelId));
+  // --exact: deterministic mode for agents — only ids equal to the query.
+  const shown = options?.exact ? hits.filter((h) => h.match === "exact") : hits;
   if (options?.json) {
-    process.stdout.write(`${JSON.stringify(hits, null, 2)}\n`);
+    process.stdout.write(`${JSON.stringify(shown, null, 2)}\n`);
     return;
   }
-  if (hits.length === 0) {
-    console.log(kleur.yellow(`没有匹配「${query}」的模型。换个关键词，或用 modelswap provider add 接入自定义平台。`));
+  if (shown.length === 0) {
+    if (options?.exact && hits.length > 0) {
+      console.log(kleur.yellow(`「${query}」没有精确命中（模糊匹配有 ${hits.length} 条，去掉 --exact 查看）。`));
+    } else {
+      console.log(kleur.yellow(`没有匹配「${query}」的模型。换个关键词，或用 modelswap provider add 接入自定义平台。`));
+    }
     return;
   }
   const label = { exact: "精确", prefix: "系列", partial: "模糊" } as const;
-  const exactCount = hits.filter((h) => h.match === "exact").length;
-  console.log(kleur.bold(`\n「${query}」出现在 ${new Set(hits.map((h) => h.providerId)).size} 个平台、共 ${hits.length} 个模型` +
-    (exactCount > 0 ? kleur.green(`（含 ${exactCount} 个精确命中）`) : kleur.yellow("（无精确命中，以下为系列/模糊匹配）")) + ":\n"));
-  for (const h of hits) {
+  const exactCount = shown.filter((h) => h.match === "exact").length;
+  console.log(kleur.bold(`\n「${query}」${options?.exact ? "精确命中" : `出现在 ${new Set(shown.map((h) => h.providerId)).size} 个平台、共 ${shown.length} 个模型`}` +
+    (options?.exact ? "" : exactCount > 0 ? kleur.green(`（含 ${exactCount} 个精确命中）`) : kleur.yellow("（无精确命中，以下为系列/模糊匹配）")) + ":\n"));
+  for (const h of shown) {
     const auth = h.hasApiKey || h.oauthLoggedIn === true
       ? kleur.green("✓ 已认证")
       : kleur.yellow("○ 未认证");

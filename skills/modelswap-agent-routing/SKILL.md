@@ -51,10 +51,11 @@ modelswap provider auth --json    # 认证状态：hasApiKey / oauthLoggedIn
 用户通常说**模糊意图**（「换成 glm-5」「用最新的智谱」），不会报精确型号。判定规则：
 
 ```bash
-modelswap provider search glm-5
-# 每条命中带 match 标识：[精确]=id 完全一致  [系列]=同系列变体（glm-5-turbo 等）  [模糊]=子串顺带命中
-# 排序：精确 > 系列 > 已认证 > 其余；头部统计会写明有无精确命中
+modelswap provider search glm-5            # 默认模糊：精确+系列+子串，按此排序
+modelswap provider search glm-5 --exact    # 只要 id 完全一致的命中（确定性查询）
 ```
+
+模糊结果每条带 match 标识：`[精确]`=id 完全一致、`[系列]`=同系列变体（glm-5-turbo 等）、`[模糊]`=子串顺带命中。需要「这个 id 到底存不存在、在哪些平台」的确定答案时用 `--exact`（配合 `--json`）；探索用户意图时用默认模糊。
 
 - **有 `[精确]` 命中**：确认一句就切；同一 modelId 出现在多个平台时，把平台候选（含认证状态、国内/国际差异）列给用户选，不替用户挑。
 - **只有 `[系列]` 命中**（用户说的 `glm-5` 实际是系列名，存在 `glm-5-turbo` / `glm-5-flash` / `glm-5-air` 等变体）：把变体连同定位差异呈现给用户——通常 `-turbo`/`-flash` 为快速轻量档、`-air` 为轻量档、无后缀为标准档、`-thinking` 为推理档——**不要替用户推断具体档位**。

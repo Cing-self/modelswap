@@ -78,6 +78,18 @@ describe("provider search (CLI)", { timeout: 60000 }, () => {
     expect(result.status).not.toBe(0);
   });
 
+  it("--exact returns only exact ids and hints when none match", () => {
+    const exact = cli(["provider", "search", "glm-5", "--exact", "--json"]);
+    expect(exact.status).toBe(0);
+    const exactHits = JSON.parse(exact.stdout);
+    expect(exactHits.length).toBeGreaterThan(0);
+    for (const h of exactHits) expect(h.match).toBe("exact");
+
+    const none = cli(["provider", "search", "no-such-model-zz", "--exact"]);
+    expect(none.status).toBe(0);
+    expect(none.stdout).toContain("没有精确命中");
+  });
+
   it("reports no-match without failing", () => {
     const result = cli(["provider", "search", "zz-no-such-model-zz"]);
     expect(result.status).toBe(0);
