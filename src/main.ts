@@ -18,6 +18,7 @@ import {
   vaultDelete,
   vaultInject,
   vaultRequest,
+  vaultRun,
 } from "./commands/vault";
 import { setLanguage, getLanguage, t, Language, initLanguage, loadLanguageConfig, saveLanguageConfig } from "./config/i18n";
 import { loadUserConfig, setUserPreference } from "./config/user";
@@ -231,6 +232,16 @@ vault
     replace?: boolean; wait?: boolean; timeout?: string;
   }) => {
     await vaultRequest(keys, options);
+  });
+
+vault
+  .command("run")
+  .description("以子进程执行命令，将密钥注入其环境变量（明文不进命令行参数、进程列表与记录）")
+  .requiredOption("--key <key>", "Vault 密钥名")
+  .option("--env <name>", "注入的环境变量名（默认与 key 同名）")
+  .allowUnknownOption(true)
+  .action(async (options: { key: string; env?: string }, command: Command) => {
+    await vaultRun(options.key, options.env, command.args);
   });
 
 vault

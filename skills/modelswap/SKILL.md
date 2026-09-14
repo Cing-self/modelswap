@@ -67,6 +67,14 @@ modelswap vault groups          # distinct groups with per-group counts
 modelswap vault search <query>  # fuzzy match on key / desc / group (--json supported)
 ```
 
+To use a secret in a command, prefer running the tool through `vault run` — the value is decrypted and injected into the child process's environment only; it never appears in command arguments, process listings (`ps`), or agent transcripts:
+
+```bash
+modelswap vault run --key <KEY> --env <ENV_VAR> -- <command...>
+```
+
+Choose tools that read the variable from their environment (git, aws, terraform, and anything reading `process.env`). Do not interpolate `$ENV_VAR` into another command's arguments — shell expansion re-exposes the value in the process list; hand it through stdin or a config file instead. The child's exit code and output are propagated verbatim.
+
 Treat these commands as plaintext disclosure:
 
 - `modelswap vault get <KEY>` writes the raw value to stdout.

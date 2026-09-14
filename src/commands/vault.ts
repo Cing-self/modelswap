@@ -1,5 +1,6 @@
 import kleur from "kleur";
 import prompts from "prompts";
+import { spawn } from "node:child_process";
 import { VaultStore } from "../vault/store";
 import { normalizeVaultGroup } from "../vault/group-meta";
 import { t } from "../config/i18n";
@@ -230,6 +231,46 @@ export async function vaultInject(options?: { keys?: string; shell?: string; gro
       process.stdout.write(`export ${key}='${escaped}'\n`);
     }
   }
+}
+
+// ─── vault run — execute a command with a secret injected via env ────
+//
+// The plaintext travels only: vault decrypt (this process memory) → child
+// environment block. It never appears in this command's output, the child's
+// argv (invisible to `ps`), or the agent transcript.
+
+export async function vaultRun(key: string, envVar: string | undefined, commandArgs: string[]): Promise<void> {
+  if (commandArgs.length === 0) {
+    console.error(kleur.red("✗ 缺少要执行的命令（写在 -- 之后，例如: vault run --key K -- node a.js）"));
+    process.exit(1);
+  }
+  const value = await store.get(key);
+  if (value === null) {
+    console.error(kleur.red(`${t("vaultNotFound")} ${key}`));
+    process.exit(1);
+  }
+  const varName = envVar ?? key;
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(varName)) {
+    console.error(kleur.red(`✗ 环境变量名不合法: ${varName}（需以字母/下划线开头，仅含字母数字下划线）`));
+    process.exit(1);
+  }
+  const [cmd, ...args] = commandArgs;
+  const child = spawn(cmd, args, {
+    stdio: "inherit",
+    env: { ...process.env, [varName]: value },
+    shell: process.platform === "win32",
+  });
+  child.on("error", (error) => {
+    console.error(kleur.red(`✗ 无法启动命令: ${error.message}`));
+    process.exit(1);
+  });
+  child.on("close", (code, signal) => {
+    if (signal) {
+      process.kill(process.pid, signal);
+    } else {
+      process.exit(code ?? 0);
+    }
+  });
 }
 
 // ─── vault request — agent-issued credential capture ─────────────────
