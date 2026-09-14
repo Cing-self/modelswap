@@ -17,9 +17,26 @@ modelswap provider current --json
 
 输出即当前可管理的 Agent 清单（`agentId` / `agentName` / `configured` / `providerId` / `modelId`）。对照：`claude`=Claude Code、`codex`=ChatGPT (Codex)、`opencode`=OpenCode、`workbuddy`=WorkBuddy、`zcode`=ZCode、`grok`=Grok Build、`openclaw`=OpenClaw、`kimi-code`=Kimi Code、`mimo-code`=MiMo Code、`hermes`=Hermes。用户没点名 Agent 时，先用此输出问清楚要给谁配——省略 `--agent` 的切换会波及所有兼容 Agent。
 
-## 第 2 步 · 确认平台是否可用
+## 第 2 步 · 定位模型对应的平台并确认可用
 
-确定目标平台（Provider）后，检查它是否已在配置中、认证是否就绪：
+用户通常说**模糊意图**（「换成 glm-5」「用最新的智谱」），不会报精确型号。先用搜索把「模型 → 候选平台」确定下来：
+
+```bash
+modelswap provider search glm-5            # 默认模糊：精确+系列+子串，按此排序
+modelswap provider search glm-5 --exact    # 只要 id 完全一致的命中（确定性查询）
+```
+
+模糊结果每条带 match 标识：`[精确]`=id 完全一致、`[系列]`=同系列变体（glm-5-turbo 等）、`[模糊]`=子串顺带命中。需要「这个 id 到底存不存在、在哪些平台」的确定答案时用 `--exact`（配合 `--json`）；探索用户意图时用默认模糊。
+
+**意图判定规则：**
+
+- **有 `[精确]` 命中**：模型确定，进入下面的平台可用性检查；同一 modelId 出现在多个平台时，把平台候选（含认证状态、国内/国际差异）列给用户选，不替用户挑。
+- **只有 `[系列]` 命中**（用户说的 `glm-5` 实际是系列名，存在 `glm-5-turbo` / `glm-5-flash` / `glm-5-air` 等变体）：把变体连同定位差异呈现给用户——通常 `-turbo`/`-flash` 为快速轻量档、`-air` 为轻量档、无后缀为标准档、`-thinking` 为推理档——**不要替用户推断具体档位**。
+- **仅 `[模糊]` 命中**：说明没有用户说的那个模型，先向用户澄清要的是不是列表中的某个，再继续。
+- **用户说「最新」「最好」**：不要自行挑版本。按搜索结果列出该系列全部版本（含日期后缀的通常是快照版），让用户指定。
+- **零命中**：提醒换关键词，或走「自定义平台」接入。
+
+候选平台确定后，检查配置与认证是否就绪：
 
 ```bash
 modelswap provider list --json    # 平台是否已配置（41 个内置预设 + 自定义）
@@ -46,27 +63,12 @@ modelswap provider auth --json    # 认证状态：hasApiKey / oauthLoggedIn
 - 探测通过 → 进第 5 步。
 - 探测失败 → 看返回的错误类型分诊：key 无效/额度不足（引导用户到平台控制台核实，或重走第 3 步轮换）、网络不通（确认 baseUrl 与代理环境）、模型权限不足（换平台提供的其他模型）。
 
-## 第 5 步 · 选模型并切换
+## 第 5 步 · 执行切换
 
-用户通常说**模糊意图**（「换成 glm-5」「用最新的智谱」），不会报精确型号。判定规则：
-
-```bash
-modelswap provider search glm-5            # 默认模糊：精确+系列+子串，按此排序
-modelswap provider search glm-5 --exact    # 只要 id 完全一致的命中（确定性查询）
-```
-
-模糊结果每条带 match 标识：`[精确]`=id 完全一致、`[系列]`=同系列变体（glm-5-turbo 等）、`[模糊]`=子串顺带命中。需要「这个 id 到底存不存在、在哪些平台」的确定答案时用 `--exact`（配合 `--json`）；探索用户意图时用默认模糊。
-
-- **有 `[精确]` 命中**：确认一句就切；同一 modelId 出现在多个平台时，把平台候选（含认证状态、国内/国际差异）列给用户选，不替用户挑。
-- **只有 `[系列]` 命中**（用户说的 `glm-5` 实际是系列名，存在 `glm-5-turbo` / `glm-5-flash` / `glm-5-air` 等变体）：把变体连同定位差异呈现给用户——通常 `-turbo`/`-flash` 为快速轻量档、`-air` 为轻量档、无后缀为标准档、`-thinking` 为推理档——**不要替用户推断具体档位**。
-- **仅 `[模糊]` 命中**：说明没有用户说的那个模型，先向用户澄清要的是不是列表中的某个，再继续。
-- **用户说「最新」「最好」**：不要自行挑版本。按搜索结果列出该系列全部版本（含日期后缀的通常是快照版），让用户指定。
-- **零命中**：提醒换关键词，或走「自定义平台」接入。
-
-确认平台提供用户要的模型后，执行切换：
+平台与具体模型经用户确认后（第 2 步已定档位），执行切换：
 
 ```bash
-modelswap provider list --json          # models[] 里有每个模型的 id 与元数据
+modelswap provider list --json          # 复核 models[] 里的精确 modelId
 modelswap provider use <provider-id> --agent <agent-id> --model <model-id>
 modelswap provider current --json       # 验证路由已变更
 ```
