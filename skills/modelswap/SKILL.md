@@ -1,6 +1,6 @@
 ---
 name: modelswap
-description: Use the ModelSwap CLI to inspect or manage local AI providers, Agent model routing, encrypted Vault keys, project environment injection, and cloud sync. Apply when a user asks to use `modelswap`, configure an AI coding Agent, manage its provider/model, or work with ModelSwap-managed secrets; do not use for unrelated provider APIs.
+description: 使用 ModelSwap CLI 检查或管理本地 AI Provider、Agent 模型路由、加密 Vault 密钥（含发起凭证捕获请求、以安全方式使用密钥）、项目环境注入与云同步。当用户要求使用 modelswap、配置 AI 编码 Agent、管理其 Provider/模型，或创建/轮换/使用 ModelSwap 管理的密钥时使用；不要用于无关的 Provider API。
 ---
 
 # ModelSwap CLI
