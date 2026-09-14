@@ -5,11 +5,11 @@ description: 使用 ModelSwap CLI 检查或管理本地 AI Provider、Agent 模�
 
 # ModelSwap CLI
 
-Use ModelSwap as the local control plane for AI coding Agent credentials and model routing. Preserve the user's authorization boundary: inspecting configuration does not authorize changing Agent files, revealing secrets, or syncing data externally.
+把 ModelSwap 当作本地控制面，管理 AI 编码 Agent 的凭证与模型路由。始终守住用户的授权边界：查看配置不等于被授权修改 Agent 文件、泄露密钥或把数据同步到外部。
 
-## Discover and inspect
+## 查看与检查
 
-Prefer machine-readable output for decisions:
+做决策时优先使用机器可读输出：
 
 ```bash
 modelswap provider current --json
@@ -18,24 +18,24 @@ modelswap provider auth --json
 modelswap vault list --json
 ```
 
-`vault list --json` is masked and safe to inspect. Provider JSON contains configuration metadata, not secret values. Run `modelswap <command> --help` when an option is uncertain, and use stable IDs from JSON rather than guessing from display names.
+`vault list --json` 输出已脱敏，可安全查看。Provider JSON 只含配置元数据，不含密钥明文。不确定某个选项时运行 `modelswap <命令> --help`；引用 ID 时以 JSON 里的稳定 ID 为准，不要凭显示名称猜测。
 
-## Configure an Agent
+## 配置 Agent
 
-For an explicit, non-interactive change:
+进行明确的非交互式变更：
 
 ```bash
 modelswap provider use <provider-id> --agent <agent-id> --model <model-id>
 modelswap provider current --json
 ```
 
-Always provide both `--agent` and `--model` unless the user explicitly wants ModelSwap's defaults. Omitting `--agent` applies the provider to every compatible Agent; omitting `--model` selects the provider's first model. `provider switch [agent]` is interactive and better suited to a human-operated terminal.
+除非用户明确想用 ModelSwap 的默认值，否则始终同时提供 `--agent` 和 `--model`。省略 `--agent` 会把该 Provider 应用到所有兼容 Agent；省略 `--model` 会选中该 Provider 的第一个模型。`provider switch [agent]` 是交互式的，更适合由人操作的终端。
 
-Provider changes create a pre-switch snapshot when possible and write the selected Agent's native configuration files. Inspect first and verify afterward.
+Provider 变更会尽可能创建切换前快照，并写入所选 Agent 的原生配置文件。先检查，后验证。
 
-## Handle Vault secrets
+## 处理 Vault 密钥
 
-**Never accept a plaintext secret from the conversation.** A value pasted into chat has already entered model context — and for cloud models, left the machine. When a task needs a secret that is not yet in the Vault, request it instead of asking for it:
+**绝对不要接受对话中的明文密钥。** 粘贴进对话的值已经进入模型上下文——对云端模型而言，它已经离开这台机器。当任务需要的密钥还不在 Vault 中时，发起请求而不是开口索要：
 
 ```bash
 modelswap vault request <KEY>@<服务分组> \
@@ -46,62 +46,62 @@ modelswap vault request <KEY>@<服务分组> \
   --wait --timeout 1800
 ```
 
-The command registers metadata only — key name, group, description, expected key shape, console URL, and human steps — and arms the browser extension: when the user copies the key on the console page it is captured straight into the Vault, and the value never passes through you. `--wait` blocks until every requested key is captured, then prints masked receipts so the task can continue automatically. On timeout, exit gracefully and verify later with `vault list --json` — the request stays armed for 30 minutes and a late capture still lands.
+该命令只登记元数据——key 名、分组、描述、预期 key 形状、控制台地址和给用户的操作步骤——并武装浏览器扩展：用户在控制台页面复制 key 的瞬间，值会直接进入 Vault，全程不经过你。`--wait` 会阻塞到所有请求的 key 都被捕获，然后打印掩码回执，任务自动继续。超时则优雅退出，事后用 `vault list --json` 验证——请求会保持待命 30 分钟，迟到的捕获依然落库。
 
-- Include `--pattern` whenever you know the vendor's key shape (regex, 200 chars max). Include `--url` so copies made on that console take the high-confidence auto path; unknown shapes degrade to a one-click user confirmation instead of failing.
-- Multi-field credentials (e.g. `app_id` + `app_secret`) are one Vault key per entity with fields packed as JSON, named `服务-实体名`; never split them into separate keys: `--fields "app_id,app_secret"` (optionally `--field-pattern "app_id=^cli_[a-z0-9]+$"`).
-- To replace a rotated or mis-scoped key, re-issue the same request with `--replace`; the new value overwrites the old and agent configs embedding it are re-synced.
+- 知道厂商 key 形状时尽量带上 `--pattern`（正则，最长 200 字符）。带上 `--url`，在该控制台上的复制会走高置信自动路径；未知形状会降级为用户一次点击确认，而不是直接失败。
+- 多字段凭证（如 `app_id` + `app_secret`）在 Vault 中一个实体一个 key，字段打包为 JSON，命名为 `服务-实体名`；不要拆成多个 key：`--fields "app_id,app_secret"`（可选 `--field-pattern "app_id=^cli_[a-z0-9]+$"`）。
+- 替换已泄露或权限配错的 key：用同样参数重发请求并加 `--replace`；新值覆盖旧值，引用它的 Agent 配置会自动重新同步。
 
-Fallback only when the user explicitly hands you the value through an authorized secure channel (environment variable, file) — pass it via standard input, never arguments:
+仅当用户通过授权的安全渠道（环境变量、文件）明确把值交给你时才走降级路径——通过标准输入传递，绝不放进参数：
 
 ```bash
 printf '%s' "$SECRET_VALUE" | modelswap vault set <KEY> --stdin --group <服务分组> --desc "<用途说明>"
 ```
 
-Prefer the interactive `modelswap vault set <KEY>` prompt over echoing values in shared terminals.
+在共享终端里，优先让用户运行交互式 `modelswap vault set <KEY>` 提示，而不是回显值。
 
-Before choosing a group, check existing ones and reuse — do not invent near-duplicate groups:
-
-```bash
-modelswap vault groups          # distinct groups with per-group counts
-modelswap vault search <query>  # fuzzy match on key / desc / group (--json supported)
-```
-
-To use a secret in a command, prefer running the tool through `vault run` — the value is decrypted and injected into the child process's environment only; it never appears in command arguments, process listings (`ps`), or agent transcripts:
+选择分组前先查既有分组并复用——不要发明近似重复的分组：
 
 ```bash
-modelswap vault run --key <KEY> --env <ENV_VAR> -- <command...>
+modelswap vault groups          # 去重后的分组及各自数量
+modelswap vault search <query>  # 按 key 名/描述/分组模糊搜索（支持 --json）
 ```
 
-Choose tools that read the variable from their environment (git, aws, terraform, and anything reading `process.env`). Do not interpolate `$ENV_VAR` into another command's arguments — shell expansion re-exposes the value in the process list; hand it through stdin or a config file instead. The child's exit code and output are propagated verbatim.
+在命令中使用密钥时，优先通过 `vault run` 执行工具——值只被解密并注入子进程的环境块，不会出现在命令参数、进程列表（ps）或 Agent 记录中：
 
-Treat these commands as plaintext disclosure:
+```bash
+modelswap vault run --key <KEY> --env <ENV_VAR> -- <命令...>
+```
 
-- `modelswap vault get <KEY>` writes the raw value to stdout.
-- `modelswap vault inject` writes shell exports containing raw values.
+选择原生从环境变量读取配置的工具（git、aws、terraform，以及一切读 `process.env` 的程序）。不要把 `$ENV_VAR` 展开进另一个命令的参数——shell 展开会把值重新暴露在进程列表里；改用 stdin 或配置文件传递。子进程的输出和退出码会原样传递。
 
-Use either only when the task explicitly requires the plaintext result, and do not echo or summarize the value. `modelswap vault inject` requires an explicit `--keys` list or a `--group`; never invent key names — confirm which keys the task needs first (`vault search` / `vault groups` help resolve real ones).
+以下命令属于明文披露：
 
-Renaming uses `modelswap vault mv <OLD> <NEW>` (metadata preserved). Note scripts that reference the old key name by `vault get <OLD>` must be updated — renaming does not rewrite them.
+- `modelswap vault get <KEY>` 把原始值写到 stdout。
+- `modelswap vault inject` 把含原始值的 shell export 写到 stdout。
 
-Deletion is destructive. Before `modelswap vault delete <KEY>`, confirm with the user that no provider or agent configuration still binds that key (check `modelswap provider list` output or the dashboard).
+只在任务明确需要明文结果时使用，且不要复述或总结返回的值。`modelswap vault inject` 需要显式 `--keys` 列表或 `--group`；绝不要凭空捏造 key 名——先确认任务需要哪些 key（`vault search` / `vault groups` 可帮助定位真实存在的）。
 
-## Cloud sync
+重命名使用 `modelswap vault mv <OLD> <NEW>`（保留分组/描述/过期时间）。注意此前通过 `vault get <OLD>` 引用旧 key 名的脚本需要同步更新——重命名不会改写它们。
 
-`modelswap vault push`, `pull`, and `test` contact configured external storage. `push` changes remote state; `pull` merges remote keys into the local Vault. Do not run them based only on a request to inspect sync status.
+删除是破坏性操作。执行 `modelswap vault delete <KEY>` 前，与用户确认没有 Provider 或 Agent 配置仍在引用该 key（查看 `modelswap provider list` 输出或控制台）。
 
-## Web UI and Skill installation
+## 云同步
 
-Use `modelswap web` for the local dashboard on port 3780. Add `--open` only when the user asks to open a browser. If 3780 belongs to another process, ModelSwap may select the next available port.
+`modelswap vault push`、`pull`、`test` 会接触已配置的外部存储。`push` 改变远端状态；`pull` 把远端 key 合并进本地 Vault。仅凭一句「看一下同步状态」不要执行它们。
 
-The bundled Skill can be located with `modelswap skill path`. Install it into a project only when requested:
+## Web UI 与 Skill 安装
+
+用 `modelswap web` 启动本地控制台（端口 3780）。仅在用户要求打开浏览器时加 `--open`。如果 3780 被其他进程占用，ModelSwap 会顺延选择下一个可用端口。
+
+内置 Skill 可通过 `modelswap skill path` 定位。仅在用户要求时装入项目：
 
 ```bash
 modelswap skill install /path/to/project
 ```
 
-This writes `.agents/skills/modelswap/SKILL.md` in the target project. Do not use `--force` unless replacing an existing copy is explicitly intended.
+这会在目标项目写入 `.agents/skills/modelswap/SKILL.md`。除非明确要替换已有副本，否则不要用 `--force`。
 
-## Verify outcomes
+## 验证结果
 
-Use command exit status plus the narrowest read-only follow-up (`provider current --json`, `provider auth --json`, or `vault list --json`). Stop after one failed retry when the failure depends on credentials, external services, or user-owned configuration; report the error without exposing secrets.
+以命令退出状态为准，配合最窄的只读复核（`provider current --json`、`provider auth --json` 或 `vault list --json`）。当失败依赖凭证、外部服务或用户自有配置时，重试一次仍不成功即停止：报告错误，不暴露密钥。
