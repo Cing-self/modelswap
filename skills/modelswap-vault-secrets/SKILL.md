@@ -55,6 +55,37 @@ printf '%s' "$SECRET_VALUE" | modelswap vault set <KEY> --stdin --group <服务�
 
 在共享终端里，优先让用户运行交互式 `modelswap vault set <KEY>` 提示，而不是回显值。分组选择沿用「查看与搜索」一节的规则：先查既有分组并复用。
 
+## 目标系统需要明文时（如 Agent 配置文件）
+
+边界原则：**明文可以进入用户机器上的目标系统，不能进入对话、记录或命令行参数。** 分两类场景：
+
+**1. ModelSwap 管理的 Agent（Claude Code、Codex、OpenCode 等）**
+
+不要手工把 key 写进它们的配置文件（如 `~/.claude/settings.json`）——这由 `modelswap provider use` 的适配器负责写入与后续同步（key 轮换后引用会被自动 reconcile）。手工写入会与路由系统漂移，且写入过程容易把明文带进命令行。正确路径见 `modelswap-agent-routing` 技能。
+
+**2. 非 ModelSwap 管理的目标（任意需要明文的配置文件）**
+
+用 `vault run` 把值经环境变量交给一个写文件的子进程，明文不出现在命令行，也不回到对话：
+
+```bash
+modelswap vault run --key <KEY> --env V -- node -e '
+  require("fs").writeFileSync("/path/to/app.env",
+    `API_KEY=${process.env.V}\n`);
+'
+```
+
+要点：写文件的子进程从 `process.env` 取值（不要用 `sh -c 'echo $V > file'`——展开后值会出现在 echo 的参数里）；文件属主可见明文是目标系统的要求，符合边界。
+
+**3. 临时 shell 会话需要**
+
+`modelswap vault inject --keys <KEY>` 输出 shell export 语句，可管道给脚本执行：
+
+```bash
+modelswap vault inject --keys <KEY> | bash -c 'read -r line; ...'
+```
+
+输出含明文——不要在对话中展示、重定向到日志或复述其内容；仅在任务确实需要时使用。
+
 以下命令属于明文披露：
 
 - `modelswap vault get <KEY>` 把原始值写到 stdout。
