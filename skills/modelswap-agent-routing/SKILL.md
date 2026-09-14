@@ -39,7 +39,22 @@ modelswap provider current --json
 
 ## 支持的 Agent
 
-Claude Code、Codex、OpenCode、WorkBuddy、ZCode、Grok、OpenClaw、Kimi Code、MiMo Code、Hermes。
+`--agent` 参数使用下表的 agentId（不是显示名）。**运行时以 `modelswap provider current --json` 的输出为准**——它就是当前的 Agent 清单（每条含 `agentId` / `agentName` / `configured`，`configured: false` 表示已识别但未配置）：
+
+| agentId | 显示名 |
+|---|---|
+| `claude` | Claude Code |
+| `codex` | ChatGPT (Codex) |
+| `opencode` | OpenCode |
+| `workbuddy` | WorkBuddy |
+| `zcode` | ZCode |
+| `grok` | Grok Build |
+| `openclaw` | OpenClaw |
+| `kimi-code` | Kimi Code |
+| `mimo-code` | MiMo Code |
+| `hermes` | Hermes |
+
+CLI 没有单独的 `agent list` 命令；`provider current --json` 兼任。新装了某个 Agent 后如果它出现在该输出里，就说明 ModelSwap 已能管理它。
 
 ## 与密钥的关系
 
