@@ -56,9 +56,14 @@ describe("provider search (CLI)", { timeout: 60000 }, () => {
       expect(typeof hit.hasApiKey).toBe("boolean");
       expect(["exact", "prefix", "partial"]).toContain(hit.match);
     }
-    // seeded exact ids must be flagged exact and rank first
+    // query "glm": seeded glm-5 is a series (prefix) hit
     expect(hits[0].modelId).toBe("glm-5");
-    expect(hits[0].match).toBe("exact");
+    expect(hits[0].match).toBe("prefix");
+    // query "glm-5": the exact id must be flagged exact and rank first
+    const exactResult = cli(["provider", "search", "glm-5", "--json"]);
+    const exactHits = JSON.parse(exactResult.stdout);
+    expect(exactHits[0].modelId).toBe("glm-5");
+    expect(exactHits[0].match).toBe("exact");
   });
 
   it("matches provider names too, not just model ids", () => {

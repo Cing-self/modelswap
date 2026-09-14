@@ -415,10 +415,12 @@ export async function providerSearch(query: string, options?: { json?: boolean }
     const status = await checkAuthStatus(provider);
     for (const model of provider.models ?? []) {
       const mid = (model.id ?? "").toLowerCase();
-      // match tier: exact id, or same series (glm-5 / glm-5-turbo), or loose substring
+      // match tier: exact id → same series (glm-5 / glm-5-turbo) or a
+      // provider-name hit (listing that platform's models) → loose substring
+      const seriesOrPlatform = mid.startsWith(`${q}-`) || mid.startsWith(`${q}.`) || providerMatch;
       const match: Hit["match"] | null = mid === q
         ? "exact"
-        : mid.startsWith(`${q}-`) || mid.startsWith(`${q}.`) || providerMatch && mid.includes(q)
+        : seriesOrPlatform
           ? "prefix"
           : mid.includes(q)
             ? "partial"
