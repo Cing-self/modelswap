@@ -38,7 +38,7 @@ modelswap vault list --json
 
 | 任务 | 子技能 |
 |---|---|
-| 创建/轮换/使用密钥、凭证捕获请求 | `modelswap-vault-secrets`（密钥安全规范，必读） |
+| 任何涉及密钥的操作（查看/搜索/创建/捕获/使用/轮换/重命名/删除） | `modelswap-vault-secrets`（密钥技能，必读） |
 | 为 Agent 配置 Provider 与模型路由 | `modelswap-agent-routing` |
 | Vault 云同步（push/pull/test） | `modelswap-sync` |
 

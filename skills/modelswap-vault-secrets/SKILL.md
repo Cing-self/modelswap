@@ -1,6 +1,6 @@
 ---
 name: modelswap-vault-secrets
-description: ModelSwap 密钥安全规范——创建/轮换/使用 Vault 密钥。发起凭证捕获请求（vault request，密钥不进对话）、通过 vault run 安全使用（不进进程列表）、明文披露红线、分组管理与删除确认。当任务需要创建新密钥、密钥不在库中、轮换已泄露的密钥，或在命令中使用密钥时使用；仅查看密钥列表用 modelswap 核心技能即可。
+description: ModelSwap 密钥技能——凡涉及密钥/凭证/API key/token/secret 的任务一律使用本技能：查看与搜索、创建与凭证捕获（vault request，密钥不进对话）、通过 vault run 安全使用（不进进程列表）、多字段凭证、轮换（--replace）、重命名与分组、删除确认、明文披露红线。只要任务中出现任何密钥相关操作就应用本技能，先读规范再动手。
 ---
 
 # 密钥安全（Vault secrets）
@@ -22,6 +22,19 @@ modelswap vault request <KEY>@<服务分组> \
 - 多字段凭证（如 `app_id` + `app_secret`）在 Vault 中一个实体一个 key，字段打包为 JSON，命名为 `服务-实体名`；不要拆成多个 key：`--fields "app_id,app_secret"`（可选 `--field-pattern "app_id=^cli_[a-z0-9]+$"`）。
 - 替换已泄露或权限配错的 key：用同样参数重发请求并加 `--replace`；新值覆盖旧值，引用它的 Agent 配置会自动重新同步。
 
+## 查看与搜索（已脱敏，安全）
+
+日常的查看、检索、分组确认都在这里完成，输出不包含明文：
+
+```bash
+modelswap vault list --json          # 全部密钥（脱敏）
+modelswap vault list --json --group "火山引擎"   # 按分组过滤
+modelswap vault search <query>       # 按 key 名/描述/分组模糊搜索（支持 --json）
+modelswap vault groups               # 去重后的分组及各自数量
+```
+
+任务开始前先搜库——用户要的密钥往往已经存在；选择分组时先查既有分组并复用，不要发明近似重复的分组。
+
 ## 在命令中使用密钥
 
 优先通过 `vault run` 执行工具——值只被解密并注入子进程的环境块，不会出现在命令参数、进程列表（ps）或 Agent 记录中：
@@ -40,14 +53,7 @@ modelswap vault run --key <KEY> --env <ENV_VAR> -- <命令...>
 printf '%s' "$SECRET_VALUE" | modelswap vault set <KEY> --stdin --group <服务分组> --desc "<用途说明>"
 ```
 
-在共享终端里，优先让用户运行交互式 `modelswap vault set <KEY>` 提示，而不是回显值。
-
-选择分组前先查既有分组并复用——不要发明近似重复的分组：
-
-```bash
-modelswap vault groups          # 去重后的分组及各自数量
-modelswap vault search <query>  # 按 key 名/描述/分组模糊搜索（支持 --json）
-```
+在共享终端里，优先让用户运行交互式 `modelswap vault set <KEY>` 提示，而不是回显值。分组选择沿用「查看与搜索」一节的规则：先查既有分组并复用。
 
 以下命令属于明文披露：
 
