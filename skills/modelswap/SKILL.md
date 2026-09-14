@@ -26,10 +26,11 @@ description: 使用 ModelSwap CLI 检查或管理本地 AI Provider、Agent 模�
 modelswap provider current --json
 modelswap provider list --json
 modelswap provider auth --json
+modelswap provider search <模型名或平台名> [--exact] [--json]
 modelswap vault list --json
 ```
 
-`vault list --json` 输出已脱敏，可安全查看。Provider JSON 只含配置元数据，不含密钥明文。不确定某个选项时运行 `modelswap <命令> --help`；引用 ID 时以 JSON 里的稳定 ID 为准，不要凭显示名称猜测。
+`vault list --json` 输出已脱敏，可安全查看。Provider JSON 只含配置元数据，不含密钥明文。`provider search` 回答「某模型在哪些平台可用」：默认模糊匹配（精确 > 系列变体 > 子串，每条带 match 标识与认证状态），`--exact` 只返回 id 完全一致的命中。不确定某个选项时运行 `modelswap <命令> --help`；引用 ID 时以 JSON 里的稳定 ID 为准，不要凭显示名称猜测。
 
 ## 相关技能（按需加载）
 
