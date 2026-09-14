@@ -421,6 +421,12 @@ export async function providerSearch(query: string, options?: { json?: boolean }
       }
     }
   }
+  // Rank so the model the user *meant* floats to the top when agents feed a
+  // fuzzy name like "glm-5": exact id → id prefix → authenticated → rest.
+  const rank = (h: Hit) =>
+    (h.modelId.toLowerCase() === q ? 0 : h.modelId.toLowerCase().startsWith(q + "-") || h.modelId.toLowerCase().startsWith(q + ".") ? 1 : 2) * 10 +
+    (h.hasApiKey || h.oauthLoggedIn === true ? 0 : 1);
+  hits.sort((a, b) => rank(a) - rank(b) || a.modelId.localeCompare(b.modelId));
   if (options?.json) {
     process.stdout.write(`${JSON.stringify(hits, null, 2)}\n`);
     return;
