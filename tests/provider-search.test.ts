@@ -85,7 +85,7 @@ describe("provider search (CLI)", { timeout: 60000 }, () => {
     expect(exactHits.length).toBeGreaterThan(0);
     for (const h of exactHits) expect(h.match).toBe("exact");
 
-    const none = cli(["provider", "search", "no-such-model-zz", "--exact"]);
+    const none = cli(["provider", "search", "sonnet", "--exact"]); // fuzzy hits exist, exact does not
     expect(none.status).toBe(0);
     expect(none.stdout).toContain("没有精确命中");
   });
