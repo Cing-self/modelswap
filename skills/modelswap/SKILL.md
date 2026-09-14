@@ -1,11 +1,22 @@
 ---
 name: modelswap
-description: 使用 ModelSwap CLI 检查或管理本地 AI Provider、Agent 模型路由、加密 Vault 密钥（含发起凭证捕获请求、以安全方式使用密钥）、项目环境注入与云同步。当用户要求使用 modelswap、配置 AI 编码 Agent、管理其 Provider/模型，或创建/轮换/使用 ModelSwap 管理的密钥时使用；不要用于无关的 Provider API。
+description: 使用 ModelSwap CLI 检查或管理本地 AI Provider、Agent 模型路由、加密 Vault 密钥（含发起凭证捕获请求、以安全方式使用密钥）与云同步。覆盖 Claude Code、Codex、OpenCode 等 10 个编码 Agent，以及 30+ 主流模型平台的密钥创建/轮换/使用。当用户要求使用 modelswap、配置 AI 编码 Agent、管理其 Provider/模型，或处理 ModelSwap 管理的密钥时使用；不要用于无关的 Provider API。
 ---
 
 # ModelSwap CLI
 
 把 ModelSwap 当作本地控制面，管理 AI 编码 Agent 的凭证与模型路由。始终守住用户的授权边界：查看配置不等于被授权修改 Agent 文件、泄露密钥或把数据同步到外部。
+
+## 可管理的范围
+
+- **Agent 模型路由**（10 个）：Claude Code、Codex、OpenCode、WorkBuddy、ZCode、Grok、OpenClaw、Kimi Code、MiMo Code、Hermes
+- **密钥自动创建/轮换**（30+ 平台变体）：
+  - 国际：OpenAI、Anthropic、xAI（Grok）、Mistral、OpenRouter、MiniMax（国际站）、Z.AI（国际站）、OpenCode Go
+  - 国内：智谱 AI、DeepSeek、Moonshot、Kimi、阿里云百炼、硅基流动、百度千帆、火山方舟、腾讯云、小米 MiMo、阶跃星辰
+  - 各平台的 Coding Plan / Token Plan 变体同样支持
+- **Vault 密钥**：任意服务的凭证存取、捕获请求、安全注入、轮换与分组管理
+
+清单随版本增长，以 `modelswap provider list --json` 与 Web 控制台的实际输出为准。
 
 ## 查看与检查
 
