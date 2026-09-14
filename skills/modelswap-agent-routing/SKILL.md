@@ -1,78 +1,79 @@
 ---
 name: modelswap-agent-routing
-description: 配置 AI 编码 Agent 的 Provider 与模型路由——为 Claude Code、Codex、OpenCode、WorkBuddy 等 10 个 Agent 查询、切换或指定 Provider 与模型。当用户要求为某个 Agent 换模型、换 Provider、设置默认路由，或排查 Agent 没用上某模型时使用；仅查看配置用 modelswap 核心技能即可。
+description: 为 AI 编码 Agent 配置 Provider 与模型——从判定目标 Agent、确认平台与认证、补齐密钥（自动创建或凭证捕获）、验证连接、选择模型到切换生效的完整流程。当用户要求为某个 Agent 换模型、换 Provider、接入新 Agent，或排查模型不可用时使用。
 ---
 
 # Agent 模型路由
 
-核心动作只有一条命令，但**先查、再改、后验证**的流程不可省略：
+把「给某 Agent 配上可用的模型」当作一条流水线，逐步推进。每一步先查再动，失败有明确的兜底路径。
+
+## 第 1 步 · 判定目标 Agent
+
+用户说的「帮 Codex 换个模型」「给 OpenCode 接 MiMo」里，先确定 agentId：
 
 ```bash
-# 1) 查现状（谁在用什么）
 modelswap provider current --json
-# 2) 变更
+```
+
+输出即当前可管理的 Agent 清单（`agentId` / `agentName` / `configured` / `providerId` / `modelId`）。对照：`claude`=Claude Code、`codex`=ChatGPT (Codex)、`opencode`=OpenCode、`workbuddy`=WorkBuddy、`zcode`=ZCode、`grok`=Grok Build、`openclaw`=OpenClaw、`kimi-code`=Kimi Code、`mimo-code`=MiMo Code、`hermes`=Hermes。用户没点名 Agent 时，先用此输出问清楚要给谁配——省略 `--agent` 的切换会波及所有兼容 Agent。
+
+## 第 2 步 · 确认平台是否可用
+
+确定目标平台（Provider）后，检查它是否已在配置中、认证是否就绪：
+
+```bash
+modelswap provider list --json    # 平台是否已配置（41 个内置预设 + 自定义）
+modelswap provider auth --json    # 认证状态：hasApiKey / oauthLoggedIn
+```
+
+- 平台在列表且 `hasApiKey: true` 或 `oauthLoggedIn: true` → 进第 4 步。
+- 平台在列表但 `hasApiKey: false` → 进第 3 步补密钥。
+- 平台不在列表 → 见「自定义平台」。
+
+## 第 3 步 · 补齐密钥（没有 key 时）
+
+按平台能力选路，优先级从上到下：
+
+1. **支持自动创建**（浏览器扩展复用已登录会话，自动建 key 直接入库）：内置 30+ 平台变体——OpenAI、Anthropic、智谱、DeepSeek、Moonshot/Kimi、MiniMax（国内/国际）、Z.AI、阿里云百炼、硅基流动、百度千帆、火山方舟、腾讯云、小米 MiMo、阶跃星辰、xAI、Mistral、OpenRouter 及各 Coding/Token Plan 变体。调用 Web API `POST /api/vault/auto-create`（服务端编排，平台清单以 `GET /api/vault/auto-create/platforms` 为准）。
+2. **不在自动创建列表**（如飞书、Supabase、企业内部网关）：走 `modelswap vault request` 凭证捕获——用户去控制台创建并复制，浏览器扩展自动接住入库。用法与安全规范见 `modelswap-vault-secrets` 技能。
+
+拿到 key 后回到第 2 步复查 `provider auth --json`。
+
+## 第 4 步 · 验证连接
+
+密钥就位后、切换前，验证平台真的能连通（`provider auth --json` 的认证探测会对真实端点发起最小推理请求）：
+
+- 探测通过 → 进第 5 步。
+- 探测失败 → 看返回的错误类型分诊：key 无效/额度不足（引导用户到平台控制台核实，或重走第 3 步轮换）、网络不通（确认 baseUrl 与代理环境）、模型权限不足（换平台提供的其他模型）。
+
+## 第 5 步 · 选模型并切换
+
+确认平台提供用户要的模型，再执行切换：
+
+```bash
+modelswap provider list --json          # models[] 里有每个模型的 id 与元数据
 modelswap provider use <provider-id> --agent <agent-id> --model <model-id>
-# 3) 验证
-modelswap provider current --json
+modelswap provider current --json       # 验证路由已变更
 ```
 
-## 查看命令与 JSON 结构
+- Provider 按 **id 或 name 匹配**（区分大小写）；模型用 list 输出里的真实 modelId，不要凭记忆猜。
+- 省略 `--model` 会用该平台的第一个模型——仅在用户明确接受默认时使用。
+- 变更写入 Agent 的原生配置文件（Claude → `~/.claude`，Codex → `~/.codex`，OpenCode → `~/.config/opencode/opencode.json`），尽可能先建切换前快照。
+- 路由已变但行为未变时：检查目标 Agent 是否需要重启加载配置，回到 `provider auth --json` 复查认证。
 
-- `provider current --json` —— 每个 Agent 一条：`agentId` / `agentName` / `configured` / `providerId` / `providerName` / `modelId`。这是「某 Agent 现在用什么」的唯一可信来源。
-- `provider auth --json` —— 每个 Provider 的认证状态：`hasApiKey`（Vault 中是否绑定 key）、`oauthLoggedIn`（OAuth 类登录态，如 ChatGPT/Claude 订阅）。
-- `provider list --json` —— 全部 Provider：`id` / `name` / `type`（协议）/ `baseUrl` / `auth.hasApiKey` / `models[]`（含每个模型的 id 与元数据）。选模型前先在这里确认 `modelId` 真实存在。
+## 自定义平台
 
-引用 Provider 和模型时**始终用 JSON 里的稳定 id**（如 `xiaomi-coding` / `mimo-v2.5-pro`），不要凭显示名猜测或翻译。
-
-## provider use 的行为细节
-
-- Provider 参数按 **id 或 name 匹配**（`id` 优先，两者都区分大小写）。
-- 除非用户明确要默认值，**始终同时给出 `--agent` 和 `--model`**：
-  - 省略 `--model` → 使用该 Provider 的**第一个模型**（不一定是用户想要的）；
-  - 省略 `--agent` → 应用到**所有兼容该 Provider 的 Agent**（波及面大，仅在用户明确说「全部」时使用）。
-- 变更会尽可能创建切换前快照，然后写入所选 Agent 的**原生配置文件**：
-  - Claude Code → `~/.claude`（settings）
-  - Codex → `~/.codex`（config.toml 及 model-catalogs）
-  - OpenCode → `~/.config/opencode/opencode.json`（注意不是 `~/.opencode/config.json`）
-  - 其余 Agent 同理写入各自原生配置
-- `provider switch [agent]` 是交互式向导，适合用户自己操作；agent 自动化一律用 `use`。
-
-## 支持的 Agent
-
-`--agent` 参数使用下表的 agentId（不是显示名）。**运行时以 `modelswap provider current --json` 的输出为准**——它就是当前的 Agent 清单（每条含 `agentId` / `agentName` / `configured`，`configured: false` 表示已识别但未配置）。新装了某个 Agent 后，出现该输出里即说明 ModelSwap 已能管理它。
-
-| agentId | 显示名 |
-|---|---|
-| `claude` | Claude Code |
-| `codex` | ChatGPT (Codex) |
-| `opencode` | OpenCode |
-| `workbuddy` | WorkBuddy |
-| `zcode` | ZCode |
-| `grok` | Grok Build |
-| `openclaw` | OpenClaw |
-| `kimi-code` | Kimi Code |
-| `mimo-code` | MiMo Code |
-| `hermes` | Hermes |
-
-## 切换前确认认证状态
-
-切换路由不会创建或迁移 key。目标 Provider 没绑定 key 时，切过去立刻认证失败。切换前先查：
+用户想接入清单之外的平台（自建网关、私有部署、兼容 OpenAI 协议的中转）：
 
 ```bash
-modelswap provider auth --json
+modelswap provider add
 ```
 
-- `hasApiKey: false` → 先按 `modelswap-vault-secrets` 技能为该 Provider 发起凭证捕获请求，拿到 key 再切换。
-- OAuth 类 Provider（ChatGPT / Claude 订阅）看 `oauthLoggedIn`——它们走登录态，不需要 key。
+交互式向导：选「自定义」→ 填协议类型（OpenAI 兼容 / Anthropic 等）、baseUrl、绑定 key（key 会存入 Vault）。添加完成后该平台与内置平台无异：出现在 `provider list`，可被 `provider use` 路由，可走同样的连接验证。向导适合让用户亲自跑；agent 需要非交互添加时，引导用户完成或使用预设。
 
-## 添加与删除 Provider
+## 常见任务速查
 
-- `modelswap provider add` —— 交互式，内置预设（OpenAI、Anthropic、智谱、火山方舟等 22+ 平台）或自定义（type/baseUrl/key）。适合让用户自己跑；agent 需要非交互添加时优先用预设。
-- `modelswap provider delete <name>` —— 删除前确认没有 Agent 仍在路由到它（`provider current --json`）。
-
-## 常见任务配方
-
-- **只换模型（同 Provider）**：`provider use <当前provider-id> --agent <agent> --model <新model-id>`
-- **整体换 Provider**：`provider use <新provider-id> --agent <agent>`（用默认模型）或带 `--model`
-- **新装了个 Agent 想接入**：`provider current --json` 看它是否已被识别（`configured: false` 表示未配置）→ `provider use` 指定它
-- **改了没生效**：先 `provider current --json` 确认路由已变更；若路由对但行为不对，检查目标 Agent 是否需要重启/重载配置，以及 `provider auth --json` 里该 Provider 的认证状态
+- 只换模型：`provider use <当前 provider-id> --agent <agent> --model <新 model-id>`
+- 整体换平台：从第 2 步走完整流程（换平台 = 新认证 + 新 key 的完整链路）
+- 接入新装的 Agent：`provider current --json` 确认已识别（`configured: false` 即未配置）→ 从第 2 步走起
+- 交互式操作留给用户：`provider switch [agent]` 是人工向导，agent 自动化一律用 `use`
