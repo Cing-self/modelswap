@@ -54,7 +54,11 @@ describe("provider search (CLI)", { timeout: 60000 }, () => {
       expect(hit).toHaveProperty("providerId");
       expect(hit).toHaveProperty("modelId");
       expect(typeof hit.hasApiKey).toBe("boolean");
+      expect(["exact", "prefix", "partial"]).toContain(hit.match);
     }
+    // seeded exact ids must be flagged exact and rank first
+    expect(hits[0].modelId).toBe("glm-5");
+    expect(hits[0].match).toBe("exact");
   });
 
   it("matches provider names too, not just model ids", () => {

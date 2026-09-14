@@ -404,28 +404,41 @@ export async function providerSearch(query: string, options?: { json?: boolean }
     return;
   }
   const providers = await loadProviders();
-  type Hit = { providerId: string; providerName: string; modelId: string; hasApiKey: boolean; oauthLoggedIn: boolean | null };
+  type Hit = {
+    providerId: string; providerName: string; modelId: string;
+    hasApiKey: boolean; oauthLoggedIn: boolean | null;
+    match: "exact" | "prefix" | "partial";
+  };
   const hits: Hit[] = [];
   for (const provider of providers) {
     const providerMatch = provider.name.toLowerCase().includes(q) || provider.id.toLowerCase().includes(q);
     const status = await checkAuthStatus(provider);
     for (const model of provider.models ?? []) {
-      if (providerMatch || (model.id ?? "").toLowerCase().includes(q)) {
+      const mid = (model.id ?? "").toLowerCase();
+      // match tier: exact id, or same series (glm-5 / glm-5-turbo), or loose substring
+      const match: Hit["match"] | null = mid === q
+        ? "exact"
+        : mid.startsWith(`${q}-`) || mid.startsWith(`${q}.`) || providerMatch && mid.includes(q)
+          ? "prefix"
+          : mid.includes(q)
+            ? "partial"
+            : null;
+      if (match) {
         hits.push({
           providerId: provider.id,
           providerName: provider.name,
           modelId: model.id,
           hasApiKey: status.hasApiKey,
           oauthLoggedIn: status.oauthLoggedIn ?? null,
+          match,
         });
       }
     }
   }
   // Rank so the model the user *meant* floats to the top when agents feed a
-  // fuzzy name like "glm-5": exact id → id prefix → authenticated → rest.
-  const rank = (h: Hit) =>
-    (h.modelId.toLowerCase() === q ? 0 : h.modelId.toLowerCase().startsWith(q + "-") || h.modelId.toLowerCase().startsWith(q + ".") ? 1 : 2) * 10 +
-    (h.hasApiKey || h.oauthLoggedIn === true ? 0 : 1);
+  // fuzzy name like "glm-5": exact → prefix family → authenticated → rest.
+  const tier = (m: Hit["match"]) => (m === "exact" ? 0 : m === "prefix" ? 1 : 2);
+  const rank = (h: Hit) => tier(h.match) * 10 + (h.hasApiKey || h.oauthLoggedIn === true ? 0 : 1);
   hits.sort((a, b) => rank(a) - rank(b) || a.modelId.localeCompare(b.modelId));
   if (options?.json) {
     process.stdout.write(`${JSON.stringify(hits, null, 2)}\n`);
@@ -435,12 +448,16 @@ export async function providerSearch(query: string, options?: { json?: boolean }
     console.log(kleur.yellow(`没有匹配「${query}」的模型。换个关键词，或用 modelswap provider add 接入自定义平台。`));
     return;
   }
-  console.log(kleur.bold(`\n「${query}」出现在 ${new Set(hits.map((h) => h.providerId)).size} 个平台、共 ${hits.length} 个模型:\n`));
+  const label = { exact: "精确", prefix: "系列", partial: "模糊" } as const;
+  const exactCount = hits.filter((h) => h.match === "exact").length;
+  console.log(kleur.bold(`\n「${query}」出现在 ${new Set(hits.map((h) => h.providerId)).size} 个平台、共 ${hits.length} 个模型` +
+    (exactCount > 0 ? kleur.green(`（含 ${exactCount} 个精确命中）`) : kleur.yellow("（无精确命中，以下为系列/模糊匹配）")) + ":\n"));
   for (const h of hits) {
     const auth = h.hasApiKey || h.oauthLoggedIn === true
       ? kleur.green("✓ 已认证")
       : kleur.yellow("○ 未认证");
-    console.log(`  ${kleur.cyan(h.modelId)}  ${kleur.gray("·")} ${h.providerName} ${kleur.gray(`(${h.providerId})`)} ${auth}`);
+    const tierMark = h.match === "exact" ? kleur.green(`[${label.exact}]`) : h.match === "prefix" ? kleur.cyan(`[${label.prefix}]`) : kleur.gray(`[${label.partial}]`);
+    console.log(`  ${kleur.cyan(h.modelId)} ${tierMark} ${kleur.gray("·")} ${h.providerName} ${kleur.gray(`(${h.providerId})`)} ${auth}`);
   }
   console.log(kleur.gray("\n切换: modelswap provider use <provider-id> --agent <agent-id> --model <model-id>"));
   console.log();
