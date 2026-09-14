@@ -48,7 +48,15 @@ modelswap provider auth --json    # 认证状态：hasApiKey / oauthLoggedIn
 
 ## 第 5 步 · 选模型并切换
 
-确认平台提供用户要的模型，再执行切换：
+用户点名要某个模型（「帮我换成 glm-5」）时，先搜它在哪些平台可用：
+
+```bash
+modelswap provider search glm-5          # 模型 → 平台 × 认证状态（--json 可解析）
+```
+
+把候选呈现给用户选（平台名 + 是否已认证 + 计费差异），用户确认后再切换。已认证平台可直接切换；未认证的回第 3 步补密钥。未搜到时提醒用户换关键词或走「自定义平台」接入。
+
+确认平台提供用户要的模型后，执行切换：
 
 ```bash
 modelswap provider list --json          # models[] 里有每个模型的 id 与元数据

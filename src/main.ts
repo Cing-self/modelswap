@@ -30,6 +30,7 @@ import {
   providerAdd,
   providerDeleteAction,
   providerAuth,
+  providerSearch,
 } from "./commands/provider";
 import { migrateIfNeeded } from "./providers/migration";
 import { installSkill, showSkillPath } from "./commands/skill";
@@ -546,6 +547,16 @@ provider
     await selectLanguageIfNeeded();
     await migrateIfNeeded();
     await providerAuth(options);
+  });
+
+provider
+  .command("search <query>")
+  .description("搜索模型在哪些平台可用（含认证状态），如: provider search glm-5")
+  .option("--json", "输出适合脚本与 Agent 解析的 JSON")
+  .action(async (query: string, options: { json?: boolean }) => {
+    await selectLanguageIfNeeded();
+    await migrateIfNeeded();
+    await providerSearch(query, options);
   });
 
 // web 子命令 - 启动 Web UI

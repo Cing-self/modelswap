@@ -392,3 +392,50 @@ export async function providerAuth(options?: { json?: boolean }): Promise<void> 
   }
   console.log();
 }
+
+// modelswap provider search <query> — find which platforms offer a model.
+// Answers "用户说要 glm-5，哪些平台有、能不能用": searches model ids (and
+// provider names) across configured providers with live auth state.
+export async function providerSearch(query: string, options?: { json?: boolean }): Promise<void> {
+  const q = query.trim().toLowerCase();
+  if (!q) {
+    console.error(kleur.red("✗ 请提供要搜索的模型名，例如: modelswap provider search glm-5"));
+    process.exitCode = 1;
+    return;
+  }
+  const providers = await loadProviders();
+  type Hit = { providerId: string; providerName: string; modelId: string; hasApiKey: boolean; oauthLoggedIn: boolean | null };
+  const hits: Hit[] = [];
+  for (const provider of providers) {
+    const providerMatch = provider.name.toLowerCase().includes(q) || provider.id.toLowerCase().includes(q);
+    const status = await checkAuthStatus(provider);
+    for (const model of provider.models ?? []) {
+      if (providerMatch || (model.id ?? "").toLowerCase().includes(q)) {
+        hits.push({
+          providerId: provider.id,
+          providerName: provider.name,
+          modelId: model.id,
+          hasApiKey: status.hasApiKey,
+          oauthLoggedIn: status.oauthLoggedIn ?? null,
+        });
+      }
+    }
+  }
+  if (options?.json) {
+    process.stdout.write(`${JSON.stringify(hits, null, 2)}\n`);
+    return;
+  }
+  if (hits.length === 0) {
+    console.log(kleur.yellow(`没有匹配「${query}」的模型。换个关键词，或用 modelswap provider add 接入自定义平台。`));
+    return;
+  }
+  console.log(kleur.bold(`\n「${query}」出现在 ${new Set(hits.map((h) => h.providerId)).size} 个平台、共 ${hits.length} 个模型:\n`));
+  for (const h of hits) {
+    const auth = h.hasApiKey || h.oauthLoggedIn === true
+      ? kleur.green("✓ 已认证")
+      : kleur.yellow("○ 未认证");
+    console.log(`  ${kleur.cyan(h.modelId)}  ${kleur.gray("·")} ${h.providerName} ${kleur.gray(`(${h.providerId})`)} ${auth}`);
+  }
+  console.log(kleur.gray("\n切换: modelswap provider use <provider-id> --agent <agent-id> --model <model-id>"));
+  console.log();
+}
