@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it, expect, afterAll } from "vitest";
@@ -10,22 +10,46 @@ import { describe, it, expect, afterAll } from "vitest";
 const REPO = path.resolve(__dirname, "..");
 const MAIN = path.join(REPO, "dist", "main.js");
 const HOME = mkdtempSync(path.join(tmpdir(), "provider-search-test-"));
+mkdirSync(path.join(HOME, ".modelswap"), { recursive: true });
 const CHILD_ENV = { ...process.env, HOME, USERPROFILE: HOME, MODELSWAP_NO_PROMPT: "1" };
 
 function cli(args: string[]) {
   return spawnSync(process.execPath, [MAIN, ...args], { env: CHILD_ENV, encoding: "utf8", timeout: 30000 });
 }
 
+// Presets initialize with empty model lists in a fresh HOME (the catalog
+// cache under ~/.modelswap/cache does not exist yet), so seed one provider
+// with explicit models — search runs over provider.models.
+const MODELS = [
+  { id: "glm-5", name: "GLM-5" },
+  { id: "glm-5-flash", name: "GLM-5 Flash" },
+  { id: "test-sonnet", name: "Test Sonnet" },
+];
+
 describe("provider search (CLI)", { timeout: 60000 }, () => {
   it("finds a model across platforms with auth state (--json)", () => {
+    writeFileSync(
+      path.join(HOME, ".modelswap", "providers.json"),
+      JSON.stringify({
+        version: 1,
+        providers: [
+          {
+            id: "search-test",
+            name: "Search Test Platform",
+            type: "openai",
+            baseUrl: "https://example.invalid/v1",
+            models: MODELS,
+          },
+        ],
+      }),
+    );
     const result = cli(["provider", "search", "glm", "--json"]);
     expect(result.status).toBe(0);
     const hits = JSON.parse(result.stdout);
     expect(Array.isArray(hits)).toBe(true);
     expect(hits.length).toBeGreaterThan(0);
-    // presets must be present: zai (智谱) ships glm-family models
     const providers = new Set(hits.map((h: { providerId: string }) => h.providerId));
-    expect(providers.has("zai")).toBe(true);
+    expect(providers.has("search-test")).toBe(true);
     for (const hit of hits) {
       expect(hit).toHaveProperty("providerId");
       expect(hit).toHaveProperty("modelId");
@@ -34,10 +58,10 @@ describe("provider search (CLI)", { timeout: 60000 }, () => {
   });
 
   it("matches provider names too, not just model ids", () => {
-    const result = cli(["provider", "search", "deepseek", "--json"]);
+    const result = cli(["provider", "search", "search-test", "--json"]);
     expect(result.status).toBe(0);
     const hits = JSON.parse(result.stdout);
-    expect(hits.some((h: { providerId: string }) => h.providerId === "deepseek")).toBe(true);
+    expect(hits.some((h: { providerId: string }) => h.providerId === "search-test")).toBe(true);
   });
 
   it("fails gracefully on an empty query", () => {
