@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.81",
+  "publishedAt": "2026-09-15",
+  "summary": {
+    "zh": "核心技能文档补全安装闭环:拿到 ModelSwap 技能后怎么装、装到哪(交互 skill add / 非交互参数 / 无 CLI 时的 npx 与手动拷贝),一次写清。",
+    "en": "The core skill doc closes the install loop: once you have the ModelSwap skills, the doc explains exactly how to install them and where (interactive skill add, non-interactive flags, or npx/manual copy without the CLI)."
+  },
+  "highlights": [
+    {
+      "category": "improved",
+      "zh": "核心 SKILL.md 的「安装到其他 Agent」章节重写:覆盖 modelswap skill add 交互安装(自动检测 Claude Code/Codex/OpenCode/共享 agents 目录)、非交互参数直装、以及没有 CLI 时的 npx skills add Cing-self/modelswap 与手动拷贝路径。",
+      "en": "The core SKILL.md install section now covers every path: interactive modelswap skill add (auto-detects Claude Code/Codex/OpenCode/shared agents dir), non-interactive flags, and npx skills add or manual copy when the CLI isn't installed."
+    },
+    {
+      "category": "improved",
+      "zh": "补上更新方式说明:CLI 升级后重跑 skill add --force 即可同步全部已装副本,避免旧版本技能长期滞留。",
+      "en": "Documents the update path: rerun skill add --force after a CLI upgrade to refresh every installed copy instead of leaving stale versions behind."
+    },
+    {
+      "category": "improved",
+      "zh": "纠正过时引用:旧的「skill install 到项目」描述与当前命令面对齐,技能家族的分发方式(随 CLI 打包 + GitHub 仓库两来源)在文档中明确。",
+      "en": "Fixes the stale project-install reference so the doc matches the current command surface, and states both distribution sources (bundled with the CLI + the GitHub repo)."
+    }
+  ]
+}
