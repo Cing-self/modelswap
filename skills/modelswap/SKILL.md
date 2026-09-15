@@ -34,7 +34,7 @@ modelswap vault list --json
 
 ## 相关技能（按需加载）
 
-本技能是入口与概览。涉及以下任务时，读取对应子技能再行动（随 `modelswap skill install` 一起安装）：
+本技能是入口与概览，随 ModelSwap CLI 分发。涉及以下任务时，读取对应子技能再行动：
 
 | 任务 | 子技能 |
 |---|---|
@@ -42,13 +42,19 @@ modelswap vault list --json
 | 为 Agent 配置 Provider 与模型路由 | `modelswap-agent-routing` |
 | Vault 云同步（push/pull/test） | `modelswap-sync` |
 
+## 安装到其他 Agent
+
+拿到本技能（`skills/<名字>/SKILL.md`）后，装进 Agent 的技能目录即可被识别：
+
+1. **交互安装（推荐，已装 ModelSwap CLI 时）**：运行 `modelswap skill add`，选择目标 Agent（自动检测 Claude Code / Codex / OpenCode / 共享 `~/.agents/skills`）与要装的技能，一键落盘。
+2. **非交互直装**：`modelswap skill add --agent claude --all`，或精确组合 `--agent codex --skill modelswap-sync --force`（覆盖已存在副本）。
+3. **没有 ModelSwap CLI**：`npx skills add Cing-self/modelswap`（仓库遵循社区 skills 目录约定），或手动把 `skills/<名字>/` 整个目录拷贝到目标 Agent 的技能目录（如 `~/.claude/skills/`、`~/.agents/skills/`）。
+
+更新：CLI 升级后重跑 `modelswap skill add --force`（或先删旧目录再装）即可同步全部副本。
+
 ## Web 控制台
 
 `modelswap web` 启动本地控制台（端口 3780）。仅在用户要求打开浏览器时加 `--open`。如果 3780 被其他进程占用，ModelSwap 会顺延选择下一个可用端口。
-
-## 安装与更新
-
-内置 Skill 家族（1 核心 + 3 子技能）通过 `modelswap skill install /path/to/project` 一起装入项目（`.agents/skills/` 下）。已有副本时需 `--force` 才会整体替换；更新 CLI 后重新 install 以同步全部副本。
 
 ## 验证结果
 
