@@ -3,8 +3,20 @@
   "name": "MODELSWAP",
   "version": "2.2.0",
   "description": "MODELSWAP 密钥自动创建助手 — 复用 Chrome 已登录会话,一键自动创建 API Key 并回填 MODELSWAP vault",
-  "permissions": ["debugger", "tabs", "cookies", "alarms", "scripting", "clipboardRead", "storage", "notifications", "sidePanel"],
-  "host_permissions": ["<all_urls>"],
+  "permissions": [
+    "debugger",
+    "tabs",
+    "cookies",
+    "alarms",
+    "scripting",
+    "clipboardRead",
+    "storage",
+    "notifications",
+    "sidePanel"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
   "background": {
     "service_worker": "dist/background.js",
     "type": "module"
@@ -16,19 +28,6 @@
   "side_panel": {
     "default_path": "sidepanel.html"
   },
-  "content_scripts": [
-    {
-      "matches": ["http://*/*", "https://*/*"],
-      "js": ["dist/copy-guard.js"],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": ["http://*/*", "https://*/*"],
-      "js": ["dist/copy-guard-main.js"],
-      "run_at": "document_start",
-      "world": "MAIN"
-    }
-  ],
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",

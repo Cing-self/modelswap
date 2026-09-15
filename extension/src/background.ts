@@ -522,38 +522,73 @@ async function persistVaultRequests(): Promise<void> {
 }
 
 /**
- * Content scripts only auto-inject on page loads AFTER install/reload — a
- * console tab that was already open has no copy listener and would silently
- * miss the capture. Whenever pending requests name a console URL, inject
- * copy-guard into open tabs on that registrable domain.
+ * Copy-guard injection is domain-scoped, never resident: the manifest
+ * declares no content scripts, so the guard only reaches a page while a
+ * pending request names that console's domain (arm-time sweep for already
+ * open tabs + a navigation listener for pages opened while armed). Both
+ * content scripts carry idempotency guards, so repeat injection is safe.
  */
-async function injectCopyGuardIntoMatchingTabs(): Promise<void> {
+async function injectCopyGuardScripts(tabId: number): Promise<void> {
+  await chrome.scripting.executeScript({ target: { tabId }, files: ['dist/copy-guard.js'] });
+  // The MAIN-world clipboard hook catches button-driven
+  // navigator.clipboard.writeText() copies (no copy event fires).
+  await chrome.scripting.executeScript({ target: { tabId }, files: ['dist/copy-guard-main.js'], world: 'MAIN' as chrome.scripting.ExecutionWorld });
+}
+
+function pendingRequestDomains(): { domains: Set<string>; coversAnyPage: boolean } {
   const now = Date.now();
   const domains = new Set<string>();
+  let coversAnyPage = false;
   for (const req of vaultRequests) {
     if (req.expiresAt <= now) continue;
     for (const item of req.items) {
-      if (item.status !== 'pending' || !item.url) continue;
+      if (item.status !== 'pending') continue;
+      if (!item.url) {
+        // No console URL given: there is no domain to scope to. Arm-time
+        // sweeps may still cover already-open pages; auto-capture stays
+        // confirm-gated (matchItem never returns 'auto' without a domain).
+        coversAnyPage = true;
+        continue;
+      }
       try { domains.add(registrableDomain(new URL(item.url).hostname)); } catch { /* bad url */ }
     }
   }
-  if (domains.size === 0) return;
+  return { domains, coversAnyPage };
+}
+
+async function injectCopyGuardIntoMatchingTabs(): Promise<void> {
+  const { domains, coversAnyPage } = pendingRequestDomains();
+  if (domains.size === 0 && !coversAnyPage) return;
   const tabs = await chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] });
   for (const tab of tabs) {
     if (!tab.id || !tab.url) continue;
     let host = '';
     try { host = new URL(tab.url).hostname; } catch { continue; }
-    if (!domains.has(registrableDomain(host))) continue;
+    if (!domains.has(registrableDomain(host)) && !coversAnyPage) continue;
     try {
-      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['dist/copy-guard.js'] });
-      // The MAIN-world clipboard hook catches button-driven
-      // navigator.clipboard.writeText() copies (no copy event fires).
-      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['dist/copy-guard-main.js'], world: 'MAIN' as chrome.scripting.ExecutionWorld });
+      await injectCopyGuardScripts(tab.id);
       console.log(`[MODELSWAP] copy-guard injected into open tab: ${host}`);
     } catch { // protected page, discarded tab, already-injected is fine too
     }
   }
 }
+
+// Pages that NAVIGATE while a request is armed get the guard on load —
+// still domain-scoped to the pending requests, still not resident.
+chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
+  if (info.status !== 'complete') return;
+  if (vaultRequests.length === 0) return;
+  const { domains } = pendingRequestDomains();
+  if (domains.size === 0) return;
+  let host = '';
+  try { host = new URL(tab.url ?? '').hostname; } catch { return; }
+  if (!host || !domains.has(registrableDomain(host))) return;
+  try {
+    await injectCopyGuardScripts(tabId);
+    console.log(`[MODELSWAP] copy-guard injected on navigation: ${host}`);
+  } catch { // protected page, discarded tab, already-injected is fine too
+  }
+});
 
 function registrableDomain(hostname: string): string {
   const parts = hostname.split('.');
