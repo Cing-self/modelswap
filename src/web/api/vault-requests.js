@@ -13,11 +13,18 @@
  *     a plaintext secret into a request.
  *   - Captures arrive exclusively over the extension WS (origin-gated +
  *     one-time-token), never from plain HTTP endpoints.
- *   - Patterns are compiled once and length-capped to block catastrophic
- *     regexes from a hallucinating agent.
+ *   - Patterns are length-capped AND screened for catastrophic backtracking
+ *     (star height > 1 or overlapping alternation) at creation time — a
+ *     hallucinating agent must not be able to hang the capture path.
+ *   - The queue survives server restarts: it is persisted (metadata only)
+ *     to ~/.modelswap/vault-requests.json and reloaded on startup, so an
+ *     app auto-update no longer orphans a waiting `vault request --wait`.
  */
 
 const crypto = require('crypto');
+const fs = require('fs-extra');
+const os = require('os');
+const path = require('path');
 const { VaultStore } = require('../../vault/store');
 const { normalizeVaultGroup } = require('../../vault/group-meta');
 const { appendLog: appendVaultLog } = require('./log-writer');
@@ -28,16 +35,128 @@ const store = new VaultStore();
 const REQUEST_TTL_MS = 30 * 60 * 1000; // armed requests expire after 30 min
 const MAX_ITEMS = 10;
 const PATTERN_MAX_LEN = 200;
+const QUEUE_PATH = path.join(os.homedir(), '.modelswap', 'vault-requests.json');
 
 // id -> request { id, items: [item], createdAt, expiresAt }
 const requests = new Map();
 
+// ─── Queue persistence (metadata only — never holds secret values) ──
+
+let loaded = false;
+
+async function loadQueueOnce() {
+  if (loaded) return;
+  loaded = true;
+  try {
+    if (!(await fs.pathExists(QUEUE_PATH))) return;
+    const raw = await fs.readJson(QUEUE_PATH);
+    for (const req of Array.isArray(raw) ? raw : []) {
+      if (!req || typeof req.id !== 'string' || !Array.isArray(req.items)) continue;
+      if (req.expiresAt <= Date.now()) continue; // stale on arrival
+      requests.set(req.id, req);
+    }
+  } catch (error) {
+    console.warn(`[vault-request] queue reload failed (starting empty): ${error.message}`);
+  }
+}
+
+// Serialized through a tail so rapid mutations (create → capture within
+// milliseconds) can never land out of order and resurrect stale state.
+let writeTail = Promise.resolve();
+
+function persistQueue() {
+  writeTail = writeTail.then(async () => {
+    const tempPath = `${QUEUE_PATH}.${process.pid}.tmp`;
+    await fs.outputFile(tempPath, JSON.stringify([...requests.values()], null, 2));
+    await fs.move(tempPath, QUEUE_PATH, { overwrite: true });
+  }).catch((error) => console.warn(`[vault-request] queue persist failed: ${error.message}`));
+}
+
 // ─── Validation ──────────────────────────────────────────────────────
+
+/**
+ * Conservative catastrophic-backtracking screen. Rejects the two classes
+ * that make practically all real-world ReDoS: unbounded quantifiers nested
+ * inside unbounded quantifiers (star height > 1) and an alternation inside
+ * an unbounded quantifier where one branch's first char overlaps another's
+ * (e.g. `(a|aa)*`). Deliberately conservative — a rare false positive just
+ * makes the CLI ask for a simpler pattern.
+ */
+function isPatternSafe(pattern) {
+  // Strip literals the engine treats verbatim: escapes and character classes.
+  const source = pattern
+    .replace(/\\[uD]/g, 'x') // \uXXXX \d \w … keep one placeholder char
+    .replace(/\\\d+/g, 'x')
+    .replace(/\\./g, 'x')
+    .replace(/\[[^\]]*\]/g, 'x'); // character classes cannot nest/quantify inside
+  // Tokenize: each open group tracks whether it contains any unbounded
+  // quantifier and the first char of each alternation branch.
+  const stack = [{ unboundedInside: false, branches: null }];
+  let i = 0;
+  while (i < source.length) {
+    const ch = source[i];
+    const top = stack[stack.length - 1];
+    if (ch === '(') {
+      stack.push({ unboundedInside: false, branches: [0] });
+      i += 1;
+      continue;
+    }
+    if (ch === ')') {
+      if (stack.length === 1) return false; // unbalanced — RegExp() will reject anyway
+      const group = stack.pop();
+      const parent = stack[stack.length - 1];
+      const quantifier = source.slice(i + 1).match(/^[*+{]/);
+      const unboundedHere = Boolean(quantifier) && (quantifier[0] !== '{' || /\{\d+,/.test(source.slice(i + 1)));
+      if (unboundedHere) {
+        // Star height > 1: an unbounded group quantifying unbounded content.
+        if (group.unboundedInside) return false;
+        // Alternation overlap inside an unbounded group (e.g. `(a|aa)*`).
+        if (group.branches && group.branches.length > 1) {
+          for (let b = 0; b < group.branches.length; b++) {
+            for (let c = b + 1; c < group.branches.length; c++) {
+              const fb = group.branches[b];
+              const fc = group.branches[c];
+              if (fb && fc && fb[0] === fc[0]) return false;
+            }
+          }
+        }
+        if (parent) parent.unboundedInside = true;
+      }
+      i += 1 + (quantifier ? quantifier[0].length : 0);
+      continue;
+    }
+    if (ch === '|') {
+      if (top.branches) top.branches.push(0);
+      i += 1;
+      continue;
+    }
+    if (ch === '*' || ch === '+') {
+      top.unboundedInside = true;
+      i += 1;
+      continue;
+    }
+    if (ch === '{') {
+      const close = source.indexOf('}', i);
+      const body = close === -1 ? '' : source.slice(i + 1, close);
+      if (/\d+,/.test(body)) top.unboundedInside = true;
+      i = close === -1 ? i + 1 : close + 1;
+      continue;
+    }
+    // Ordinary char: remember it as the branch-start candidate.
+    const branch = top.branches;
+    if (branch && branch[branch.length - 1] === 0) branch[branch.length - 1] = ch;
+    i += 1;
+  }
+  return stack.length === 1;
+}
 
 function compilePattern(pattern) {
   if (typeof pattern !== 'string') return { error: 'pattern must be a string' };
   if (pattern.length === 0 || pattern.length > PATTERN_MAX_LEN) {
     return { error: `pattern length must be 1..${PATTERN_MAX_LEN}` };
+  }
+  if (!isPatternSafe(pattern)) {
+    return { error: 'pattern risks catastrophic backtracking (nested or overlapping unbounded quantifiers) — simplify it' };
   }
   try {
     return { regex: new RegExp(pattern) };
@@ -170,6 +289,7 @@ function maskReceipt(value, fields) {
 
 async function createRequests(req, res) {
   try {
+    await loadQueueOnce();
     pruneExpired();
     const body = req.body || {};
     const rawItems = Array.isArray(body.items) ? body.items : null;
@@ -198,6 +318,7 @@ async function createRequests(req, res) {
     }
     const record = { id, items, createdAt: Date.now(), expiresAt: Date.now() + REQUEST_TTL_MS };
     requests.set(id, record);
+    persistQueue();
     console.log(`[vault-request] ${id}: ${items.map(i => i.key).join(', ')} — pushed to extension`);
     pushSync();
     // Tell the caller whether anyone is actually listening — an honest
@@ -214,16 +335,19 @@ async function createRequests(req, res) {
 }
 
 async function listRequests(_req, res) {
+  await loadQueueOnce();
   pruneExpired();
   res.json({ requests: [...requests.values()].map(publicView) });
 }
 
 async function cancelRequest(req, res) {
+  await loadQueueOnce();
   const { id } = req.body || {};
   if (typeof id !== 'string' || !requests.has(id)) {
     return res.status(404).json({ error: 'Request not found' });
   }
   requests.delete(id);
+  persistQueue();
   pushSync();
   res.json({ success: true });
 }
@@ -236,6 +360,7 @@ async function cancelRequest(req, res) {
  * dialog or manual paste) — it bypasses pattern/key-exists soft gates.
  */
 async function captureFromExtension(msg) {
+  await loadQueueOnce();
   pruneExpired();
   const requestId = typeof msg.requestId === 'string' ? msg.requestId : null;
   const key = typeof msg.key === 'string' ? msg.key : null;
@@ -316,12 +441,16 @@ async function captureFromExtension(msg) {
   item.duplicate = duplicate;
   item.storedAt = Date.now();
   console.log(`[vault-request] captured ${item.key}${duplicate ? ' (duplicate value, no change)' : ''}`);
+  persistQueue();
   pushSync();
   return { ok: true, key: item.key, masked: receipt, duplicate };
 }
 
 /** Push the current queue to a freshly (re)connected extension. */
-function pushSyncOnConnect() {
+async function pushSyncOnConnect() {
+  // Reload before the push: after a server restart this is the moment the
+  // extension would otherwise receive an empty queue and drop its copy.
+  await loadQueueOnce();
   pushSync();
 }
 
@@ -392,6 +521,7 @@ module.exports = {
   createRequests,
   listRequests,
   cancelRequest,
+  isPatternSafe,
   captureFromExtension,
   saveFromExtension,
   pushSyncOnConnect,

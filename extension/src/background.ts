@@ -753,8 +753,81 @@ chrome.notifications.onClicked.addListener((notificationId) => {
 
 // ── Matching ─────────────────────────────────────────────────────────
 
+// Mirrors isPatternSafe in the server's vault-requests.js: patterns arrive
+// from requests the server already screened, but this copy keeps the guard
+// honest across version-skewed server/extension pairs. Same conservative
+// classes: star height > 1, overlapping alternation inside an unbounded
+// quantifier. An unsafe pattern is treated as absent (confirm tier only).
+function isPatternSafe(pattern: string): boolean {
+  const source = pattern
+    .replace(/\\[uD]/g, "x")
+    .replace(/\\\d+/g, "x")
+    .replace(/\\./g, "x")
+    .replace(/\[[^\]]*\]/g, "x");
+  const stack: Array<{ unboundedInside: boolean; branches: Array<string | 0> | null }> = [{ unboundedInside: false, branches: null }];
+  let i = 0;
+  while (i < source.length) {
+    const ch = source[i];
+    const top = stack[stack.length - 1];
+    if (ch === "(") {
+      stack.push({ unboundedInside: false, branches: [0] });
+      i += 1;
+      continue;
+    }
+    if (ch === ")") {
+      if (stack.length === 1) return false;
+      const group = stack.pop()!;
+      const parent = stack[stack.length - 1];
+      const quantifier = source.slice(i + 1).match(/^[*+{]/);
+      const unboundedHere = quantifier !== null && (quantifier[0] !== "{" || /\{\d+,/.test(source.slice(i + 1)));
+      if (unboundedHere) {
+        if (group.unboundedInside) return false;
+        if (group.branches && group.branches.length > 1) {
+          for (let b = 0; b < group.branches.length; b++) {
+            for (let c = b + 1; c < group.branches.length; c++) {
+              const fb = group.branches[b];
+              const fc = group.branches[c];
+              if (fb && fc && typeof fb === "string" && typeof fc === "string" && fb[0] === fc[0]) return false;
+            }
+          }
+        }
+        if (parent) parent.unboundedInside = true;
+      }
+      i += 1 + (quantifier ? quantifier[0].length : 0);
+      continue;
+    }
+    if (ch === "|") {
+      if (top.branches) top.branches.push(0);
+      i += 1;
+      continue;
+    }
+    if (ch === "*" || ch === "+") {
+      top.unboundedInside = true;
+      i += 1;
+      continue;
+    }
+    if (ch === "{") {
+      const close = source.indexOf("}", i);
+      const body = close === -1 ? "" : source.slice(i + 1, close);
+      if (/\d+,/.test(body)) top.unboundedInside = true;
+      i = close === -1 ? i + 1 : close + 1;
+      continue;
+    }
+    const branch = top.branches;
+    if (branch && branch[branch.length - 1] === 0) branch[branch.length - 1] = ch;
+    i += 1;
+  }
+  return stack.length === 1;
+}
+
 function compileRegex(pattern?: string): RegExp | null {
   if (!pattern) return null;
+  if (!isPatternSafe(pattern)) {
+    // The server should have rejected this at creation; a version-skewed
+    // pair must degrade to confirm-tier rather than risk hanging the SW.
+    console.warn("[MODELSWAP] unsafe capture pattern ignored (ReDoS screen):", pattern.slice(0, 40));
+    return null;
+  }
   try { return new RegExp(pattern); } catch { return null; }
 }
 
