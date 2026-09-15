@@ -8,8 +8,18 @@
   "highlights": [
     {
       "category": "fixed",
-      "zh": "修复:运行 modelswap skill add 进入交互选择时立即报错(prompts.select is not a function)。现与 vault 交互流程使用同一套成熟调用,选择 Agent、勾选技能、落盘安装全流程实测通过。",
-      "en": "Fixed: entering the interactive picker crashed immediately (prompts.select is not a function). It now uses the same proven object-form prompts calls as the vault flows; select-agent → multiselect-skills → install was verified end-to-end in a pseudo-TTY."
+      "zh": "修复:运行 modelswap skill add 进入交互选择时立即报错(prompts.select is not a function)。现与 vault 交互流程使用同一套成熟调用,选择 Agent、勾选技能、落盘安装全流程在伪终端实测通过。",
+      "en": "Fixed: entering the interactive picker crashed immediately (prompts.select is not a function). Now uses the same object-form prompts calls as the vault flows; verified end-to-end in a pseudo-TTY."
+    },
+    {
+      "category": "improved",
+      "zh": "交互与参数两种安装路径的行为对齐:跳过已存在技能的提示、--force 覆盖、未知技能/agent 的报错文案在两条路径下完全一致。",
+      "en": "Interactive and flag-based install paths now behave identically: skip notices, --force overwrite, and unknown skill/agent errors all share the same wording."
+    },
+    {
+      "category": "improved",
+      "zh": "随附 v1.0.81 技能文档的安装闭环(交互 skill add / 参数直装 / npx 与手动拷贝)一并随本版本 npm 包分发。",
+      "en": "Ships the v1.0.81 skill-doc install loop (interactive skill add / flags / npx & manual copy) in the npm package with this release."
     }
   ]
 }
