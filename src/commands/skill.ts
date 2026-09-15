@@ -135,20 +135,24 @@ export async function skillAdd(options: SkillAddOptions): Promise<void> {
   }
 
   if (chosenAgents.length === 0) {
-    const picked = await (prompts as any).select({
+    const answer = await prompts({
+      type: "select",
+      name: "agent",
       message: "安装到哪个 Agent？",
       choices: agents.map((a) => ({ title: a.detected ? a.label : `${a.label}（未检测到）`, value: a.id })),
     });
-    if (!picked) return;
-    chosenAgents = agents.filter((a) => a.id === picked);
+    if (!answer.agent) return;
+    chosenAgents = agents.filter((a) => a.id === answer.agent);
   }
   if (chosenSkills.length === 0) {
-    const picked = await (prompts as any).multiselect({
-      message: "安装哪些技能？",
+    const answer = await prompts({
+      type: "multiselect",
+      name: "skills",
+      message: "安装哪些技能？（空格勾选，回车确认）",
       choices: SKILL_FAMILY.map((name) => ({ title: name, value: name, selected: true })),
     });
-    if (!picked || picked.length === 0) return;
-    chosenSkills = picked;
+    if (!answer.skills || answer.skills.length === 0) return;
+    chosenSkills = answer.skills;
   }
 
   let installed = 0;
