@@ -1,0 +1,15 @@
+{
+  "version": "v1.0.82",
+  "publishedAt": "2026-09-15",
+  "summary": {
+    "zh": "修复 modelswap skill add 交互选择器:之前的 prompts 调用方式在该库版本上不存在,交互模式一打开即崩溃;已切换为与 vault 交互流程一致的对象式调用并实测通过。",
+    "en": "Fixes the modelswap skill add interactive picker: the previous prompts calls used an API that doesn't exist in prompts@2 and crashed on open; switched to the object form proven in the vault flows and verified end-to-end."
+  },
+  "highlights": [
+    {
+      "category": "fixed",
+      "zh": "修复:运行 modelswap skill add 进入交互选择时立即报错(prompts.select is not a function)。现与 vault 交互流程使用同一套成熟调用,选择 Agent、勾选技能、落盘安装全流程实测通过。",
+      "en": "Fixed: entering the interactive picker crashed immediately (prompts.select is not a function). It now uses the same proven object-form prompts calls as the vault flows; select-agent → multiselect-skills → install was verified end-to-end in a pseudo-TTY."
+    }
+  ]
+}
