@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.84",
+  "publishedAt": "2026-09-15",
+  "summary": {
+    "zh": "skill add 安装到 Claude Code 时自动写入 CLAUDE.md 技能路由块:无头模式(-p)不会注入技能列表,弱模型也不可靠触发——现在路由规则常驻上下文,任何模型、任何模式都确定生效。",
+    "en": "skill add now writes a marker-guarded routing block into ~/.claude/CLAUDE.md for Claude Code targets: headless (-p) sessions never inject the skills list and weak models trigger unreliably — with the block, routing is deterministic for every model and mode."
+  },
+  "highlights": [
+    {
+      "category": "fixed",
+      "zh": "修复「换了模型后技能不触发」:实测发现 Claude Code 无头模式(-p)完全不注入技能列表,自然语言触发无从谈起;且弱模型(如第三方端点)本就难以可靠调用技能。skill add 现在会在 ~/.claude/CLAUDE.md 写入带标记的技能路由块——CLAUDE.md 恒定注入上下文,与模型能力无关,实测 mimo 端点 + 原始自然语言 prompt 端到端命中。",
+      "en": "Fixed \"skills stopped triggering after switching models\": Claude Code -p mode never injects the skills list, and weak models (third-party endpoints) call skills unreliably anyway. skill add now writes a marker-guarded routing block into ~/.claude/CLAUDE.md — CLAUDE.md is always in context regardless of model; verified end-to-end with a third-party model and the exact natural-language prompt."
+    },
+    {
+      "category": "improved",
+      "zh": "路由块用标记包裹、幂等更新(升级重装时原位刷新,不重复追加),内容含明文红线与子技能路由;向既有 CLAUDE.md 内容追加而非覆盖。",
+      "en": "The block is marker-wrapped and idempotently refreshed on reinstall, carries the plaintext red line and sub-skill routing, and appends to (never overwrites) existing CLAUDE.md content."
+    },
+    {
+      "category": "improved",
+      "zh": "文档补充无头模式使用要点:claude -p 需以 --allowedTools 授予 Read/Bash 才能让技能驱动的命令真正执行(评测中顺带确认了这一点)。",
+      "en": "Docs note the headless requirement: claude -p needs --allowedTools for Read/Bash or skill-driven commands cannot execute (confirmed during the evaluation)."
+    }
+  ]
+}

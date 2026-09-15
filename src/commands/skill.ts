@@ -97,6 +97,41 @@ export async function listSkillAgents(): Promise<SkillAgent[]> {
   })));
 }
 
+
+// Headless/weak-model determinism: Claude Code -p never injects the skills
+// list into the system prompt, so description-based triggering cannot fire
+// there. A marker-guarded block in ~/.claude/CLAUDE.md is always loaded and
+// routes the topics to the on-disk SKILL.md files regardless of model.
+const CLAUDE_MD_HOOK_START = "<!-- modelswap-skills:start -->";
+const CLAUDE_MD_HOOK_END = "<!-- modelswap-skills:end -->";
+
+async function ensureClaudeMdHook(claudeSkillsDir: string): Promise<void> {
+  const claudeMd = path.join(path.dirname(claudeSkillsDir), "CLAUDE.md");
+  const block = [
+    CLAUDE_MD_HOOK_START,
+    "## ModelSwap 技能路由",
+    "涉及以下话题时,先用 Read 读取对应 SKILL.md 并严格遵循其命令与红线,再回答或动手(路径相对本文件所在目录):",
+    "- 模型平台/可用模型/换模型/模型在哪些平台可用 → skills/modelswap/SKILL.md(入口,含子技能路由与命令清单)",
+    "- 密钥(API key/token/凭证)的查看、创建、打印、导出、轮换 → skills/modelswap/SKILL.md → 按其指引读 skills/modelswap-vault-secrets/SKILL.md",
+    "- 多机同步/推送/拉取/配对 → skills/modelswap-sync/SKILL.md",
+    "明文红线:密钥明文只允许进入用户机器上的目标系统(经 vault run 注入或用户本人终端),严禁打印到对话、记录或命令行参数。",
+    CLAUDE_MD_HOOK_END,
+  ].join("\n");
+  let existing = "";
+  if (await fs.pathExists(claudeMd)) existing = await fs.readFile(claudeMd, "utf8");
+  if (existing.includes(CLAUDE_MD_HOOK_START)) {
+    // Refresh the block in place (rules may evolve between versions).
+    const start = existing.indexOf(CLAUDE_MD_HOOK_START);
+    const end = existing.indexOf(CLAUDE_MD_HOOK_END) + CLAUDE_MD_HOOK_END.length;
+    const updated = existing.slice(0, start) + block + existing.slice(end);
+    if (updated !== existing) await fs.writeFile(claudeMd, updated);
+    return;
+  }
+  const separator = existing.trim().length === 0 ? "" : "\n\n";
+  await fs.writeFile(claudeMd, existing + separator + block + "\n");
+  console.log(kleur.green(`✓ 已在 ${claudeMd} 写入 ModelSwap 技能路由(对所有模型生效)`));
+}
+
 export interface SkillAddOptions {
   agents?: string[];
   skills?: string[];
@@ -153,6 +188,10 @@ export async function skillAdd(options: SkillAddOptions): Promise<void> {
     });
     if (!answer.skills || answer.skills.length === 0) return;
     chosenSkills = answer.skills;
+  }
+
+  for (const agent of chosenAgents) {
+    if (agent.id === "claude") await ensureClaudeMdHook(agent.skillsDir);
   }
 
   let installed = 0;
