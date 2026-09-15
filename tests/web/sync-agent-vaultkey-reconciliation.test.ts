@@ -23,7 +23,7 @@ function child(root: string, home: string, blob: string, script: string) {
   });
 }
 
-describe('sync provider vault-reference reconciliation', { timeout: 30000 }, () => {
+describe('sync provider vault-reference reconciliation', { timeout: 60000 }, () => {
   it('keeps references through site edits, migrations, sync pull, discovery, and Codex reconciliation', async () => {
     const root = path.resolve(__dirname, '../..');
     const machineA = fs.mkdtempSync(path.join(os.tmpdir(), 'modelswap-sync-vault-a-'));

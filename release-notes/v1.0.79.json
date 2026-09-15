@@ -1,0 +1,35 @@
+{
+  "version": "v1.0.79",
+  "publishedAt": "2026-09-15",
+  "summary": {
+    "zh": "合并凭证捕获工作流:Agent 可发起 vault request 让用户在控制台复制即入库;新增 vault run 安全用钥、provider 模型搜索、四件套技能家族,并移除首启欢迎页。",
+    "en": "Merges the credential-capture workflow: agents can issue vault requests fulfilled by the user copying on the console; adds vault run, provider model search, the four-skill family, and drops the first-run wizard."
+  },
+  "highlights": [
+    {
+      "category": "added",
+      "zh": "凭证捕获工作流:modelswap vault request 发起等待(可 --wait),浏览器扩展在用户于控制台复制时自动入库——格式与控制台域名双信号才自动,否则走一键确认;覆盖写入需确认,回执全程打码,捕获正则在创建时做灾难性回溯筛查,请求队列落盘可在 app 重启后存活。",
+      "en": "Credential capture: modelswap vault request arms a wait (--wait supported); the browser extension captures when the user copies on the console — auto only on pattern+domain signals, otherwise one-tap confirm; overwrites require confirmation, receipts are masked, capture patterns are screened for catastrophic backtracking, and the request queue survives app restarts."
+    },
+    {
+      "category": "added",
+      "zh": "vault run --key KEY -- 命令:以子进程执行命令并把密钥注入环境变量——明文不进命令行参数、进程列表与记录;扩展弹窗同步支持手动保存与多字段模板(字段名: 值 自动打包)。",
+      "en": "vault run --key KEY -- command: runs a child process with the secret injected as an env var — plaintext never touches argv, the process list, or transcripts; the extension popup gains manual saves and multi-field templates (name: value lines auto-packed)."
+    },
+    {
+      "category": "added",
+      "zh": "provider search <model>:跨已配置平台搜索模型,带精确/前缀/部分三档匹配与密钥/登录状态展示;--exact 确定模式。",
+      "en": "provider search <model>: searches configured platforms for a model with exact/prefix/partial tiers and key/login status; --exact for deterministic mode."
+    },
+    {
+      "category": "added",
+      "zh": "技能家族拆分为 1+3(核心/Agent 路由/密钥安全/云同步)并随 CLI 打包,modelswap sync install 一键装入其他项目;云同步技能与当前 sync 命令面(status/test/push/pull/export/import/pair)完全对齐。",
+      "en": "The skill family splits into 1+3 (core / agent-routing / vault-secrets / sync), ships with the CLI, and modelswap sync install drops them into any project; the sync skill now matches the full sync command surface."
+    },
+    {
+      "category": "improved",
+      "zh": "移除首启欢迎页:新用户直接进入主界面;扩展 popup 重设计为现代工具风并新增侧边栏面板;copy-guard 仅在有待捕获请求时按控制台域名注入,不再常驻所有页面。",
+      "en": "The first-run wizard is gone — new users land straight in the app; the extension popup is redesigned with a new side panel; copy-guard injects only into requested console domains while a capture is armed instead of living on every page."
+    }
+  ]
+}
