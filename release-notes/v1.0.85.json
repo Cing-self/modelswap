@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.85",
+  "publishedAt": "2026-09-15",
+  "summary": {
+    "zh": "技能路由扩展到全部 Agent:skill add 现在为 Codex、OpenCode、共享 agents 目录写入各自的 AGENTS.md 路由块(与 Claude 的 CLAUDE.md 同机制),确保任何模型、任何模式都确定生效;Codex + MiMo 模型组合已实测端到端通过。",
+    "en": "Skill routing now covers every agent: skill add writes per-agent AGENTS.md routing blocks (Codex, OpenCode, the shared agents dir) alongside Claude's CLAUDE.md — verified end-to-end with a Codex + MiMo model setup."
+  },
+  "highlights": [
+    {
+      "category": "fixed",
+      "zh": "修复路由只覆盖 Claude 的片面问题:之前只有 CLAUDE.md 被写入路由块,换成 Codex/OpenCode 等仍会「技能不触发」。现在每个 agent 目标写入各自的恒定注入文件(Claude → CLAUDE.md,其余 → AGENTS.md),幂等刷新。",
+      "en": "Fixes the Claude-only routing gap: the routing block was written only to CLAUDE.md, so Codex/OpenCode targets kept failing to trigger. Each agent target now gets its own always-injected instructions file (Claude → CLAUDE.md, others → AGENTS.md), idempotently refreshed."
+    },
+    {
+      "category": "improved",
+      "zh": "实测验证 Codex + MiMo 模型组合:自然语言「glm-5.2 在哪些平台可用」端到端命中(读路由 → 读技能 → provider search → 10 平台表格)。过程中沉淀了 Codex 接第三方端点的三项配置要求:wire_api 必须为 responses、根级键必须在文件顶部、需顶层 web_search = \"disabled\"。",
+      "en": "Verified the Codex + MiMo model combination end-to-end: the natural prompt hits routing → skill → provider search → a 10-platform table. Along the way, documented three requirements for pointing Codex at third-party endpoints: wire_api = responses, root keys at file top, and top-level web_search = \"disabled\"."
+    },
+    {
+      "category": "improved",
+      "zh": "评测范围同步扩展:AGENTS.md 路由与技能文件已同步写入共享 agents 目录,Claude 与 ZCode 子代理在相同 prompt 下行为一致(只读纪律、明文红线、搜索质量)。",
+      "en": "The evaluation matrix now covers the shared agents dir too — Claude and ZCode subagents show consistent behavior on identical prompts (read-only discipline, plaintext red line, search quality)."
+    }
+  ]
+}
