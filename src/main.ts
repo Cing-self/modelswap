@@ -33,7 +33,7 @@ import {
   providerSearch,
 } from "./commands/provider";
 import { migrateIfNeeded } from "./providers/migration";
-import { installSkill, showSkillPath } from "./commands/skill";
+import { installSkill, showSkillPath, skillAdd } from "./commands/skill";
 const program = new Command();
 
 // 显示 Banner
@@ -356,6 +356,17 @@ skill
   .description("输出内置 Skill 文件路径")
   .action(async () => {
     await showSkillPath();
+  });
+
+skill
+  .command("add")
+  .description("交互选择 Agent 与技能，把 MODELSWAP Skill 安装到对应技能目录")
+  .option("--agent <agent>", "目标 agent id（claude/agents/codex/opencode/project，可重复）", collectOption, [])
+  .option("--skill <skill>", "要安装的技能名（可重复；缺省时交互多选）", collectOption, [])
+  .option("--all", "安装全部四个技能")
+  .option("--force", "覆盖已存在的同名技能")
+  .action(async (options: { agent: string[]; skill: string[]; all?: boolean; force?: boolean }) => {
+    await skillAdd({ agents: options.agent, skills: options.skill, all: options.all, force: options.force });
   });
 
 // extension 子命令 - 定位浏览器扩展（供 Chrome「加载已解压的扩展程序」）

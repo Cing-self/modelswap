@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.80",
+  "publishedAt": "2026-09-15",
+  "summary": {
+    "zh": "新增 modelswap skill add:交互选择目标 Agent(Claude Code / 共享 agents 目录 / Codex / OpenCode / 当前项目)与要安装的技能,一键把四件套技能装入对应技能目录。",
+    "en": "New modelswap skill add: interactively pick the target agent (Claude Code / shared agents dir / Codex / OpenCode / current project) and skills, installing them into the matching skill directories in one step."
+  },
+  "highlights": [
+    {
+      "category": "new",
+      "zh": "modelswap skill add:自动检测本机已装的 Agent(目录存在即标记),交互选择目标与技能;也支持 --agent/--skill/--all/--force 非交互直装,便于脚本与文档复制粘贴。",
+      "en": "modelswap skill add: detects installed agents (marked by directory presence) and offers an interactive picker, plus --agent/--skill/--all/--force flags for scripts and docs."
+    },
+    {
+      "category": "improved",
+      "zh": "安装粒度从「整个家族、全有或全无」细化为按 agent × 按技能自由组合;已存在的同名技能默认跳过并提示,不再整批失败。",
+      "en": "Install granularity goes from all-or-nothing family install to per-agent × per-skill composition; existing skills are skipped with a notice instead of failing the whole batch."
+    },
+    {
+      "category": "improved",
+      "zh": "技能仓库遵循社区 skills 目录约定(skills/<name>/SKILL.md),没有安装 CLI 的用户也可以用 npx skills add Cing-self/modelswap 从 GitHub 直接安装。",
+      "en": "The repo follows the community skills convention (skills/<name>/SKILL.md), so users without the CLI can also install via npx skills add Cing-self/modelswap straight from GitHub."
+    }
+  ]
+}
