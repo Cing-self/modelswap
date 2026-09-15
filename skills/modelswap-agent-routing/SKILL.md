@@ -71,6 +71,8 @@ modelswap provider auth --json    # 认证状态：hasApiKey / oauthLoggedIn
 modelswap provider list --json          # 复核 models[] 里的精确 modelId
 modelswap provider use <provider-id> --agent <agent-id> --model <model-id>
 modelswap provider current --json       # 验证路由已变更
+
+以上是 modelswap 的全部真实命令形态。modelswap 没有 check-capabilities、verify-compatibility、list-models、show-config-path 之类的子命令——**不要编造**；不确定时用 `modelswap <命令> --help` 验证。
 ```
 
 - Provider 按 **id 或 name 匹配**（区分大小写）；模型用 list 输出里的真实 modelId，不要凭记忆猜。

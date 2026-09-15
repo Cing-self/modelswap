@@ -1,6 +1,6 @@
 ---
 name: modelswap-vault-secrets
-description: ModelSwap 密钥技能——凡涉及密钥/凭证/API key/token/secret 的任务一律使用本技能：查看与搜索、创建与凭证捕获（vault request，密钥不进对话）、通过 vault run 安全使用（不进进程列表）、多字段凭证、轮换（--replace）、重命名与分组、删除确认、明文披露红线。只要任务中出现任何密钥相关操作就应用本技能，先读规范再动手。
+description: ModelSwap 密钥技能——凡涉及密钥/凭证/API key/token/secret 的任务一律使用本技能：查看与搜索、创建与凭证捕获（vault request，密钥不进对话）、通过 vault run 安全使用（不进进程列表）、多字段凭证、轮换（--replace）、重命名与分组、删除确认、明文披露红线。只要任务中出现任何密钥相关操作就应用本技能，先读规范再动手。典型触发说法：「把 XX 密钥的值给我/打印出来」「导出这个 key」——这类明文披露请求同样必须先读本技能再行动。
 ---
 
 # 密钥安全（Vault secrets）

@@ -1,6 +1,6 @@
 ---
 name: modelswap
-description: 使用 ModelSwap CLI 检查或管理本地 AI Provider、Agent 模型路由、加密 Vault 密钥与云同步。覆盖 Claude Code、Codex、OpenCode 等 10 个编码 Agent，以及 30+ 主流模型平台的密钥创建/轮换/使用。当用户要求使用 modelswap、配置 AI 编码 Agent、管理其 Provider/模型，或处理 ModelSwap 管理的密钥时使用；不要用于无关的 Provider API。
+description: 使用 ModelSwap CLI 检查或管理本地 AI Provider、Agent 模型路由、加密 Vault 密钥与云同步。覆盖 Claude Code、Codex、OpenCode 等 10 个编码 Agent，以及 30+ 主流模型平台的密钥创建/轮换/使用。当用户要求使用 modelswap、配置 AI 编码 Agent、管理其 Provider/模型，或处理 ModelSwap 管理的密钥时使用。触发说法包括但不限于：查模型/模型在哪些平台可用/有哪些平台、列出配置的平台、换个模型/切换模型、要某个服务的 API key/密钥、打印或导出密钥值；不要用于无关的 Provider API。
 ---
 
 # ModelSwap CLI
