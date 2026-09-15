@@ -255,10 +255,14 @@ export async function vaultRun(key: string, envVar: string | undefined, commandA
     process.exit(1);
   }
   const [cmd, ...args] = commandArgs;
+  // Shell only for .cmd/.bat shims (npm CLIs) that cmd.exe must resolve —
+  // blanket shell:true on Windows naive-joins args and shreds any argument
+  // containing spaces (e.g. `node -e "<script>"`).
+  const needsShell = process.platform === "win32" && /\.(cmd|bat)$/i.test(cmd);
   const child = spawn(cmd, args, {
     stdio: "inherit",
     env: { ...process.env, [varName]: value },
-    shell: process.platform === "win32",
+    shell: needsShell,
   });
   child.on("error", (error) => {
     console.error(kleur.red(`✗ 无法启动命令: ${error.message}`));
