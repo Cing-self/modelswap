@@ -1,8 +1,6 @@
 import { Routes, Route, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useState, useEffect, useCallback, useLayoutEffect, useRef, lazy, Suspense } from 'react';
 import { ArrowDownToLine, Loader2, PanelLeftClose, PanelLeftOpen, RotateCcw } from 'lucide-react';
-import { getOnboarding } from './api/settings';
-import { primeOnboardingFromSession, getOnboardingDoneCache, setOnboardingDone } from './lib/onboardingGate';
 import Sidebar from './components/Layout/Sidebar';
 import ProviderImportModal from './components/shared/ProviderImportModal';
 import { useI18n } from './i18n';
@@ -20,7 +18,6 @@ const ModelDataPage = lazy(() => import('./components/models/ModelDataPage'));
 const UsagePage = lazy(() => import('./components/usage/UsagePage'));
 const VaultPage = lazy(() => import('./components/vault/VaultPage'));
 const SettingsPage = lazy(() => import('./components/settings/SettingsPage'));
-const OnboardingPage = lazy(() => import('./components/onboarding/OnboardingPage'));
 const AgentsPage = lazy(() => import('./components/agents/AgentsPage'));
 
 function SkeletonProviderRows({ count = 4 }: { count?: number }) {
@@ -477,7 +474,6 @@ function PersistentDashboardRoutes() {
       )}
       {!keepAliveActive && (
         <Routes>
-          <Route path="/onboarding" element={<LazyRoute><OnboardingPage /></LazyRoute>} />
           <Route path="/vault" element={<LazyRoute><VaultPage /></LazyRoute>} />
           <Route path="/models" element={<LazyRoute><ModelsPage /></LazyRoute>} />
           <Route path="/agents" element={<LazyRoute><AgentsPage /></LazyRoute>} />
@@ -490,13 +486,6 @@ function PersistentDashboardRoutes() {
 }
 
 export default function App() {
-  // First-entry gate: render NOTHING until we know whether onboarding is
-  // done — otherwise the product shell flashes one frame before the wizard
-  // redirect kicks in. Cached per session so returning users paint instantly.
-  const [gate, setGate] = useState<'checking' | 'app' | 'wizard'>(
-    () => (primeOnboardingFromSession() ? 'app' : 'checking'),
-  );
-  const location = useLocation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('modelswap-sidebar-collapsed') !== 'false');
 
   const toggleSidebar = useCallback(() => {
@@ -507,37 +496,6 @@ export default function App() {
     });
   }, []);
 
-  useEffect(() => {
-    if (gate !== 'checking') return;
-    if (getOnboardingDoneCache() !== null) {
-      setGate(getOnboardingDoneCache() ? 'app' : 'wizard');
-      return;
-    }
-    getOnboarding().then(res => {
-      setOnboardingDone(!!(res as any).done);
-      setGate((res as any).done ? 'app' : 'wizard');
-    }).catch(() => setGate('app'));
-  }, [gate]);
-
-  // gate 'wizard' renders the wizard standalone (pathname stays '/', so a
-  // pathname-based flip would kill it instantly) — completion is signalled
-  // by the wizard itself via onComplete.
-
-  if (gate === 'checking') {
-    return <DesktopWindowFrame><div className="app-boot-gate" aria-hidden="true" /></DesktopWindowFrame>;
-  }
-
-  if (gate === 'wizard') {
-    return (
-      <DesktopWindowFrame>
-        <DocumentTitle />
-        <Suspense fallback={<div className="app-boot-gate" aria-hidden="true" />}>
-          <OnboardingPage onComplete={() => setGate('app')} />
-        </Suspense>
-      </DesktopWindowFrame>
-    );
-  }
-
   return (
     <DesktopWindowFrame
       sidebarCollapsed={sidebarCollapsed}
@@ -546,10 +504,10 @@ export default function App() {
     >
       <DocumentTitle />
       <ModelCacheWarmupBootstrap />
-      <Routes>
-        {/* Standalone model/platform data demo — intentionally not part of the product shell. */}
-        <Route path="/model-data" element={<LazyRoute><ModelDataPage /></LazyRoute>} />
-        <Route path="*" element={
+        <Routes>
+          {/* Standalone model/platform data demo — intentionally not part of the product shell. */}
+          <Route path="/model-data" element={<LazyRoute><ModelDataPage /></LazyRoute>} />
+          <Route path="*" element={
           <div id="app">
             <DeepLinkHandler />
             <DataChangeEvents />
