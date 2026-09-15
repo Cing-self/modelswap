@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>MODELSWAP</title>
+  <link rel="stylesheet" href="panel.css" />
+</head>
+<body class="panel">
+  <header>
+    <div class="header-right">
+      <div class="conn" id="conn"><span class="dot"></span><span id="conn-text">连接中</span></div>
+    </div>
+  </header>
+  <div id="banner" class="banner" hidden></div>
+  <main>
+    <section id="batches-section" hidden>
+      <div class="section-label"><span>Agent 请求</span><span class="count" id="batch-count"></span></div>
+      <div id="list"></div>
+    </section>
+    <section id="save-section">
+      <div class="section-label"><span>创建秘钥</span></div>
+      <form id="save-form" novalidate></form>
+    </section>
+  </main>
+  <script type="module" src="dist/sidepanel.js"></script>
+</body>
+</html>
