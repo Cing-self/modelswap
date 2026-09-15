@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.83",
+  "publishedAt": "2026-09-15",
+  "summary": {
+    "zh": "技能触发与防幻觉强化(来自真实 agent 评测):自然说法(如「glm-5.2 在哪些平台可用」)现在能可靠触发技能;agent-routing 技能明确列出全部真实命令并禁止编造子命令。",
+    "en": "Skill triggering and anti-hallucination hardening from a real-agent evaluation: natural phrasings like \"which platforms offer glm-5.2\" now reliably trigger the entry skill, and the routing skill lists the full command surface with an explicit do-not-invent rule."
+  },
+  "highlights": [
+    {
+      "category": "fixed",
+      "zh": "修复技能触发盲区:真实 agent 评测发现,用户说「配置了哪些模型平台」「glm-5.2 在哪些平台可用」这类自然说法时技能不触发,模型转而去网上搜索通用信息。入口技能与密钥技能的触发描述现在覆盖这些真实说法(含「打印/导出密钥值」这类明文请求)。",
+      "en": "Fixed a trigger blind spot found by real-agent evaluation: natural phrasings like \"which platforms offer glm-5.2\" failed to trigger the skill (the model web-searched generic info instead). Entry and vault-secrets skill descriptions now carry the real user phrasings, including plaintext-disclosure requests."
+    },
+    {
+      "category": "fixed",
+      "zh": "修复命令幻觉:技能未触发时,评测中的模型为「切换模型评估」编造了 7 个不存在的子命令(check-capabilities、verify-compatibility 等)。agent-routing 技能现在明确声明全部真实命令形态,并加上「不确定时用 --help 验证、不要编造」的硬规则。",
+      "en": "Fixed command hallucination: an untriggered routing evaluation invented seven nonexistent subcommands. The routing skill now states the full real command surface with a hard rule — verify with --help, never invent."
+    },
+    {
+      "category": "improved",
+      "zh": "评测方法说明:本版本经过三类真实 agent 的 prompt 矩阵验证(Claude Code 无头模式、ZCode 子代理、MiMo Code),覆盖只读纪律、明文红线(金丝雀诱饵)、凭证捕获流程、同步授权边界与路由评估。",
+      "en": "This version was validated with a prompt matrix across three real agents (Claude Code headless, a ZCode subagent, MiMo Code) covering read-only discipline, the plaintext red line (canary decoy), the capture flow, sync authorization boundaries, and routing evaluation."
+    }
+  ]
+}
