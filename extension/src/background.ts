@@ -22,6 +22,7 @@ import type { Command, Result } from './protocol.js';
 import { wsUrl, pingUrl, tokenUrl, MODELSWAP_PORTS, WS_RECONNECT_BASE_DELAY, WS_RECONNECT_MAX_DELAY } from './protocol.js';
 import { generateStealthJs } from './stealth.js';
 import * as executor from './cdp.js';
+import { applyStoredOpenMode } from './open-mode.js';
 
 // ─── WebSocket connection state ─────────────────────────────────────
 let ws: WebSocket | null = null;
@@ -405,6 +406,10 @@ chrome.tabs.onUpdated.addListener(async (tabId, info) => {
 
 let initialized = false;
 
+// ─── Open-mode memory (popup vs side panel) ─────────────────────────
+// The toolbar icon reopens the user's last capture surface. setPanelBehavior
+// and setPopup are per-session browser state, so re-apply the stored
+// preference on every service-worker wake and whenever it changes.
 function initialize(): void {
   if (initialized) return;
   initialized = true;
@@ -416,6 +421,10 @@ function initialize(): void {
   executor.registerListeners();
   void loadVaultRequests();
   void connect();
+  void applyStoredOpenMode();
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.openMode) void applyStoredOpenMode();
+  });
   console.log('[MODELSWAP] Extension initialized v' + chrome.runtime.getManifest().version);
 }
 

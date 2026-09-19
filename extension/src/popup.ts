@@ -4,6 +4,7 @@
  */
 
 import { mountPanel } from "./panel-view.js";
+import { applyOpenMode } from "./open-mode.js";
 
 mountPanel();
 
@@ -31,8 +32,15 @@ void (async () => {
   }
   btn.addEventListener("click", () => {
     if (cachedWindowId === undefined) return;
-    api.open({ windowId: cachedWindowId }).catch((e) => {
-      console.warn("[MODELSWAP] sidePanel.open failed:", e);
-    });
+    api.open({ windowId: cachedWindowId })
+      .then(async () => {
+        // 记住上次使用形态：清掉 default_popup 后，下次点工具栏图标直接开
+        // 侧边栏。必须等写入完成再关弹窗——弹窗销毁会掐断在途异步调用。
+        await applyOpenMode("side");
+        window.close();
+      })
+      .catch((e) => {
+        console.warn("[MODELSWAP] sidePanel.open failed:", e);
+      });
   });
 })();
