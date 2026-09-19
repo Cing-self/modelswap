@@ -914,8 +914,13 @@ function matchItem(item: VaultRequestItemView, text: string, pageUrl?: string): 
     if (domain && looksSecret(single)) return { tier: 'confirm', payload: { value: single }, note: '与 agent 预期格式不符' };
     return null;
   }
-  // No pattern supplied — heuristic-only, always confirm tier.
-  if (domain && looksSecret(single)) return { tier: 'confirm', payload: { value: single }, note: '' };
+  // No pattern supplied. The agent vouched for the console by arming the
+  // request against its URL — any copy there is a candidate and goes to
+  // confirm tier (8-char floor aligned with the server's value-length guard,
+  // so a confirm never promises a value the server would reject). The
+  // entropy/charset heuristic is only a fallback for URL-less requests,
+  // where a copy has no domain context at all.
+  if (domain && single.length >= 8) return { tier: 'confirm', payload: { value: single }, note: '' };
   if (!item.url && looksSecret(single)) return { tier: 'confirm', payload: { value: single }, note: '' };
   return null;
 }
