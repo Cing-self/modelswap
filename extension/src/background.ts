@@ -590,6 +590,9 @@ async function injectCopyGuardIntoMatchingTabs(): Promise<void> {
 // still domain-scoped to the pending requests, still not resident.
 chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
   if (info.status !== 'complete') return;
+  // A cold-started SW has an empty in-memory list until the storage read
+  // completes — pull it before deciding there is nothing to inject.
+  if (vaultRequests.length === 0) await loadVaultRequests();
   if (vaultRequests.length === 0) return;
   const { domains } = pendingRequestDomains();
   if (domains.size === 0) return;
@@ -649,14 +652,14 @@ async function sendCapture(
   confirmed: boolean,
   source?: { url?: string; title?: string },
 ): Promise<any> {
-  // A capture message can wake the service worker while the WS handshake is
-  // still in flight — grant the socket a short grace window before failing;
-  // losing the user's only copy of a secret to a reconnect window is worse
-  // than a 3s pause.
+  // A capture message can wake the service worker while the WS handshake
+  // (token fetch + connect) is still in flight — grant the socket a generous
+  // grace window before failing; losing the user's only copy of a secret to
+  // a reconnect window is worse than a pause.
   {
-    const deadline = Date.now() + 3000;
+    const deadline = Date.now() + 15000;
     while ((!ws || ws.readyState !== WebSocket.OPEN) && Date.now() < deadline) {
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 250));
     }
   }
   return new Promise((resolve) => {

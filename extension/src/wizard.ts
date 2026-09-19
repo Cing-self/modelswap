@@ -197,12 +197,15 @@
         // A pattern-matched copy landed — the capture IS the step completion.
         const diff = count - lastFulfilled;
         lastFulfilled = count;
+        const justStored = req.items.filter((i) => i.status === "fulfilled").slice(-diff).map((i) => i.key).join(", ");
         if (req.items.every((i) => i.status === "fulfilled")) {
           renderDone();
           setTimeout(teardown, 3000);
           return;
         }
-        goTo(active + diff);
+        // Visible ack at the point of action, then advance.
+        showPill(`✅ 已存入 ${justStored}`, "ok");
+        setTimeout(() => goTo(active + diff), 1200);
         return;
       }
       // Pure churn (WS reconnect re-pushes): keep the current step as-is.

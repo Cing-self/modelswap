@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "MODELSWAP",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "MODELSWAP 密钥自动创建助手 — 复用 Chrome 已登录会话,一键自动创建 API Key 并回填 MODELSWAP vault",
   "permissions": [
     "debugger",
