@@ -89,6 +89,15 @@
   let lastStepKey = "";
   let closed = false;
   let targetEl: Element | null = null;
+  let dwellTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function scheduleAdvance(): void {
+    if (dwellTimer) clearTimeout(dwellTimer);
+    dwellTimer = setTimeout(() => {
+      dwellTimer = null;
+      goTo(active + 1);
+    }, 2500);
+  }
 
   function teardown(): void {
     if (closed) return;
@@ -102,18 +111,15 @@
     tip.hidden = false;
   }
 
-  /** Activate a step; schedules the 6s dwell fallback exactly once per step
-   *  (storage churn re-renders must not keep resetting it). */
+  /** Activate a step. Copy steps wait indefinitely for their capture — no
+   *  dwell fallback: a premature auto-advance is what made the guide feel
+   *  broken. Announcement steps (no selector) dwell and move on. */
   function goTo(idx: number): void {
     active = Math.max(0, Math.min(steps.length - 1, idx));
     const key = `${currentReqId}:${active}`;
     if (key === lastStepKey) return;
     lastStepKey = key;
     renderStep();
-    setTimeout(() => {
-      if (closed || lastStepKey !== key) return;
-      goTo(active + 1);
-    }, 6000);
   }
 
   function renderStep(): void {
@@ -134,9 +140,10 @@
       spot.hidden = true;
       showPill(`${active + 1}/${steps.length} · ${step.text.slice(0, 60)}`);
     } else {
-      // announcement step — no element to spotlight
+      // announcement step — no element to spotlight; dwell and move on
       spot.hidden = true;
       showPill(step.text.slice(0, 80));
+      scheduleAdvance();
     }
   }
 
