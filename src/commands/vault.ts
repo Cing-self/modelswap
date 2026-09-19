@@ -338,6 +338,7 @@ export async function vaultRequest(
     url?: string;
     step?: string[];
     pattern?: string;
+    keyPattern?: string[];
     fields?: string;
     fieldPattern?: string[];
     replace?: boolean;
@@ -357,8 +358,8 @@ export async function vaultRequest(
     process.exitCode = 1;
     return;
   }
-  if ((options.pattern || options.fields) && items.length > 1) {
-    console.error(kleur.red("✗ --pattern / --fields 只支持单 key 请求，多 key 请分次发起"));
+  if (options.fields && items.length > 1) {
+    console.error(kleur.red("✗ --fields 只支持单 key 请求（多字段 = 一个实体的多个字段；作用不同的 key 请分次发起）"));
     process.exitCode = 1;
     return;
   }
@@ -371,7 +372,38 @@ export async function vaultRequest(
       process.exitCode = 1;
       return;
     }
-    items[0].pattern = options.pattern;
+    // Same-kind keys share one shape: the pattern applies to every key and
+    // captures fill them in copy order (FIFO). Different-role keys (api_key
+    // vs api_secret) are different shapes — issue separate requests instead.
+    for (const item of items) item.pattern = options.pattern;
+  }
+  // Per-key shapes override the shared one: KEY=regex, one flag per key.
+  // Lets a single same-site request route each copy to its own key by shape.
+  const keyPatterns = new Map<string, string>();
+  for (const kp of options.keyPattern ?? []) {
+    const eq = kp.indexOf("=");
+    if (eq === -1) {
+      console.error(kleur.red(`✗ --key-pattern 格式: KEY=regex（收到 "${kp}"）`));
+      process.exitCode = 1;
+      return;
+    }
+    keyPatterns.set(kp.slice(0, eq), kp.slice(eq + 1));
+  }
+  for (const [keyName, pattern] of keyPatterns) {
+    const item = items.find((i) => i.key === keyName);
+    if (!item) {
+      console.error(kleur.red(`✗ --key-pattern 的 key 不在请求中: ${keyName}`));
+      process.exitCode = 1;
+      return;
+    }
+    try {
+      new RegExp(pattern);
+    } catch (error) {
+      console.error(kleur.red(`✗ key ${keyName} 的 pattern 编译失败: ${(error as Error).message}`));
+      process.exitCode = 1;
+      return;
+    }
+    item.pattern = pattern;
   }
   if (options.fields) {
     const names = options.fields.split(",").map((s) => s.trim()).filter(Boolean);

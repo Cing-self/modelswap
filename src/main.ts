@@ -221,7 +221,8 @@ vault
   .option("--desc <desc>", "用途说明（凭证用途与权限范围）")
   .option("--url <url>", "控制台地址（扩展弹窗提供「打开控制台」，且同域名复制置信度更高）")
   .option("--step <step>", "给用户的操作步骤（可重复多次）", collectOption, [])
-  .option("--pattern <pattern>", "预期 key 形状（正则，仅单 key 请求）")
+  .option("--pattern <pattern>", "预期 key 形状（正则，作用于全部 key：形状相同的 key 共用，按复制顺序入库）")
+  .option("--key-pattern <kp>", "单 key 专属形状 KEY=regex（可重复多次，优先于 --pattern）", collectOption, [])
   .option("--fields <fields>", "多字段凭证，逗号分隔字段名（如 app_id,app_secret，仅单 key 请求）")
   .option("--field-pattern <fp>", "字段形状 name=regex（可重复多次，配合 --fields）", collectOption, [])
   .option("--replace", "允许覆盖已存在的同名 key")
@@ -229,7 +230,7 @@ vault
   .option("--timeout <seconds>", "--wait 的超时秒数", "600")
   .action(async (keys: string[], options: {
     group?: string; desc?: string; url?: string; step?: string[];
-    pattern?: string; fields?: string; fieldPattern?: string[];
+    pattern?: string; keyPattern?: string[]; fields?: string; fieldPattern?: string[];
     replace?: boolean; wait?: boolean; timeout?: string;
   }) => {
     await vaultRequest(keys, options);
