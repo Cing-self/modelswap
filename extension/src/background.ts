@@ -508,7 +508,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 // The server pushes pending requests (`modelswap vault request` from an
 // agent CLI); copy-guard content scripts forward secret-shaped copies; this
 // worker matches copies to requests with a two-tier confidence model:
-//   auto    — pattern hit + expected-domain copy → store, notify with undo
+//   auto    — expected-domain copy (pattern hit, or agent-vouched domain)
+//             → store + notify; the user never judges "存不存"
 //   confirm — plausible but not proven → one-click notification [存 / 不是这个]
 // Everything else is silently ignored.
 
@@ -638,13 +639,23 @@ function resolveCaptureResult(msg: any): void {
   pending.resolve(msg);
 }
 
-function sendCapture(
+async function sendCapture(
   requestId: string,
   item: VaultRequestItemView,
   payload: { value?: string; fields?: Record<string, string> },
   confirmed: boolean,
   source?: { url?: string; title?: string },
 ): Promise<any> {
+  // A capture message can wake the service worker while the WS handshake is
+  // still in flight — grant the socket a short grace window before failing;
+  // losing the user's only copy of a secret to a reconnect window is worse
+  // than a 3s pause.
+  {
+    const deadline = Date.now() + 3000;
+    while ((!ws || ws.readyState !== WebSocket.OPEN) && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+  }
   return new Promise((resolve) => {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       resolve({ ok: false, error: 'MODELSWAP 未连接（服务未运行？）' });
@@ -915,12 +926,12 @@ function matchItem(item: VaultRequestItemView, text: string, pageUrl?: string): 
     return null;
   }
   // No pattern supplied. The agent vouched for the console by arming the
-  // request against its URL — any copy there is a candidate and goes to
-  // confirm tier (8-char floor aligned with the server's value-length guard,
-  // so a confirm never promises a value the server would reject). The
-  // entropy/charset heuristic is only a fallback for URL-less requests,
-  // where a copy has no domain context at all.
-  if (domain && single.length >= 8) return { tier: 'confirm', payload: { value: single }, note: '' };
+  // request against its URL — a copy there IS the value the agent asked
+  // for, so store it directly; asking the user "存不存" would push the
+  // system's judgment onto them. 8-char floor aligned with the server's
+  // value-length guard. The entropy/charset heuristic stays only for
+  // URL-less requests, where a copy has no domain context at all.
+  if (domain && single.length >= 8) return { tier: 'auto', payload: { value: single }, note: '' };
   if (!item.url && looksSecret(single)) return { tier: 'confirm', payload: { value: single }, note: '' };
   return null;
 }
