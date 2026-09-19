@@ -81,6 +81,41 @@ function relTime(ts: number): string {
   return `${Math.floor(diff / 86_400_000)} 天前`;
 }
 
+function openConsoleButton(url: string): HTMLElement {
+  const open = el("button", "icon");
+  open.type = "button";
+  open.append(el("span", undefined, "打开控制台"));
+  open.append(svgIcon(ICON_EXTERNAL));
+  open.addEventListener("click", () => {
+    void chrome.tabs.create({ url });
+  });
+  return open;
+}
+
+/**
+ * Multi-key requests carry one shared `--step` list — the CLI copies it into
+ * every item, so identical steps are hoisted into a single batch-level
+ * section instead of being repeated inside every key card. Differing steps
+ * (not producible by today's CLI) keep rendering per item.
+ */
+function sharedSteps(items: RequestItem[]): string[] | null {
+  const withSteps = items.filter((item) => item.steps?.length);
+  if (withSteps.length < 2) return null;
+  const first = JSON.stringify(withSteps[0].steps);
+  for (const item of withSteps) {
+    if (JSON.stringify(item.steps) !== first) return null;
+  }
+  return withSteps[0].steps ?? null;
+}
+
+/** Same-site console shared by every key of a multi-key request. */
+function sharedUrlOf(items: RequestItem[]): string | undefined {
+  if (items.length < 2) return undefined;
+  const urls = items.map((item) => item.url?.replace(/\/+$/, "") ?? "");
+  if (urls.some((url) => !url)) return undefined;
+  return urls.every((url) => url === urls[0]) ? urls[0] : undefined;
+}
+
 /**
  * One vault request = one agent batch. Batches render as separate cards so
  * keys captured for different asks never blur together; the header shows
@@ -96,7 +131,24 @@ function renderBatch(req: VaultRequest): HTMLElement {
   head.append(el("span", "batch-count", `${doneCount}/${req.items.length}`));
   card.append(head);
 
-  for (const item of req.items) card.append(renderItem(item));
+  const common = sharedSteps(req.items);
+  if (common?.length) {
+    const shared = el("div", "common-steps");
+    shared.append(el("div", "label", "操作步骤 · 全部 key 共用"));
+    const ol = el("ol", "steps");
+    for (const step of common) ol.append(el("li", undefined, step));
+    shared.append(ol);
+    card.append(shared);
+  }
+
+  const url = sharedUrlOf(req.items);
+  if (url) {
+    const actions = el("div", "actions");
+    actions.append(openConsoleButton(url));
+    card.append(actions);
+  }
+
+  for (const item of req.items) card.append(renderItem(item, common, url));
   return card;
 }
 
@@ -107,7 +159,7 @@ function statusLine(status: "pending" | "fulfilled", duplicate?: boolean): HTMLE
   return wrap;
 }
 
-function renderItem(item: RequestItem): HTMLElement {
+function renderItem(item: RequestItem, hoistedSteps?: string[] | null, hoistedUrl?: string): HTMLElement {
   const itemEl = el("div", "item");
 
   const head = el("div", "item-head");
@@ -141,24 +193,21 @@ function renderItem(item: RequestItem): HTMLElement {
     itemEl.append(fields);
   }
 
-  if (item.steps?.length) {
+  const stepsHoisted = !!hoistedSteps
+    && !!item.steps?.length
+    && JSON.stringify(item.steps) === JSON.stringify(hoistedSteps);
+  if (item.steps?.length && !stepsHoisted) {
     const ol = el("ol", "steps");
     for (const step of item.steps) ol.append(el("li", undefined, step));
     itemEl.append(ol);
   }
 
-  const actions = el("div", "actions");
-  if (item.url) {
-    const open = el("button", "icon");
-    open.type = "button";
-    open.append(el("span", undefined, "打开控制台"));
-    open.append(svgIcon(ICON_EXTERNAL));
-    open.addEventListener("click", () => {
-      void chrome.tabs.create({ url: item.url });
-    });
-    actions.append(open);
+  const urlHoisted = !!hoistedUrl && !!item.url && item.url.replace(/\/+$/, "") === hoistedUrl;
+  if (item.url && !urlHoisted) {
+    const actions = el("div", "actions");
+    actions.append(openConsoleButton(item.url));
+    itemEl.append(actions);
   }
-  itemEl.append(actions);
 
   // Inline capture — always-available fallback when auto-capture misses.
   const captureRow = el("div", "capture-row");

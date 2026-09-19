@@ -133,6 +133,18 @@ section + section { margin-top: 18px; }
   font-size: 11.5px; color: var(--muted);
 }
 .fields .f .val { color: var(--green); }
+/* Shared steps hoisted to batch level: multi-key requests write one --step
+   list that the CLI copies into every item — show it once, not per card. */
+.common-steps {
+  margin: 6px 0 2px; padding: 8px 10px 9px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.common-steps .label {
+  font-size: 10.5px; letter-spacing: 0.4px; color: var(--muted);
+}
+.common-steps .steps { margin: 4px 0 0; }
 .steps { margin: 8px 0 0; padding: 0; list-style: none; counter-reset: step; }
 .steps li {
   counter-increment: step; position: relative;
