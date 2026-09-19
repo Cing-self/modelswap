@@ -543,6 +543,9 @@ async function injectCopyGuardScripts(tabId: number): Promise<void> {
   // The MAIN-world clipboard hook catches button-driven
   // navigator.clipboard.writeText() copies (no copy event fires).
   await chrome.scripting.executeScript({ target: { tabId }, files: ['dist/copy-guard-main.js'], world: 'MAIN' as chrome.scripting.ExecutionWorld });
+  // Page-guided wizard (demo): renders the step bar + spotlight on request
+  // domains; self-guards and idles when no stepped request matches this page.
+  await chrome.scripting.executeScript({ target: { tabId }, files: ['dist/wizard.js'] });
 }
 
 function pendingRequestDomains(): { domains: Set<string>; coversAnyPage: boolean } {
@@ -937,7 +940,8 @@ function matchItem(item: VaultRequestItemView, text: string, pageUrl?: string): 
 }
 
 async function handleCopyDetected(msg: { text: string; url?: string; title?: string }): Promise<void> {
-  if (vaultRequests.length === 0) return;
+  console.warn('[cap-debug] copy detected:', JSON.stringify({ len: msg.text?.length, head: msg.text?.slice(0, 6), url: msg.url }));
+  if (vaultRequests.length === 0) { console.warn('[cap-debug] no vaultRequests in memory'); return; }
   const now = Date.now();
   let auto: { req: VaultRequestView; item: VaultRequestItemView; match: ItemMatch } | null = null;
   let confirmCandidate: { req: VaultRequestView; item: VaultRequestItemView; match: ItemMatch } | null = null;
@@ -958,6 +962,7 @@ async function handleCopyDetected(msg: { text: string; url?: string; title?: str
 
   if (auto) {
     const result = await sendCapture(auto.req.id, auto.item, auto.match.payload, false, msg);
+    console.warn('[cap-debug] auto sendCapture:', auto.item.key, JSON.stringify(result));
     if (result.ok) {
       await completeItem(auto.req.id, auto.item.key, result);
     } else if (result.code === 'pattern-mismatch' || result.code === 'key-exists') {
