@@ -350,6 +350,10 @@ async function fetchModels(input = {}) {
           models = qianfanModelDirectoryUrl(ep.baseUrl)
             ? await fetchQianfanCodingModels(ep.baseUrl, apiKey)
             : await fetchOpenAIModels(ep.baseUrl, apiKey);
+        } else if (ep.type === 'typesafe') {
+          // TypeSafe serves an OpenAI-shaped /v1/models under the /v1 endpoint
+          // (the site root 404s on /models), so the same wire form applies.
+          models = await fetchOpenAIModels(ep.baseUrl, apiKey);
         } else if (ep.type === 'anthropic') {
           models = isQianfanCodingAnthropicEndpoint(ep.baseUrl)
             ? await fetchQianfanCodingAnthropicModels(ep.baseUrl, apiKey)

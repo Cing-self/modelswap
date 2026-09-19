@@ -84,7 +84,7 @@ export const PRESET_MODEL_ID_MIGRATIONS = new Map<string, string[][]>([
 
 // ── Provider groups (left-nav in models page) ────────────────
 export const PROVIDER_GROUPS: { key: string; labelKey: string; ids: string[] }[] = [
-  { key: "official", labelKey: "models.groupOfficial", ids: ["anthropic", "anthropic-agent", "openai", "google", "openai-codex", "xai", "xai-grok-build", "github-copilot", "mistral"] },
+  { key: "official", labelKey: "models.groupOfficial", ids: ["anthropic", "anthropic-agent", "openai", "google", "openai-codex", "xai", "xai-grok-build", "github-copilot", "mistral", "typesafe"] },
   { key: "aggregator", labelKey: "models.groupAggregator", ids: ["openrouter", "opencode-go", "opencode-zen"] },
   { key: "china", labelKey: "models.groupChina", ids: [
     // 智谱

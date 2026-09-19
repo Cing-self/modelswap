@@ -14,7 +14,7 @@ ModelSwap is an open-source tool for managing AI model infrastructure. If you us
 | Capability | Description |
 |------------|-------------|
 | Vault | AES-256-GCM encrypted storage on your machine; keys masked by default |
-| Model management | 41 preset providers with unified endpoints and auth |
+| Model management | 42 preset providers with unified endpoints and auth |
 | Agent adapters | 10 agents — switch models in one click, configs updated automatically |
 | Multi-device sync | iCloud / WebDAV / Cloudflare / Supabase / Volcengine, end-to-end encrypted |
 | Browser extension | Auto-creates API keys on each platform and stores them in the vault |

@@ -62,6 +62,11 @@ export const PROVIDER_DOCS: Record<string, ProviderDocumentation> = {
     kind: 'api',
     url: 'https://docs.mistral.ai/getting-started/quickstarts/developer/first-api-request',
   },
+  typesafe: {
+    kind: 'api',
+    url: 'https://docs.typesafe.ai/introduction/quickstart',
+    consoleUrl: 'https://console.typesafe.ai/keys',
+  },
 
   // China and regional providers
   zai: {

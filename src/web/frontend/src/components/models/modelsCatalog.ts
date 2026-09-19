@@ -25,6 +25,7 @@ const TYPE_OPTIONS = [
   { value: 'anthropic', label: 'anthropic' },
   { value: 'openai', label: 'openai' },
   { value: 'responses', label: 'responses' },
+  { value: 'typesafe', label: 'typesafe' },
 ];
 const OPENAI_PROTOCOL_OPTIONS = [
   { value: 'chat', label: 'chat' },
@@ -37,6 +38,7 @@ const PROTOCOLS: { key: string; labelKey: string }[] = [
   { key: 'openai-chat', labelKey: 'models.protocolOpenaiChat' },
   { key: 'openai-responses', labelKey: 'models.protocolOpenaiResponses' },
   { key: 'anthropic', labelKey: 'models.protocolAnthropic' },
+  { key: 'typesafe', labelKey: 'models.protocolTypesafe' },
 ];
 
 function providerProtocols(p: Provider): string[] {
@@ -46,6 +48,7 @@ function providerProtocols(p: Provider): string[] {
   for (const ep of eps) {
     if (ep.type === 'openai') keys.add(ep.protocol === 'responses' ? 'openai-responses' : 'openai-chat');
     else if (ep.type === 'anthropic') keys.add('anthropic');
+    else if (ep.type === 'typesafe') keys.add('typesafe');
   }
   return Array.from(keys);
 }

@@ -21,11 +21,23 @@ describe('PRESET_PROVIDERS', () => {
     expect(p!.type).toBe('openai');
   });
 
+  it('includes typesafe preset with its own non-chat protocol', () => {
+    const p = PRESET_PROVIDERS.find(p => p.id === 'typesafe');
+    expect(p).toBeDefined();
+    expect(p!.type).toBe('typesafe');
+    expect(p!.baseUrl).toBe('https://api.typesafe.ai');
+    expect(p!.endpoints).toEqual([
+      { type: 'typesafe', baseUrl: 'https://api.typesafe.ai/v1' },
+    ]);
+    expect(p!.authMode).toBe('api_key');
+    expect(p!.models).toEqual([]);
+  });
+
   it('each preset has valid fields', () => {
     for (const p of PRESET_PROVIDERS) {
       expect(p.id).toBeTruthy();
       expect(p.name).toBeTruthy();
-      expect(p.type).toMatch(/^(anthropic|openai)$/);
+      expect(p.type).toMatch(/^(anthropic|openai|responses|typesafe)$/);
       expect(p.baseUrl).toBeTruthy();
       expect(Array.isArray(p.models)).toBe(true);
       expect(p.models).toEqual([]);

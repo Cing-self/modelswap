@@ -22,7 +22,7 @@ export interface ProviderModelAvailability {
 
 export interface ProviderEndpoint {
   id?: string;
-  type: 'anthropic' | 'openai' | 'responses';
+  type: 'anthropic' | 'openai' | 'responses' | 'typesafe';
   baseUrl: string;
   protocol?: 'chat' | 'responses';
   plan?: 'coding' | 'token' | 'agent' | 'go';
@@ -31,7 +31,7 @@ export interface ProviderEndpoint {
 export interface Provider {
   id: string;
   name: string;
-  type: 'anthropic' | 'openai';
+  type: 'anthropic' | 'openai' | 'responses' | 'typesafe';
   baseUrl: string;
   endpoints?: ProviderEndpoint[];
   vaultKey?: string;
@@ -143,7 +143,7 @@ export interface ModelDataRecord {
 export interface ModelDataProvider {
   id: string;
   name: string;
-  type: 'anthropic' | 'openai';
+  type: 'anthropic' | 'openai' | 'responses' | 'typesafe';
   executionMode: 'http_endpoint' | 'agent_native';
   catalog?: {
     key: string;

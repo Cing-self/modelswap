@@ -326,6 +326,7 @@ export default {
   'models.protocolOpenaiChat': 'OpenAI Chat',
   'models.protocolOpenaiResponses': 'OpenAI Responses',
   'models.protocolAnthropic': 'Anthropic Messages',
+  'models.protocolTypesafe': 'TypeSafe System One',
   'models.protocolSupported': '支持 {protocol} 协议',
   'models.modeSupported': '支持 {mode} 能力',
 

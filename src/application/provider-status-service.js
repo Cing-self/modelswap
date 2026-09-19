@@ -154,7 +154,9 @@ async function refreshModelData() {
 
 async function fetchFreshEndpointModels(endpoint, apiKey) {
   const root = String(endpoint.baseUrl || '').replace(/\/+$/, '');
-  if (endpoint.type === 'openai' || endpoint.type === 'responses') {
+  // TypeSafe's endpoint carries /v1 and serves the same OpenAI-shaped
+  // GET /models wire form as the openai/responses branches below.
+  if (endpoint.type === 'openai' || endpoint.type === 'responses' || endpoint.type === 'typesafe') {
     const headers = apiKey ? { Authorization: `Bearer ${apiKey}` } : {};
     const result = await httpReq(`${root}/models`, { method: 'GET', headers, timeout: 10000 });
     if (result.error) throw new Error(result.error);

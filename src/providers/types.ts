@@ -1,5 +1,7 @@
-// API protocol compatibility
-export type ProviderType = 'anthropic' | 'openai' | 'responses';
+// API protocol compatibility. 'typesafe' is TypeSafe's proprietary System One
+// decisions API (/v1/systemone) — not chat-compatible, so no agent adapter
+// declares it and these providers can never be routed into coding agents.
+export type ProviderType = 'anthropic' | 'openai' | 'responses' | 'typesafe';
 export type OpenAIProtocol = 'chat' | 'responses';
 export type ProviderEndpointPlan = 'coding' | 'token' | 'agent' | 'go';
 export type OfferingType = 'api' | 'coding_plan' | 'token_plan' | 'agent_plan' | 'agent_subscription' | 'go_plan' | string;

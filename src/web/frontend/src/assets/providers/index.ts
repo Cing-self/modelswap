@@ -37,6 +37,7 @@ import ollama from './ollama.png';
 import litellm from './litellm.png';
 import stepfun from './stepfun.png';
 import bailian from './bailian.png';
+import typesafe from './typesafe.png';
 
 const PROVIDER_ICON: Record<string, string> = {
   // Anthropic — reuse Claude logo
@@ -102,6 +103,8 @@ const PROVIDER_ICON: Record<string, string> = {
   // 阶跃星辰 StepFun (国内 + 国际站共用 logo)
   'stepfun': stepfun,
   'stepfun-global': stepfun,
+  // TypeSafe AI (Jev System One 决策模型)
+  'typesafe': typesafe,
 };
 
 export function getProviderIcon(providerId: string): string {

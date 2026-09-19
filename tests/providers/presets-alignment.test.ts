@@ -8,12 +8,12 @@ describe('PRESET_PROVIDERS alignment', () => {
     'minimax-global-coding', 'minimax-coding', 'deepseek', 'moonshot', 'kimi-coding',
     'kimi-coding-plan', 'qwen', 'qwen-coding', 'qianfan', 'qianfan-coding', 'volcengine-coding',
     'volcengine-agent', 'tencent', 'tencent-token-plan', 'siliconflow', 'xai', 'xai-grok-build', 'github-copilot',
-    'mistral', 'stepfun', 'stepfun-global', 'xiaomi', 'xiaomi-coding', 'openrouter',
+    'mistral', 'typesafe', 'stepfun', 'stepfun-global', 'xiaomi', 'xiaomi-coding', 'openrouter',
     'opencode-go', 'opencode-zen', 'qwen-token-plan', 'ollama', 'litellm',
   ];
 
-  it('has exactly 41 presets', () => {
-    expect(PRESET_PROVIDERS.length).toBe(41);
+  it('has exactly 42 presets', () => {
+    expect(PRESET_PROVIDERS.length).toBe(42);
   });
 
   it('contains all expected provider IDs', () => {
@@ -62,7 +62,7 @@ describe('PRESET_PROVIDERS alignment', () => {
     for (const p of PRESET_PROVIDERS) {
       if (!p.endpoints) continue;
       for (const ep of p.endpoints) {
-        expect(ep.type).toMatch(/^(anthropic|openai|responses)$/);
+        expect(ep.type).toMatch(/^(anthropic|openai|responses|typesafe)$/);
         expect(ep.baseUrl).toMatch(/^https?:\/\//);
       }
     }

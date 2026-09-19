@@ -2,7 +2,7 @@
 
 ![Models page](../images/models.png)
 
-The Models page ships 41 provider presets (official APIs, aggregators, Chinese and global cloud platforms) and also supports adding custom platforms.
+The Models page ships 42 provider presets (official APIs, aggregators, Chinese and global cloud platforms) and also supports adding custom platforms.
 
 ## 7.1 Browse & filter
 
@@ -14,7 +14,7 @@ The Models page ships 41 provider presets (official APIs, aggregators, Chinese a
 
 Open a platform's edit form (custom platforms start from **+ Add platform**):
 
-- **Endpoints**: configure several; each row is a protocol type (anthropic / openai / responses) + Base URL. Custom platforms can switch an openai endpoint between chat / responses under "Advanced protocol settings"
+- **Endpoints**: configure several; each row is a protocol type (anthropic / openai / responses / typesafe) + Base URL. Custom platforms can switch an openai endpoint between chat / responses under "Advanced protocol settings"
 - **Auth**: an API key (picked from the **vault**, can create one on the spot) or no auth (only for local services, public endpoints, or trusted internal gateways). Agent-native platforms like Claude subscriptions take no endpoint — they use **OAuth login** instead
 - **Model list**: auto-filled after a successful connection test; you can also add/remove rows manually (each row is the `model` parameter used in requests)
 - The form header links to the platform's official API docs and console

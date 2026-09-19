@@ -368,6 +368,21 @@ export const PRESET_PROVIDERS: Omit<Provider, 'vaultKey'>[] = [
     models: [],
   },
   {
+    // TypeSafe's System One decisions API is not chat-compatible and must keep
+    // its own ProviderType so no agent adapter ever offers it for routing.
+    // The endpoint carries /v1 because /models and /systemone both live under
+    // it while the site root does not serve them.
+    id: "typesafe",
+    name: "TypeSafe AI（Jev）",
+    type: "typesafe",
+    baseUrl: "https://api.typesafe.ai",
+    endpoints: [
+      { type: "typesafe", baseUrl: "https://api.typesafe.ai/v1" },
+    ],
+    authMode: "api_key",
+    models: [],
+  },
+  {
     id: "stepfun",
     name: "阶跃星辰",
     type: "openai",

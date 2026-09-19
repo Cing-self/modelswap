@@ -28,7 +28,7 @@ Keys and models, one console. ModelSwap is a local-first open-source tool that m
 ## Why ModelSwap
 
 - **Switching never loses your config** — Surgical writes: only fields ModelSwap owns are touched; your hooks, statusLine, tui and MCP config stay intact. Every switch is snapshotted first — one-click diff and rollback in Settings.
-- **41 platforms out of the box** — Anthropic / OpenAI / Google / Volcengine / Zhipu / DeepSeek / Kimi… official, aggregator and China-based presets ready to go: pick a platform, paste a key, switch. No doc-diving for base URLs.
+- **42 platforms out of the box** — Anthropic / OpenAI / Google / Volcengine / Zhipu / DeepSeek / Kimi… official, aggregator and China-based presets ready to go: pick a platform, paste a key, switch. No doc-diving for base URLs.
 - **Switch models without leaving the terminal** — ModelSwap generates each agent's native model catalog; switch with `/model` right inside the CLI, no round-trip to ModelSwap.
 - **Multi-device sync, you own the data** — LAN peer-to-peer sync with pairing codes, or plug in your own cloud storage (Cloudflare / Supabase / WebDAV / iCloud and more, 9 backends); one-time sync codes migrate between machines. Payloads are encrypted — the server never sees plaintext.
 - **Zero daemons, zero interception** — No background process, nothing on your request path: ModelSwap writes config and exits; your agents talk to model platforms directly. Uninstall leaves nothing behind — configs keep working.
@@ -84,7 +84,7 @@ modelswap web                              # web console (:3780)
 modelswap vault set <key>                  # store a secret interactively (AES-256-GCM)
 printf '%s' "$SECRET" | modelswap vault set <key> --stdin  # keep secrets out of argv in automation
 modelswap vault inject                     # print export statements (pair with eval)
-modelswap provider list                    # list 41 preset model platforms
+modelswap provider list                    # list 42 preset model platforms
 modelswap provider switch                  # interactive provider/model switch per agent
 modelswap provider use <provider>          # non-interactive switch (script/agent friendly)
 modelswap sync pair --create               # LAN pairing, or sync push/pull via self-hosted cloud
@@ -124,7 +124,7 @@ AES-256-GCM encrypted storage, masked display, on-demand terminal injection (`va
 - **One-time sync codes**: migrate all config and keys between two machines
 
 ### Provider / model management
-41 platform presets (official / aggregator / China-based), 10 agent adapters, multi-endpoint protocols (anthropic / OpenAI-compatible / responses), auth-state checks, and three credential modes (subscription / API / third-party). Adding a site starts from an empty model list — you write exactly what you choose.
+42 platform presets (official / aggregator / China-based), 10 agent adapters, multi-endpoint protocols (anthropic / OpenAI-compatible / responses / typesafe), auth-state checks, and three credential modes (subscription / API / third-party). Adding a site starts from an empty model list — you write exactly what you choose.
 
 ### Auto-create keys
 The browser extension fills and submits key-creation forms inside official consoles (31 platforms). Google AI Studio and Cloudflare channels are temporarily not offered; keys for them can still be added manually.

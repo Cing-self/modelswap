@@ -211,6 +211,44 @@ async function testApiKey(req, res) {
     let url;
     const headers = {};
 
+    if (type === 'typesafe' || isTypesafeEndpoint(baseUrl)) {
+      // TypeSafe's System One API has no chat wire form. Probe /v1/systemone
+      // with a minimal noul question; the API checks auth (401/403) before
+      // body validation (422), so any of those statuses proves the key state.
+      // Accept both the site root and the /v1 endpoint form as baseUrl.
+      const trimmed = String(baseUrl).replace(/\/+$/, '');
+      const systemOneUrl = (/\/v1$/.test(trimmed) ? trimmed : `${trimmed}/v1`) + '/systemone';
+      const probeResult = await httpRequest(systemOneUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${resolvedKey}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'jev-latest',
+          state: 'connectivity probe',
+          questions: {
+            probe: { type: 'noul', instructions: 'Does this state convey urgency?' },
+          },
+        }),
+        timeout: 10000,
+      });
+      if (probeResult.error) return res.json({ success: false, message: `连接失败: ${probeResult.error}` });
+      if (probeResult.status === 200 || probeResult.status === 422) {
+        return res.json({ success: true, message: '连接成功，Key 有效' });
+      }
+      if (probeResult.status === 401 || probeResult.status === 403) {
+        return res.json({ success: false, message: 'API Key 无效' });
+      }
+      if (probeResult.status === 402) {
+        return res.json({ success: false, message: '端点可达，Key 已通过鉴权，但账户余额不足，请充值后重试' });
+      }
+      if (probeResult.status === 429 || probeResult.status === 529) {
+        return res.json({ success: false, message: '端点可达，Key 已通过鉴权，但已触发速率限制，请稍后重试' });
+      }
+      return res.json({ success: false, message: `HTTP ${probeResult.status}: ${truncateBody(probeResult.body)}` });
+    }
+
     if (type === 'anthropic') {
       const isZaiAnthropic = isZaiAnthropicEndpoint(baseUrl);
       const isMiniMaxAnthropic = isMiniMaxAnthropicEndpoint(baseUrl);
@@ -436,6 +474,10 @@ async function testApiKeyResult(payload) {
 
 function isZaiAnthropicEndpoint(baseUrl) {
   return /^https?:\/\/api\.z\.ai\/api\/anthropic\/?$/i.test(String(baseUrl || '').trim());
+}
+
+function isTypesafeEndpoint(baseUrl) {
+  return /^https?:\/\/api\.typesafe\.ai(\/|$)/i.test(String(baseUrl || '').trim());
 }
 
 function isMiniMaxAnthropicEndpoint(baseUrl) {

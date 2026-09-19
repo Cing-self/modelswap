@@ -541,6 +541,20 @@
       "models": []
     },
     {
+      "id": "typesafe",
+      "name": "TypeSafe AI（Jev）",
+      "type": "typesafe",
+      "baseUrl": "https://api.typesafe.ai",
+      "endpoints": [
+        {
+          "type": "typesafe",
+          "baseUrl": "https://api.typesafe.ai/v1"
+        }
+      ],
+      "authMode": "api_key",
+      "models": []
+    },
+    {
       "id": "stepfun",
       "name": "阶跃星辰",
       "type": "openai",
@@ -2715,6 +2729,57 @@
       "models": []
     },
     {
+      "id": "typesafe",
+      "name": "TypeSafe AI（Jev）",
+      "providerIds": [
+        "typesafe"
+      ],
+      "offerings": [
+        {
+          "id": "typesafe",
+          "type": "api",
+          "label": "API 平台",
+          "providerId": "typesafe",
+          "endpointIds": [
+            "typesafe:endpoint:vmg0sg"
+          ],
+          "authMethodIds": [
+            "typesafe:api-key"
+          ],
+          "executionMode": "http_endpoint"
+        }
+      ],
+      "authMethods": [
+        {
+          "id": "typesafe:api-key",
+          "type": "api_key",
+          "label": "API Key",
+          "providerId": "typesafe",
+          "status": "unconfigured"
+        }
+      ],
+      "endpoints": [
+        {
+          "id": "typesafe:endpoint:vmg0sg",
+          "name": "TYPESAFE",
+          "offeringId": "typesafe",
+          "baseUrl": "https://api.typesafe.ai/v1",
+          "protocol": {
+            "family": "typesafe",
+            "mode": "generate-content"
+          },
+          "authMethodIds": [
+            "typesafe:api-key"
+          ],
+          "modelDiscovery": {
+            "type": "remote",
+            "path": "/models"
+          }
+        }
+      ],
+      "models": []
+    },
+    {
       "id": "stepfun",
       "name": "阶跃星辰",
       "providerIds": [
@@ -3028,7 +3093,8 @@
         "xai",
         "xai-grok-build",
         "github-copilot",
-        "mistral"
+        "mistral",
+        "typesafe"
       ]
     },
     {
