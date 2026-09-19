@@ -1,12 +1,12 @@
 /**
  * MODELSWAP capture wizard — page-guided overlay (demo, handoff §4.3.2).
  *
- * Injected alongside copy-guard into request-domain tabs. Renders a top bar
- * with the request's steps plus a spotlight around the element named by the
- * active step's selector ("display text@@css selector" in --step). Steps
- * advance on their own when a pattern-matched capture for this request lands
- * (the spotlight is only a suggestion), or manually via buttons. When every
- * key is stored the wizard announces completion and removes itself.
+ * Injected alongside copy-guard into request-domain tabs. No bars, no
+ * dialogs: the element named by the active step's selector
+ * ("display text@@css selector" in --step) gets a spotlight ring, and the
+ * step advances on its own when a pattern-matched capture for this request
+ * lands (the highlight is only a suggestion). Guidance steps (danger notes
+ * etc.) dwell ~6s then move on. Esc dismisses.
  *
  * Self-contained IIFE on purpose: content scripts are plain tsc output with
  * no bundler, so this file must not import anything (see copy-guard.ts).
@@ -34,13 +34,6 @@
 
   const DANGER = /regenerate|delete|destroy|revoke|删除|撤销|重置|作废/i;
 
-  function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
-    const node = document.createElement(tag);
-    if (className) node.className = className;
-    if (text !== undefined) node.textContent = text;
-    return node;
-  }
-
   function registrableDomain(url: string): string | null {
     try { return new URL(url).hostname.split(".").slice(-2).join("."); } catch { return null; }
   }
@@ -63,56 +56,95 @@
     return candidates[0] ?? null;
   }
 
-  // ─── Style (first page-injected stylesheet in this extension) ───────
+  // ─── Style ───────────────────────────────────────────────────────────
   const style = document.createElement("style");
   style.id = "msw-wiz-style";
   style.textContent = `
-.msw-wiz-bar { position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
-  z-index: 2147483646; background: #101014; color: #ececee;
-  border: 1px solid #3a3a41; border-radius: 10px;
-  box-shadow: 0 6px 24px rgba(0,0,0,.35); padding: 10px 14px;
-  font: 12.5px/1.5 system-ui, -apple-system, sans-serif;
-  max-width: min(600px, calc(100vw - 24px)); }
-.msw-wiz-title { font-size: 10.5px; letter-spacing: .6px; color: #8e8e96; margin-bottom: 2px; }
-.msw-wiz-step { font-size: 13px; font-weight: 600; }
-.msw-wiz-note { font-size: 11.5px; color: #8e8e96; margin-top: 2px; }
-.msw-wiz-actions { display: flex; gap: 6px; margin-top: 8px; }
-.msw-wiz-actions button { font: inherit; font-size: 12px; color: #ececee; background: #1c1c20;
-  border: 1px solid #3a3a41; border-radius: 7px; padding: 4px 10px; cursor: pointer; }
-.msw-wiz-actions button:hover { background: #232328; }
 .msw-wiz-spot { position: fixed; z-index: 2147483645; border: 2px solid #22c55e;
-  border-radius: 8px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, .55);
+  border-radius: 10px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, .55);
   pointer-events: none; }
 .msw-wiz-spot.danger { border-color: #ef4444; }
-.msw-wiz-tip { position: fixed; z-index: 2147483647; background: #22c55e; color: #052e16;
-  font: 600 11px/1 system-ui, -apple-system, sans-serif; padding: 4px 9px;
-  border-radius: 999px; white-space: nowrap; }
-.msw-wiz-tip.danger { background: #ef4444; color: #fff; }
+.msw-wiz-tip { position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+  z-index: 2147483646; background: #101014; color: #ececee;
+  border: 1px solid #3a3a41; border-radius: 999px;
+  font: 600 12px/1 system-ui, -apple-system, sans-serif; padding: 6px 14px;
+  white-space: nowrap; }
+.msw-wiz-tip.ok { border-color: #22c55e; }
 `;
   document.documentElement.appendChild(style);
 
-  // ─── Persistent overlay elements ────────────────────────────────────
-  const bar = el("div", "msw-wiz-bar");
-  const title = el("div", "msw-wiz-title");
-  const stepText = el("div", "msw-wiz-step");
-  const note = el("div", "msw-wiz-note");
-  const actions = el("div", "msw-wiz-actions");
-  const spot = el("div", "msw-wiz-spot");
-  const tip = el("div", "msw-wiz-tip");
-  document.documentElement.append(bar, spot, tip);
-  bar.append(title, stepText, note, actions);
+  // ─── Overlay elements ────────────────────────────────────────────────
+  const spot = document.createElement("div");
+  spot.className = "msw-wiz-spot";
+  spot.hidden = true;
+  const tip = document.createElement("div");
+  tip.className = "msw-wiz-tip";
+  tip.hidden = true;
+  document.documentElement.append(spot, tip);
 
   let steps: Array<{ text: string; selector?: string }> = [];
   let active = 0;
   let lastFulfilled = 0;
   let currentReqId: string | null = null;
+  let lastStepKey = "";
   let closed = false;
   let targetEl: Element | null = null;
 
   function teardown(): void {
     if (closed) return;
     closed = true;
-    bar.remove(); spot.remove(); tip.remove(); style.remove();
+    spot.remove(); tip.remove(); style.remove();
+  }
+
+  function showPill(text: string, cls = ""): void {
+    tip.className = `msw-wiz-tip${cls ? " " + cls : ""}`;
+    tip.textContent = text;
+    tip.hidden = false;
+  }
+
+  /** Activate a step; schedules the 6s dwell fallback exactly once per step
+   *  (storage churn re-renders must not keep resetting it). */
+  function goTo(idx: number): void {
+    active = Math.max(0, Math.min(steps.length - 1, idx));
+    const key = `${currentReqId}:${active}`;
+    if (key === lastStepKey) return;
+    lastStepKey = key;
+    renderStep();
+    setTimeout(() => {
+      if (closed || lastStepKey !== key) return;
+      goTo(active + 1);
+    }, 6000);
+  }
+
+  function renderStep(): void {
+    if (closed) return;
+    const step = steps[active];
+
+    targetEl = step.selector ? document.querySelector(step.selector) : null;
+    const danger = DANGER.test(step.text);
+
+    if (targetEl) {
+      targetEl.scrollIntoView({ block: "center" });
+      spot.className = `msw-wiz-spot${danger ? " danger" : ""}`;
+      spot.hidden = false;
+      positionSpotlight();
+      showPill(danger ? "⚠ 危险操作 · 请勿点击" : `${active + 1}/${steps.length}`);
+    } else if (step.selector) {
+      // selector miss (page revamp) — degrade to a plain hint
+      spot.hidden = true;
+      showPill(`${active + 1}/${steps.length} · ${step.text.slice(0, 60)}`);
+    } else {
+      // announcement step — no element to spotlight
+      spot.hidden = true;
+      showPill(step.text.slice(0, 80));
+    }
+  }
+
+  function renderDone(): void {
+    spot.hidden = true;
+    targetEl = null;
+    showPill("✅ 全部捕获完成", "ok");
+    setTimeout(teardown, 3000);
   }
 
   function positionSpotlight(): void {
@@ -122,45 +154,6 @@
     spot.style.left = `${r.left - 6}px`;
     spot.style.width = `${r.width + 12}px`;
     spot.style.height = `${r.height + 12}px`;
-    // tip above the ring; flip below when there is no headroom
-    tip.style.top = `${r.top > 60 ? r.top - 30 : r.bottom + 8}px`;
-    tip.style.left = `${Math.max(8, r.left)}px`;
-  }
-
-  function renderStep(): void {
-    if (closed) return;
-    if (active >= steps.length) active = steps.length - 1;
-    if (active < 0) active = 0;
-    const step = steps[active];
-
-    title.textContent = `MODELSWAP 捕获向导 · 步骤 ${active + 1}/${steps.length}`;
-    stepText.textContent = step.text;
-
-    targetEl = step.selector ? document.querySelector(step.selector) : null;
-    const danger = DANGER.test(step.text) || (targetEl ? DANGER.test(targetEl.textContent ?? "") : false);
-
-    if (targetEl) {
-      targetEl.scrollIntoView({ block: "center" });
-      spot.className = `msw-wiz-spot${danger ? " danger" : ""}`;
-      spot.hidden = false;
-      tip.className = `msw-wiz-tip${danger ? " danger" : ""}`;
-      tip.textContent = danger ? "⚠ 危险操作，确认后再点击" : "高亮元素 · 复制后自动进入下一步";
-      tip.hidden = false;
-      positionSpotlight();
-      note.textContent = "";
-    } else {
-      spot.hidden = true;
-      tip.hidden = true;
-      note.textContent = step.selector ? "（未定位到该元素——按文字说明操作即可，不影响入库）" : "";
-    }
-  }
-
-  function renderDone(): void {
-    title.textContent = "MODELSWAP 捕获向导";
-    stepText.textContent = "✅ 全部捕获完成，向导即将自动关闭";
-    note.textContent = "";
-    spot.hidden = true;
-    tip.hidden = true;
   }
 
   // ─── Storage-driven state machine ───────────────────────────────────
@@ -190,19 +183,22 @@
         steps = (req.items.find((i) => i.steps?.some((s) => s.includes("@@")))?.steps ?? [])
           .filter((s) => s.includes("@@"))
           .map(splitStep);
-        active = Math.min(count, steps.length - 1);
-      } else if (count > lastFulfilled) {
-        // A pattern-matched copy landed — the capture IS the step completion.
-        active += count - lastFulfilled;
-        lastFulfilled = count;
-      }
-
-      if (req.items.every((i) => i.status === "fulfilled")) {
-        renderDone();
-        setTimeout(teardown, 3000);
+        goTo(0);
         return;
       }
-      renderStep();
+      if (count > lastFulfilled) {
+        // A pattern-matched copy landed — the capture IS the step completion.
+        const diff = count - lastFulfilled;
+        lastFulfilled = count;
+        if (req.items.every((i) => i.status === "fulfilled")) {
+          renderDone();
+          setTimeout(teardown, 3000);
+          return;
+        }
+        goTo(active + diff);
+        return;
+      }
+      // Pure churn (WS reconnect re-pushes): keep the current step as-is.
     });
   }
 
@@ -212,14 +208,7 @@
   });
   window.addEventListener("scroll", () => positionSpotlight(), { passive: true });
   window.addEventListener("resize", () => positionSpotlight(), { passive: true });
-
-  const prevBtn = el("button", undefined, "上一步");
-  const nextBtn = el("button", undefined, "下一步");
-  const closeBtn = el("button", undefined, "关闭");
-  prevBtn.addEventListener("click", () => { active = Math.max(0, active - 1); renderStep(); });
-  nextBtn.addEventListener("click", () => { active = Math.min(steps.length - 1, active + 1); renderStep(); });
-  closeBtn.addEventListener("click", () => teardown());
-  actions.append(prevBtn, nextBtn, closeBtn);
+  window.addEventListener("keydown", (e) => { if (e.key === "Escape") teardown(); });
 
   refresh();
 })();
