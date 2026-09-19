@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.86",
+  "publishedAt": "2026-09-19",
+  "summary": {
+    "zh": "接入 TypeSafe AI 的 Jev——首个「System One」决策模型：不生成文本，输入 state + 问题（noul/choice/score），直接返回带概率与置信度的类型化决策，输入 $0.042/百万 token、输出免费。新增 typesafe 协议类型，连接探测与模型发现对真实 API 实测通过。",
+    "en": "Adds TypeSafe AI's Jev — the first 'System One' decisions model: no text generation; send a state plus questions (noul/choice/score) and get typed decisions with calibrated probabilities. Input $0.042/M tokens, output free. Ships a dedicated typesafe protocol type; the connection probe and model discovery were verified against the live API."
+  },
+  "highlights": [
+    {
+      "category": "new",
+      "zh": "TypeSafe AI（Jev）平台预置：官方 /v1/systemone 直连，绑定 vault 密钥即可一键验证连接。Jev 是决策模型而非聊天模型——用它做分类、评分、意图路由等判别任务，速度和成本比通用大模型低两个数量级。",
+      "en": "TypeSafe AI (Jev) provider preset: direct /v1/systemone integration — bind a vault key and verify with one click. Jev is a decision model, not a chat model: use it for classification, scoring and intent routing at roughly two orders of magnitude lower cost and latency than general LLMs."
+    },
+    {
+      "category": "new",
+      "zh": "新增 typesafe 协议类型：Jev 的 API 不是 OpenAI/Anthropic 兼容协议，独立类型保证它永远不会被误路由进任何编码 Agent（首例零 adapter 平台，模型页不再出现虚假的「切换到 Agent」路径），展示与真实能力一致。",
+      "en": "New typesafe protocol type: Jev's API is not OpenAI/Anthropic compatible, and the dedicated type guarantees it can never be mis-routed into a coding agent — the first zero-adapter platform, so the models page shows no fake 'switch agent' path and the UI matches real capabilities."
+    },
+    {
+      "category": "improved",
+      "zh": "连接探测与模型发现按真实 API 行为实现：POST /v1/systemone 最小 noul 问题探测（401/403=Key 无效、200/422=有效、402/429/529 分别提示余额与限流），模型发现复用 OpenAI 形状的 GET /v1/models——全部对真实端点实测验证。",
+      "en": "Connection probe and model discovery follow the real API behavior: POST /v1/systemone with a minimal noul question (401/403 invalid, 200/422 valid, dedicated messages for 402 balance and 429/529 rate limits), and discovery reuses the OpenAI-shaped GET /v1/models — all verified against the live endpoint."
+    }
+  ]
+}
