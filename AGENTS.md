@@ -65,6 +65,8 @@ AES-256-GCM encrypted key storage in `src/vault/store.ts`. Machine-specific key 
 
 CI 在 ubuntu/macos/windows 三平台矩阵跑测试；Publish 发版由 CI 全绿门禁触发（workflow_run），CI 红时不会发版。**push 到 main 后必须等 CI 三平台全绿（`gh run watch`）再合入/推送下一批并行改动**——本地 macOS 全绿不代表远端全绿。
 
+**发版前必须先询问用户**：`release-notes/vX.Y.Z.json` 是发版的扳机——它随 CI 全绿被推送后，workflow_run 会自动发布新版本，没有回头路。因此任何 agent 在新建或推送新的 release-notes 文件之前，必须先把版本号和 highlights（3-6 条）拿给用户确认，用户点头后才能推；只改代码不动 release-notes 的普通 push 不会触发发版，不受此限。
+
 跨平台测试规则（都是 2026-08-27 CI 三轮事故的教训，mac 上感知不到、只在 linux/windows 矩阵暴露）：
 
 - 子进程测试（`execFileSync` 起 node/ts-node）的 env 必须同时设 `HOME` **和** `USERPROFILE`——Windows 的 `os.homedir()` 读 `USERPROFILE`，只设 HOME 子进程会写错 home
