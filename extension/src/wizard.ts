@@ -38,9 +38,12 @@
     try { return new URL(url).hostname.split(".").slice(-2).join("."); } catch { return null; }
   }
 
-  function splitStep(raw: string): { text: string; selector?: string } {
-    const at = raw.indexOf("@@");
-    return at === -1 ? { text: raw } : { text: raw.slice(0, at), selector: raw.slice(at + 2) };
+  function splitStep(raw: string): { text: string; selector?: string; expect?: string } {
+    const parts = raw.split("@@");
+    const out: { text: string; selector?: string; expect?: string } = { text: parts[0] };
+    if (parts[1]) out.selector = parts[1];
+    if (parts[2]) out.expect = parts[2];
+    return out;
   }
 
   /** Newest pending request on this page's domain that carries guided steps. */
@@ -82,7 +85,7 @@
   tip.hidden = true;
   document.documentElement.append(spot, tip);
 
-  let steps: Array<{ text: string; selector?: string }> = [];
+  let steps: Array<{ text: string; selector?: string; expect?: string }> = [];
   let active = 0;
   let lastFulfilled = 0;
   let currentReqId: string | null = null;
@@ -127,6 +130,10 @@
     const step = steps[active];
 
     targetEl = step.selector ? document.querySelector(step.selector) : null;
+    // 期望片段校验：门牌号命中了，但元素内容对不上 = 网页已变（配方漂移）
+    // ——错误的引导比没有引导更糟，降级为纯文字并放弃高亮。
+    const drifted = !!targetEl && !!step.expect && !(targetEl.textContent ?? "").includes(step.expect);
+    if (drifted) targetEl = null;
     const danger = DANGER.test(step.text);
 
     if (targetEl) {
@@ -136,14 +143,13 @@
       positionSpotlight();
       showPill(danger ? "⚠ 危险操作 · 请勿点击" : `${active + 1}/${steps.length}`);
     } else if (step.selector) {
-      // selector miss (page revamp) — degrade to a plain hint
+      // selector miss / drift (page revamp) — degrade to a plain hint
       spot.hidden = true;
       showPill(`${active + 1}/${steps.length} · ${step.text.slice(0, 60)}`);
     } else {
-      // announcement step — no element to spotlight; dwell and move on
+      // announcement step — no element to spotlight
       spot.hidden = true;
       showPill(step.text.slice(0, 80));
-      scheduleAdvance();
     }
   }
 
